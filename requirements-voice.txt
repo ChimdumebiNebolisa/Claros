@@ -1,0 +1,6 @@
+# Milestone 1 — Voice test script only (mic + speaker)
+# Main backend will use its own requirements.txt
+google-genai
+python-dotenv
+sounddevice
+numpy

@@ -1,2 +1,6 @@
 # Planning and documentation (not tracked in version control)
 docs/
+
+.env
+__pycache__/
+*.pyc
