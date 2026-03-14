@@ -1,0 +1,7 @@
+# Backend: FastAPI + Gemini Live + PDF + GCS
+fastapi
+uvicorn[standard]
+google-genai
+python-dotenv
+pymupdf
+google-cloud-storage
