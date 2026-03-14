@@ -19,6 +19,7 @@ from fastapi import FastAPI, UploadFile, File, WebSocket, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 
 from parser import parse_pdf, Question
+from agent import build_system_prompt, WriteTokenParser
 
 from google import genai
 from google.genai import types
@@ -62,6 +63,31 @@ def upload_pdf_to_gcs(assignment_id: str, pdf_bytes: bytes, filename: str = "ass
     return f"gs://{bucket.name}/assignments/{assignment_id}/{filename}"
 
 
+def load_assignment_text_from_gcs(assignment_id: str) -> str:
+    """Load PDF from GCS, parse, return assignment text for system prompt."""
+    bucket = get_gcs_bucket()
+    prefix = f"assignments/{assignment_id}/"
+    blobs = list(bucket.list_blobs(prefix=prefix))
+    if not blobs:
+        raise ValueError(f"No PDF found for assignment {assignment_id}")
+    blob = blobs[0]
+    pdf_bytes = blob.download_as_bytes()
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+        tmp.write(pdf_bytes)
+        tmp_path = tmp.name
+    try:
+        title, questions = parse_pdf(tmp_path)
+        assignment_text = title + "\n\n" + "\n\n".join(
+            f"Question {q.id}: {q.text}" for q in questions
+        )
+        return assignment_text
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+
+
 @app.post("/upload")
 async def upload_assignment(file: UploadFile = File(...)):
     """Accept PDF, upload to GCS, parse questions. Returns assignment_id, title, questions."""
@@ -92,6 +118,135 @@ async def upload_assignment(file: UploadFile = File(...)):
             pass
 
 
+@app.websocket("/session/{assignment_id}")
+async def ws_session(websocket: WebSocket, assignment_id: str):
+    """Assignment-aware voice session: loads assignment, injects into prompt, emits write events."""
+    await websocket.accept()
+    try:
+        assignment_text = load_assignment_text_from_gcs(assignment_id)
+    except Exception as e:
+        await websocket.send_text(json.dumps({"type": "error", "message": str(e)}))
+        await websocket.close()
+        return
+    system_prompt = build_system_prompt(assignment_text)
+    write_parser = WriteTokenParser()
+
+    api_key = get_api_key()
+    client = genai.Client(api_key=api_key, http_options={"api_version": "v1alpha"})
+    model = "gemini-2.5-flash-native-audio-preview-12-2025"
+    config = types.LiveConnectConfig(
+        response_modalities=[types.Modality.AUDIO],
+        speech_config=types.SpeechConfig(
+            voice_config=types.VoiceConfig(
+                prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Puck")
+            )
+        ),
+        system_instruction=types.Content(parts=[types.Part(text=system_prompt)]),
+        input_audio_transcription=types.AudioTranscriptionConfig(),
+        output_audio_transcription=types.AudioTranscriptionConfig(),
+    )
+
+    async def send_json(obj: dict):
+        try:
+            await websocket.send_text(json.dumps(obj))
+        except Exception:
+            pass
+
+    audio_queue = asyncio.Queue()
+    recv_task = None
+    send_task = None
+    keepalive_task = None
+
+    async def forward_audio_to_gemini(session):
+        nonlocal send_task
+        try:
+            while True:
+                chunk = await audio_queue.get()
+                if chunk is None:
+                    break
+                await session.send_realtime_input(
+                    audio=types.Blob(data=chunk, mime_type="audio/pcm;rate=16000")
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            await send_json({"type": "error", "message": str(e)})
+
+    async def keepalive_loop(session):
+        nonlocal keepalive_task
+        try:
+            while True:
+                await asyncio.sleep(KEEPALIVE_INTERVAL)
+                await session.send_realtime_input(
+                    audio=types.Blob(data=SILENT_CHUNK, mime_type="audio/pcm;rate=16000")
+                )
+        except asyncio.CancelledError:
+            raise
+
+    async def receive_from_gemini_and_forward(session):
+        nonlocal recv_task
+        while True:
+            try:
+                async for response in session.receive():
+                    if not response.server_content:
+                        continue
+                    sc = response.server_content
+                    if sc.input_transcription and sc.input_transcription.text:
+                        await send_json({"type": "transcript", "speaker": "user", "text": sc.input_transcription.text})
+                    if sc.output_transcription and sc.output_transcription.text:
+                        text = sc.output_transcription.text
+                        await send_json({"type": "transcript", "speaker": "claros", "text": text})
+                        for ev in write_parser.feed(text):
+                            if ev["event"] == "write_start":
+                                await send_json({"type": "status", "mode": "writing"})
+                                await send_json({"type": "write_start", "question_id": ev["question_id"]})
+                            elif ev["event"] == "write_token":
+                                await send_json({"type": "write_token", "question_id": ev["question_id"], "text": ev["text"]})
+                            elif ev["event"] == "write_end":
+                                await send_json({"type": "write_end", "question_id": ev["question_id"]})
+                                await send_json({"type": "status", "mode": "teaching"})
+                    if sc.model_turn and sc.model_turn.parts:
+                        for part in sc.model_turn.parts:
+                            if part.inline_data and part.inline_data.data:
+                                await send_json({"type": "audio", "data": base64.b64encode(part.inline_data.data).decode()})
+                    if getattr(sc, "turn_complete", False):
+                        await send_json({"type": "status", "mode": "teaching"})
+                await asyncio.sleep(1)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                await send_json({"type": "error", "message": str(e)})
+                await asyncio.sleep(1)
+
+    try:
+        await send_json({"type": "status", "mode": "connecting"})
+        async with client.aio.live.connect(model=model, config=config) as session:
+            await send_json({"type": "status", "mode": "teaching"})
+            recv_task = asyncio.create_task(receive_from_gemini_and_forward(session))
+            send_task = asyncio.create_task(forward_audio_to_gemini(session))
+            keepalive_task = asyncio.create_task(keepalive_loop(session))
+            while True:
+                try:
+                    msg = await asyncio.wait_for(websocket.receive(), timeout=60.0)
+                except asyncio.TimeoutError:
+                    continue
+                if msg.get("type") == "websocket.disconnect":
+                    break
+                if "bytes" in msg:
+                    audio_queue.put_nowait(msg["bytes"])
+    except Exception as e:
+        if not _is_connection_error(e):
+            await send_json({"type": "error", "message": str(e)})
+    finally:
+        audio_queue.put_nowait(None)
+        for t in (recv_task, send_task, keepalive_task):
+            if t is not None:
+                t.cancel()
+        for t in (recv_task, send_task, keepalive_task):
+            if t is not None:
+                await asyncio.gather(t, return_exceptions=True)
+
+
 def _is_connection_error(e: BaseException) -> bool:
     if WsConnectionClosedError is not None and isinstance(e, WsConnectionClosedError):
         return True
@@ -103,7 +258,18 @@ def _is_connection_error(e: BaseException) -> bool:
 
 @app.get("/", response_class=HTMLResponse)
 async def index():
-    """Serve the debug voice test page."""
+    """Serve the Claros app (frontend/index.html)."""
+    path = ROOT / "frontend" / "index.html"
+    if not path.exists():
+        path = ROOT / "test_voice.html"
+    if not path.exists():
+        return HTMLResponse("<h1>Not found</h1>", status_code=404)
+    return FileResponse(path, media_type="text/html")
+
+
+@app.get("/test", response_class=HTMLResponse)
+async def test_voice_page():
+    """Serve the voice debug test page."""
     path = ROOT / "test_voice.html"
     if not path.exists():
         return HTMLResponse("<h1>Not found</h1><p>test_voice.html missing</p>", status_code=404)

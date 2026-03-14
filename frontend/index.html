@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claros</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, sans-serif; background: #0f1419; color: #e2e4e8; min-height: 100vh; }
+    .app { display: flex; height: 100vh; }
+    .panel-left {
+      flex: 1; min-width: 0; overflow-y: auto; padding: 1rem; border-right: 1px solid #374151;
+    }
+    .panel-right {
+      width: 360px; flex-shrink: 0; padding: 1rem; display: flex; flex-direction: column;
+    }
+    .assignment-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; color: #f59e0b; }
+    .upload-zone {
+      border: 2px dashed #374151; border-radius: 8px; padding: 1.5rem; text-align: center; margin-bottom: 1rem;
+      cursor: pointer; background: #1a1d23;
+    }
+    .upload-zone:hover { border-color: #f59e0b; }
+    .upload-zone input { display: none; }
+    .question-card {
+      background: #1a1d23; border: 1px solid #374151; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;
+    }
+    .question-card.writing { border-color: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,0.3); }
+    .question-label { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; color: #d1d5db; }
+    .answer-field {
+      min-height: 60px; width: 100%; background: #111318; border: 1px solid #374151; border-radius: 4px;
+      padding: 0.75rem; font-family: ui-monospace, monospace; font-size: 0.9rem; color: #e2e4e8;
+      resize: vertical; white-space: pre-wrap; word-break: break-word;
+    }
+    .answer-field:focus { outline: none; border-color: #f59e0b; }
+    .status {
+      font-size: 1rem; font-weight: 600; text-align: center; padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .status.idle { background: #374151; color: #9ca3af; }
+    .status.connecting { background: #1e3a5f; color: #93c5fd; }
+    .status.teaching { background: #14532d; color: #86efac; }
+    .status.writing { background: #422006; color: #fcd34d; }
+    .meter-wrap { height: 20px; background: #374151; border-radius: 4px; overflow: hidden; margin-bottom: 1rem; }
+    .meter-bar { height: 100%; width: 0%; background: #22c55e; transition: width 0.05s ease; }
+    .transcript {
+      flex: 1; min-height: 120px; overflow-y: auto; background: #111318; border: 1px solid #374151;
+      border-radius: 8px; padding: 0.75rem; font-size: 0.85rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+    }
+    .transcript .user { color: #93c5fd; }
+    .transcript .claros { color: #86efac; }
+    .btn {
+      display: block; width: 100%; padding: 0.75rem 1rem; font-size: 1rem; font-weight: 600; border: none;
+      border-radius: 8px; cursor: pointer; background: #f59e0b; color: #1a1d23; margin-top: 0.5rem;
+    }
+    .btn:hover { background: #fbbf24; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn.stop { background: #dc2626; color: #fff; }
+    .btn.stop:hover { background: #ef4444; }
+    .btn.export { background: #374151; color: #e2e4e8; margin-top: 1rem; }
+    .btn.export:hover { background: #4b5563; }
+    .btn.export { display: none; }
+    .btn.export.visible { display: block; }
+    .errors { font-size: 0.85rem; color: #fca5a5; margin-top: 0.5rem; min-height: 1.5rem; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="panel-left">
+      <div class="assignment-title" id="assignmentTitle">Upload an assignment PDF</div>
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" accept=".pdf">
+        <span id="uploadLabel">Drop PDF or click to upload</span>
+      </div>
+      <div id="questionsContainer"></div>
+      <button class="btn export" id="exportBtn">Export to PDF</button>
+    </div>
+    <div class="panel-right">
+      <div id="status" class="status idle">Idle</div>
+      <div class="meter-wrap"><div id="meterBar" class="meter-bar"></div></div>
+      <div id="transcript" class="transcript"></div>
+      <div id="errors" class="errors"></div>
+      <button class="btn" id="micBtn" disabled>Start Session</button>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const SAMPLE_RATE = 16000;
+      const OUT_SAMPLE_RATE = 24000;
+      let state = { assignmentId: null, title: '', questions: [], answers: {} };
+
+      const assignmentTitleEl = document.getElementById('assignmentTitle');
+      const uploadZone = document.getElementById('uploadZone');
+      const fileInput = document.getElementById('fileInput');
+      const uploadLabel = document.getElementById('uploadLabel');
+      const questionsContainer = document.getElementById('questionsContainer');
+      const exportBtn = document.getElementById('exportBtn');
+      const statusEl = document.getElementById('status');
+      const meterBar = document.getElementById('meterBar');
+      const transcriptEl = document.getElementById('transcript');
+      const errorsEl = document.getElementById('errors');
+      const micBtn = document.getElementById('micBtn');
+
+      uploadZone.addEventListener('click', () => fileInput.click());
+      uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('hover'); });
+      uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('hover'));
+      uploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove('hover');
+        const file = e.dataTransfer.files[0];
+        if (file && file.name.toLowerCase().endsWith('.pdf')) doUpload(file);
+      });
+      fileInput.addEventListener('change', () => {
+        const file = fileInput.files[0];
+        if (file) doUpload(file);
+      });
+
+      async function doUpload(file) {
+        uploadLabel.textContent = 'Uploading…';
+        errorsEl.textContent = '';
+        const form = new FormData();
+        form.append('file', file);
+        try {
+          const r = await fetch('/upload', { method: 'POST', body: form });
+          if (!r.ok) {
+            const err = await r.json().catch(() => ({}));
+            throw new Error(err.detail || err.error || 'Upload failed');
+          }
+          const data = await r.json();
+          state.assignmentId = data.assignment_id;
+          state.title = data.title || 'Assignment';
+          state.questions = data.questions || [];
+          state.answers = {};
+          assignmentTitleEl.textContent = state.title;
+          renderQuestions();
+          micBtn.disabled = false;
+          uploadLabel.textContent = 'Drop PDF or click to upload';
+        } catch (err) {
+          uploadLabel.textContent = 'Drop PDF or click to upload';
+          errorsEl.textContent = err.message || 'Upload failed';
+        }
+      }
+
+      function renderQuestions() {
+        questionsContainer.innerHTML = '';
+        state.questions.forEach((q) => {
+          const card = document.createElement('div');
+          card.className = 'question-card';
+          card.dataset.questionId = String(q.id);
+          card.innerHTML = '<div class="question-label">Question ' + q.id + '</div><div class="answer-field" data-question-id="' + q.id + '" contenteditable="true" spellcheck="true"></div>';
+          const answerEl = card.querySelector('.answer-field');
+          answerEl.addEventListener('input', () => { state.answers[q.id] = answerEl.textContent; });
+          questionsContainer.appendChild(card);
+        });
+      }
+
+      function getAnswerEl(questionId) {
+        return document.querySelector('.answer-field[data-question-id="' + questionId + '"]');
+      }
+      function getCardEl(questionId) {
+        return document.querySelector('.question-card[data-question-id="' + questionId + '"]');
+      }
+
+      const WS_BASE = location.host ? (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host : 'ws://127.0.0.1:8000';
+
+      let ws = null;
+      let audioContext = null;
+      let mediaStream = null;
+      let sourceNode = null;
+      let processorNode = null;
+      let playbackContext = null;
+      let nextPlaybackTime = 0;
+
+      function setStatus(mode) {
+        const label = mode === 'teaching' ? 'Teaching' : mode === 'writing' ? 'Writing' : mode === 'connecting' ? 'Connecting' : 'Idle';
+        statusEl.textContent = label;
+        statusEl.className = 'status ' + (mode === 'connecting' ? 'connecting' : mode === 'writing' ? 'writing' : mode === 'teaching' ? 'teaching' : 'idle');
+      }
+
+      function addTranscript(speaker, text) {
+        if (!text.trim()) return;
+        const span = document.createElement('span');
+        span.className = speaker;
+        span.textContent = (speaker === 'user' ? 'You: ' : 'Claros: ') + text + '\n';
+        transcriptEl.appendChild(span);
+        transcriptEl.scrollTop = transcriptEl.scrollHeight;
+      }
+
+      function queuePcm24kChunk(base64Data) {
+        if (!playbackContext) playbackContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: OUT_SAMPLE_RATE });
+        if (playbackContext.state === 'suspended') playbackContext.resume();
+        const ctx = playbackContext;
+        const binary = atob(base64Data);
+        const byteLength = binary.length;
+        const numSamples = byteLength >> 1;
+        const bytes = new Uint8Array(byteLength);
+        for (let i = 0; i < byteLength; i++) bytes[i] = binary.charCodeAt(i);
+        const int16Samples = new Int16Array(bytes.buffer, 0, numSamples);
+        const buf = ctx.createBuffer(1, numSamples, OUT_SAMPLE_RATE);
+        const channel = buf.getChannelData(0);
+        for (let i = 0; i < numSamples; i++) channel[i] = int16Samples[i] / 32768;
+        const startTime = Math.max(ctx.currentTime, nextPlaybackTime);
+        const source = ctx.createBufferSource();
+        source.buffer = buf;
+        source.connect(ctx.destination);
+        source.start(startTime);
+        nextPlaybackTime = startTime + buf.duration;
+      }
+
+      function startMeter(stream) {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const src = ctx.createMediaStreamSource(stream);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.8;
+        src.connect(analyser);
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        function tick() {
+          if (!mediaStream || !mediaStream.active) return;
+          analyser.getByteFrequencyData(data);
+          let sum = 0;
+          for (let i = 0; i < data.length; i++) sum += data[i];
+          meterBar.style.width = Math.min(100, (sum / data.length) * 2) + '%';
+          requestAnimationFrame(tick);
+        }
+        tick();
+      }
+
+      async function startSession() {
+        if (!state.assignmentId) return;
+        errorsEl.textContent = '';
+        setStatus('connecting');
+        micBtn.disabled = true;
+        micBtn.textContent = 'Connecting…';
+        const wsUrl = WS_BASE + '/session/' + state.assignmentId;
+        ws = new WebSocket(wsUrl);
+        ws.binaryType = 'arraybuffer';
+
+        await new Promise((resolve, reject) => {
+          ws.onopen = () => resolve();
+          ws.onerror = () => reject(new Error('WebSocket failed'));
+          setTimeout(() => reject(new Error('Connection timeout')), 15000);
+        });
+
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaStream = stream;
+        startMeter(stream);
+
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const inputRate = audioContext.sampleRate;
+        const ratio = inputRate / SAMPLE_RATE;
+        sourceNode = audioContext.createMediaStreamSource(stream);
+        processorNode = audioContext.createScriptProcessor(1024, 1, 1);
+        processorNode.onaudioprocess = function (e) {
+          if (!ws || ws.readyState !== WebSocket.OPEN) return;
+          const input = e.inputBuffer.getChannelData(0);
+          const outSamples = Math.floor(input.length / ratio);
+          const out = new Int16Array(outSamples);
+          for (let i = 0; i < outSamples; i++) {
+            const idx = Math.min(Math.floor(i * ratio), input.length - 1);
+            const s = Math.max(-1, Math.min(1, input[idx]));
+            out[i] = s < 0 ? s * 32768 : s * 32767;
+          }
+          ws.send(out.buffer);
+        };
+        sourceNode.connect(processorNode);
+        processorNode.connect(audioContext.destination);
+
+        micBtn.disabled = false;
+        micBtn.textContent = 'End Session';
+        micBtn.classList.add('stop');
+
+        ws.onmessage = function (ev) {
+          if (typeof ev.data !== 'string') return;
+          try {
+            const msg = JSON.parse(ev.data);
+            if (msg.type === 'status' && msg.mode) setStatus(msg.mode);
+            else if (msg.type === 'transcript') addTranscript(msg.speaker || 'claros', msg.text || '');
+            else if (msg.type === 'audio') queuePcm24kChunk(msg.data);
+            else if (msg.type === 'write_start') {
+              const el = getAnswerEl(msg.question_id);
+              const card = getCardEl(msg.question_id);
+              if (el) { el.textContent = ''; state.answers[msg.question_id] = ''; }
+              if (card) card.classList.add('writing');
+            }
+            else if (msg.type === 'write_token') {
+              const el = getAnswerEl(msg.question_id);
+              if (el) {
+                el.textContent = (el.textContent || '') + (msg.text || '');
+                state.answers[msg.question_id] = el.textContent;
+                exportBtn.classList.add('visible');
+              }
+            }
+            else if (msg.type === 'write_end') {
+              const card = getCardEl(msg.question_id);
+              if (card) card.classList.remove('writing');
+            }
+            else if (msg.type === 'error') errorsEl.textContent = msg.message || '';
+          } catch (err) { console.error(err); }
+        };
+
+        ws.onclose = () => { setStatus('idle'); stopSession(); };
+        ws.onerror = () => { errorsEl.textContent = 'WebSocket error'; };
+      }
+
+      function stopSession() {
+        if (processorNode) {
+          try { processorNode.disconnect(); sourceNode && sourceNode.disconnect(); } catch (_) {}
+          processorNode = null; sourceNode = null;
+        }
+        if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+        if (ws) { ws.close(); ws = null; }
+        nextPlaybackTime = 0;
+        if (audioContext) { audioContext.close(); audioContext = null; }
+        meterBar.style.width = '0%';
+        micBtn.disabled = !state.assignmentId;
+        micBtn.textContent = 'Start Session';
+        micBtn.classList.remove('stop');
+      }
+
+      micBtn.addEventListener('click', function () {
+        if (ws && ws.readyState === WebSocket.OPEN) stopSession();
+        else startSession();
+      });
+
+      exportBtn.addEventListener('click', function () {
+        if (!state.assignmentId) return;
+        const answers = Object.entries(state.answers).map(([id, text]) => ({ question_id: parseInt(id, 10), answer_text: text || '' }));
+        const q = 'answers=' + encodeURIComponent(JSON.stringify(answers));
+        window.location.href = '/export/' + state.assignmentId + '?' + q;
+      });
+    })();
+  </script>
+</body>
+</html>
