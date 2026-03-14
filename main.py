@@ -5,6 +5,7 @@ import asyncio
 import base64
 import json
 import os
+import re
 import tempfile
 import uuid
 from pathlib import Path
@@ -22,7 +23,7 @@ from fastapi import Query
 from exporter import build_export_pdf
 
 from parser import parse_pdf, Question
-from agent import build_system_prompt, WriteTokenParser
+from agent import build_system_prompt
 
 from google import genai
 from google.genai import types
@@ -145,18 +146,37 @@ async def upload_assignment(file: UploadFile = File(...)):
             pass
 
 
+# Writing intent: user says they want an answer written (from input_transcription).
+_WRITE_INTENT_RE = re.compile(
+    r"\b(write|put\s+that\s+down|answer\s+question|write\s+my\s+answer|write\s+it\s+down|write\s+that)\b",
+    re.IGNORECASE,
+)
+_QUESTION_NUM_RE = re.compile(r"question\s*(\d+)", re.IGNORECASE)
+
+
+def _detect_write_intent(text: str) -> tuple[bool, int | None]:
+    """Returns (has_intent, question_id or None). question_id defaults to 1 if intent but no number."""
+    if not text or not _WRITE_INTENT_RE.search(text):
+        return False, None
+    m = _QUESTION_NUM_RE.search(text)
+    return True, int(m.group(1)) if m else 1
+
+
 @app.websocket("/session/{assignment_id}")
 async def ws_session(websocket: WebSocket, assignment_id: str):
-    """Assignment-aware voice session: loads assignment, injects into prompt, emits write events."""
+    """Assignment-aware voice session: loads assignment, injects into prompt. Write actions via separate text API."""
     await websocket.accept()
     try:
-        assignment_text = load_assignment_text_from_gcs(assignment_id)
+        title, questions = load_assignment_from_gcs(assignment_id)
+        assignment_text = title + "\n\n" + "\n\n".join(
+            f"Question {q['id']}: {q['text']}" for q in questions
+        )
+        question_ids = [q["id"] for q in questions]
     except Exception as e:
         await websocket.send_text(json.dumps({"type": "error", "message": str(e)}))
         await websocket.close()
         return
     system_prompt = build_system_prompt(assignment_text)
-    write_parser = WriteTokenParser()
 
     api_key = get_api_key()
     client = genai.Client(api_key=api_key, http_options={"api_version": "v1alpha"})
@@ -179,10 +199,56 @@ async def ws_session(websocket: WebSocket, assignment_id: str):
         except Exception:
             pass
 
+    # Conversation context for the text model when generating written answers.
+    conversation_context: list[tuple[str, str]] = []
+    last_write_trigger_text: str | None = None  # debounce: avoid re-triggering on same utterance
+
+    async def generate_write_response(question_id: int, context_snapshot: list[tuple[str, str]]):
+        """Call standard Gemini text API to generate answer for question_id; stream as write_token."""
+        if question_id not in question_ids:
+            await send_json({"type": "error", "message": f"Unknown question id: {question_id}"})
+            return
+        try:
+            conv_str = "\n".join(
+                f"{'User' if who == 'user' else 'Claros'}: {txt}" for who, txt in context_snapshot
+            )
+            prompt = f"""You are helping a student with their assignment. Below is the assignment and a transcript of the voice conversation so far.
+
+Assignment:
+{assignment_text}
+
+Conversation so far:
+{conv_str}
+
+The student has asked to have their answer for Question {question_id} written down. Based on what was discussed, write only the answer text for Question {question_id}. Do not include the question number, labels, or preamble. Output only the answer content that should appear in the answer box."""
+            await send_json({"type": "status", "mode": "writing"})
+            await send_json({"type": "write_start", "question_id": question_id})
+            try:
+                # Use a text model for structured output; stream token by token.
+                text_model = "gemini-2.0-flash"
+                stream = await client.aio.models.generate_content_stream(
+                    model=text_model,
+                    contents=prompt,
+                )
+                async for chunk in stream:
+                    text = getattr(chunk, "text", None)
+                    if text:
+                        await send_json({"type": "write_token", "question_id": question_id, "text": text})
+            except Exception as e:
+                await send_json({"type": "error", "message": str(e)})
+            finally:
+                await send_json({"type": "write_end", "question_id": question_id})
+                await send_json({"type": "status", "mode": "teaching"})
+        except asyncio.CancelledError:
+            await send_json({"type": "write_end", "question_id": question_id})
+            await send_json({"type": "status", "mode": "teaching"})
+            raise
+
     audio_queue = asyncio.Queue()
     recv_task = None
     send_task = None
     keepalive_task = None
+    write_task: asyncio.Task | None = None
 
     async def forward_audio_to_gemini(session):
         nonlocal send_task
@@ -194,6 +260,7 @@ async def ws_session(websocket: WebSocket, assignment_id: str):
                 await session.send_realtime_input(
                     audio=types.Blob(data=chunk, mime_type="audio/pcm;rate=16000")
                 )
+                print(f"[session/{assignment_id}] forward_audio_to_gemini: sent chunk to Gemini ({len(chunk)} bytes)")
         except asyncio.CancelledError:
             raise
         except Exception as e:
@@ -211,7 +278,7 @@ async def ws_session(websocket: WebSocket, assignment_id: str):
             raise
 
     async def receive_from_gemini_and_forward(session):
-        nonlocal recv_task
+        nonlocal recv_task, last_write_trigger_text, write_task
         while True:
             try:
                 async for response in session.receive():
@@ -219,25 +286,30 @@ async def ws_session(websocket: WebSocket, assignment_id: str):
                         continue
                     sc = response.server_content
                     if sc.input_transcription and sc.input_transcription.text:
-                        await send_json({"type": "transcript", "speaker": "user", "text": sc.input_transcription.text})
+                        user_text = sc.input_transcription.text.strip()
+                        conversation_context.append(("user", user_text))
+                        await send_json({"type": "transcript", "speaker": "user", "text": user_text})
+                        # Detect write intent from user speech; trigger separate text generation.
+                        has_intent, qid = _detect_write_intent(user_text)
+                        if has_intent and qid is not None and (last_write_trigger_text is None or last_write_trigger_text != user_text):
+                            last_write_trigger_text = user_text
+                            if write_task is not None and not write_task.done():
+                                write_task.cancel()
+                            context_snapshot = list(conversation_context)
+                            write_task = asyncio.create_task(generate_write_response(qid, context_snapshot))
                     if sc.output_transcription and sc.output_transcription.text:
                         text = sc.output_transcription.text
+                        conversation_context.append(("claros", text))
                         await send_json({"type": "transcript", "speaker": "claros", "text": text})
-                        for ev in write_parser.feed(text):
-                            if ev["event"] == "write_start":
-                                await send_json({"type": "status", "mode": "writing"})
-                                await send_json({"type": "write_start", "question_id": ev["question_id"]})
-                            elif ev["event"] == "write_token":
-                                await send_json({"type": "write_token", "question_id": ev["question_id"], "text": ev["text"]})
-                            elif ev["event"] == "write_end":
-                                await send_json({"type": "write_end", "question_id": ev["question_id"]})
-                                await send_json({"type": "status", "mode": "teaching"})
                     if sc.model_turn and sc.model_turn.parts:
                         for part in sc.model_turn.parts:
                             if part.inline_data and part.inline_data.data:
-                                await send_json({"type": "audio", "data": base64.b64encode(part.inline_data.data).decode()})
+                                data = part.inline_data.data
+                                print(f"[session/{assignment_id}] receive_from_gemini_and_forward: received audio from Gemini ({len(data)} bytes), forwarding to browser")
+                                await send_json({"type": "audio", "data": base64.b64encode(data).decode()})
                     if getattr(sc, "turn_complete", False):
                         await send_json({"type": "status", "mode": "teaching"})
+                        last_write_trigger_text = None  # allow next utterance to trigger again
                 await asyncio.sleep(1)
             except asyncio.CancelledError:
                 raise
@@ -259,17 +331,21 @@ async def ws_session(websocket: WebSocket, assignment_id: str):
                     continue
                 if msg.get("type") == "websocket.disconnect":
                     break
+                # Only enqueue when binary audio payload is present (avoids KeyError).
                 if "bytes" in msg:
-                    audio_queue.put_nowait(msg["bytes"])
+                    chunk = msg["bytes"]
+                    print(f"[session/{assignment_id}] Binary message received from browser: {len(chunk)} bytes")
+                    audio_queue.put_nowait(chunk)
+                    print(f"[session/{assignment_id}] Chunk put in audio_queue (queue size ~{audio_queue.qsize()})")
     except Exception as e:
         if not _is_connection_error(e):
             await send_json({"type": "error", "message": str(e)})
     finally:
         audio_queue.put_nowait(None)
-        for t in (recv_task, send_task, keepalive_task):
+        for t in (recv_task, send_task, keepalive_task, write_task):
             if t is not None:
                 t.cancel()
-        for t in (recv_task, send_task, keepalive_task):
+        for t in (recv_task, send_task, keepalive_task, write_task):
             if t is not None:
                 await asyncio.gather(t, return_exceptions=True)
 
@@ -281,6 +357,15 @@ def _is_connection_error(e: BaseException) -> bool:
         return True
     msg = str(e).lower()
     return "connection" in msg or "timeout" in msg or "closed" in msg or "1011" in msg
+
+
+@app.get("/test-assignment.pdf")
+async def serve_test_assignment():
+    """Serve the test assignment PDF from the project root."""
+    path = ROOT / "test_assignment.pdf"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="test_assignment.pdf not found. Run test_assignment.py to generate it.")
+    return FileResponse(path, media_type="application/pdf")
 
 
 @app.get("/", response_class=HTMLResponse)
