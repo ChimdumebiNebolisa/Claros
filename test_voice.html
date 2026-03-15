@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claros — Voice debug</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: #1a1d23;
+      color: #e2e4e8;
+      margin: 0;
+      padding: 1.5rem;
+      max-width: 640px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    h1 { font-size: 1.25rem; margin-bottom: 1rem; color: #f59e0b; }
+    .status {
+      font-size: 1.5rem;
+      font-weight: 700;
+      text-align: center;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .status.idle { background: #374151; color: #9ca3af; }
+    .status.connecting { background: #1e3a5f; color: #93c5fd; }
+    .status.listening { background: #14532d; color: #86efac; }
+    .status.speaking { background: #422006; color: #fcd34d; }
+    .status.reconnecting { background: #450a0a; color: #fca5a5; }
+    .meter-wrap {
+      height: 24px;
+      background: #374151;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+    .meter-bar {
+      height: 100%;
+      width: 0%;
+      background: #22c55e;
+      transition: width 0.05s ease;
+    }
+    .transcript {
+      min-height: 120px;
+      max-height: 240px;
+      overflow-y: auto;
+      background: #111318;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      padding: 0.75rem;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      margin-bottom: 1rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .transcript .user { color: #93c5fd; }
+    .transcript .claros { color: #86efac; }
+    .connection-log {
+      min-height: 48px;
+      font-size: 0.8rem;
+      color: #9ca3af;
+      background: #111318;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      padding: 0.5rem;
+      margin-bottom: 1rem;
+      white-space: pre-wrap;
+    }
+    .errors {
+      min-height: 48px;
+      background: #450a0a;
+      border: 1px solid #b91c1c;
+      border-radius: 8px;
+      padding: 0.75rem;
+      font-size: 0.85rem;
+      color: #fca5a5;
+      margin-bottom: 1rem;
+    }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 0.75rem 1rem;
+      font-size: 1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: #f59e0b;
+      color: #1a1d23;
+    }
+    .btn:hover { background: #fbbf24; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn.stop { background: #dc2626; color: #fff; }
+    .btn.stop:hover { background: #ef4444; }
+  </style>
+</head>
+<body>
+  <h1>Claros — Voice debug</h1>
+  <div id="status" class="status idle">Idle</div>
+  <div class="meter-wrap"><div id="meterBar" class="meter-bar"></div></div>
+  <div id="transcript" class="transcript"></div>
+  <div id="connectionLog" class="connection-log"></div>
+  <div id="errors" class="errors"></div>
+  <button id="btn" class="btn">Start</button>
+
+  <script>
+    (function () {
+      const WS_BASE = location.host ? (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host : 'ws://127.0.0.1:8000';
+      const WS_URL = WS_BASE + '/ws/voice';
+      const SAMPLE_RATE = 16000;
+      const OUT_SAMPLE_RATE = 24000;
+      const CHUNK_SAMPLES = 320;
+
+      const statusEl = document.getElementById('status');
+      const meterBar = document.getElementById('meterBar');
+      const transcriptEl = document.getElementById('transcript');
+      const connectionLogEl = document.getElementById('connectionLog');
+      const errorsEl = document.getElementById('errors');
+      const btn = document.getElementById('btn');
+
+      function logConnection(msg) {
+        const line = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+        connectionLogEl.textContent = (connectionLogEl.textContent ? connectionLogEl.textContent + '\n' : '') + line;
+        connectionLogEl.scrollTop = connectionLogEl.scrollHeight;
+      }
+
+      function setStatus(value) {
+        statusEl.textContent = value;
+        statusEl.className = 'status ' + value.toLowerCase();
+      }
+
+      function addTranscript(speaker, text) {
+        if (!text.trim()) return;
+        const span = document.createElement('span');
+        span.className = speaker;
+        span.textContent = (speaker === 'user' ? 'You: ' : 'Claros: ') + text + '\n';
+        transcriptEl.appendChild(span);
+        transcriptEl.scrollTop = transcriptEl.scrollHeight;
+      }
+
+      function showError(msg) {
+        errorsEl.textContent = (errorsEl.textContent ? errorsEl.textContent + '\n' : '') + msg;
+      }
+
+      function clearErrors() {
+        errorsEl.textContent = '';
+      }
+
+      let ws = null;
+      let audioContext = null;
+      let mediaStream = null;
+      let sourceNode = null;
+      let processorNode = null;
+      let playbackContext = null;
+      let nextPlaybackTime = 0;
+
+      function getPlaybackContext() {
+        if (!playbackContext) {
+          playbackContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: OUT_SAMPLE_RATE });
+        }
+        if (playbackContext.state === 'suspended') playbackContext.resume();
+        return playbackContext;
+      }
+
+      function queuePcm24kChunk(base64Data) {
+        const ctx = getPlaybackContext();
+        const binary = atob(base64Data);
+        const byteLength = binary.length;
+        const numSamples = byteLength >> 1;
+        const bytes = new Uint8Array(byteLength);
+        for (let i = 0; i < byteLength; i++) bytes[i] = binary.charCodeAt(i);
+        const int16Samples = new Int16Array(bytes.buffer, 0, numSamples);
+
+        const buf = ctx.createBuffer(1, numSamples, OUT_SAMPLE_RATE);
+        const channel = buf.getChannelData(0);
+        for (let i = 0; i < numSamples; i++) {
+          channel[i] = int16Samples[i] / 32768;
+        }
+
+        const startTime = Math.max(ctx.currentTime, nextPlaybackTime);
+        const source = ctx.createBufferSource();
+        source.buffer = buf;
+        source.connect(ctx.destination);
+        source.start(startTime);
+        nextPlaybackTime = startTime + buf.duration;
+      }
+
+      function startMeter(stream) {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const src = ctx.createMediaStreamSource(stream);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.8;
+        src.connect(analyser);
+        const data = new Uint8Array(analyser.frequencyBinCount);
+
+        function tick() {
+          if (!mediaStream || mediaStream.active === false) return;
+          analyser.getByteFrequencyData(data);
+          let sum = 0;
+          for (let i = 0; i < data.length; i++) sum += data[i];
+          const v = Math.min(100, (sum / data.length) * 2);
+          meterBar.style.width = v + '%';
+          requestAnimationFrame(tick);
+        }
+        tick();
+      }
+
+      async function start() {
+        clearErrors();
+        connectionLogEl.textContent = '';
+        setStatus('connecting');
+        btn.disabled = true;
+        btn.textContent = 'Connecting…';
+        logConnection('Connecting to ' + WS_URL + ' …');
+        console.log('[WebSocket] Connecting to', WS_URL);
+
+        try {
+          ws = new WebSocket(WS_URL);
+          ws.binaryType = 'arraybuffer';
+
+          await new Promise((resolve, reject) => {
+            ws.onopen = function () {
+              logConnection('WebSocket connected.');
+              console.log('[WebSocket] onopen');
+              resolve();
+            };
+            ws.onerror = function (e) {
+              logConnection('WebSocket error.');
+              console.log('[WebSocket] onerror', e);
+              reject(new Error('WebSocket failed'));
+            };
+            setTimeout(() => reject(new Error('WebSocket timeout')), 15000);
+          });
+
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaStream = stream;
+          startMeter(stream);
+
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          const inputRate = audioContext.sampleRate;
+          const ratio = inputRate / SAMPLE_RATE;
+          sourceNode = audioContext.createMediaStreamSource(stream);
+          const bufferSize = 1024; /* must be power of 2 */
+          processorNode = audioContext.createScriptProcessor(bufferSize, 1, 1);
+          processorNode.onaudioprocess = function (e) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            try {
+              const input = e.inputBuffer.getChannelData(0);
+              const outSamples = Math.floor(input.length / ratio);
+              const out = new Int16Array(outSamples);
+              for (let i = 0; i < outSamples; i++) {
+                const idx = Math.min(Math.floor(i * ratio), input.length - 1);
+                const s = Math.max(-1, Math.min(1, input[idx]));
+                out[i] = s < 0 ? s * 32768 : s * 32767;
+              }
+              ws.send(out.buffer);
+            } catch (err) {
+              console.error('Mic send error:', err);
+            }
+          };
+          sourceNode.connect(processorNode);
+          processorNode.connect(audioContext.destination);
+
+          setStatus('listening');
+          btn.disabled = false;
+          btn.textContent = 'Stop';
+          btn.classList.add('stop');
+
+          ws.onmessage = function (ev) {
+            console.log('[WebSocket] onmessage', typeof ev.data === 'string' ? ev.data.substring(0, 80) + (ev.data.length > 80 ? '…' : '') : '(binary ' + ev.data.byteLength + ' bytes)');
+            if (typeof ev.data !== 'string') return;
+            try {
+              const msg = JSON.parse(ev.data);
+              if (msg.type !== 'audio') logConnection('Message received: ' + (msg.type || 'unknown'));
+              if (msg.type === 'status') setStatus(msg.value);
+              else if (msg.type === 'transcript') addTranscript(msg.speaker, msg.text || '');
+              else if (msg.type === 'audio') queuePcm24kChunk(msg.data);
+              else if (msg.type === 'error') showError(msg.message || String(msg));
+            } catch (err) {
+              console.error('Message handling error:', err);
+              showError('Message error: ' + (err.message || String(err)));
+            }
+          };
+
+          ws.onclose = function (ev) {
+            logConnection('WebSocket closed. code=' + ev.code + ' reason=' + (ev.reason || '') + ' clean=' + ev.wasClean);
+            console.log('[WebSocket] onclose', ev.code, ev.reason, ev.wasClean);
+            setStatus('idle');
+            stop();
+          };
+          ws.onerror = function (e) {
+            logConnection('WebSocket error.');
+            console.log('[WebSocket] onerror', e);
+            showError('WebSocket error');
+          };
+        } catch (err) {
+          showError(err.message || String(err));
+          setStatus('idle');
+          btn.disabled = false;
+          btn.textContent = 'Start';
+          btn.classList.remove('stop');
+        }
+      }
+
+      function stop() {
+        if (processorNode) {
+          try {
+            processorNode.disconnect();
+            sourceNode && sourceNode.disconnect();
+          } catch (_) {}
+          processorNode = null;
+          sourceNode = null;
+        }
+        if (mediaStream) {
+          mediaStream.getTracks().forEach(function (t) { t.stop(); });
+          mediaStream = null;
+        }
+        if (ws) {
+          ws.close();
+          ws = null;
+        }
+        nextPlaybackTime = 0;
+        if (audioContext) {
+          audioContext.close();
+          audioContext = null;
+        }
+        meterBar.style.width = '0%';
+        btn.disabled = false;
+        btn.textContent = 'Start';
+        btn.classList.remove('stop');
+      }
+
+      btn.addEventListener('click', function () {
+        if (ws && ws.readyState === WebSocket.OPEN) stop();
+        else start();
+      });
+    })();
+  </script>
+</body>
+</html>

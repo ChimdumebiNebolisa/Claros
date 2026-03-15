@@ -7,6 +7,7 @@ import json
 import os
 import re
 import tempfile
+import traceback
 import uuid
 from pathlib import Path
 
@@ -320,10 +321,12 @@ Based on what was discussed, write only the answer text for Question {question_i
 
     async def forward_audio_to_gemini(session):
         nonlocal send_task
+        print(f"[session/{assignment_id}] forward_audio_to_gemini: ENTERED")
         try:
             while True:
                 chunk = await audio_queue.get()
                 if chunk is None:
+                    print(f"[session/{assignment_id}] forward_audio_to_gemini: received poison pill, exiting")
                     break
                 if audio_queue.qsize() >= MAX_QUEUE_BEFORE_DRAIN:
                     drained = 0
@@ -346,9 +349,12 @@ Based on what was discussed, write only the answer text for Question {question_i
                 except asyncio.TimeoutError:
                     print(f"[session/{assignment_id}] forward_audio_to_gemini: send_realtime_input timed out after {FORWARD_AUDIO_SEND_TIMEOUT}s, dropping chunk")
         except asyncio.CancelledError:
+            print(f"[session/{assignment_id}] forward_audio_to_gemini: CancelledError — exiting")
             raise
         except Exception as e:
-            await send_json({"type": "error", "message": str(e)})
+            print(f"[session/{assignment_id}] forward_audio_to_gemini: EXCEPTION: {type(e).__name__}: {e}")
+            traceback.print_exc()
+            await send_json({"type": "error", "message": f"forward_audio error: {type(e).__name__}: {e}"})
 
     async def keepalive_loop(session):
         nonlocal keepalive_task
@@ -367,16 +373,25 @@ Based on what was discussed, write only the answer text for Question {question_i
     async def receive_from_gemini_and_forward(session):
         nonlocal recv_task, last_write_trigger_text, write_task, user_transcript_buffer
         nonlocal claros_output_buffer, current_question
+        print(f"[session/{assignment_id}] receive_from_gemini_and_forward: ENTERED")
         while True:
             try:
+                print(f"[session/{assignment_id}] receive_from_gemini_and_forward: about to enter async for response in session.receive() ...")
                 async for response in session.receive():
                     sc = getattr(response, "server_content", None)
                     turn_complete = getattr(sc, "turn_complete", False) if sc else False
                     model_turn = bool(getattr(sc, "model_turn", None)) if sc else False
                     input_trans = bool(getattr(sc, "input_transcription", None)) if sc else False
                     output_trans = bool(getattr(sc, "output_transcription", None)) if sc else False
-                    print(f"[receive] turn_complete={turn_complete} model_turn={model_turn} input_trans={input_trans} output_trans={output_trans}")
+                    # Log raw response keys for debugging (safe, concise)
+                    try:
+                        raw_keys = [k for k in dir(response) if not k.startswith("_")]
+                        print(f"[session/{assignment_id}][receive] RAW response attrs: {raw_keys[:15]}")
+                    except Exception:
+                        pass
+                    print(f"[session/{assignment_id}][receive] turn_complete={turn_complete} model_turn={model_turn} input_trans={input_trans} output_trans={output_trans}")
                     if not sc:
+                        print(f"[session/{assignment_id}][receive] server_content is None/falsy, skipping")
                         continue
 
                     # --- Input transcription accumulation ---
@@ -460,21 +475,33 @@ Based on what was discussed, write only the answer text for Question {question_i
                         user_transcript_buffer = ""
                         await send_json({"type": "status", "mode": "teaching"})
                         last_write_trigger_text = None
+                print(f"[session/{assignment_id}][receive] session.receive() iterator EXITED (no more items). Will re-enter in 1s.")
                 await asyncio.sleep(1)
             except asyncio.CancelledError:
+                print(f"[session/{assignment_id}][receive] CancelledError — exiting receive loop")
                 raise
             except Exception as e:
-                print(f"[receive] EXCEPTION: {type(e).__name__}: {e}")
-                await send_json({"type": "error", "message": str(e)})
+                print(f"[session/{assignment_id}][receive] EXCEPTION: {type(e).__name__}: {e}")
+                traceback.print_exc()
+                await send_json({"type": "error", "message": f"receive loop error: {type(e).__name__}: {e}"})
                 await asyncio.sleep(1)
 
     try:
         await send_json({"type": "status", "mode": "connecting"})
+        text_model = os.environ.get("GEMINI_TEXT_MODEL", "gemini-2.5-flash").strip()
+        print(f"[session/{assignment_id}] LIVE MODEL = {model!r}")
+        print(f"[session/{assignment_id}] TEXT MODEL = {text_model!r}")
+        print(f"[session/{assignment_id}] API KEY present = {bool(api_key)}, length = {len(api_key)}")
+        print(f"[session/{assignment_id}] About to call client.aio.live.connect(model={model!r}) ...")
         async with client.aio.live.connect(model=model, config=config) as session:
+            print(f"[session/{assignment_id}] Gemini Live session OPENED successfully")
             await send_json({"type": "status", "mode": "teaching"})
             recv_task = asyncio.create_task(receive_from_gemini_and_forward(session))
+            print(f"[session/{assignment_id}] recv_task CREATED")
             send_task = asyncio.create_task(forward_audio_to_gemini(session))
+            print(f"[session/{assignment_id}] send_task CREATED")
             keepalive_task = asyncio.create_task(keepalive_loop(session))
+            print(f"[session/{assignment_id}] keepalive_task CREATED")
             while True:
                 try:
                     msg = await asyncio.wait_for(websocket.receive(), timeout=60.0)
@@ -505,9 +532,12 @@ Based on what was discussed, write only the answer text for Question {question_i
                     audio_queue.put_nowait(chunk)
                     print(f"[session/{assignment_id}] Chunk put in audio_queue (queue size ~{audio_queue.qsize()})")
     except Exception as e:
+        print(f"[session/{assignment_id}] TOP-LEVEL EXCEPTION: {type(e).__name__}: {e}")
+        traceback.print_exc()
         if not _is_connection_error(e):
             await send_json({"type": "error", "message": str(e)})
     finally:
+        print(f"[session/{assignment_id}] FINALLY block: cleaning up tasks")
         audio_queue.put_nowait(None)
         for t in (recv_task, send_task, keepalive_task, write_task):
             if t is not None:
@@ -515,6 +545,7 @@ Based on what was discussed, write only the answer text for Question {question_i
         for t in (recv_task, send_task, keepalive_task, write_task):
             if t is not None:
                 await asyncio.gather(t, return_exceptions=True)
+        print(f"[session/{assignment_id}] FINALLY block: all tasks cleaned up")
 
 
 def _is_connection_error(e: BaseException) -> bool:
@@ -524,6 +555,27 @@ def _is_connection_error(e: BaseException) -> bool:
         return True
     msg = str(e).lower()
     return "connection" in msg or "timeout" in msg or "closed" in msg or "1011" in msg
+
+
+@app.get("/debug-gemini")
+async def debug_gemini():
+    """Temporary: verify backend can reach Gemini text API with current API key."""
+    try:
+        api_key = get_api_key()
+        client = genai.Client(api_key=api_key, http_options={"api_version": "v1alpha"})
+        text_model = os.environ.get("GEMINI_TEXT_MODEL", "gemini-2.5-flash").strip()
+        print(f"[debug-gemini] Attempting text call with model={text_model!r}, key_len={len(api_key)}")
+        response = await client.aio.models.generate_content(
+            model=text_model,
+            contents="Reply with exactly one word: ok",
+        )
+        result_text = response.text.strip() if response.text else "(empty)"
+        print(f"[debug-gemini] SUCCESS: {result_text!r}")
+        return {"status": "ok", "model": text_model, "response": result_text}
+    except Exception as e:
+        print(f"[debug-gemini] FAILED: {type(e).__name__}: {e}")
+        traceback.print_exc()
+        return {"status": "error", "error": f"{type(e).__name__}: {e}"}
 
 
 @app.get("/test-assignment.pdf")

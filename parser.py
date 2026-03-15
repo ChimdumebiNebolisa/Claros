@@ -1,8 +1,9 @@
 """
 PDF question extraction for Claros. Handles PDFs where questions are on lines
-starting with "Question 1:", "Question 2:", etc. Falls back to full text as
-single block (id=0) if no such lines are found.
+starting with "Question 1:", "Question 2:", etc., or with "1.", "2.", "3.", etc.
+Falls back to full text as single block (id=0) only if no question lines found.
 """
+import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -10,6 +11,7 @@ from typing import List
 
 import fitz  # PyMuPDF
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class Question:
@@ -19,6 +21,9 @@ class Question:
 
 # Line starting with "Question N:" (case insensitive). Captures N and rest of line.
 _QUESTION_LINE_RE = re.compile(r"^\s*Question\s*(\d+)\s*:\s*(.*)", re.IGNORECASE)
+
+# Line starting with "N." (numbered list) for worksheet-style PDFs. Captures N and rest of line.
+_NUMBERED_LINE_RE = re.compile(r"^\s*(\d+)\.\s*(.*)")
 
 
 def _extract_lines_with_size(doc: fitz.Document) -> List[tuple[str, float]]:
@@ -45,9 +50,9 @@ def _extract_lines_with_size(doc: fitz.Document) -> List[tuple[str, float]]:
 
 def parse_pdf(pdf_path: str | Path) -> tuple[str, List[Question]]:
     """
-    Parse PDF and extract questions. Expects lines like "Question 1: ...", "Question 2: ...".
-    Returns (title, questions). Title is the first line. If no "Question N:" lines found,
-    returns one question with id=0 and full text.
+    Parse PDF and extract questions. Tries (1) "Question N:" lines, then (2) "1.", "2.", "3." lines.
+    Returns (title, questions). Title is the first line. Falls back to one question (id=0) only
+    if neither pattern matches.
     """
     path = Path(pdf_path)
     doc = fitz.open(path)
@@ -59,21 +64,20 @@ def parse_pdf(pdf_path: str | Path) -> tuple[str, List[Question]]:
         if not lines:
             title = path.stem
             result = title, [Question(id=0, text=full_text)]
-            print(f"[parser.py] No lines extracted. Returning: title={title!r}, 1 question (id=0)")
+            logger.warning("[parser] No lines extracted. title=%r, 1 question (id=0)", title)
             return result
 
         title = lines[0].strip()[:80] if lines else path.stem
         questions: List[Question] = []
         i = 0
 
+        # Strategy 1: "Question N:" lines
         while i < len(lines):
             m = _QUESTION_LINE_RE.match(lines[i])
             if m:
                 qid = int(m.group(1))
-                # Strip "Question N:" prefix; rest of line is start of question text
                 text_parts = [m.group(2).strip()] if m.group(2).strip() else []
                 i += 1
-                # Collect lines until the next "Question N:" line
                 while i < len(lines) and not _QUESTION_LINE_RE.match(lines[i]):
                     text_parts.append(lines[i])
                     i += 1
@@ -82,12 +86,34 @@ def parse_pdf(pdf_path: str | Path) -> tuple[str, List[Question]]:
             else:
                 i += 1
 
+        # Strategy 2: "1.", "2.", "3." numbered lines (worksheet format)
+        if not questions:
+            i = 0
+            while i < len(lines):
+                m = _NUMBERED_LINE_RE.match(lines[i])
+                if m:
+                    qid = int(m.group(1))
+                    text_parts = [m.group(2).strip()] if m.group(2).strip() else []
+                    i += 1
+                    while i < len(lines) and not _NUMBERED_LINE_RE.match(lines[i]):
+                        text_parts.append(lines[i])
+                        i += 1
+                    q_text = "\n".join(text_parts).strip()
+                    if q_text or qid <= 10:  # allow empty only for small numbers (real items)
+                        questions.append(Question(id=qid, text=q_text or f"Question {qid}"))
+                else:
+                    i += 1
+
         if not questions:
             result = title, [Question(id=0, text=full_text)]
-            print(f"[parser.py] No 'Question N:' lines found. Fallback: title={title!r}, 1 question (id=0)")
+            logger.warning("[parser] No question lines found. title=%r, fallback 1 question (id=0)", title)
             return result
 
-        print(f"[parser.py] Returning: title={title!r}, {len(questions)} questions: {[(q.id, q.text[:60] + ('...' if len(q.text) > 60 else '')) for q in questions]}")
+        question_ids = [q.id for q in questions]
+        logger.info(
+            "[parser] title=%r, num_questions=%s, question_ids=%s",
+            title, len(questions), question_ids,
+        )
         return title, questions
     finally:
         doc.close()

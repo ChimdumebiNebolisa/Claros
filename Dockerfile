@@ -10,6 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Application code
 COPY main.py parser.py agent.py exporter.py ./
 COPY frontend ./frontend
+COPY test_assignment.pdf ./
 
 # Cloud Run listens on PORT (default 8080)
 ENV PORT=8080
