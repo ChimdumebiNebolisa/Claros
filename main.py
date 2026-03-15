@@ -394,9 +394,10 @@ Based on what was discussed, write only the answer text for Question {question_i
                         print(f"[session/{assignment_id}][receive] server_content is None/falsy, skipping")
                         continue
 
-                    # --- Input transcription accumulation ---
+                    # --- Input transcription accumulation + partial signal for barge-in ---
                     if sc.input_transcription and sc.input_transcription.text:
                         user_transcript_buffer += sc.input_transcription.text
+                        await send_json({"type": "user_speech_partial", "text": sc.input_transcription.text})
 
                     # --- Output transcription: Claros speaks ---
                     if sc.output_transcription and sc.output_transcription.text:

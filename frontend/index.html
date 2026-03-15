@@ -5,97 +5,189 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Claros</title>
   <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #0f1419; color: #e2e4e8; min-height: 100vh; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      background: #0f1117; color: #e8eaed; min-height: 100vh;
+    }
     .app { display: flex; height: 100vh; }
+
+    /* ── Left panel: worksheet ── */
     .panel-left {
-      flex: 1; min-width: 0; overflow-y: auto; padding: 1.25rem 1.5rem; border-right: 1px solid #1e2530;
+      flex: 1; min-width: 0; overflow-y: auto;
+      padding: 1.5rem 2rem 2rem;
+      border-right: 1px solid #1e2530;
     }
-    .panel-right {
-      width: 380px; flex-shrink: 0; padding: 1.25rem; display: flex; flex-direction: column; background: #0b0e12;
+    .header { margin-bottom: 1.25rem; }
+    .brand {
+      font-size: 1.2rem; font-weight: 700; letter-spacing: 0.08em;
+      color: #f59e0b;
     }
-    .brand { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #f59e0b; margin-bottom: 0.25rem; }
-    .assignment-title { font-size: 1.15rem; font-weight: 600; margin-bottom: 1rem; color: #e2e4e8; }
+    .brand-sub {
+      font-size: 0.78rem; color: #6b7280; margin-top: 0.1rem;
+      letter-spacing: 0.01em;
+    }
+    .assignment-title {
+      font-size: 1.05rem; font-weight: 600; margin-bottom: 1rem; color: #e8eaed;
+    }
+
+    /* Upload */
+    .upload-row { display: flex; gap: 0.75rem; align-items: stretch; margin-bottom: 1.25rem; }
     .upload-zone {
-      border: 2px dashed #374151; border-radius: 8px; padding: 1.5rem; text-align: center; margin-bottom: 1rem;
-      cursor: pointer; background: #1a1d23;
+      flex: 1; border: 1.5px dashed #374151; border-radius: 10px;
+      padding: 1.15rem; text-align: center; cursor: pointer;
+      background: #161920; transition: border-color 0.2s;
+      display: flex; align-items: center; justify-content: center;
     }
     .upload-zone:hover { border-color: #f59e0b; }
     .upload-zone input { display: none; }
-    .upload-row { display: flex; gap: 0.75rem; align-items: stretch; margin-bottom: 1.25rem; }
-    .upload-row .upload-zone { flex: 1; margin-bottom: 0; }
-    .btn-test-pdf { flex-shrink: 0; margin-top: 0; width: auto !important; min-width: unset; padding: 0.5rem 0.75rem; font-size: 0.875rem; white-space: nowrap; }
+    .upload-zone span { font-size: 0.84rem; color: #9ca3af; }
+    .btn-test-pdf {
+      flex-shrink: 0; padding: 0.5rem 0.85rem;
+      font-size: 0.84rem; white-space: nowrap;
+      background: #1e2530; color: #d1d5db;
+      border: 1px solid #374151; border-radius: 10px;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .btn-test-pdf:hover { background: #252d3a; }
+    .btn-test-pdf:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Question cards */
     .question-card {
-      background: #1a1d23; border: 1px solid #252a33; border-radius: 10px; padding: 1.1rem; margin-bottom: 1rem;
+      background: #161920; border: 1px solid #1e2530; border-radius: 12px;
+      padding: 1.1rem 1.15rem; margin-bottom: 0.85rem;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .question-card.writing { border-color: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,0.3); }
+    .question-card.writing {
+      border-color: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,0.22);
+    }
     .question-card.answer-ready { border-color: #22c55e; }
-    .question-label { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.4rem; color: #d1d5db; display: flex; align-items: center; gap: 0.5rem; }
-    .ready-badge { font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 4px; background: #14532d; color: #86efac; display: none; }
+    .question-label {
+      font-weight: 600; font-size: 0.84rem; margin-bottom: 0.3rem;
+      color: #d1d5db; display: flex; align-items: center; gap: 0.5rem;
+    }
+    .ready-badge {
+      font-size: 0.62rem; font-weight: 600; padding: 0.12rem 0.5rem;
+      border-radius: 999px; background: #14532d; color: #86efac; display: none;
+    }
     .question-card.answer-ready .ready-badge { display: inline-block; }
-    .question-text { font-size: 0.9rem; color: #9ca3af; margin-bottom: 0.75rem; white-space: pre-wrap; word-break: break-word; line-height: 1.5; }
+    .question-text {
+      font-size: 0.86rem; color: #9ca3af; margin-bottom: 0.7rem;
+      white-space: pre-wrap; word-break: break-word; line-height: 1.55;
+    }
     .answer-field {
-      min-height: 64px; width: 100%; background: #111318; border: 1px solid #252a33; border-radius: 6px;
-      padding: 0.75rem; font-family: system-ui, sans-serif; font-size: 0.9rem; color: #e2e4e8;
+      min-height: 56px; width: 100%;
+      background: #0f1117; border: 1px solid #252a33; border-radius: 8px;
+      padding: 0.65rem 0.8rem;
+      font-family: inherit; font-size: 0.86rem; color: #e8eaed;
       resize: vertical; white-space: pre-wrap; word-break: break-word; line-height: 1.5;
     }
     .answer-field:empty::before { content: attr(data-placeholder); color: #4b5563; pointer-events: none; }
     .answer-field:focus { outline: none; border-color: #f59e0b; }
-    .panel-section-label { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; margin-bottom: 0.5rem; }
-    .status {
-      font-size: 1.05rem; font-weight: 700; text-align: center; padding: 0.85rem; border-radius: 8px; margin-bottom: 1rem;
-      text-transform: uppercase; letter-spacing: 0.06em;
+
+    /* ── Right panel: session ── */
+    .panel-right {
+      width: 380px; flex-shrink: 0; padding: 1.25rem;
+      display: flex; flex-direction: column; background: #0b0d11;
     }
-    .status.idle { background: #1a1d23; color: #6b7280; }
-    .status.connecting { background: #1e3a5f; color: #93c5fd; }
-    .status.teaching { background: #14532d; color: #86efac; }
-    .status.writing { background: #422006; color: #fcd34d; }
-    .meter-wrap { height: 18px; background: #1a1d23; border-radius: 4px; overflow: hidden; margin-bottom: 1rem; }
+    .section-label {
+      font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #6b7280; margin-bottom: 0.45rem;
+    }
+
+    /* Status indicator */
+    .status-bar {
+      display: flex; align-items: center; justify-content: center;
+      padding: 0.6rem; border-radius: 10px; margin-bottom: 0.75rem;
+      font-size: 0.82rem; font-weight: 600; letter-spacing: 0.03em;
+      transition: background 0.3s, color 0.3s;
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      margin-right: 8px; flex-shrink: 0;
+    }
+    .status-bar.idle { background: #161920; color: #6b7280; }
+    .status-bar.idle .status-dot { background: #4b5563; }
+    .status-bar.connecting { background: #172554; color: #93c5fd; }
+    .status-bar.connecting .status-dot { background: #60a5fa; animation: pulse 1.2s ease-in-out infinite; }
+    .status-bar.listening { background: #14532d; color: #86efac; }
+    .status-bar.listening .status-dot { background: #22c55e; animation: pulse 1.5s ease-in-out infinite; }
+    .status-bar.speaking { background: #172554; color: #93c5fd; }
+    .status-bar.speaking .status-dot { background: #60a5fa; animation: pulse 0.7s ease-in-out infinite; }
+    .status-bar.writing { background: #422006; color: #fcd34d; }
+    .status-bar.writing .status-dot { background: #f59e0b; animation: pulse 1s ease-in-out infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.35; transform: scale(0.85); }
+      50% { opacity: 1; transform: scale(1.15); }
+    }
+
+    /* Meter */
+    .meter-wrap { height: 3px; background: #161920; border-radius: 2px; overflow: hidden; margin-bottom: 0.85rem; }
     .meter-bar { height: 100%; width: 0%; background: #22c55e; transition: width 0.05s ease; }
+
+    /* Transcript */
     .transcript {
-      flex: 1; min-height: 120px; overflow-y: auto; background: #111318; border: 1px solid #252a33;
-      border-radius: 8px; padding: 0.75rem; font-size: 0.85rem; line-height: 1.6; white-space: pre-wrap; word-break: break-word;
+      flex: 1; min-height: 120px; overflow-y: auto;
+      background: #0f1117; border: 1px solid #1e2530;
+      border-radius: 10px; padding: 0.7rem 0.8rem;
+      font-size: 0.82rem; line-height: 1.6;
     }
-    .transcript .user { color: #93c5fd; }
-    .transcript .claros { color: #86efac; }
+    .msg { padding: 0.25rem 0; word-break: break-word; }
+    .msg + .msg { margin-top: 0.1rem; }
+    .msg-label { font-weight: 600; margin-right: 0.3rem; font-size: 0.78rem; }
+    .msg.user .msg-label { color: #60a5fa; }
+    .msg.claros .msg-label { color: #4ade80; }
+    .msg.user { color: #c7d2e0; }
+    .msg.claros { color: #d1dbe6; }
+    .msg.partial { opacity: 0.55; }
+
+    .errors { font-size: 0.82rem; color: #fca5a5; margin-top: 0.4rem; min-height: 1.1rem; }
+
+    /* Buttons */
     .btn {
-      display: block; width: 100%; padding: 0.75rem 1rem; font-size: 1rem; font-weight: 600; border: none;
-      border-radius: 8px; cursor: pointer; background: #f59e0b; color: #1a1d23; margin-top: 0.5rem;
+      display: block; width: 100%; padding: 0.7rem 1rem;
+      font-size: 0.95rem; font-weight: 600; border: none;
+      border-radius: 10px; cursor: pointer;
+      background: #f59e0b; color: #1a1d23; margin-top: 0.5rem;
+      transition: background 0.15s;
     }
     .btn:hover { background: #fbbf24; }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn.stop { background: #dc2626; color: #fff; }
     .btn.stop:hover { background: #ef4444; }
-    .btn.export { background: #22c55e; color: #0f1419; margin-top: 1.25rem; font-size: 0.95rem; }
+    .btn.export { background: #22c55e; color: #0f1419; margin-top: 1rem; font-size: 0.9rem; }
     .btn.export:hover { background: #4ade80; }
     .btn.export { display: none; }
     .btn.export.visible { display: block; }
-    /* Hidden from user UI, kept for debug fallback */
     .btn-write-answer { display: none !important; }
-    .errors { font-size: 0.85rem; color: #fca5a5; margin-top: 0.5rem; min-height: 1.5rem; }
   </style>
 </head>
 <body>
   <div class="app">
     <div class="panel-left">
-      <div class="brand">Claros</div>
+      <div class="header">
+        <div class="brand">Claros</div>
+        <div class="brand-sub">Voice-guided worksheet assistant</div>
+      </div>
       <div class="assignment-title" id="assignmentTitle">Upload an assignment PDF</div>
       <div class="upload-row">
         <div class="upload-zone" id="uploadZone">
           <input type="file" id="fileInput" accept=".pdf">
           <span id="uploadLabel">Drop PDF or click to upload</span>
         </div>
-        <button type="button" class="btn btn-test-pdf" id="testPdfBtn">Use Test PDF</button>
+        <button type="button" class="btn-test-pdf" id="testPdfBtn">Use Test PDF</button>
       </div>
       <div id="questionsContainer"></div>
       <button class="btn export" id="exportBtn">Export PDF</button>
     </div>
     <div class="panel-right">
-      <div class="panel-section-label">Session</div>
-      <div id="status" class="status idle">Idle</div>
+      <div class="section-label">Session</div>
+      <div id="status" class="status-bar idle">
+        <span class="status-dot"></span>
+        <span id="statusLabel">Ready</span>
+      </div>
       <div class="meter-wrap"><div id="meterBar" class="meter-bar"></div></div>
-      <div class="panel-section-label">Conversation</div>
+      <div class="section-label">Conversation</div>
       <div id="transcript" class="transcript"></div>
       <div id="errors" class="errors"></div>
       <button class="btn" id="micBtn" disabled>Start Session</button>
@@ -115,11 +207,13 @@
       const questionsContainer = document.getElementById('questionsContainer');
       const exportBtn = document.getElementById('exportBtn');
       const statusEl = document.getElementById('status');
+      const statusLabel = document.getElementById('statusLabel');
       const meterBar = document.getElementById('meterBar');
       const transcriptEl = document.getElementById('transcript');
       const errorsEl = document.getElementById('errors');
       const micBtn = document.getElementById('micBtn');
 
+      /* ── Upload ── */
       uploadZone.addEventListener('click', () => fileInput.click());
       uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('hover'); });
       uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('hover'));
@@ -180,6 +274,7 @@
         }
       }
 
+      /* ── Question rendering ── */
       function renderQuestions() {
         console.log('[renderQuestions] Received state.questions:', state.questions?.length, state.questions);
         questionsContainer.innerHTML = '';
@@ -188,7 +283,7 @@
           card.className = 'question-card';
           card.dataset.questionId = String(q.id);
           const questionText = (q.text != null && q.text !== '') ? String(q.text) : '';
-          card.innerHTML = '<div class="question-label">Question ' + q.id + '<span class="ready-badge">Answer stated</span></div><div class="question-text"></div><div class="answer-field" data-question-id="' + q.id + '" data-placeholder="Answer will appear here..." contenteditable="true" spellcheck="true"></div>';
+          card.innerHTML = '<div class="question-label">Question ' + q.id + '<span class="ready-badge">Answer stated</span></div><div class="question-text"></div><div class="answer-field" data-question-id="' + q.id + '" data-placeholder="Answer will appear here…" contenteditable="true" spellcheck="true"></div>';
           const questionTextEl = card.querySelector('.question-text');
           const answerEl = card.querySelector('.answer-field');
           if (questionTextEl) {
@@ -199,8 +294,7 @@
             state.answers[q.id] = answerEl.textContent;
             if (answerEl.textContent.trim()) exportBtn.classList.add('visible');
           });
-          // Hidden debug fallback button (CSS: display:none)
-          const writeAnswerBtn = document.createElement('button');
+          var writeAnswerBtn = document.createElement('button');
           writeAnswerBtn.type = 'button';
           writeAnswerBtn.className = 'btn btn-write-answer';
           writeAnswerBtn.textContent = 'Write Answer';
@@ -228,6 +322,7 @@
         return document.querySelector('.question-card[data-question-id="' + questionId + '"]');
       }
 
+      /* ── WebSocket / Audio plumbing ── */
       const WS_BASE = location.host ? (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host : 'ws://127.0.0.1:8000';
 
       let ws = null;
@@ -237,121 +332,170 @@
       let processorNode = null;
       let playbackContext = null;
       let nextPlaybackTime = 0;
+      let scheduledSources = [];
+
+      /* ── Status ── */
+      let currentMode = 'idle';
 
       function setStatus(mode) {
-        const label = mode === 'teaching' ? 'Teaching' : mode === 'writing' ? 'Writing' : mode === 'connecting' ? 'Connecting' : 'Idle';
-        statusEl.textContent = label;
-        statusEl.className = 'status ' + (mode === 'connecting' ? 'connecting' : mode === 'writing' ? 'writing' : mode === 'teaching' ? 'teaching' : 'idle');
+        currentMode = mode;
+        var labels = {
+          idle: 'Ready',
+          connecting: 'Connecting\u2026',
+          listening: 'Listening',
+          speaking: 'Claros is speaking',
+          writing: 'Writing answer\u2026'
+        };
+        statusLabel.textContent = labels[mode] || mode;
+        statusEl.className = 'status-bar ' + mode;
       }
 
-      let pendingUserTranscript = '';
-      let pendingClarosFragments = [];
+      /* ── Transcript (streaming) ── */
+      let activeClarosMsg = null;
+      let userPartialEl = null;
+      let userPartialText = '';
 
-      function flushPendingTranscripts() {
-        if (!pendingUserTranscript.trim() && pendingClarosFragments.length === 0) return;
-        if (pendingUserTranscript.trim()) {
-          const span = document.createElement('span');
-          span.className = 'user';
-          span.textContent = 'You: ' + pendingUserTranscript + '\n';
-          transcriptEl.appendChild(span);
-          pendingUserTranscript = '';
+      function addTranscript(speaker, text) {
+        if (!text || !text.trim()) return;
+        if (speaker === 'claros') {
+          if (!activeClarosMsg) {
+            activeClarosMsg = document.createElement('div');
+            activeClarosMsg.className = 'msg claros';
+            var label = document.createElement('span');
+            label.className = 'msg-label';
+            label.textContent = 'Claros ';
+            activeClarosMsg.appendChild(label);
+            transcriptEl.appendChild(activeClarosMsg);
+          }
+          activeClarosMsg.appendChild(document.createTextNode(text));
+        } else {
+          activeClarosMsg = null;
+          var div = document.createElement('div');
+          div.className = 'msg user';
+          var label = document.createElement('span');
+          label.className = 'msg-label';
+          label.textContent = 'You ';
+          div.appendChild(label);
+          div.appendChild(document.createTextNode(text));
+          transcriptEl.appendChild(div);
         }
-        pendingClarosFragments.forEach(function (t) {
-          const span = document.createElement('span');
-          span.className = 'claros';
-          span.textContent = 'Claros: ' + t + '\n';
-          transcriptEl.appendChild(span);
-        });
-        pendingClarosFragments = [];
         transcriptEl.scrollTop = transcriptEl.scrollHeight;
       }
 
-      function addTranscript(speaker, text) {
-        if (!text.trim()) return;
-        if (speaker === 'user') {
-          pendingUserTranscript = (pendingUserTranscript + text).trim();
-          flushPendingTranscripts();
-          return;
+      function showUserPartial(text) {
+        userPartialText += text;
+        if (!userPartialEl) {
+          userPartialEl = document.createElement('div');
+          userPartialEl.className = 'msg user partial';
+          var label = document.createElement('span');
+          label.className = 'msg-label';
+          label.textContent = 'You ';
+          userPartialEl.appendChild(label);
+          userPartialEl._tn = document.createTextNode('');
+          userPartialEl.appendChild(userPartialEl._tn);
+          transcriptEl.appendChild(userPartialEl);
         }
-        if (speaker === 'claros') {
-          pendingClarosFragments.push(text);
-        }
+        userPartialEl._tn.textContent = userPartialText;
+        transcriptEl.scrollTop = transcriptEl.scrollHeight;
       }
 
+      function clearUserPartial() {
+        if (userPartialEl) {
+          userPartialEl.remove();
+          userPartialEl = null;
+        }
+        userPartialText = '';
+      }
+
+      /* ── Audio playback with barge-in support ── */
       function queuePcm24kChunk(base64Data) {
         if (!playbackContext) playbackContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: OUT_SAMPLE_RATE });
         if (playbackContext.state === 'suspended') playbackContext.resume();
-        const ctx = playbackContext;
-        const binary = atob(base64Data);
-        const byteLength = binary.length;
-        const numSamples = byteLength >> 1;
-        const bytes = new Uint8Array(byteLength);
-        for (let i = 0; i < byteLength; i++) bytes[i] = binary.charCodeAt(i);
-        const int16Samples = new Int16Array(bytes.buffer, 0, numSamples);
-        const buf = ctx.createBuffer(1, numSamples, OUT_SAMPLE_RATE);
-        const channel = buf.getChannelData(0);
-        for (let i = 0; i < numSamples; i++) channel[i] = int16Samples[i] / 32768;
-        const startTime = Math.max(ctx.currentTime, nextPlaybackTime);
-        const source = ctx.createBufferSource();
+        var ctx = playbackContext;
+        var binary = atob(base64Data);
+        var byteLength = binary.length;
+        var numSamples = byteLength >> 1;
+        var bytes = new Uint8Array(byteLength);
+        for (var i = 0; i < byteLength; i++) bytes[i] = binary.charCodeAt(i);
+        var int16Samples = new Int16Array(bytes.buffer, 0, numSamples);
+        var buf = ctx.createBuffer(1, numSamples, OUT_SAMPLE_RATE);
+        var channel = buf.getChannelData(0);
+        for (var i = 0; i < numSamples; i++) channel[i] = int16Samples[i] / 32768;
+        var startTime = Math.max(ctx.currentTime, nextPlaybackTime);
+        var source = ctx.createBufferSource();
         source.buffer = buf;
         source.connect(ctx.destination);
         source.start(startTime);
         nextPlaybackTime = startTime + buf.duration;
+        scheduledSources.push(source);
+        source.onended = function () {
+          var idx = scheduledSources.indexOf(source);
+          if (idx !== -1) scheduledSources.splice(idx, 1);
+        };
       }
 
+      function clearPlayback() {
+        for (var i = 0; i < scheduledSources.length; i++) {
+          try { scheduledSources[i].stop(); } catch (_) {}
+        }
+        scheduledSources = [];
+        nextPlaybackTime = 0;
+      }
+
+      /* ── Mic level meter ── */
       function startMeter(stream) {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const src = ctx.createMediaStreamSource(stream);
-        const analyser = ctx.createAnalyser();
+        var ctx = new (window.AudioContext || window.webkitAudioContext)();
+        var src = ctx.createMediaStreamSource(stream);
+        var analyser = ctx.createAnalyser();
         analyser.fftSize = 256;
         analyser.smoothingTimeConstant = 0.8;
         src.connect(analyser);
-        const data = new Uint8Array(analyser.frequencyBinCount);
+        var data = new Uint8Array(analyser.frequencyBinCount);
         function tick() {
           if (!mediaStream || !mediaStream.active) return;
           analyser.getByteFrequencyData(data);
-          let sum = 0;
-          for (let i = 0; i < data.length; i++) sum += data[i];
+          var sum = 0;
+          for (var i = 0; i < data.length; i++) sum += data[i];
           meterBar.style.width = Math.min(100, (sum / data.length) * 2) + '%';
           requestAnimationFrame(tick);
         }
         tick();
       }
 
+      /* ── Session lifecycle ── */
       async function startSession() {
         if (!state.assignmentId) return;
         errorsEl.textContent = '';
         setStatus('connecting');
         micBtn.disabled = true;
-        micBtn.textContent = 'Connecting…';
-        const wsUrl = WS_BASE + '/session/' + state.assignmentId;
+        micBtn.textContent = 'Connecting\u2026';
+        var wsUrl = WS_BASE + '/session/' + state.assignmentId;
         ws = new WebSocket(wsUrl);
         ws.binaryType = 'arraybuffer';
 
-        await new Promise((resolve, reject) => {
-          ws.onopen = () => resolve();
-          ws.onerror = () => reject(new Error('WebSocket failed'));
-          setTimeout(() => reject(new Error('Connection timeout')), 15000);
+        await new Promise(function (resolve, reject) {
+          ws.onopen = function () { resolve(); };
+          ws.onerror = function () { reject(new Error('WebSocket failed')); };
+          setTimeout(function () { reject(new Error('Connection timeout')); }, 15000);
         });
 
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        var stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaStream = stream;
         startMeter(stream);
 
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const inputRate = audioContext.sampleRate;
-        const ratio = inputRate / SAMPLE_RATE;
+        var inputRate = audioContext.sampleRate;
+        var ratio = inputRate / SAMPLE_RATE;
         sourceNode = audioContext.createMediaStreamSource(stream);
         processorNode = audioContext.createScriptProcessor(1024, 1, 1);
         processorNode.onaudioprocess = function (e) {
           if (!ws || ws.readyState !== WebSocket.OPEN) return;
-          /* Always send mic (no playback gate) so user can interrupt Claros (barge-in). */
-          const input = e.inputBuffer.getChannelData(0);
-          const outSamples = Math.floor(input.length / ratio);
-          const out = new Int16Array(outSamples);
-          for (let i = 0; i < outSamples; i++) {
-            const idx = Math.min(Math.floor(i * ratio), input.length - 1);
-            const s = Math.max(-1, Math.min(1, input[idx]));
+          var input = e.inputBuffer.getChannelData(0);
+          var outSamples = Math.floor(input.length / ratio);
+          var out = new Int16Array(outSamples);
+          for (var i = 0; i < outSamples; i++) {
+            var idx = Math.min(Math.floor(i * ratio), input.length - 1);
+            var s = Math.max(-1, Math.min(1, input[idx]));
             out[i] = s < 0 ? s * 32768 : s * 32767;
           }
           ws.send(out.buffer);
@@ -366,15 +510,39 @@
         ws.onmessage = function (ev) {
           if (typeof ev.data !== 'string') return;
           try {
-            const msg = JSON.parse(ev.data);
+            var msg = JSON.parse(ev.data);
             console.log('[ws.onmessage] Received:', msg.type, msg);
-            if (msg.type === 'status' && msg.mode) setStatus(msg.mode);
-            else if (msg.type === 'transcript') addTranscript(msg.speaker || 'claros', msg.text || '');
-            else if (msg.type === 'audio') queuePcm24kChunk(msg.data);
+
+            if (msg.type === 'status' && msg.mode) {
+              var mapped = msg.mode === 'teaching' ? 'listening' : msg.mode;
+              setStatus(mapped);
+              if (mapped === 'listening') {
+                activeClarosMsg = null;
+                if (userPartialEl) clearUserPartial();
+              }
+            }
+            else if (msg.type === 'user_speech_partial') {
+              clearPlayback();
+              activeClarosMsg = null;
+              if (currentMode === 'speaking') setStatus('listening');
+              showUserPartial(msg.text || '');
+            }
+            else if (msg.type === 'transcript') {
+              if (msg.speaker === 'user') {
+                clearUserPartial();
+                addTranscript('user', msg.text || '');
+              } else {
+                addTranscript(msg.speaker || 'claros', msg.text || '');
+              }
+            }
+            else if (msg.type === 'audio') {
+              queuePcm24kChunk(msg.data);
+              if (currentMode !== 'writing') setStatus('speaking');
+            }
             else if (msg.type === 'write_start') {
               console.log('[write_start] question_id=' + msg.question_id);
-              const el = getAnswerEl(msg.question_id);
-              const card = getCardEl(msg.question_id);
+              var el = getAnswerEl(msg.question_id);
+              var card = getCardEl(msg.question_id);
               if (el) {
                 console.log('[write_start] Clearing answer field for question_id=' + msg.question_id);
                 el.textContent = ''; state.answers[msg.question_id] = '';
@@ -384,7 +552,7 @@
               if (card) card.classList.add('writing');
             }
             else if (msg.type === 'write_token') {
-              const el = getAnswerEl(msg.question_id);
+              var el = getAnswerEl(msg.question_id);
               if (el) {
                 var tokenLen = (msg.text || '').length;
                 el.textContent = (el.textContent || '') + (msg.text || '');
@@ -397,28 +565,31 @@
             }
             else if (msg.type === 'write_end') {
               console.log('[write_end] question_id=' + msg.question_id + ' COMPLETE');
-              const card = getCardEl(msg.question_id);
+              var card = getCardEl(msg.question_id);
               if (card) card.classList.remove('writing');
             }
             else if (msg.type === 'answer_ready') {
               console.log('[answer_ready] question_id=' + msg.question_id);
-              const card = getCardEl(msg.question_id);
+              var card = getCardEl(msg.question_id);
               if (card) card.classList.add('answer-ready');
             }
-            else if (msg.type === 'error') errorsEl.textContent = msg.message || '';
+            else if (msg.type === 'error') {
+              errorsEl.textContent = msg.message || '';
+            }
           } catch (err) { console.error(err); }
         };
 
-        ws.onclose = () => { setStatus('idle'); stopSession(); };
-        ws.onerror = () => { errorsEl.textContent = 'WebSocket error'; };
+        ws.onclose = function () { setStatus('idle'); stopSession(); };
+        ws.onerror = function () { errorsEl.textContent = 'WebSocket error'; };
       }
 
       function stopSession() {
+        clearPlayback();
         if (processorNode) {
           try { processorNode.disconnect(); sourceNode && sourceNode.disconnect(); } catch (_) {}
           processorNode = null; sourceNode = null;
         }
-        if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+        if (mediaStream) { mediaStream.getTracks().forEach(function (t) { t.stop(); }); mediaStream = null; }
         if (ws) { ws.close(); ws = null; }
         nextPlaybackTime = 0;
         if (audioContext) { audioContext.close(); audioContext = null; }
@@ -426,6 +597,9 @@
         micBtn.disabled = !state.assignmentId;
         micBtn.textContent = 'Start Session';
         micBtn.classList.remove('stop');
+        setStatus('idle');
+        activeClarosMsg = null;
+        clearUserPartial();
       }
 
       micBtn.addEventListener('click', function () {
@@ -435,8 +609,10 @@
 
       exportBtn.addEventListener('click', function () {
         if (!state.assignmentId) return;
-        const answers = Object.entries(state.answers).map(([id, text]) => ({ question_id: parseInt(id, 10), answer_text: text || '' }));
-        const q = 'answers=' + encodeURIComponent(JSON.stringify(answers));
+        var answers = Object.entries(state.answers).map(function (entry) {
+          return { question_id: parseInt(entry[0], 10), answer_text: entry[1] || '' };
+        });
+        var q = 'answers=' + encodeURIComponent(JSON.stringify(answers));
         window.location.href = '/export/' + state.assignmentId + '?' + q;
       });
     })();

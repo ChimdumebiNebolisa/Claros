@@ -174,7 +174,7 @@ Local development may also require Google Cloud application credentials for GCS 
 - **Single-session state** — Answer readiness and conversation context are held in memory per WebSocket session. Refreshing the page starts a new session.
 - **PDF format dependency** — Question extraction relies on "Question N:" line patterns. PDFs with different formatting may fall back to single-block extraction.
 - **Voice model compliance** — The system prompt instructs Claros to follow specific rules, but LLM compliance is not guaranteed. The backend gate provides a safety net.
-- **No interruption handling** — Claros does not yet support mid-utterance interruption or barge-in during audio playback.
+- **Basic barge-in** — Claros supports simple interruption: if the user starts speaking while Claros is talking, playback stops and the app returns to listening. This is not full-duplex; there may be a brief overlap before the interruption is detected.
 - **Browser compatibility** — Requires a modern browser with WebSocket, AudioContext, and getUserMedia support. Tested primarily on Chrome.
 
 ## Future Improvements
@@ -183,4 +183,4 @@ Local development may also require Google Cloud application credentials for GCS 
 - Session persistence so students can resume interrupted sessions
 - Multi-format PDF support beyond "Question N:" patterns
 - Accessibility audit with assistive technology users
-- Interruption handling for more natural conversation flow
+- Full-duplex interruption handling for smoother barge-in
