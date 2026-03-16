@@ -772,14 +772,19 @@
                     var qid = parseInt(m[1], 10);
                     var matchedText = m[0];
                     console.log('[write-chain] Claros write phrase detected qid=' + qid + ' text="' + matchedText + '"');
-                    if (!writeInProgress && answerReady[qid]) {
+                    if (!writeInProgress) {
+                      if (!answerReady[qid]) {
+                        answerReady[qid] = true;
+                        answerCandidate[qid] = clarosOutputBuffer.trim() || (answerCandidate[qid] || '');
+                        var cardT = getCardEl(qid);
+                        if (cardT) cardT.classList.add('answer-ready');
+                        console.log('[write-chain] Set answerReady from Claros write phrase qid=' + qid + ' candidateLen=' + (answerCandidate[qid] || '').length);
+                      }
                       clarosOutputBuffer = '';
                       console.log('[write-chain] triggerWrite about to run qid=' + qid);
                       triggerWrite(qid);
-                    } else if (writeInProgress) {
+                    } else {
                       console.log('[write-chain] Skipping triggerWrite (phrase path): writeInProgress=true');
-                    } else if (!answerReady[qid]) {
-                      console.log('[write-chain] Skipping triggerWrite (phrase path): answerReady[' + qid + ']=false');
                     }
                   }
                 }

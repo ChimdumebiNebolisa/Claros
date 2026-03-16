@@ -160,8 +160,6 @@ async def stream_write(assignment_id: str, body: WriteRequest):
         "candidate_preview=",
         repr(candidate[:120] if candidate else ""),
     )
-    if candidate_empty:
-        raise HTTPException(status_code=400, detail="Student must state the answer before writing is allowed.")
     conv_str = "\n".join(
         f"{'User' if c.get('speaker') == 'user' else 'Claros'}: {c.get('text', '')}"
         for c in (body.conversation or [])
