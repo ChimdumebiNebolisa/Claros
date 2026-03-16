@@ -29,7 +29,7 @@ Claros enforces a deliberate constraint: **it will not write an answer until the
 
 - If the student asks Claros to write before they have given their answer, Claros responds: *"Tell me your final answer first, then I can write it into the worksheet."*
 - This rule is enforced per question. Stating an answer for question 1 does not unlock writing for question 2.
-- The answer readiness gate operates at the system prompt level (Claros is instructed to refuse) and the frontend (the write action is only triggered when the student has stated their answer for that question).
+- The answer readiness gate is enforced in the system prompt (Claros is instructed to refuse), the frontend (the write action is only triggered when the student has stated their answer for that question), and the backend (the write API returns 400 if `answer_candidate` is missing or empty).
 
 This is an intentional product decision. Claros is designed to support learning, not to bypass it. The voice interface removes the typing barrier; the readiness gate preserves the reasoning requirement.
 
@@ -73,7 +73,7 @@ FastAPI backend (main.py)
 
 **Answer writing** is triggered when the user (or Claros) asks to write and the student has already stated their answer for that question. The frontend calls `POST /api/write/{assignment_id}` with conversation context and receives a streaming text response, which is appended into the correct question field.
 
-**Answer readiness gating** is enforced in the frontend: the UI and write flow only allow writing once the student has stated their answer (detected via phrase patterns). The backend write endpoint does not re-check; it assumes the frontend enforces the product rule.
+**Answer readiness gating** is enforced in the frontend (UI and write flow only allow writing once the student has stated their answer, detected via phrase patterns) and in the backend (the write endpoint returns 400 if `answer_candidate` is missing or empty).
 
 **PDF pipeline**: Uploaded PDFs are stored in Google Cloud Storage, parsed with PyMuPDF to extract questions matching a `Question N:` pattern, and can be exported back as formatted PDFs with answers using ReportLab.
 
@@ -185,7 +185,7 @@ Local development may also require Google Cloud application credentials for GCS 
 - **Heuristic answer detection** — Answer readiness is determined in the frontend by matching common phrasing patterns (e.g., "my answer is…", "I think it's…"). Unusual phrasings may not be detected.
 - **Single-session state** — Conversation and answer readiness are held in memory in the browser. Refreshing the page starts a new session.
 - **PDF format dependency** — Question extraction relies on "Question N:" line patterns. PDFs with different formatting may fall back to single-block extraction.
-- **Voice model compliance** — The system prompt instructs Claros to follow specific rules, but LLM compliance is not guaranteed. The product rule (write only after answer stated) is enforced in the frontend.
+- **Voice model compliance** — The system prompt instructs Claros to follow specific rules, but LLM compliance is not guaranteed. The product rule (write only after answer stated) is enforced in the frontend and backend (write API requires non-empty answer_candidate).
 - **Direct Gemini Live** — Voice runs browser → Gemini Live. The frontend loads the `@google/genai` SDK from the app’s own asset (`/genai.bundle.js`); no runtime CDN. The bundle must be built once with `npm run build:genai` and committed.
 - **Ephemeral tokens** — Session config uses the Gemini API to create short-lived tokens. If token creation fails (e.g. API or region limitation), the backend returns 500 and the user must retry or check logs.
 - **Basic barge-in** — When the user starts speaking while Claros is talking, playback stops and the app returns to listening. This is not full-duplex.
