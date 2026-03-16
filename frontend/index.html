@@ -158,6 +158,11 @@
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn.stop { background: #dc2626; color: #fff; }
     .btn.stop:hover { background: #ef4444; }
+    .btn.interrupt { background: #ea580c; color: #fff; margin-left: 0.5rem; }
+    .btn.interrupt:hover { background: #f97316; }
+    .btn.interrupt { display: none; }
+    .btn.interrupt.visible { display: inline-block; }
+    .session-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
     .btn.export { background: #22c55e; color: #0f1419; margin-top: 1rem; font-size: 0.9rem; }
     .btn.export:hover { background: #4ade80; }
     .btn.export { display: none; }
@@ -255,7 +260,10 @@
       <div class="section-label">Conversation</div>
       <div id="transcript" class="transcript"></div>
       <div id="errors" class="errors"></div>
-      <button class="btn" id="micBtn" disabled>Start Session</button>
+      <div class="session-actions">
+        <button class="btn" id="micBtn" disabled>Start Session</button>
+        <button class="btn interrupt" id="interruptBtn" type="button" title="Stop Claros speaking so you can talk">Interrupt</button>
+      </div>
     </div>
   </div>
 
@@ -277,6 +285,7 @@
       const transcriptEl = document.getElementById('transcript');
       const errorsEl = document.getElementById('errors');
       const micBtn = document.getElementById('micBtn');
+      const interruptBtn = document.getElementById('interruptBtn');
 
       /* ── Upload ── */
       uploadZone.addEventListener('click', () => fileInput.click());
@@ -631,7 +640,8 @@
                   if (!targetEl) {
                     console.log('[write-chain] DOM update FAILED qid=' + qid + ' selector=' + selector + ' elementFound=false (element missing when appending)');
                   } else {
-                    targetEl.textContent = (targetEl.textContent || '') + text;
+                    var raw = (targetEl.textContent || '') + text;
+                    targetEl.textContent = raw.replace(/\$([^$]+)\$/g, '$1');
                     state.answers[questionId] = targetEl.textContent;
                     console.log('[write-chain] DOM updated qid=' + qid + ' selector=' + selector + ' elementFound=true lengthAfterAppend=' + targetEl.textContent.length);
                   }
@@ -932,6 +942,7 @@
         micBtn.disabled = false;
         micBtn.textContent = 'End Session';
         micBtn.classList.add('stop');
+        interruptBtn.classList.add('visible');
       }
 
       function stopSession() {
@@ -949,10 +960,20 @@
         micBtn.disabled = !state.assignmentId;
         micBtn.textContent = 'Start Session';
         micBtn.classList.remove('stop');
+        interruptBtn.classList.remove('visible');
         setStatus('idle');
         activeClarosMsg = null;
         clearUserPartial();
       }
+
+      function interruptAgent() {
+        if (!liveSession) return;
+        clearPlayback();
+        setStatus('listening');
+        if (errorsEl) errorsEl.textContent = '';
+      }
+
+      interruptBtn.addEventListener('click', function () { interruptAgent(); });
 
       micBtn.addEventListener('click', function () {
         if (liveSession) stopSession();

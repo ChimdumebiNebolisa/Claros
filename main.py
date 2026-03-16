@@ -5,6 +5,7 @@ Real-time voice uses Gemini Live directly from the browser.
 import datetime
 import json
 import os
+import re
 import tempfile
 import traceback
 import uuid
@@ -179,7 +180,7 @@ Conversation so far:
 
 The student has asked to have their answer for Question {body.question_id} written down.
 {answer_line}
-Based on what was discussed, write only the answer text for Question {body.question_id}. Do not include the question number, labels, or preamble. Output only the answer content that should appear in the answer box. Write the student's own answer, cleaned up for clarity. Do not invent a different answer."""
+Based on what was discussed, write only the answer text for Question {body.question_id}. Do not include the question number, labels, or preamble. Output only the answer content that should appear in the answer box. Write the student's own answer, cleaned up for clarity. Do not invent a different answer. Use plain text only: do not use LaTeX or markdown math delimiters (no $ or $$ around expressions)."""
     api_key = get_api_key()
     client = genai.Client(api_key=api_key, http_options=types.HttpOptions(api_version="v1alpha"))
     text_model = os.environ.get("GEMINI_TEXT_MODEL", "gemini-2.5-flash").strip()
@@ -195,6 +196,7 @@ Based on what was discussed, write only the answer text for Question {body.quest
             async for chunk in stream:
                 text = getattr(chunk, "text", None)
                 if text:
+                    text = re.sub(r"\$([^$]+)\$", r"\1", text)
                     chunk_count[0] += 1
                     if chunk_count[0] == 1:
                         preview = (text[:80] + "...") if len(text) > 80 else text

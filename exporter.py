@@ -1,6 +1,7 @@
 """
 PDF export for Claros: generates a PDF with assignment title, questions, and written answers.
 """
+import re
 from datetime import datetime
 from io import BytesIO
 from typing import List
@@ -48,7 +49,10 @@ def build_export_pdf(
     story.append(Paragraph(title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"), body_style))
     story.append(Spacer(1, 0.25 * inch))
 
-    answer_by_id = {a["question_id"]: a.get("answer_text", "") for a in answers}
+    def strip_latex_dollars(s: str) -> str:
+        return re.sub(r"\$([^$]+)\$", r"\1", s) if s else ""
+
+    answer_by_id = {a["question_id"]: strip_latex_dollars(a.get("answer_text", "") or "") for a in answers}
 
     for q in questions:
         qid = q.get("id", 0)
