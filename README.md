@@ -4,6 +4,10 @@
 
 ![Claros interface screenshot](images/image.png)
 
+## Demo
+
+[**Watch the demo**](videos/claros-demo.mp4) — voice session, guided reasoning, and writing answers into the worksheet.
+
 ## The Problem
 
 Students working through structured assignments typically juggle a worksheet, a help tool, and manual text entry. Each context switch slows them down and breaks their reasoning flow.
