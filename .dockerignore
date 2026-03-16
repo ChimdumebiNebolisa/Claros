@@ -10,3 +10,4 @@ test_voice.py
 requirements-voice.txt
 *.md
 .DS_Store
+node_modules

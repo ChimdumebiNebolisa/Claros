@@ -57,7 +57,7 @@ Browser (frontend/index.html)
   │
   ├── GET /api/session-config/{id}  → ephemeral token + system prompt + model
   ├── Direct WebSocket to Gemini Live API (voice: audio in/out, transcription)
-  │     via @google/genai JS SDK, using ephemeral token (API key never in frontend)
+  │     via bundled @google/genai JS SDK (served from app; no runtime CDN), ephemeral token from backend
   └── POST /api/write/{id} (streaming) → answer text for a question
 
 FastAPI backend (main.py)
@@ -69,7 +69,7 @@ FastAPI backend (main.py)
   └── Google Cloud Storage (assignment PDF persistence)
 ```
 
-**Real-time voice** uses **Gemini Live directly from the browser**. The backend does not proxy audio. On "Start Session", the frontend fetches an ephemeral token and session config from `GET /api/session-config/{assignment_id}`, then connects to Gemini Live using the `@google/genai` JavaScript SDK. The browser captures mic at 16 kHz PCM, sends audio to Gemini, and plays back responses. Transcripts are handled in the client; write detection (e.g. "write my answer for question N") and answer-stated detection run in the frontend.
+**Real-time voice** uses **Gemini Live directly from the browser**. The backend does not proxy audio. On "Start Session", the frontend loads the Gemini SDK from the app’s own asset (`/genai.bundle.js`, built from `@google/genai` and checked in), fetches an ephemeral token and session config from `GET /api/session-config/{assignment_id}`, then connects to Gemini Live. The browser captures mic at 16 kHz PCM, sends audio to Gemini, and plays back responses. Transcripts are handled in the client; write detection (e.g. "write my answer for question N") and answer-stated detection run in the frontend.
 
 **Answer writing** is triggered when the user (or Claros) asks to write and the student has already stated their answer for that question. The frontend calls `POST /api/write/{assignment_id}` with conversation context and receives a streaming text response, which is appended into the correct question field.
 
@@ -88,8 +88,17 @@ Claros is deployed on **Google Cloud Run** as a containerized service.
 
 **Deploying:**
 
+1. **Ensure the Gemini SDK bundle exists** (no runtime CDN). From project root, run once (requires Node 18+):
+
+   ```bash
+   npm install && npm run build:genai
+   ```
+
+   This writes `frontend/genai.bundle.js`. Commit it so the Docker image includes it. If the bundle is missing, the app will return 503 when the frontend requests it.
+
+2. **Build and push the container** (from project root):
+
 ```bash
-# Build and push the container (from project root)
 gcloud builds submit --tag gcr.io/<PROJECT_ID>/claros
 
 # Deploy to Cloud Run
@@ -108,7 +117,7 @@ Replace `<PROJECT_ID>`, `<REGION>`, `<key>`, `<bucket>`, and `<project>` with yo
 | Layer | Technology |
 |-------|-----------|
 | Backend | Python, FastAPI, Uvicorn |
-| Voice AI | Gemini Live API (direct from browser via @google/genai JS SDK; ephemeral token from backend) |
+| Voice AI | Gemini Live API (direct from browser via bundled @google/genai; SDK served from app; ephemeral token from backend) |
 | Text AI | Gemini 2.5 Flash (backend, for answer writing) |
 | PDF parsing | PyMuPDF (fitz) |
 | PDF export | ReportLab |
@@ -146,6 +155,8 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 Open `http://localhost:8000` in a browser. Upload a PDF or click "Use Test PDF" to load the test assignment, then click "Start Session" to begin a voice conversation.
 
+**Gemini SDK bundle:** The frontend loads the Gemini SDK from `/genai.bundle.js` (same origin). That file is produced by `npm run build:genai` and checked in under `frontend/genai.bundle.js`. There is no runtime dependency on esm.sh or any other CDN.
+
 **Note:** The browser will request microphone access. Use Chrome or a Chromium-based browser for best WebSocket and audio API support.
 
 ## Environment Variables
@@ -175,7 +186,7 @@ Local development may also require Google Cloud application credentials for GCS 
 - **Single-session state** — Conversation and answer readiness are held in memory in the browser. Refreshing the page starts a new session.
 - **PDF format dependency** — Question extraction relies on "Question N:" line patterns. PDFs with different formatting may fall back to single-block extraction.
 - **Voice model compliance** — The system prompt instructs Claros to follow specific rules, but LLM compliance is not guaranteed. The product rule (write only after answer stated) is enforced in the frontend.
-- **Direct Gemini Live** — Voice runs browser → Gemini Live. The frontend loads the `@google/genai` SDK from a CDN (esm.sh). If the CDN is blocked or slow, the voice session may not start.
+- **Direct Gemini Live** — Voice runs browser → Gemini Live. The frontend loads the `@google/genai` SDK from the app’s own asset (`/genai.bundle.js`); no runtime CDN. The bundle must be built once with `npm run build:genai` and committed.
 - **Ephemeral tokens** — Session config uses the Gemini API to create short-lived tokens. If token creation fails (e.g. API or region limitation), the backend returns 500 and the user must retry or check logs.
 - **Basic barge-in** — When the user starts speaking while Claros is talking, playback stops and the app returns to listening. This is not full-duplex.
 - **Browser compatibility** — Requires a modern browser with WebSocket, AudioContext, and getUserMedia. Tested primarily on Chrome.

@@ -546,10 +546,11 @@
 
         var GoogleGenAI;
         try {
-          var mod = await import('https://esm.sh/@google/genai');
+          var mod = await import((API_BASE + '/genai.bundle.js'));
           GoogleGenAI = mod.GoogleGenAI || mod.default;
         } catch (e) {
-          errorsEl.textContent = 'Failed to load Gemini SDK: ' + (e.message || e);
+          errorsEl.textContent = 'Failed to load Gemini SDK. ' + (e.message || 'Check console for details.');
+          if (typeof console !== 'undefined' && console.error) console.error('Gemini SDK load error:', e);
           setStatus('idle');
           micBtn.disabled = false;
           micBtn.textContent = 'Start Session';

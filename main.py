@@ -273,6 +273,18 @@ async def serve_test_assignment():
 
 
 
+@app.get("/genai.bundle.js", response_class=Response)
+async def serve_genai_bundle():
+    """Serve the bundled @google/genai SDK for browser (no runtime CDN)."""
+    path = ROOT / "frontend" / "genai.bundle.js"
+    if not path.exists():
+        raise HTTPException(
+            status_code=503,
+            detail="Gemini SDK bundle missing. Run: npm install && npm run build:genai, then commit frontend/genai.bundle.js",
+        )
+    return FileResponse(path, media_type="application/javascript; charset=utf-8")
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index():
     """Serve the Claros app (frontend/index.html)."""
