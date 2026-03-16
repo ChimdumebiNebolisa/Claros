@@ -1,0 +1,62 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    env:
+      SERVICE_NAME: claros
+      REGION: us-central1
+      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build genai bundle
+        run: |
+          npm install
+          npm run build:genai
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Build and push image
+        run: |
+          IMAGE="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
+          gcloud builds submit --tag "$IMAGE"
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy "$SERVICE_NAME" \
+            --image "$IMAGE" \
+            --platform managed \
+            --region "$REGION" \
+            --allow-unauthenticated \
+            --set-env-vars \
+              GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},\
+GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }},\
+GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }}
+

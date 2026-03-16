@@ -49,6 +49,8 @@ This is not about making assignments easier. It is about making them accessible 
 - **Live transcript** — Both sides of the conversation are transcribed and displayed in real time (from Gemini Live in the browser).
 - **PDF export** — Export all questions and current answers as a formatted PDF document.
 - **Answer-stated indicator** — The UI shows a visual badge when the student has stated their answer for a given question.
+ - **Barge-in / interruption** — If the student starts speaking while Claros is talking, Claros’ audio playback is stopped and the app returns to listening (frontend-level interruption, not full-duplex).
+ - **Voice-enabled PDF export** — Saying phrases like “export pdf” or “export this as pdf” from within the voice session can trigger the same PDF export flow as the button.
 
 ## Architecture
 
@@ -72,6 +74,10 @@ FastAPI backend (main.py)
 **Real-time voice** uses **Gemini Live directly from the browser**. The backend does not proxy audio. On "Start Session", the frontend loads the Gemini SDK from the app’s own asset (`/genai.bundle.js`, built from `@google/genai` and checked in), fetches an ephemeral token and session config from `GET /api/session-config/{assignment_id}`, then connects to Gemini Live. The browser captures mic at 16 kHz PCM, sends audio to Gemini, and plays back responses. Transcripts are handled in the client; write detection (e.g. "write my answer for question N") and answer-stated detection run in the frontend.
 
 **Answer writing** is triggered when the user (or Claros) asks to write and the student has already stated their answer for that question. The frontend calls `POST /api/write/{assignment_id}` with conversation context and receives a streaming text response, which is appended into the correct question field.
+
+**Barge-in / interruption** is implemented entirely in the frontend audio playback layer. When new user mic transcription arrives from Gemini Live while Claros audio is playing, the browser stops any scheduled audio buffers, clears the local playback queue, and returns the UI to a listening state. This interrupts current playback; it does not provide overlapping, full-duplex conversation.
+
+**Voice-enabled PDF export** is detected on the user speech path in the browser. When a user utterance for a completed turn clearly matches export-intent phrases (e.g., “export pdf”, “export this as pdf”, “download pdf”, “save this as pdf”), the frontend triggers the same `/export/{assignment_id}` route used by the Export button, as long as at least one answer is non-empty. If no answers are present, the voice export request is blocked with a clear on-screen message instead of calling the backend.
 
 **Answer readiness gating** is enforced in the frontend (UI and write flow only allow writing once the student has stated their answer, detected via phrase patterns) and in the backend (the write endpoint returns 400 if `answer_candidate` is missing or empty).
 
@@ -188,7 +194,8 @@ Local development may also require Google Cloud application credentials for GCS 
 - **Voice model compliance** — The system prompt instructs Claros to follow specific rules, but LLM compliance is not guaranteed. The product rule (write only after answer stated) is enforced in the frontend and backend (write API requires non-empty answer_candidate).
 - **Direct Gemini Live** — Voice runs browser → Gemini Live. The frontend loads the `@google/genai` SDK from the app’s own asset (`/genai.bundle.js`); no runtime CDN. The bundle must be built once with `npm run build:genai` and committed.
 - **Ephemeral tokens** — Session config uses the Gemini API to create short-lived tokens. If token creation fails (e.g. API or region limitation), the backend returns 500 and the user must retry or check logs.
-- **Basic barge-in** — When the user starts speaking while Claros is talking, playback stops and the app returns to listening. This is not full-duplex.
+- **Basic barge-in** — When the user starts speaking while Claros is talking, frontend playback is stopped, the local audio queue is cleared, and the app returns to listening. This improves perceived responsiveness but is still not full-duplex.
+- **Heuristic voice export intent** — Voice-triggered export is based on simple phrase matching (e.g., “export pdf”). It only fires when at least one answer is present and may not catch all phrasing variations.
 - **Browser compatibility** — Requires a modern browser with WebSocket, AudioContext, and getUserMedia. Tested primarily on Chrome.
 
 ## Future Improvements
