@@ -139,6 +139,7 @@ Replace `<PROJECT_ID>`, `<REGION>`, `<key>`, `<bucket>`, and `<project>` with yo
 
 **Prerequisites:**
 - Python 3.11+
+- Node.js 18+ and npm (only if you need to rebuild `frontend/genai.bundle.js`; see **Gemini SDK bundle** below)
 - A Google Cloud project with Cloud Storage enabled
 - A Gemini API key
 - A GCS bucket for storing uploaded assignments
@@ -147,7 +148,7 @@ Replace `<PROJECT_ID>`, `<REGION>`, `<key>`, `<bucket>`, and `<project>` with yo
 
 ```bash
 # Clone the repository
-git clone <repo-url>
+git clone https://github.com/ChimdumebiNebolisa/Claros.git
 cd Claros
 
 # Install dependencies
@@ -188,6 +189,17 @@ GEMINI_TEXT_MODEL=gemini-2.5-flash
 | `GEMINI_TEXT_MODEL` | Text model used for answer generation (default: `gemini-2.5-flash`) |
 
 Local development may also require Google Cloud application credentials for GCS access (e.g., `GOOGLE_APPLICATION_CREDENTIALS` or `gcloud auth application-default login`).
+
+## Development
+
+To run tests and other dev dependencies:
+
+```bash
+pip install -r requirements-dev.txt
+pytest tests/
+```
+
+The optional `requirements-voice.txt` stack is for `test_voice.py` (standalone mic/speaker voice test); the main app uses `requirements-server.txt` only.
 
 ## Current Limitations
 
