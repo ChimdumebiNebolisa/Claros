@@ -5,156 +5,393 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Claros</title>
   <style>
+    :root {
+      --bg-base: #090b16;
+      --bg-gradient-start: #171a34;
+      --bg-gradient-end: #0c1022;
+      --bg-panel: rgba(12, 16, 34, 0.82);
+      --surface-1: #121835;
+      --surface-2: #1a2343;
+      --surface-3: #202b50;
+      --border-soft: #2e3a66;
+      --border-strong: #435191;
+      --text-main: #eef2ff;
+      --text-secondary: #c8d0f5;
+      --text-muted: #8d99c9;
+      --accent: #ff9a3d;
+      --accent-hover: #ffac60;
+      --accent-press: #f28728;
+      --success: #34d399;
+      --warning: #fbbf24;
+      --error: #f87171;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-pill: 999px;
+      --shadow-low: 0 8px 24px rgba(8, 12, 30, 0.24);
+      --shadow-mid: 0 14px 40px rgba(8, 12, 30, 0.36);
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html { -webkit-text-size-adjust: 100%; }
     body {
       font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-      background: #0f1117; color: #e8eaed; min-height: 100vh;
+      background:
+        radial-gradient(1200px 520px at 12% -6%, rgba(118, 91, 255, 0.24), transparent 64%),
+        radial-gradient(820px 440px at 92% -14%, rgba(255, 154, 61, 0.18), transparent 58%),
+        linear-gradient(145deg, var(--bg-gradient-start), var(--bg-gradient-end));
+      color: var(--text-main);
+      min-height: 100vh;
       overflow-x: hidden;
     }
-    .app { display: flex; height: 100vh; min-height: 100vh; }
+    .app {
+      display: flex;
+      height: 100vh;
+      min-height: 100vh;
+      backdrop-filter: blur(4px);
+    }
 
     /* ── Left panel: worksheet ── */
     .panel-left {
       flex: 1; min-width: 0; overflow-y: auto;
       padding: 1.5rem 2rem 2rem;
-      border-right: 1px solid #1e2530;
+      border-right: 1px solid var(--border-soft);
+      background: var(--bg-panel);
     }
-    .header { margin-bottom: 1.25rem; }
+    .header {
+      margin-bottom: 1.1rem;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+    }
     .brand {
-      font-size: 1.2rem; font-weight: 700; letter-spacing: 0.08em;
-      color: #f59e0b;
+      font-size: 1.3rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      text-transform: uppercase;
     }
     .brand-sub {
-      font-size: 0.78rem; color: #6b7280; margin-top: 0.1rem;
-      letter-spacing: 0.01em;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+      letter-spacing: 0.02em;
+    }
+    .brand-chip {
+      font-size: 0.68rem;
+      color: #101426;
+      background: linear-gradient(120deg, var(--accent), #ffd188);
+      border-radius: var(--radius-pill);
+      padding: 0.24rem 0.64rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      box-shadow: var(--shadow-low);
+      align-self: flex-start;
+    }
+    .hero-card {
+      background: linear-gradient(145deg, rgba(37, 49, 92, 0.9), rgba(24, 33, 66, 0.88));
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-lg);
+      padding: 1.2rem 1.15rem;
+      margin-bottom: 1rem;
+      box-shadow: var(--shadow-low);
+    }
+    .hero-eyebrow {
+      font-size: 0.66rem;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-bottom: 0.55rem;
+    }
+    .hero-title {
+      font-size: 1.3rem;
+      line-height: 1.3;
+      margin-bottom: 0.5rem;
+      color: var(--text-main);
+    }
+    .hero-copy {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      line-height: 1.55;
     }
     .assignment-title {
-      font-size: 1.05rem; font-weight: 600; margin-bottom: 1rem; color: #e8eaed;
+      font-size: 1.02rem;
+      font-weight: 700;
+      margin-bottom: 0.85rem;
+      color: var(--text-main);
+      letter-spacing: 0.01em;
+    }
+
+    .setup-row {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .setup-card {
+      background: var(--surface-1);
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-md);
+      padding: 0.8rem 0.85rem;
+      box-shadow: var(--shadow-low);
+    }
+    .setup-title {
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 0.55rem;
+      font-weight: 700;
+    }
+    .setup-list {
+      list-style: none;
+      display: grid;
+      gap: 0.42rem;
+    }
+    .setup-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+    .setup-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      border: 1px solid var(--border-strong);
+      background: transparent;
+      flex-shrink: 0;
+    }
+    .setup-item.done .setup-dot {
+      background: var(--success);
+      border-color: var(--success);
+      box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.22);
+    }
+    .next-copy {
+      font-size: 0.83rem;
+      color: var(--text-secondary);
+      line-height: 1.55;
     }
 
     /* Upload */
     .upload-row { display: flex; gap: 0.75rem; align-items: stretch; margin-bottom: 1.25rem; }
     .upload-zone {
-      flex: 1; border: 1.5px dashed #374151; border-radius: 10px;
-      padding: 1.15rem; text-align: center; cursor: pointer;
-      background: #161920; transition: border-color 0.2s;
+      flex: 1;
+      border: 1.5px dashed var(--border-strong);
+      border-radius: var(--radius-md);
+      padding: 1.15rem;
+      text-align: center;
+      cursor: pointer;
+      background: linear-gradient(145deg, var(--surface-2), var(--surface-1));
+      transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
       display: flex; align-items: center; justify-content: center;
+      box-shadow: var(--shadow-low);
     }
-    .upload-zone:hover { border-color: #f59e0b; }
+    .upload-zone:hover {
+      border-color: var(--accent);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-mid);
+    }
+    .upload-zone.hover {
+      border-color: var(--accent);
+      background: linear-gradient(145deg, rgba(54, 72, 134, 0.9), rgba(31, 43, 82, 0.92));
+      box-shadow: 0 0 0 3px rgba(255, 154, 61, 0.22);
+    }
     .upload-zone input { display: none; }
-    .upload-zone span { font-size: 0.84rem; color: #9ca3af; }
+    .upload-zone span { font-size: 0.84rem; color: var(--text-secondary); font-weight: 600; }
     .btn-test-pdf {
       flex-shrink: 0; padding: 0.5rem 0.85rem;
       font-size: 0.84rem; white-space: nowrap;
-      background: #1e2530; color: #d1d5db;
-      border: 1px solid #374151; border-radius: 10px;
+      background: var(--surface-1); color: var(--text-secondary);
+      border: 1px solid var(--border-soft); border-radius: var(--radius-md);
       cursor: pointer; transition: background 0.15s;
+      font-weight: 600;
     }
-    .btn-test-pdf:hover { background: #252d3a; }
+    .btn-test-pdf:hover { background: var(--surface-2); }
     .btn-test-pdf:disabled { opacity: 0.5; cursor: not-allowed; }
 
     /* Question cards */
     .question-card {
-      background: #161920; border: 1px solid #1e2530; border-radius: 12px;
+      background: linear-gradient(145deg, var(--surface-1), rgba(26, 35, 67, 0.9));
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-md);
       padding: 1.1rem 1.15rem; margin-bottom: 0.85rem;
       transition: border-color 0.2s, box-shadow 0.2s;
+      box-shadow: var(--shadow-low);
     }
+    .question-index {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 28px;
+      height: 28px;
+      border-radius: var(--radius-pill);
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      color: var(--text-secondary);
+      font-weight: 700;
+      font-size: 0.78rem;
+      padding: 0 8px;
+      margin-right: 0.6rem;
+      border: 1px solid rgba(255,255,255,0.03);
+    }
+    .question-header { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
+    .question-meta { color: var(--text-muted); font-size: 0.78rem; }
+    .answer-field[contenteditable="true"] { caret-color: var(--accent); }
+    .answer-field:focus { background: rgba(255,255,255,0.01); }
+    .question-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-mid); }
     .question-card.writing {
-      border-color: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,0.22);
+      border-color: var(--accent); box-shadow: 0 0 0 2px rgba(255, 154, 61, 0.24);
     }
-    .question-card.answer-ready { border-color: #22c55e; }
+    .question-card.answer-ready { border-color: var(--success); }
     .question-label {
       font-weight: 600; font-size: 0.84rem; margin-bottom: 0.3rem;
-      color: #d1d5db; display: flex; align-items: center; gap: 0.5rem;
+      color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;
     }
     .ready-badge {
       font-size: 0.62rem; font-weight: 600; padding: 0.12rem 0.5rem;
-      border-radius: 999px; background: #14532d; color: #86efac; display: none;
+      border-radius: var(--radius-pill); background: rgba(52, 211, 153, 0.15); color: #9af5cf; display: none;
     }
     .question-card.answer-ready .ready-badge { display: inline-block; }
     .question-text {
-      font-size: 0.86rem; color: #9ca3af; margin-bottom: 0.7rem;
+      font-size: 0.86rem; color: var(--text-secondary); margin-bottom: 0.7rem;
       white-space: pre-wrap; word-break: break-word; line-height: 1.55;
     }
     .answer-field {
       min-height: 56px; width: 100%;
-      background: #0f1117; border: 1px solid #252a33; border-radius: 8px;
+      background: rgba(10, 13, 26, 0.85); border: 1px solid var(--border-soft); border-radius: var(--radius-sm);
       padding: 0.65rem 0.8rem;
-      font-family: inherit; font-size: 0.86rem; color: #e8eaed;
+      font-family: inherit; font-size: 0.86rem; color: var(--text-main);
       resize: vertical; white-space: pre-wrap; word-break: break-word; line-height: 1.5;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .answer-field:empty::before { content: attr(data-placeholder); color: #4b5563; pointer-events: none; }
-    .answer-field:focus { outline: none; border-color: #f59e0b; }
+    .answer-field:empty::before { content: attr(data-placeholder); color: #6a77a8; pointer-events: none; }
+    .answer-field:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(255, 154, 61, 0.2);
+    }
 
     /* ── Right panel: session ── */
     .panel-right {
       width: 380px; flex-shrink: 0; padding: 1.25rem;
-      display: flex; flex-direction: column; background: #0b0d11;
+      display: flex; flex-direction: column;
+      background: rgba(8, 11, 24, 0.88);
     }
     .section-label {
       font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em;
-      text-transform: uppercase; color: #6b7280; margin-bottom: 0.45rem;
+      text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.45rem;
     }
 
     /* Status indicator */
     .status-bar {
       display: flex; align-items: center; justify-content: center;
-      padding: 0.6rem; border-radius: 10px; margin-bottom: 0.75rem;
+      padding: 0.66rem; border-radius: var(--radius-md); margin-bottom: 0.75rem;
       font-size: 0.82rem; font-weight: 600; letter-spacing: 0.03em;
       transition: background 0.3s, color 0.3s;
+      border: 1px solid var(--border-soft);
     }
     .status-dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      margin-right: 8px; flex-shrink: 0;
+      width: 10px; height: 10px; border-radius: 50%;
+      margin-right: 10px; flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(8,12,30,0.28);
     }
-    .status-bar.idle { background: #161920; color: #6b7280; }
-    .status-bar.idle .status-dot { background: #4b5563; }
-    .status-bar.connecting { background: #172554; color: #93c5fd; }
+    .status-badge {
+      display: inline-block; margin-left: 0.5rem; padding: 0.08rem 0.45rem; border-radius: 999px;
+      font-size: 0.62rem; font-weight: 700; vertical-align: middle; opacity: 0.95;
+    }
+    .status-bar.idle { background: rgba(23, 31, 57, 0.86); color: var(--text-muted); }
+    .status-bar.idle .status-dot { background: #7c88b8; }
+    .status-bar.connecting { background: rgba(35, 53, 110, 0.86); color: #b7d3ff; }
     .status-bar.connecting .status-dot { background: #60a5fa; animation: pulse 1.2s ease-in-out infinite; }
-    .status-bar.listening { background: #14532d; color: #86efac; }
+    .status-bar.listening { background: rgba(21, 79, 56, 0.86); color: #a5f3cf; }
     .status-bar.listening .status-dot { background: #22c55e; animation: pulse 1.5s ease-in-out infinite; }
-    .status-bar.speaking { background: #172554; color: #93c5fd; }
+    .status-bar.speaking { background: rgba(35, 53, 110, 0.86); color: #b7d3ff; }
     .status-bar.speaking .status-dot { background: #60a5fa; animation: pulse 0.7s ease-in-out infinite; }
-    .status-bar.writing { background: #422006; color: #fcd34d; }
-    .status-bar.writing .status-dot { background: #f59e0b; animation: pulse 1s ease-in-out infinite; }
+    .status-bar.writing { background: rgba(87, 56, 19, 0.88); color: #ffe1ac; }
+    .status-bar.writing .status-dot { background: var(--accent); animation: pulse 1s ease-in-out infinite; }
     @keyframes pulse {
       0%, 100% { opacity: 0.35; transform: scale(0.85); }
       50% { opacity: 1; transform: scale(1.15); }
     }
 
     /* Meter */
-    .meter-wrap { height: 3px; background: #161920; border-radius: 2px; overflow: hidden; margin-bottom: 0.85rem; }
-    .meter-bar { height: 100%; width: 0%; background: #22c55e; transition: width 0.05s ease; }
+    .meter-wrap {
+      height: 4px;
+      background: rgba(29, 39, 74, 0.94);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 0.9rem;
+      border: 1px solid rgba(67, 81, 145, 0.55);
+    }
+    .meter-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #34d399, #86efac); transition: width 0.05s ease; }
 
     /* Transcript */
     .transcript {
       flex: 1; min-height: 120px; overflow-y: auto; overflow-x: hidden;
-      background: #0f1117; border: 1px solid #1e2530;
-      border-radius: 10px; padding: 0.7rem 0.8rem;
+      background: rgba(9, 13, 30, 0.92); border: 1px solid var(--border-soft);
+      border-radius: var(--radius-md); padding: 0.7rem 0.8rem;
       font-size: 0.82rem; line-height: 1.6;
       word-wrap: break-word; overflow-wrap: break-word;
+      box-shadow: var(--shadow-low);
     }
+    .transcript:empty::before {
+      content: 'Your conversation will appear here after you start a session. Tip: say the question number when asking Claros to write.';
+      display: block;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      line-height: 1.55;
+      padding: 1.1rem 0.4rem;
+      text-align: center;
+      opacity: 0.95;
+    }
+    .transcript .msg { padding: 0.35rem 0; }
+    .transcript .msg.user { padding-left: 0.2rem; }
+    .transcript .msg.claros { padding-left: 0.2rem; }
+    .transcript::-webkit-scrollbar { height: 8px; width: 8px; }
+    .transcript::-webkit-scrollbar-thumb { background: rgba(67,81,145,0.36); border-radius: 6px; }
     .msg { padding: 0.25rem 0; word-break: break-word; }
     .msg + .msg { margin-top: 0.1rem; }
     .msg-label { font-weight: 600; margin-right: 0.3rem; font-size: 0.78rem; }
     .msg.user .msg-label { color: #60a5fa; }
-    .msg.claros .msg-label { color: #4ade80; }
-    .msg.user { color: #c7d2e0; }
-    .msg.claros { color: #d1dbe6; }
+    .msg.claros .msg-label { color: #9af5cf; }
+    .msg.user { color: #d7defe; }
+    .msg.claros { color: #e3e8ff; }
     .msg.partial { opacity: 0.55; }
 
-    .errors { font-size: 0.82rem; color: #fca5a5; margin-top: 0.4rem; min-height: 1.1rem; }
+    .errors {
+      font-size: 0.82rem;
+      color: var(--error);
+      margin-top: 0.48rem;
+      min-height: 1.3rem;
+      background: rgba(248, 113, 113, 0.08);
+      border: 1px solid rgba(248, 113, 113, 0.24);
+      border-radius: var(--radius-sm);
+      padding: 0.44rem 0.55rem;
+    }
+    .errors:empty {
+      background: transparent;
+      border-color: transparent;
+      padding: 0;
+    }
 
     /* Buttons */
     .btn {
       display: block; width: 100%; padding: 0.7rem 1rem;
       font-size: 0.95rem; font-weight: 600; border: none;
-      border-radius: 10px; cursor: pointer;
-      background: #f59e0b; color: #1a1d23; margin-top: 0.5rem;
-      transition: background 0.15s;
+      border-radius: var(--radius-md); cursor: pointer;
+      background: var(--accent); color: #1a1d23; margin-top: 0.5rem;
+      transition: background 0.15s, transform 0.15s;
+      box-shadow: var(--shadow-low);
     }
-    .btn:hover { background: #fbbf24; }
+    .btn:hover { background: var(--accent-hover); transform: translateY(-1px); }
+    .btn:focus-visible {
+      outline: 2px solid #ffd188;
+      outline-offset: 2px;
+    }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn.stop { background: #dc2626; color: #fff; }
     .btn.stop:hover { background: #ef4444; }
@@ -162,8 +399,18 @@
     .btn.interrupt:hover { background: #f97316; }
     .btn.interrupt { display: none; }
     .btn.interrupt.visible { display: inline-block; }
+    .btn.interrupt {
+      padding: 0.6rem 0.9rem; min-height: 44px; display: inline-flex; align-items: center; gap: 0.5rem;
+      border-radius: var(--radius-md); box-shadow: 0 6px 18px rgba(234,88,12,0.12);
+      border: 1px solid rgba(255,255,255,0.04);
+    }
     .session-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
-    .btn.export { background: #22c55e; color: #0f1419; margin-top: 1rem; font-size: 0.9rem; }
+    .btn.export {
+      background: linear-gradient(120deg, #32d39e, #7bf0bf);
+      color: #0f1419;
+      margin-top: 1rem;
+      font-size: 0.9rem;
+    }
     .btn.export:hover { background: #4ade80; }
     .btn.export { display: none; }
     .btn.export.visible { display: block; }
@@ -174,13 +421,14 @@
         flex-direction: column;
         height: auto;
         min-height: 100vh;
+        gap: 0.5rem;
       }
       .panel-left {
         flex: none;
         min-height: 0;
         padding: 1rem 1rem 1.25rem;
         border-right: none;
-        border-bottom: 1px solid #1e2530;
+        border-bottom: 1px solid var(--border-soft);
       }
       .panel-right {
         width: 100%;
@@ -188,9 +436,14 @@
         min-height: 280px;
         padding: 1rem;
       }
+      .setup-row {
+        grid-template-columns: 1fr;
+      }
       .header { margin-bottom: 1rem; }
       .brand { font-size: 1.1rem; }
       .assignment-title { font-size: 1rem; margin-bottom: 0.75rem; }
+      .hero-title { font-size: 1.15rem; }
+      .hero-copy { font-size: 0.86rem; }
       .upload-row {
         flex-direction: column;
         gap: 0.5rem;
@@ -209,6 +462,9 @@
       .brand { font-size: 1rem; }
       .brand-sub { font-size: 0.72rem; }
       .assignment-title { font-size: 0.95rem; }
+      .hero-card { padding: 0.95rem 0.9rem; }
+      .hero-title { font-size: 1.04rem; }
+      .hero-copy { font-size: 0.82rem; }
       .upload-zone { padding: 1rem; }
       .upload-zone span { font-size: 0.8rem; }
       .question-label { font-size: 0.8rem; }
@@ -217,6 +473,8 @@
       .status-bar { font-size: 0.78rem; padding: 0.5rem; }
       .transcript { font-size: 0.78rem; padding: 0.6rem 0.7rem; }
       .errors { font-size: 0.78rem; }
+      .btn { min-height: 48px; }
+      .btn.interrupt { min-height: 48px; }
     }
 
     /* Prevent zoom on input focus on iOS */
@@ -236,24 +494,50 @@
   <div class="app">
     <div class="panel-left">
       <div class="header">
-        <div class="brand">Claros</div>
-        <div class="brand-sub">Voice-guided worksheet assistant</div>
+        <div>
+          <div class="brand">Claros</div>
+          <div class="brand-sub">Voice-guided worksheet assistant</div>
+        </div>
+        <div class="brand-chip">Claros Voice Tutor</div>
       </div>
-      <div class="assignment-title" id="assignmentTitle">Upload an assignment PDF</div>
+
+      <div class="hero-card">
+        <div class="hero-eyebrow">Talk Through Learning</div>
+        <h1 class="hero-title">Talk through any worksheet, step by step.</h1>
+        <p class="hero-copy">Upload an assignment PDF and Claros will read the questions, listen to your answers, and guide you with hints and feedback.</p>
+      </div>
+
+      <div class="setup-row">
+        <div class="setup-card">
+          <div class="setup-title">Setup checklist</div>
+          <ul class="setup-list">
+            <li class="setup-item" id="setupStepUpload"><span class="setup-dot"></span><span>Upload a worksheet PDF</span></li>
+            <li class="setup-item" id="setupStepReview"><span class="setup-dot"></span><span>Review extracted questions</span></li>
+            <li class="setup-item" id="setupStepSession"><span class="setup-dot"></span><span>Start a voice session</span></li>
+            <li class="setup-item" id="setupStepExport"><span class="setup-dot"></span><span>Export completed answers</span></li>
+          </ul>
+        </div>
+        <div class="setup-card">
+          <div class="setup-title">What happens next</div>
+          <p class="next-copy">Once your worksheet is uploaded, Claros will parse each question into answer cards. Start a voice session whenever you are ready to think out loud.</p>
+        </div>
+      </div>
+
+      <div class="assignment-title" id="assignmentTitle">Upload a worksheet to begin</div>
       <div class="upload-row">
         <div class="upload-zone" id="uploadZone">
           <input type="file" id="fileInput" accept=".pdf">
-          <span id="uploadLabel">Drop PDF or click to upload</span>
+          <span id="uploadLabel">Drop PDF here or click to upload</span>
         </div>
-        <button type="button" class="btn-test-pdf" id="testPdfBtn">Use Test PDF</button>
+        <button type="button" class="btn-test-pdf" id="testPdfBtn">Use sample worksheet</button>
       </div>
       <div id="questionsContainer"></div>
-      <button class="btn export" id="exportBtn">Export PDF</button>
+      <button class="btn export" id="exportBtn">Export answers as PDF</button>
     </div>
     <div class="panel-right">
-      <div class="section-label">Session</div>
-      <div id="status" class="status-bar idle">
-        <span class="status-dot"></span>
+      <div class="section-label">Voice Session</div>
+      <div id="status" class="status-bar idle" role="status" aria-live="polite">
+        <span class="status-dot" aria-hidden="true"></span>
         <span id="statusLabel">Ready</span>
       </div>
       <div class="meter-wrap"><div id="meterBar" class="meter-bar"></div></div>
@@ -261,7 +545,7 @@
       <div id="transcript" class="transcript"></div>
       <div id="errors" class="errors"></div>
       <div class="session-actions">
-        <button class="btn" id="micBtn" disabled>Start Session</button>
+        <button class="btn" id="micBtn" disabled>Start voice session</button>
         <button class="btn interrupt" id="interruptBtn" type="button" title="Stop Claros speaking so you can talk">Interrupt</button>
       </div>
     </div>
@@ -287,6 +571,10 @@
       const errorsEl = document.getElementById('errors');
       const micBtn = document.getElementById('micBtn');
       const interruptBtn = document.getElementById('interruptBtn');
+      const setupStepUpload = document.getElementById('setupStepUpload');
+      const setupStepReview = document.getElementById('setupStepReview');
+      const setupStepSession = document.getElementById('setupStepSession');
+      const setupStepExport = document.getElementById('setupStepExport');
 
       const SR = typeof ClarosSessionRules !== 'undefined' ? ClarosSessionRules : null;
       if (!SR) {
@@ -299,6 +587,20 @@
       var CLAROS_WRITE_PHRASE_RE = SR.CLAROS_WRITE_PHRASE_RE;
       var ANSWER_STATED_RE = SR.ANSWER_STATED_RE;
       var hasExportIntent = SR.hasExportIntent;
+
+      function setChecklistStep(stepEl, done) {
+        if (!stepEl) return;
+        if (done) stepEl.classList.add('done');
+        else stepEl.classList.remove('done');
+      }
+
+      function syncChecklist() {
+        var hasAssignment = !!state.assignmentId;
+        setChecklistStep(setupStepUpload, hasAssignment);
+        setChecklistStep(setupStepReview, hasAssignment && Array.isArray(state.questions) && state.questions.length > 0);
+        setChecklistStep(setupStepSession, !!liveSession);
+        setChecklistStep(setupStepExport, !!Object.values(state.answers || {}).find(function (v) { return (v || '').trim(); }));
+      }
 
       /* ── Upload ── */
       uploadZone.addEventListener('click', () => fileInput.click());
@@ -317,25 +619,25 @@
 
       const testPdfBtn = document.getElementById('testPdfBtn');
       testPdfBtn.addEventListener('click', async () => {
-        uploadLabel.textContent = 'Loading test PDF…';
+        uploadLabel.textContent = 'Loading sample worksheet...';
         testPdfBtn.disabled = true;
         errorsEl.textContent = '';
         try {
           const r = await fetch('/test-assignment.pdf');
-          if (!r.ok) throw new Error('Failed to load test PDF');
+          if (!r.ok) throw new Error('Failed to load sample worksheet');
           const blob = await r.blob();
           const file = new File([blob], 'test_assignment.pdf', { type: 'application/pdf' });
           await doUpload(file);
         } catch (err) {
-          errorsEl.textContent = err.message || 'Failed to load test PDF';
+          errorsEl.textContent = err.message || 'Failed to load sample worksheet';
         } finally {
-          uploadLabel.textContent = 'Drop PDF or click to upload';
+          uploadLabel.textContent = 'Drop PDF here or click to upload';
           testPdfBtn.disabled = false;
         }
       });
 
       async function doUpload(file) {
-        uploadLabel.textContent = 'Uploading…';
+        uploadLabel.textContent = 'Uploading and reading your worksheet...';
         errorsEl.textContent = '';
         const form = new FormData();
         form.append('file', file);
@@ -354,10 +656,13 @@
           assignmentTitleEl.textContent = state.title;
           renderQuestions();
           micBtn.disabled = false;
-          uploadLabel.textContent = 'Drop PDF or click to upload';
+          uploadLabel.textContent = 'Drop PDF here or click to upload';
+          errorsEl.textContent = 'Worksheet ready. You can start your voice session now.';
+          syncChecklist();
         } catch (err) {
-          uploadLabel.textContent = 'Drop PDF or click to upload';
-          errorsEl.textContent = err.message || 'Upload failed';
+          uploadLabel.textContent = 'Drop PDF here or click to upload';
+          errorsEl.textContent = err.message || 'We could not upload that file. Please try another PDF.';
+          syncChecklist();
         }
       }
 
@@ -370,7 +675,7 @@
           card.className = 'question-card';
           card.dataset.questionId = String(q.id);
           const questionText = (q.text != null && q.text !== '') ? String(q.text) : '';
-          card.innerHTML = '<div class="question-label">Question ' + q.id + '<span class="ready-badge">Answer stated</span></div><div class="question-text"></div><div class="answer-field" data-question-id="' + q.id + '" data-placeholder="Answer will appear here…" contenteditable="true" spellcheck="true"></div>';
+          card.innerHTML = '<div class="question-header"><div style="display:flex;align-items:center"><span class="question-index">' + q.id + '</span><div class="question-label">Question ' + q.id + '<span class="ready-badge">Answer stated</span></div></div><div class="question-meta">&nbsp;</div></div><div class="question-text"></div><div class="answer-field" data-question-id="' + q.id + '" data-placeholder="Answer will appear here…" contenteditable="true" spellcheck="true"></div>';
           const questionTextEl = card.querySelector('.question-text');
           const answerEl = card.querySelector('.answer-field');
           if (questionTextEl) {
@@ -380,6 +685,7 @@
           answerEl.addEventListener('input', () => {
             state.answers[q.id] = answerEl.textContent;
             if (answerEl.textContent.trim()) exportBtn.classList.add('visible');
+            syncChecklist();
           });
           questionsContainer.appendChild(card);
         });
@@ -429,11 +735,11 @@
       function setStatus(mode) {
         currentMode = mode;
         var labels = {
-          idle: 'Ready',
+          idle: 'Ready to start',
           connecting: 'Connecting\u2026',
-          listening: 'Listening',
+          listening: 'Listening for your response',
           speaking: 'Claros is speaking',
-          writing: 'Writing answer\u2026'
+          writing: 'Writing your answer\u2026'
         };
         statusLabel.textContent = labels[mode] || mode;
         statusEl.className = 'status-bar ' + mode;
@@ -547,7 +853,8 @@
         var q = 'answers=' + encodeURIComponent(JSON.stringify(answers));
         var href = '/export/' + state.assignmentId + '?' + q;
         console.log('[voice-export] Triggering PDF export.', { source: source, href: href });
-        errorsEl.textContent = 'Exporting PDF… your browser should download the file.';
+        errorsEl.textContent = 'Exporting your PDF... your browser should download the file.';
+        setChecklistStep(setupStepExport, true);
         window.location.href = href;
         return true;
       }
@@ -688,10 +995,10 @@
           if (!r.ok) throw new Error(r.status === 404 ? 'Assignment not found' : (await r.text()) || 'Session config failed');
           config = await r.json();
         } catch (e) {
-          errorsEl.textContent = e.message || 'Failed to get session config';
+          errorsEl.textContent = e.message || 'Failed to start session configuration';
           setStatus('idle');
           micBtn.disabled = false;
-          micBtn.textContent = 'Start Session';
+          micBtn.textContent = 'Start voice session';
           return;
         }
 
@@ -704,7 +1011,7 @@
           if (typeof console !== 'undefined' && console.error) console.error('Gemini SDK load error:', e);
           setStatus('idle');
           micBtn.disabled = false;
-          micBtn.textContent = 'Start Session';
+          micBtn.textContent = 'Start voice session';
           return;
         }
 
@@ -738,7 +1045,11 @@
               onmessage: function (msg) {
                 var sc = msg.serverContent;
                 if (!sc) return;
-                if (sc.setupComplete) { setStatus('listening'); return; }
+                if (sc.setupComplete) {
+                  setStatus('listening');
+                  setChecklistStep(setupStepSession, true);
+                  return;
+                }
                 if (sc.inputTranscription && sc.inputTranscription.text) {
                   userTranscriptBuffer += sc.inputTranscription.text;
                   var wasSpeaking = (scheduledSources && scheduledSources.length > 0) || currentMode === 'speaking';
@@ -861,7 +1172,7 @@
           errorsEl.textContent = (e && e.message) || 'Failed to connect to Gemini Live';
           setStatus('idle');
           micBtn.disabled = false;
-          micBtn.textContent = 'Start Session';
+          micBtn.textContent = 'Start voice session';
           return;
         }
 
@@ -878,12 +1189,12 @@
           };
           stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
         } catch (e) {
-          errorsEl.textContent = 'Microphone access denied';
+          errorsEl.textContent = 'Microphone access is required for voice tutoring. Please allow access and try again.';
           if (liveSession.close) liveSession.close();
           liveSession = null;
           setStatus('idle');
           micBtn.disabled = false;
-          micBtn.textContent = 'Start Session';
+          micBtn.textContent = 'Start voice session';
           return;
         }
         mediaStream = stream;
@@ -929,6 +1240,7 @@
         micBtn.textContent = 'End Session';
         micBtn.classList.add('stop');
         interruptBtn.classList.add('visible');
+        syncChecklist();
       }
 
       function stopSession() {
@@ -944,12 +1256,13 @@
         if (audioContext) { audioContext.close(); audioContext = null; }
         meterBar.style.width = '0%';
         micBtn.disabled = !state.assignmentId;
-        micBtn.textContent = 'Start Session';
+        micBtn.textContent = 'Start voice session';
         micBtn.classList.remove('stop');
         interruptBtn.classList.remove('visible');
         setStatus('idle');
         activeClarosMsg = null;
         clearUserPartial();
+        syncChecklist();
       }
 
       function interruptAgent() {
@@ -969,6 +1282,8 @@
       exportBtn.addEventListener('click', function () {
         performExport({ source: 'button' });
       });
+
+      syncChecklist();
     })();
   </script>
 </body>
