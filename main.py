@@ -323,6 +323,15 @@ async def serve_favicon():
     return FileResponse(path, media_type="image/png")
 
 
+@app.get("/logo.png")
+async def serve_logo():
+    """Serve the Claros navbar logo asset."""
+    path = ROOT / "claros logo.png"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="claros logo.png not found")
+    return FileResponse(path, media_type="image/png")
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index():
     """Serve the Claros app (frontend/index.html)."""
