@@ -75,25 +75,26 @@
     .app-shell {
       position: relative;
       z-index: 1;
-      min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 0.9rem;
-      gap: 0.9rem;
+      padding: 0;
+      gap: 0;
     }
     .topbar {
-      width: min(1240px, 100%);
+      width: 100%;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 1rem;
       padding: 0.78rem 0.95rem;
-      border: 1px solid rgba(165, 176, 255, 0.12);
-      border-radius: var(--radius-xl);
+      border-bottom: 1px solid rgba(165, 176, 255, 0.12);
       background: linear-gradient(145deg, rgba(13, 17, 35, 0.82), rgba(12, 14, 28, 0.7));
       box-shadow: var(--shadow-soft);
       backdrop-filter: blur(18px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
     }
     .topbar-left,
     .topbar-right,
@@ -174,25 +175,404 @@
       font-weight: 700;
       white-space: nowrap;
       box-shadow: 0 10px 24px rgba(255, 154, 67, 0.08);
+      text-decoration: none;
+      display: inline-block;
+      cursor: pointer;
+      transition: all 0.18s ease;
     }
-    .workspace {
+    .nav-pill:hover {
+      transform: translateY(-1px);
+      background: linear-gradient(135deg, rgba(255, 154, 67, 0.28), rgba(255, 255, 255, 0.08));
+    }
+
+    /* ── Landing Page Layout ── */
+    .landing-main {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .section-container {
+      width: min(1240px, 100%);
+      padding: 0 1.2rem;
+      margin: 0 auto;
+    }
+
+    /* Hero Section */
+    .hero-section {
+      width: 100%;
+      padding: 4rem 1.2rem;
+      background: 
+        radial-gradient(900px 520px at 10% 8%, rgba(126, 87, 255, 0.18), transparent 62%),
+        linear-gradient(145deg, transparent, transparent);
+    }
+
+    .hero-container {
+      width: min(1240px, 100%);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3rem;
+      align-items: center;
+    }
+
+    .hero-left {
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    .hero-title {
+      font-size: clamp(2rem, 4vw, 3.5rem);
+      line-height: 1;
+      letter-spacing: -0.04em;
+      color: var(--text-main);
+      max-width: 20ch;
+    }
+
+    .hero-copy {
+      font-size: 1.05rem;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      max-width: 50ch;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .hero-btn {
+      padding: 0.95rem 1.35rem;
+      font-size: 0.95rem;
+      font-weight: 800;
+      border-radius: var(--radius-md);
+      border: none;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .btn.primary.hero-btn {
+      background: linear-gradient(135deg, #ff9d43, #ffbf76);
+      color: #23150d;
+    }
+
+    .btn.primary.hero-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-mid);
+    }
+
+    .btn.secondary.hero-btn {
+      background: rgba(255,255,255,0.08);
+      color: var(--text-main);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .btn.secondary.hero-btn:hover {
+      background: rgba(255,255,255,0.12);
+      transform: translateY(-2px);
+    }
+
+    .hero-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+    }
+
+    /* Product Mockup */
+    .hero-right {
+      display: grid;
+      place-items: center;
+    }
+
+    .product-mockup {
+      width: 100%;
+      max-width: 380px;
+      border: 1px solid rgba(255, 182, 118, 0.2);
+      border-radius: var(--radius-lg);
+      background: linear-gradient(180deg, rgba(25, 31, 63, 0.9), rgba(16, 20, 42, 0.96));
+      box-shadow: 0 25px 60px rgba(255, 154, 67, 0.12);
+      overflow: hidden;
+    }
+
+    .mockup-header {
+      display: flex;
+      gap: 0.6rem;
+      padding: 0.8rem;
+      background: rgba(10, 13, 28, 0.6);
+      justify-content: flex-start;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .mockup-dot {
+      width: 0.5rem;
+      height: 0.5rem;
+      border-radius: 999px;
+      background: rgba(255, 182, 118, 0.4);
+    }
+
+    .mockup-content {
+      padding: 1.5rem;
+      display: grid;
+      gap: 1.2rem;
+    }
+
+    .mockup-upload-mini {
+      display: grid;
+      place-items: center;
+      gap: 0.4rem;
+      padding: 1rem;
+      border-radius: var(--radius-md);
+      border: 1px dashed rgba(255, 182, 118, 0.4);
+      background: rgba(255, 154, 67, 0.05);
+    }
+
+    .mockup-icon {
+      font-size: 2rem;
+    }
+
+    .mockup-text {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+    }
+
+    .mockup-session {
+      display: grid;
+      gap: 0.8rem;
+      position: relative;
+    }
+
+    .mockup-status {
+      font-size: 0.7rem;
+      font-weight: 800;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .mockup-bubble {
+      padding: 0.7rem 0.9rem;
+      border-radius: var(--radius-md);
+      font-size: 0.82rem;
+      line-height: 1.4;
+    }
+
+    .mockup-bubble.claros-bubble {
+      background: rgba(92, 122, 255, 0.15);
+      color: #dde7ff;
+      border-left: 2px solid rgba(92, 122, 255, 0.5);
+    }
+
+    .mockup-bubble.user-bubble {
+      background: rgba(255, 154, 67, 0.15);
+      color: #ffe0bf;
+      border-left: 2px solid rgba(255, 154, 67, 0.5);
+    }
+
+    .mockup-mic-btn {
+      position: absolute;
+      bottom: -8px;
+      right: -8px;
+      width: 2.8rem;
+      height: 2.8rem;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #ff9d43, #ffbf76);
+      display: grid;
+      place-items: center;
+      font-size: 1.4rem;
+      box-shadow: 0 10px 24px rgba(255, 154, 67, 0.28);
+    }
+
+    /* How It Works Section */
+    .how-it-works-section {
+      width: 100%;
+      padding: 4rem 1.2rem;
+      background: transparent;
+    }
+
+    .section-title {
+      font-size: 2.2rem;
+      font-weight: 900;
+      text-align: center;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+    }
+
+    .section-subtitle {
+      font-size: 1.1rem;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .workflow-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.5rem;
+    }
+
+    .workflow-item {
+      display: grid;
+      gap: 0.8rem;
+      text-align: center;
+      padding: 1.5rem 1rem;
+    }
+
+    .workflow-number {
+      width: 3rem;
+      height: 3rem;
+      margin: 0 auto;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      font-size: 1.3rem;
+      font-weight: 900;
+      color: #fff4eb;
+      background: linear-gradient(145deg, rgba(255, 160, 72, 0.92), rgba(126, 87, 255, 0.78));
+      box-shadow: 0 10px 20px rgba(255, 154, 67, 0.18);
+    }
+
+    .workflow-label {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    /* Features Section */
+    .features-section {
+      width: 100%;
+      padding: 4rem 1.2rem;
+      background: 
+        radial-gradient(760px 460px at 86% 12%, rgba(255, 154, 67, 0.12), transparent 58%);
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.8rem;
+      margin-bottom: 2rem;
+    }
+
+    .feature-card {
+      padding: 2rem 1.5rem;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: var(--radius-lg);
+      background: linear-gradient(180deg, rgba(19, 23, 46, 0.6), rgba(12, 15, 33, 0.7));
+      box-shadow: var(--shadow-soft);
+      display: grid;
+      gap: 1rem;
+      text-align: center;
+      transition: all 0.18s ease;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-mid);
+      border-color: rgba(255, 154, 67, 0.2);
+    }
+
+    .feature-icon {
+      font-size: 2.4rem;
+    }
+
+    .feature-title {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .feature-text {
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: var(--text-secondary);
+    }
+
+    /* CTA Section */
+    .cta-section {
+      width: 100%;
+      padding: 3rem 1.2rem;
+      background: transparent;
+    }
+
+    .cta-title {
+      font-size: 2rem;
+      font-weight: 900;
+      text-align: center;
+      letter-spacing: -0.02em;
+      margin-bottom: 2rem;
+    }
+
+    .cta-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .large-btn {
+      padding: 1.1rem 2rem;
+      font-size: 1rem;
+      border-radius: var(--radius-md);
+      border: none;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .btn.primary.large-btn {
+      background: linear-gradient(135deg, #ff9d43, #ffbf76);
+      color: #23150d;
+    }
+
+    .btn.primary.large-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-mid);
+    }
+
+    .btn.secondary.large-btn {
+      background: rgba(255,255,255,0.08);
+      color: var(--text-main);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .btn.secondary.large-btn:hover {
+      background: rgba(255,255,255,0.12);
+      transform: translateY(-2px);
+    }
+
+    /* App Section (Working Area) */
+    .app-section {
+      width: 100%;
+      padding: 3rem 1.2rem;
+      background: transparent;
+    }
+
+    .app-workspace {
       width: min(1240px, 100%);
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(360px, 392px);
       gap: 1.25rem;
       align-items: start;
-      flex: 1;
-      min-height: 0;
+      margin: 0 auto;
     }
-    .hero-stack,
-    .session-panel {
-      min-height: 0;
-    }
-    .hero-stack {
+
+    .app-left {
       display: grid;
       gap: 1rem;
       min-width: 0;
     }
+
     .start-card,
     .workflow-card,
     .worksheet-card,
@@ -203,24 +583,209 @@
       box-shadow: var(--shadow-soft);
       backdrop-filter: blur(18px);
     }
+
     .start-card {
       display: grid;
       gap: 0.9rem;
       padding: 1rem;
     }
-    .intro-card {
-      padding: 0;
-      position: relative;
-      overflow: hidden;
+
+    .session-panel {
+      position: sticky;
+      top: 5rem;
+      padding: 0.95rem;
+      display: grid;
+      gap: 0.75rem;
     }
-    .intro-card::after {
-      content: "";
-      position: absolute;
-      inset: auto -18% -48% auto;
-      width: 320px;
-      height: 320px;
-      background: radial-gradient(circle, rgba(255, 154, 67, 0.18), transparent 66%);
-      pointer-events: none;
+
+    /* Footer */
+    .footer {
+      width: 100%;
+      padding: 3rem 1.2rem;
+      background: rgba(10, 13, 28, 0.4);
+      border-top: 1px solid rgba(165, 176, 255, 0.08);
+      margin-top: 2rem;
+    }
+
+    .footer-content {
+      width: min(1240px, 100%);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2rem;
+      text-align: center;
+    }
+
+    .footer-brand {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .footer-brand strong {
+      font-size: 1.1rem;
+      color: var(--text-main);
+    }
+
+    .footer-brand span {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 1.5rem;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .footer-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.18s ease;
+    }
+
+    .footer-links a:hover {
+      color: var(--text-main);
+    }
+
+    .footer-copy {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .footer-copy p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* Responsive */
+    @media (max-width: 1100px) {
+      .hero-container {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+      }
+
+      .app-workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .session-panel { position: static; }
+
+      .workflow-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .footer-content {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .hero-section {
+        padding: 3rem 1.2rem;
+      }
+
+      .hero-title {
+        font-size: clamp(1.5rem, 5vw, 2.5rem);
+      }
+
+      .how-it-works-section,
+      .features-section,
+      .app-section {
+        padding: 2.5rem 1.2rem;
+      }
+
+      .section-title {
+        font-size: 1.8rem;
+      }
+
+      .workflow-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+      }
+
+      .features-grid {
+        grid-template-columns: 1fr;
+        gap: 1.2rem;
+      }
+
+      .topbar {
+        flex-wrap: wrap;
+      }
+
+      .topbar-links {
+        order: 3;
+        width: 100%;
+        justify-content: flex-start;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .hero-section {
+        padding: 2rem 1rem;
+      }
+
+      .hero-container {
+        gap: 1.5rem;
+      }
+
+      .hero-actions {
+        gap: 0.8rem;
+      }
+
+      .hero-btn {
+        padding: 0.85rem 1rem;
+        font-size: 0.9rem;
+        width: 100%;
+      }
+
+      .hero-chips {
+        gap: 0.4rem;
+      }
+
+      .hero-chip {
+        width: auto;
+      }
+
+      .how-it-works-section {
+        padding: 2rem 1rem;
+      }
+
+      .workflow-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+
+      .cta-buttons {
+        flex-direction: column;
+      }
+
+      .large-btn {
+        width: 100%;
+      }
+
+      .footer-content {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+    }
+
+    .workspace {
+      display: none;
+    }
+    .hero-stack.has-assignment .intro-card {
+      border-color: rgba(255, 154, 67, 0.2);
+    }
+    .worksheet-card {
+      background: linear-gradient(180deg, rgba(19, 23, 46, 0.7), rgba(12, 15, 33, 0.78));
+    }
+    .assignment-title {
+      padding: 0.08rem 0;
     }
     .eyebrow-pill {
       display: inline-flex;
@@ -245,25 +810,6 @@
       background: var(--accent);
       box-shadow: 0 0 0 6px rgba(255, 157, 67, 0.15);
     }
-    .hero-title {
-      max-width: 18ch;
-      font-size: clamp(1.9rem, 3.45vw, 3.1rem);
-      line-height: 0.98;
-      letter-spacing: -0.045em;
-      margin-bottom: 0.75rem;
-    }
-    .hero-copy {
-      max-width: 54ch;
-      color: var(--text-secondary);
-      font-size: 0.94rem;
-      line-height: 1.55;
-      margin-bottom: 0.9rem;
-    }
-    .hero-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.55rem;
-    }
     .hero-chip {
       padding: 0.4rem 0.72rem;
       border-radius: var(--radius-pill);
@@ -272,10 +818,6 @@
       color: var(--text-main);
       font-size: 0.76rem;
       font-weight: 700;
-    }
-    .workflow-card,
-    .worksheet-card {
-      padding: 0.95rem 1rem;
     }
     .launch-card {
       padding: 0;
@@ -863,40 +1405,127 @@
       padding: 0.08rem 0 0;
     }
     @media (max-width: 1100px) {
-      .workspace {
+      .hero-container {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+      }
+
+      .app-workspace {
         grid-template-columns: 1fr;
       }
+
       .session-panel { position: static; }
+
+      .workflow-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .footer-content {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+      }
     }
+
     @media (max-width: 900px) {
-      .app-shell { padding: 0.75rem; gap: 0.75rem; }
+      .app-shell { padding: 0; gap: 0; }
       .topbar { padding: 0.78rem 0.85rem; flex-wrap: wrap; }
       .topbar-links { order: 3; width: 100%; justify-content: flex-start; }
       .nav-pill { order: 2; }
+      
+      .hero-section {
+        padding: 3rem 1.2rem;
+      }
+
+      .hero-title {
+        font-size: clamp(1.5rem, 5vw, 2.5rem);
+      }
+
+      .how-it-works-section,
+      .features-section,
+      .app-section {
+        padding: 2.5rem 1.2rem;
+      }
+
+      .section-title {
+        font-size: 1.8rem;
+      }
+
+      .workflow-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+      }
+
+      .features-grid {
+        grid-template-columns: 1fr;
+        gap: 1.2rem;
+      }
+
       .start-card,
       .workflow-card,
       .worksheet-card,
       .session-panel { border-radius: 22px; }
-      .workspace { display: flex; flex-direction: column; }
-      .hero-stack { display: flex; flex-direction: column; }
-      .start-card { order: 1; }
-      .session-panel { order: 2; }
       .workflow-card { order: 3; }
       .worksheet-card { order: 4; }
-      .hero-title { max-width: 14ch; font-size: clamp(1.72rem, 6vw, 2.45rem); }
       .hero-copy { font-size: 0.92rem; }
-      .workflow-steps { grid-template-columns: 1fr; }
       .transcript { min-height: 9.5rem; }
     }
+
     @media (max-width: 560px) {
       .brand-copy span { display: none; }
       .topbar-links a { padding: 0.35rem 0.55rem; font-size: 0.78rem; }
+      
+      .hero-section {
+        padding: 2rem 1rem;
+      }
+
+      .hero-container {
+        gap: 1.5rem;
+      }
+
+      .hero-actions {
+        gap: 0.8rem;
+      }
+
+      .hero-btn {
+        padding: 0.85rem 1rem;
+        font-size: 0.9rem;
+        width: 100%;
+      }
+
+      .hero-chips {
+        gap: 0.4rem;
+      }
+
+      .hero-chip {
+        width: auto;
+      }
+
+      .how-it-works-section {
+        padding: 2rem 1rem;
+      }
+
+      .workflow-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+
+      .cta-buttons {
+        flex-direction: column;
+      }
+
+      .large-btn {
+        width: 100%;
+      }
+
+      .footer-content {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+
       .start-card,
       .workflow-card,
       .worksheet-card,
       .session-panel { padding: 0.95rem; }
-      .hero-chips { gap: 0.5rem; }
-      .hero-chip { width: 100%; text-align: center; }
       .launch-actions { width: 100%; }
       .btn-test-pdf { width: 100%; }
       .question-card { padding: 0.92rem; }
@@ -906,9 +1535,9 @@
     }
     @supports (padding: env(safe-area-inset-bottom)) {
       .app-shell {
-        padding-left: max(0.8rem, env(safe-area-inset-left));
-        padding-right: max(0.8rem, env(safe-area-inset-right));
-        padding-bottom: max(0.8rem, env(safe-area-inset-bottom));
+        padding-left: max(0, env(safe-area-inset-left));
+        padding-right: max(0, env(safe-area-inset-right));
+        padding-bottom: max(0, env(safe-area-inset-bottom));
       }
     }
   </style>
@@ -926,93 +1555,209 @@
       <nav class="topbar-links" aria-label="Primary">
         <a href="#how-it-works">How it works</a>
         <a href="#features">Features</a>
-        <a href="#demo">Demo</a>
+        <a href="#try-claros">Try demo</a>
       </nav>
       <div class="topbar-right">
-        <div class="nav-pill">Voice worksheet assistant</div>
+        <a href="#try-claros" class="nav-pill">Get started</a>
       </div>
     </header>
 
-    <main class="workspace">
-      <div class="hero-stack" id="how-it-works">
-        <section class="start-card" id="demo">
-          <section class="intro-card">
+    <!-- LANDING PAGE SECTIONS -->
+    <main class="landing-main">
+      <!-- Hero Section -->
+      <section class="hero-section">
+        <div class="hero-container">
+          <div class="hero-left">
             <div class="eyebrow-pill">AI voice-guided learning</div>
             <h1 class="hero-title">Talk through any worksheet, step by step.</h1>
-            <p class="hero-copy">Drop your assignment PDF into Claros and it reads the questions, listens to your answers, and keeps the flow steady.</p>
-            <div class="hero-chips" id="features">
+            <p class="hero-copy">Claros turns assignment PDFs into guided voice sessions so students can reason through questions instead of staring at a blank page.</p>
+            <div class="hero-actions">
+              <a href="#try-claros" class="btn primary hero-btn">Try a worksheet</a>
+              <a href="#try-claros" class="btn secondary hero-btn">Use sample PDF</a>
+            </div>
+            <div class="hero-chips">
               <span class="hero-chip">PDF worksheets</span>
               <span class="hero-chip">Voice guidance</span>
+              <span class="hero-chip">Step-by-step help</span>
               <span class="hero-chip">Export answers</span>
             </div>
-          </section>
-
-          <section class="launch-card">
-            <div class="setup-title-row">
-              <div class="card-title">Start with a worksheet</div>
-            </div>
-            <div class="launch-card-grid">
-              <label class="upload-zone" id="uploadZone">
-                <input type="file" id="fileInput" accept=".pdf">
-                <div>
-                  <div class="upload-art" aria-hidden="true"></div>
-                  <div class="upload-copy">
-                    <div class="upload-main" id="uploadLabel">Drop your assignment PDF here</div>
-                    <div class="upload-sub">or click to browse</div>
-                    <div class="upload-note">PDF only</div>
-                  </div>
+          </div>
+          <div class="hero-right">
+            <div class="product-mockup">
+              <div class="mockup-header">
+                <div class="mockup-dot"></div>
+                <div class="mockup-dot"></div>
+                <div class="mockup-dot"></div>
+              </div>
+              <div class="mockup-content">
+                <div class="mockup-upload-mini">
+                  <div class="mockup-icon">📄</div>
+                  <div class="mockup-text">Upload worksheet</div>
                 </div>
-              </label>
-              <div class="launch-actions">
-                <button type="button" class="btn-test-pdf" id="testPdfBtn">Use Test PDF</button>
+                <div class="mockup-session">
+                  <div class="mockup-status">Ready to guide</div>
+                  <div class="mockup-bubble claros-bubble">Let me help you work through these questions</div>
+                  <div class="mockup-bubble user-bubble">Can you explain what this means?</div>
+                  <div class="mockup-mic-btn">🎤</div>
+                </div>
               </div>
             </div>
-          </section>
-        </section>
+          </div>
+        </div>
+      </section>
 
-        <section class="workflow-card">
-          <div class="card-title">What happens next</div>
-          <ol class="workflow-steps">
-            <li class="workflow-step"><span>1</span><span>Upload worksheet</span></li>
-            <li class="workflow-step"><span>2</span><span>Claros reads the questions</span></li>
-            <li class="workflow-step"><span>3</span><span>You answer by voice</span></li>
-            <li class="workflow-step"><span>4</span><span>Export completed answers</span></li>
-          </ol>
-        </section>
+      <!-- How It Works Section -->
+      <section class="how-it-works-section" id="how-it-works">
+        <div class="section-container">
+          <h2 class="section-title">From PDF to guided learning</h2>
+          <p class="section-subtitle">Claros keeps the worksheet, conversation, and answers in one flow.</p>
+          <div class="workflow-grid">
+            <div class="workflow-item">
+              <div class="workflow-number">1</div>
+              <div class="workflow-label">Upload worksheet</div>
+            </div>
+            <div class="workflow-item">
+              <div class="workflow-number">2</div>
+              <div class="workflow-label">Claros reads the questions</div>
+            </div>
+            <div class="workflow-item">
+              <div class="workflow-number">3</div>
+              <div class="workflow-label">You answer by voice</div>
+            </div>
+            <div class="workflow-item">
+              <div class="workflow-number">4</div>
+              <div class="workflow-label">Export completed answers</div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-        <section class="worksheet-card">
-          <div class="assignment-title" id="assignmentTitle">Upload a worksheet to begin</div>
-          <div id="questionsContainer"></div>
-          <button class="btn export" id="exportBtn">Export answers as PDF</button>
-        </section>
-      </div>
+      <!-- Features Section -->
+      <section class="features-section" id="features">
+        <div class="section-container">
+          <h2 class="section-title">Why students choose Claros</h2>
+          <div class="features-grid">
+            <div class="feature-card">
+              <div class="feature-icon">🎙️</div>
+              <div class="feature-title">Voice-guided help</div>
+              <div class="feature-text">Skip the blank page. Claros asks clarifying questions to help you think through each problem.</div>
+            </div>
+            <div class="feature-card">
+              <div class="feature-icon">📑</div>
+              <div class="feature-title">PDF worksheet upload</div>
+              <div class="feature-text">Just drop your assignment PDF. Claros automatically extracts questions and starts the session.</div>
+            </div>
+            <div class="feature-card">
+              <div class="feature-icon">✨</div>
+              <div class="feature-title">Step-by-step hints</div>
+              <div class="feature-text">Get nudged in the right direction without giving away the answer. Build your understanding.</div>
+            </div>
+            <div class="feature-card">
+              <div class="feature-icon">📄</div>
+              <div class="feature-title">Transcript and export</div>
+              <div class="feature-text">Your complete conversation and answers are saved in a PDF you can submit or keep.</div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      <aside class="session-panel">
-        <div class="session-head">
-          <div class="session-title">Voice Session</div>
-          <div class="status-badge">Live voice workspace</div>
+      <!-- CTA Section Before App -->
+      <section class="cta-section">
+        <div class="section-container">
+          <h2 class="cta-title">Ready to work through your next worksheet?</h2>
+          <div class="cta-buttons">
+            <a href="#try-claros" class="btn primary large-btn">Start with a worksheet</a>
+            <a href="#try-claros" class="btn secondary large-btn">Try sample PDF</a>
+          </div>
         </div>
-        <div id="status" class="status-bar idle" role="status" aria-live="polite">
-          <span class="status-dot" aria-hidden="true"></span>
-          <span id="statusLabel">Waiting for worksheet</span>
+      </section>
+
+      <!-- Working App Section -->
+      <section class="app-section" id="try-claros">
+        <div class="section-container">
+          <h2 class="section-title">Try Claros with your worksheet</h2>
+          <div class="app-workspace">
+            <div class="app-left">
+              <section class="start-card">
+                <section class="launch-card">
+                  <div class="setup-title-row">
+                    <div class="card-title">Upload your worksheet</div>
+                  </div>
+                  <div class="launch-card-grid">
+                    <label class="upload-zone" id="uploadZone">
+                      <input type="file" id="fileInput" accept=".pdf">
+                      <div>
+                        <div class="upload-art" aria-hidden="true"></div>
+                        <div class="upload-copy">
+                          <div class="upload-main" id="uploadLabel">Drop your assignment PDF here</div>
+                          <div class="upload-sub">or click to browse</div>
+                          <div class="upload-note">PDF only</div>
+                        </div>
+                      </div>
+                    </label>
+                    <div class="launch-actions">
+                      <button type="button" class="btn-test-pdf" id="testPdfBtn">Use Test PDF</button>
+                    </div>
+                  </div>
+                </section>
+              </section>
+
+              <section class="worksheet-card">
+                <div class="assignment-title" id="assignmentTitle">Upload a worksheet to begin</div>
+                <div id="questionsContainer"></div>
+                <button class="btn export" id="exportBtn">Export answers as PDF</button>
+              </section>
+            </div>
+
+            <aside class="session-panel">
+              <div class="session-head">
+                <div class="session-title">Voice Session</div>
+                <div class="status-badge">Live voice workspace</div>
+              </div>
+              <div id="status" class="status-bar idle" role="status" aria-live="polite">
+                <span class="status-dot" aria-hidden="true"></span>
+                <span id="statusLabel">Waiting for worksheet</span>
+              </div>
+              <div class="meter-wrap"><div id="meterBar" class="meter-bar"></div></div>
+              <div class="session-checklist">
+                <div class="checklist-title">Setup checklist</div>
+                <ul class="setup-list">
+                  <li class="setup-item" id="setupStepUpload">PDF uploaded</li>
+                  <li class="setup-item" id="setupStepSession">Microphone ready</li>
+                  <li class="setup-item" id="setupStepExport">Session ready</li>
+                </ul>
+                <div class="setup-hidden" id="setupStepReview" aria-hidden="true">Questions parsed</div>
+              </div>
+              <div id="transcript" class="transcript"></div>
+              <div id="errors" class="errors"></div>
+              <div class="session-actions">
+                <button class="btn session-btn" id="micBtn" disabled>Start Session</button>
+                <button class="btn interrupt" id="interruptBtn" type="button" title="Stop Claros speaking so you can talk">Interrupt</button>
+              </div>
+            </aside>
+          </div>
         </div>
-        <div class="meter-wrap"><div id="meterBar" class="meter-bar"></div></div>
-        <div class="session-checklist">
-          <div class="checklist-title">Setup checklist</div>
-          <ul class="setup-list">
-            <li class="setup-item" id="setupStepUpload">PDF uploaded</li>
-            <li class="setup-item" id="setupStepSession">Microphone ready</li>
-            <li class="setup-item" id="setupStepExport">Session ready</li>
-          </ul>
-          <div class="setup-hidden" id="setupStepReview" aria-hidden="true">Questions parsed</div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="footer">
+        <div class="section-container">
+          <div class="footer-content">
+            <div class="footer-brand">
+              <strong>Claros</strong>
+              <span>Voice-guided worksheet assistant</span>
+            </div>
+            <div class="footer-links">
+              <a href="#how-it-works">How it works</a>
+              <a href="#features">Features</a>
+              <a href="#try-claros">Try it</a>
+            </div>
+            <div class="footer-copy">
+              <p>&copy; 2026 Claros. All rights reserved.</p>
+            </div>
+          </div>
         </div>
-        <div id="transcript" class="transcript"></div>
-        <div id="errors" class="errors"></div>
-        <div class="session-actions">
-          <button class="btn session-btn" id="micBtn" disabled>Start Session</button>
-          <button class="btn interrupt" id="interruptBtn" type="button" title="Stop Claros speaking so you can talk">Interrupt</button>
-        </div>
-      </aside>
+      </footer>
     </main>
   </div>
 
