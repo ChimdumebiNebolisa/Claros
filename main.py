@@ -314,6 +314,15 @@ async def serve_session_rules():
     return FileResponse(path, media_type="application/javascript; charset=utf-8")
 
 
+@app.get("/favicon.png")
+async def serve_favicon():
+    """Serve the Claros favicon asset."""
+    path = ROOT / "claros favicon.png"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="claros favicon.png not found")
+    return FileResponse(path, media_type="image/png")
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index():
     """Serve the Claros app (frontend/index.html)."""
