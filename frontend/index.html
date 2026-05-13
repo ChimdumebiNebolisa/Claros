@@ -78,15 +78,17 @@
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      padding: 1.1rem;
-      gap: 1rem;
+      align-items: center;
+      padding: 0.9rem;
+      gap: 0.9rem;
     }
     .topbar {
+      width: min(1240px, 100%);
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 1rem;
-      padding: 1rem 1.15rem;
+      padding: 0.78rem 0.95rem;
       border: 1px solid rgba(165, 176, 255, 0.12);
       border-radius: var(--radius-xl);
       background: linear-gradient(145deg, rgba(13, 17, 35, 0.82), rgba(12, 14, 28, 0.7));
@@ -151,9 +153,9 @@
     .topbar-links a {
       color: var(--text-secondary);
       text-decoration: none;
-      font-size: 0.84rem;
+      font-size: 0.8rem;
       font-weight: 600;
-      padding: 0.45rem 0.7rem;
+      padding: 0.36rem 0.62rem;
       border-radius: var(--radius-pill);
       transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
     }
@@ -163,20 +165,21 @@
       transform: translateY(-1px);
     }
     .nav-pill {
-      padding: 0.55rem 0.9rem;
+      padding: 0.42rem 0.8rem;
       border-radius: var(--radius-pill);
       border: 1px solid rgba(255, 168, 90, 0.24);
       color: #ffe8d4;
       background: linear-gradient(135deg, rgba(255, 154, 67, 0.18), rgba(255, 255, 255, 0.04));
-      font-size: 0.8rem;
+      font-size: 0.74rem;
       font-weight: 700;
       white-space: nowrap;
       box-shadow: 0 10px 24px rgba(255, 154, 67, 0.08);
     }
     .workspace {
+      width: min(1240px, 100%);
       display: grid;
-      grid-template-columns: minmax(0, 1.3fr) minmax(300px, 420px);
-      gap: 1rem;
+      grid-template-columns: minmax(0, 1fr) minmax(360px, 392px);
+      gap: 1.25rem;
       align-items: start;
       flex: 1;
       min-height: 0;
@@ -190,8 +193,7 @@
       gap: 1rem;
       min-width: 0;
     }
-    .intro-card,
-    .launch-card,
+    .start-card,
     .workflow-card,
     .worksheet-card,
     .session-panel {
@@ -201,8 +203,13 @@
       box-shadow: var(--shadow-soft);
       backdrop-filter: blur(18px);
     }
+    .start-card {
+      display: grid;
+      gap: 0.9rem;
+      padding: 1rem;
+    }
     .intro-card {
-      padding: 1.3rem 1.35rem 1.25rem;
+      padding: 0;
       position: relative;
       overflow: hidden;
     }
@@ -219,12 +226,12 @@
       display: inline-flex;
       align-items: center;
       gap: 0.45rem;
-      padding: 0.42rem 0.7rem;
+      padding: 0.36rem 0.62rem;
       border-radius: var(--radius-pill);
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.06);
       color: #f7e7ff;
-      font-size: 0.72rem;
+      font-size: 0.69rem;
       letter-spacing: 0.08em;
       text-transform: uppercase;
       font-weight: 800;
@@ -240,36 +247,40 @@
     }
     .hero-title {
       max-width: 18ch;
-      font-size: clamp(2rem, 4vw, 3.5rem);
+      font-size: clamp(1.9rem, 3.45vw, 3.1rem);
       line-height: 0.98;
-      letter-spacing: -0.05em;
-      margin-bottom: 0.85rem;
+      letter-spacing: -0.045em;
+      margin-bottom: 0.75rem;
     }
     .hero-copy {
-      max-width: 62ch;
+      max-width: 54ch;
       color: var(--text-secondary);
-      font-size: 0.98rem;
-      line-height: 1.65;
-      margin-bottom: 1rem;
+      font-size: 0.94rem;
+      line-height: 1.55;
+      margin-bottom: 0.9rem;
     }
     .hero-chips {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.65rem;
+      gap: 0.55rem;
     }
     .hero-chip {
-      padding: 0.48rem 0.82rem;
+      padding: 0.4rem 0.72rem;
       border-radius: var(--radius-pill);
       border: 1px solid rgba(255, 255, 255, 0.08);
       background: rgba(255,255,255,0.04);
       color: var(--text-main);
-      font-size: 0.82rem;
+      font-size: 0.76rem;
       font-weight: 700;
     }
-    .launch-card,
     .workflow-card,
     .worksheet-card {
-      padding: 1.1rem 1.15rem;
+      padding: 0.95rem 1rem;
+    }
+    .launch-card {
+      padding: 0;
+      display: grid;
+      gap: 0.7rem;
     }
     .card-kicker {
       color: var(--text-muted);
@@ -280,19 +291,19 @@
       margin-bottom: 0.9rem;
     }
     .card-title {
-      font-size: 1.06rem;
+      font-size: 1rem;
       font-weight: 800;
       margin-bottom: 0.8rem;
       letter-spacing: -0.01em;
     }
     .launch-card-grid {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 0.9rem;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0.72rem;
       align-items: stretch;
     }
     .upload-zone {
-      min-height: 12rem;
+      min-height: 10rem;
       border-radius: var(--radius-md);
       border: 1.5px dashed rgba(255, 182, 118, 0.52);
       background:
@@ -302,7 +313,7 @@
       display: grid;
       place-items: center;
       text-align: center;
-      padding: 1.25rem;
+      padding: 1rem;
       cursor: pointer;
       position: relative;
       transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
@@ -322,9 +333,9 @@
     }
     .upload-zone input { display: none; }
     .upload-art {
-      width: 3.6rem;
-      height: 4.2rem;
-      margin: 0 auto 0.85rem;
+      width: 3.2rem;
+      height: 3.8rem;
+      margin: 0 auto 0.65rem;
       border-radius: 1rem;
       position: relative;
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
@@ -356,25 +367,25 @@
     }
     .upload-copy {
       display: grid;
-      gap: 0.18rem;
+      gap: 0.14rem;
       justify-items: center;
     }
     .upload-main {
-      font-size: 1rem;
+      font-size: 0.94rem;
       font-weight: 800;
       letter-spacing: -0.01em;
     }
     .upload-sub,
     .upload-note {
       color: var(--text-secondary);
-      font-size: 0.82rem;
+      font-size: 0.78rem;
     }
     .upload-note {
       display: inline-flex;
       align-items: center;
       gap: 0.35rem;
-      margin-top: 0.45rem;
-      padding: 0.22rem 0.5rem;
+      margin-top: 0.3rem;
+      padding: 0.2rem 0.48rem;
       border-radius: var(--radius-pill);
       background: rgba(255,255,255,0.04);
       border: 1px solid rgba(255,255,255,0.06);
@@ -383,13 +394,14 @@
     }
     .launch-actions {
       display: grid;
-      gap: 0.75rem;
+      gap: 0.5rem;
       align-content: start;
-      min-width: 9.5rem;
+      min-width: 0;
+      justify-items: start;
     }
     .btn-test-pdf {
-      width: 100%;
-      padding: 0.85rem 1rem;
+      width: auto;
+      padding: 0.72rem 0.95rem;
       border-radius: var(--radius-md);
       border: 1px solid rgba(255, 255, 255, 0.08);
       background: rgba(255,255,255,0.05);
@@ -415,7 +427,7 @@
       align-items: baseline;
       justify-content: space-between;
       gap: 0.8rem;
-      margin-bottom: 0.9rem;
+      margin-bottom: 0.65rem;
     }
     .setup-title-row .card-title {
       margin-bottom: 0;
@@ -471,33 +483,35 @@
     }
     .workflow-card {
       display: grid;
-      gap: 0.9rem;
+      gap: 0.75rem;
     }
     .workflow-steps {
       display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 0.55rem;
       list-style: none;
     }
     .workflow-step {
       display: grid;
       grid-template-columns: auto minmax(0, 1fr);
-      gap: 0.75rem;
-      align-items: start;
-      padding: 0.82rem 0.9rem;
+      gap: 0.6rem;
+      align-items: center;
+      padding: 0.7rem 0.76rem;
       border-radius: 16px;
       background: rgba(255,255,255,0.035);
       border: 1px solid rgba(255,255,255,0.055);
       color: var(--text-secondary);
-      font-size: 0.84rem;
-      line-height: 1.5;
+      font-size: 0.8rem;
+      line-height: 1.35;
+      min-height: 3.2rem;
     }
     .workflow-step span:first-child {
-      width: 1.6rem;
-      height: 1.6rem;
+      width: 1.45rem;
+      height: 1.45rem;
       border-radius: 999px;
       display: grid;
       place-items: center;
-      font-size: 0.76rem;
+      font-size: 0.72rem;
       font-weight: 900;
       color: #fff4eb;
       background: linear-gradient(145deg, rgba(255, 160, 72, 0.92), rgba(126, 87, 255, 0.78));
@@ -505,10 +519,12 @@
     }
     .worksheet-card {
       display: grid;
-      gap: 0.9rem;
+      gap: 0.65rem;
+      padding-top: 0.8rem;
+      padding-bottom: 0.85rem;
     }
     .assignment-title {
-      font-size: 0.92rem;
+      font-size: 0.8rem;
       color: var(--text-muted);
       font-weight: 700;
       letter-spacing: 0.02em;
@@ -519,7 +535,7 @@
         linear-gradient(180deg, rgba(25, 31, 63, 0.92), rgba(13, 16, 36, 0.94));
       border: 1px solid rgba(171, 182, 255, 0.12);
       border-radius: var(--radius-md);
-      padding: 1rem 1.05rem;
+      padding: 0.92rem 0.98rem;
       margin-bottom: 0.8rem;
       box-shadow: var(--shadow-soft);
       transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
@@ -627,9 +643,9 @@
     .session-panel {
       position: sticky;
       top: 1.1rem;
-      padding: 1.1rem;
+      padding: 0.95rem;
       display: grid;
-      gap: 0.9rem;
+      gap: 0.75rem;
     }
     .session-head {
       display: flex;
@@ -638,7 +654,7 @@
       gap: 0.9rem;
     }
     .session-title {
-      font-size: 1.02rem;
+      font-size: 0.98rem;
       font-weight: 900;
       letter-spacing: -0.01em;
     }
@@ -646,12 +662,12 @@
       display: inline-flex;
       align-items: center;
       gap: 0.4rem;
-      padding: 0.35rem 0.65rem;
+      padding: 0.3rem 0.58rem;
       border-radius: var(--radius-pill);
       border: 1px solid rgba(255, 182, 118, 0.2);
       background: linear-gradient(135deg, rgba(255, 154, 67, 0.16), rgba(255,255,255,0.04));
       color: #ffe8d4;
-      font-size: 0.72rem;
+      font-size: 0.68rem;
       font-weight: 800;
       letter-spacing: 0.08em;
       text-transform: uppercase;
@@ -669,7 +685,7 @@
       display: flex;
       align-items: center;
       gap: 0.7rem;
-      padding: 0.95rem 1rem;
+      padding: 0.82rem 0.92rem;
       border-radius: var(--radius-md);
       border: 1px solid rgba(255,255,255,0.08);
       background: rgba(255,255,255,0.04);
@@ -722,7 +738,7 @@
     }
     .session-checklist {
       display: grid;
-      gap: 0.6rem;
+      gap: 0.5rem;
     }
     .checklist-title {
       color: var(--text-muted);
@@ -732,8 +748,8 @@
       font-weight: 800;
     }
     .transcript {
-      min-height: 13rem;
-      padding: 0.95rem;
+      min-height: 10.25rem;
+      padding: 0.85rem;
       border-radius: var(--radius-md);
       border: 1px solid rgba(255,255,255,0.08);
       background: rgba(8, 11, 24, 0.76);
@@ -782,14 +798,14 @@
     }
     .session-actions {
       display: grid;
-      gap: 0.7rem;
+      gap: 0.6rem;
     }
     .btn {
       width: 100%;
       border: none;
       border-radius: var(--radius-md);
-      padding: 0.95rem 1rem;
-      font-size: 0.92rem;
+      padding: 0.9rem 1rem;
+      font-size: 0.88rem;
       font-weight: 900;
       cursor: pointer;
       transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, opacity 0.18s ease, box-shadow 0.18s ease;
@@ -813,7 +829,7 @@
     .btn.session-btn {
       background: linear-gradient(135deg, rgba(92, 101, 255, 0.94), rgba(129, 91, 255, 0.9));
       color: #fff;
-      min-height: 3.1rem;
+      min-height: 2.95rem;
     }
     .btn.session-btn:not(:disabled) {
       box-shadow: 0 18px 34px rgba(89, 100, 255, 0.22);
@@ -840,38 +856,49 @@
     .hero-stack.has-assignment .intro-card {
       border-color: rgba(255, 154, 67, 0.2);
     }
+    .worksheet-card {
+      background: linear-gradient(180deg, rgba(19, 23, 46, 0.7), rgba(12, 15, 33, 0.78));
+    }
+    .assignment-title {
+      padding: 0.08rem 0 0;
+    }
     @media (max-width: 1100px) {
-      .workspace { grid-template-columns: 1fr; }
+      .workspace {
+        grid-template-columns: 1fr;
+      }
       .session-panel { position: static; }
     }
     @media (max-width: 900px) {
-      .app-shell { padding: 0.8rem; gap: 0.8rem; }
-      .topbar { padding: 0.9rem; flex-wrap: wrap; }
+      .app-shell { padding: 0.75rem; gap: 0.75rem; }
+      .topbar { padding: 0.78rem 0.85rem; flex-wrap: wrap; }
       .topbar-links { order: 3; width: 100%; justify-content: flex-start; }
       .nav-pill { order: 2; }
-      .intro-card,
-      .launch-card,
+      .start-card,
       .workflow-card,
       .worksheet-card,
       .session-panel { border-radius: 22px; }
-      .hero-title { max-width: 14ch; font-size: clamp(1.8rem, 7vw, 2.6rem); }
-      .hero-copy { font-size: 0.95rem; }
-      .launch-card-grid { grid-template-columns: 1fr; }
-      .launch-actions { min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .btn-test-pdf { width: 100%; }
-      .transcript { min-height: 10rem; }
+      .workspace { display: flex; flex-direction: column; }
+      .hero-stack { display: flex; flex-direction: column; }
+      .start-card { order: 1; }
+      .session-panel { order: 2; }
+      .workflow-card { order: 3; }
+      .worksheet-card { order: 4; }
+      .hero-title { max-width: 14ch; font-size: clamp(1.72rem, 6vw, 2.45rem); }
+      .hero-copy { font-size: 0.92rem; }
+      .workflow-steps { grid-template-columns: 1fr; }
+      .transcript { min-height: 9.5rem; }
     }
     @media (max-width: 560px) {
       .brand-copy span { display: none; }
       .topbar-links a { padding: 0.35rem 0.55rem; font-size: 0.78rem; }
-      .intro-card,
-      .launch-card,
+      .start-card,
       .workflow-card,
       .worksheet-card,
       .session-panel { padding: 0.95rem; }
       .hero-chips { gap: 0.5rem; }
       .hero-chip { width: 100%; text-align: center; }
-      .launch-actions { grid-template-columns: 1fr; }
+      .launch-actions { width: 100%; }
+      .btn-test-pdf { width: 100%; }
       .question-card { padding: 0.92rem; }
       .question-text { font-size: 0.88rem; }
       .status-bar { font-size: 0.79rem; padding: 0.82rem 0.88rem; }
@@ -908,37 +935,39 @@
 
     <main class="workspace">
       <div class="hero-stack" id="how-it-works">
-        <section class="intro-card">
-          <div class="eyebrow-pill">AI voice-guided learning</div>
-          <h1 class="hero-title">Talk through any worksheet, step by step.</h1>
-          <p class="hero-copy">Drop your assignment PDF into Claros and it will read the questions, listen to your answers, and guide you with hints and feedback.</p>
-          <div class="hero-chips" id="features">
-            <span class="hero-chip">PDF worksheets</span>
-            <span class="hero-chip">Voice guidance</span>
-            <span class="hero-chip">Export answers</span>
-          </div>
-        </section>
-
-        <section class="launch-card" id="demo">
-          <div class="setup-title-row">
-            <div class="card-title">Start with a worksheet</div>
-          </div>
-          <div class="launch-card-grid">
-            <label class="upload-zone" id="uploadZone">
-              <input type="file" id="fileInput" accept=".pdf">
-              <div>
-                <div class="upload-art" aria-hidden="true"></div>
-                <div class="upload-copy">
-                  <div class="upload-main" id="uploadLabel">Drop your assignment PDF here</div>
-                  <div class="upload-sub">or click to browse</div>
-                  <div class="upload-note">PDF only</div>
-                </div>
-              </div>
-            </label>
-            <div class="launch-actions">
-              <button type="button" class="btn-test-pdf" id="testPdfBtn">Use Test PDF</button>
+        <section class="start-card" id="demo">
+          <section class="intro-card">
+            <div class="eyebrow-pill">AI voice-guided learning</div>
+            <h1 class="hero-title">Talk through any worksheet, step by step.</h1>
+            <p class="hero-copy">Drop your assignment PDF into Claros and it reads the questions, listens to your answers, and keeps the flow steady.</p>
+            <div class="hero-chips" id="features">
+              <span class="hero-chip">PDF worksheets</span>
+              <span class="hero-chip">Voice guidance</span>
+              <span class="hero-chip">Export answers</span>
             </div>
-          </div>
+          </section>
+
+          <section class="launch-card">
+            <div class="setup-title-row">
+              <div class="card-title">Start with a worksheet</div>
+            </div>
+            <div class="launch-card-grid">
+              <label class="upload-zone" id="uploadZone">
+                <input type="file" id="fileInput" accept=".pdf">
+                <div>
+                  <div class="upload-art" aria-hidden="true"></div>
+                  <div class="upload-copy">
+                    <div class="upload-main" id="uploadLabel">Drop your assignment PDF here</div>
+                    <div class="upload-sub">or click to browse</div>
+                    <div class="upload-note">PDF only</div>
+                  </div>
+                </div>
+              </label>
+              <div class="launch-actions">
+                <button type="button" class="btn-test-pdf" id="testPdfBtn">Use Test PDF</button>
+              </div>
+            </div>
+          </section>
         </section>
 
         <section class="workflow-card">
