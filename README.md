@@ -2,8 +2,6 @@
 
 **An AI agent primarily for students with typing difficulties - it reads assignments, guides reasoning through real-time voice conversation, and writes the final answer into the correct question field only after the student has worked it out or stated it.**
 
-![Claros interface screenshot](images/image.png)
-
 ## Demo
 
 [**Watch the demo**](https://www.youtube.com/watch?v=lBat2W_Ycsk)
