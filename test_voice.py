@@ -1,5 +1,5 @@
 """
-Milestone 1 — Minimal voice test: Gemini Live API.
+Milestone 1 - Minimal voice test: Gemini Live API.
 Streams microphone audio to Gemini, plays response through speakers.
 Interruption (barge-in) works because we keep sending mic; API handles it.
 Reconnects automatically on connection drop; keepalive prevents ping timeout.

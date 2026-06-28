@@ -1,4 +1,4 @@
-# Claros backend — Cloud Run
+# Claros backend - Cloud Run
 FROM python:3.11-slim
 
 WORKDIR /app

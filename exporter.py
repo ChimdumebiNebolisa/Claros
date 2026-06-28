@@ -11,6 +11,8 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
 
+from parser import normalize_worksheet_text
+
 
 def build_export_pdf(
     title: str,
@@ -45,20 +47,28 @@ def build_export_pdf(
     body_style = styles["Normal"]
 
     story = []
-    story.append(Paragraph("Claros — Assignment Answers", title_style))
-    story.append(Paragraph(title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"), body_style))
+    story.append(Paragraph("Claros - Assignment Answers", title_style))
+    safe_title = normalize_worksheet_text(title)
+    story.append(Paragraph(safe_title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"), body_style))
     story.append(Spacer(1, 0.25 * inch))
 
     def strip_latex_dollars(s: str) -> str:
         return re.sub(r"\$([^$]+)\$", r"\1", s) if s else ""
 
-    answer_by_id = {a["question_id"]: strip_latex_dollars(a.get("answer_text", "") or "") for a in answers}
+    answer_by_id = {
+        a["question_id"]: strip_latex_dollars(
+            normalize_worksheet_text(a.get("answer_text", "") or "")
+        )
+        for a in answers
+    }
 
     for q in questions:
         qid = q.get("id", 0)
-        qtext = (q.get("text") or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        qtext = normalize_worksheet_text(q.get("text") or "")
+        qtext = qtext.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         story.append(Paragraph(f"<b>Question {qid}</b>: {qtext}", heading_style))
-        ans = (answer_by_id.get(qid) or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br/>")
+        ans = normalize_worksheet_text(answer_by_id.get(qid) or "")
+        ans = ans.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br/>")
         story.append(Paragraph(ans or "(No answer)", body_style))
         story.append(Spacer(1, 0.15 * inch))
         story.append(HRFlowable(width="100%", thickness=0.5, color="gray"))

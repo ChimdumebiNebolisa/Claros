@@ -1,7 +1,7 @@
 """Tests for parser module: PDF question extraction."""
 import pytest
 
-from parser import parse_pdf, Question
+from parser import parse_pdf, Question, normalize_worksheet_text
 
 
 def test_parse_pdf_question_format(tmp_pdf_question_format):
@@ -69,3 +69,8 @@ def test_parse_pdf_numbered_continuation_merged(tmp_pdf_numbered_with_continuati
     q1 = next(q for q in questions if q.id == 1)
     assert "Alpha" in q1.text
     assert "Extra detail" in q1.text or "extra detail" in q1.text.lower()
+
+
+def test_normalize_worksheet_text_empty():
+    assert normalize_worksheet_text("") == ""
+    assert normalize_worksheet_text(None) is None

@@ -43,28 +43,28 @@ def build_assignment():
 
     story = []
 
-    story.append(Paragraph("Math Assignment — Grades 9–10", title_style))
+    story.append(Paragraph("Math Assignment - Grades 9-10", title_style))
     story.append(Paragraph(
         "Name: _______________________ &nbsp;&nbsp;&nbsp; Date: _______________________",
         styles["Normal"],
     ))
     story.append(Spacer(1, 0.3 * inch))
 
-    # Question 1 — simple: solve for x
+    # Question 1 - simple: solve for x
     story.append(Paragraph(
         "<b>1.</b> Solve for <i>x</i>: &nbsp; 3<i>x</i> + 7 = 22",
         question_style,
     ))
     story.append(Paragraph("Show your work. Answer: <i>x</i> = ________", sub_style))
 
-    # Question 2 — simple: solve for x
+    # Question 2 - simple: solve for x
     story.append(Paragraph(
         "<b>2.</b> Solve for <i>x</i>: &nbsp; −2<i>x</i> − 5 = 11",
         question_style,
     ))
     story.append(Paragraph("Show your work. Answer: <i>x</i> = ________", sub_style))
 
-    # Question 3 — medium: multi-step equation
+    # Question 3 - medium: multi-step equation
     story.append(Paragraph(
         "<b>3.</b> Solve for <i>x</i>: &nbsp; 4(<i>x</i> − 3) + 2<i>x</i> = 5<i>x</i> + 6",
         question_style,
@@ -74,7 +74,7 @@ def build_assignment():
         sub_style,
     ))
 
-    # Question 4 — word problem
+    # Question 4 - word problem
     story.append(Paragraph(
         "<b>4.</b> A rectangle has a length that is 3 more than twice its width. "
         "The perimeter of the rectangle is 42 cm. Find the width and the length. "
@@ -83,7 +83,7 @@ def build_assignment():
     ))
     story.append(Paragraph("Width = ________ &nbsp;&nbsp;&nbsp; Length = ________", sub_style))
 
-    # Question 5 — word problem
+    # Question 5 - word problem
     story.append(Paragraph(
         "<b>5.</b> Tickets for a school play cost $5 for students and $8 for adults. "
         "There were 120 tickets sold for a total of $720. How many student tickets "

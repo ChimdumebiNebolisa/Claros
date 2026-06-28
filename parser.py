@@ -25,6 +25,36 @@ _QUESTION_LINE_RE = re.compile(r"^\s*Question\s*(\d+)\s*:\s*(.*)", re.IGNORECASE
 # Line starting with "N." (numbered list) for worksheet-style PDFs. Captures N and rest of line.
 _NUMBERED_LINE_RE = re.compile(r"^\s*(\d+)\.\s*(.*)")
 
+# Conservative Unicode to ASCII substitutions for worksheet text (math-friendly).
+_UNICODE_REPLACEMENTS = (
+    ("\u2212", "-"),  # minus sign
+    ("\u2013", "-"),  # en dash
+    ("\u2014", "-"),  # em dash
+    ("\u2018", "'"),  # left single quotation mark
+    ("\u2019", "'"),  # right single quotation mark
+    ("\u201c", '"'),  # left double quotation mark
+    ("\u201d", '"'),  # right double quotation mark
+    ("\u00a0", " "),  # no-break space
+)
+
+
+def normalize_worksheet_text(text: str) -> str:
+    """Normalize common Unicode punctuation to ASCII for safe parsing, logging, and export."""
+    if not text:
+        return text
+    s = text
+    for src, dst in _UNICODE_REPLACEMENTS:
+        s = s.replace(src, dst)
+    return s
+
+
+def _normalize_parse_result(title: str, questions: List[Question]) -> tuple[str, List[Question]]:
+    norm_title = normalize_worksheet_text(title)
+    norm_questions = [
+        Question(id=q.id, text=normalize_worksheet_text(q.text)) for q in questions
+    ]
+    return norm_title, norm_questions
+
 
 def _extract_lines_with_size(doc: fitz.Document) -> List[tuple[str, float]]:
     """Extract (line_text, font_size) for each line from PDF. Uses first span size per line."""
@@ -65,7 +95,7 @@ def parse_pdf(pdf_path: str | Path) -> tuple[str, List[Question]]:
             title = path.stem
             result = title, [Question(id=0, text=full_text)]
             logger.warning("[parser] No lines extracted. title=%r, 1 question (id=0)", title)
-            return result
+            return _normalize_parse_result(*result)
 
         title = lines[0].strip()[:80] if lines else path.stem
         questions: List[Question] = []
@@ -107,13 +137,13 @@ def parse_pdf(pdf_path: str | Path) -> tuple[str, List[Question]]:
         if not questions:
             result = title, [Question(id=0, text=full_text)]
             logger.warning("[parser] No question lines found. title=%r, fallback 1 question (id=0)", title)
-            return result
+            return _normalize_parse_result(*result)
 
         question_ids = [q.id for q in questions]
         logger.info(
             "[parser] title=%r, num_questions=%s, question_ids=%s",
             title, len(questions), question_ids,
         )
-        return title, questions
+        return _normalize_parse_result(title, questions)
     finally:
         doc.close()

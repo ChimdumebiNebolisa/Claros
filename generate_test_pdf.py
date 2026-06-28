@@ -43,7 +43,7 @@ def build_assignment():
     story = []
 
     story.append(Paragraph("Claros Test Assignment", title_style))
-    story.append(Paragraph("Algebra — Grade 9/10", subtitle_style))
+    story.append(Paragraph("Algebra - Grade 9/10", subtitle_style))
 
     story.append(Paragraph(
         "<b>Question 1:</b> Solve for x: 3x + 7 = 22",

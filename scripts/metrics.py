@@ -133,8 +133,8 @@ def main() -> None:
     print("  API routes:         ", routes)
     print("  Test assignment:    ", questions, "questions")
     if with_tests:
-        print("  Tests:              ", tests if tests is not None else "—")
-        print("  Coverage:           ", f"{cov}%" if cov is not None else "—")
+        print("  Tests:              ", tests if tests is not None else "-")
+        print("  Coverage:           ", f"{cov}%" if cov is not None else "-")
     else:
         print("  (Use --with-tests to include test count and coverage)")
 

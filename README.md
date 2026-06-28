@@ -66,7 +66,7 @@ Browser (frontend/index.html)
 
 FastAPI backend (main.py)
   │
-  ├── Ephemeral token creation (auth_tokens.create) for browser–Gemini Live
+  ├── Ephemeral token creation (auth_tokens.create) for browser-Gemini Live
   ├── Gemini 2.5 Flash (text) for answer writing via generate_content_stream()
   ├── PDF parser (parser.py - PyMuPDF)
   ├── PDF exporter (exporter.py - ReportLab)
@@ -91,7 +91,7 @@ Claros is deployed on **Google Cloud Run** as a containerized service.
 
 - **Container image** is built from the project `Dockerfile` (Python 3.11, FastAPI/Uvicorn).
 - **Assignment PDFs** are stored in a **Google Cloud Storage** bucket. The upload, session-config, write, and export endpoints use GCS where needed.
-- **Gemini API**: The backend holds the Gemini API key and uses it only to (1) create ephemeral tokens for the browser–Gemini Live connection and (2) run the text model for answer writing. The browser never receives the API key; it uses a short-lived token for Live only.
+- **Gemini API**: The backend holds the Gemini API key and uses it only to (1) create ephemeral tokens for the browser-Gemini Live connection and (2) run the text model for answer writing. The browser never receives the API key; it uses a short-lived token for Live only.
 - Cloud Run provides automatic HTTPS, scaling, and a public URL for the frontend.
 
 **Deploying:**

@@ -52,3 +52,13 @@ def test_build_export_pdf_strips_latex_dollars():
     pdf_bytes = build_export_pdf("Math", questions, answers)
     text = _pdf_text(pdf_bytes)
     assert "x = 5" in text
+
+
+def test_build_export_pdf_unicode_minus_in_body():
+    """Unicode minus in question/answer text does not break export."""
+    questions = [{"id": 1, "text": "Solve x \u2212 3 = 5"}]
+    answers = [{"question_id": 1, "answer_text": "x = 8"}]
+    pdf_bytes = build_export_pdf("Quiz", questions, answers)
+    text = _pdf_text(pdf_bytes)
+    assert "Solve x" in text
+    assert "3 = 5" in text
