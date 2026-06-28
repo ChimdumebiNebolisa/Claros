@@ -10,11 +10,36 @@ client = TestClient(app)
 
 
 def test_index_returns_html():
-    """GET / returns HTML (Claros frontend or fallback)."""
+    """GET / returns HTML (Claros landing page or fallback)."""
     response = client.get("/")
     assert response.status_code == 200
     assert "text/html" in response.headers.get("content-type", "")
     assert b"<" in response.content and b"html" in response.content.lower()
+
+
+def test_landing_has_no_app_workspace():
+    """GET / serves marketing landing without functional upload workspace."""
+    response = client.get("/")
+    assert response.status_code == 200
+    assert b"id=\"uploadZone\"" not in response.content
+    assert b"id=\"micBtn\"" not in response.content
+    assert b"Built for students" in response.content
+
+
+def test_app_returns_html():
+    """GET /app returns the functional worksheet app."""
+    response = client.get("/app")
+    assert response.status_code == 200
+    assert "text/html" in response.headers.get("content-type", "")
+    assert b"id=\"micBtn\"" in response.content or b"id=\"uploadZone\"" in response.content
+
+
+def test_styles_css_served():
+    """Frontend CSS assets for landing and app pages."""
+    for name in ("tokens.css", "landing.css", "app.css"):
+        response = client.get(f"/styles/{name}")
+        assert response.status_code == 200
+        assert "css" in response.headers.get("content-type", "").lower()
 
 
 def test_test_page_returns_html():

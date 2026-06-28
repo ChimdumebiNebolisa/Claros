@@ -332,14 +332,32 @@ async def serve_logo():
     return FileResponse(path, media_type="image/png")
 
 
+@app.get("/styles/{filename}")
+async def serve_style(filename: str):
+    """Serve frontend CSS assets (tokens, landing, app)."""
+    if not filename.endswith(".css") or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=404, detail="Not found")
+    path = ROOT / "frontend" / "styles" / filename
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(path, media_type="text/css; charset=utf-8")
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index():
-    """Serve the Claros app (frontend/index.html)."""
-    path = ROOT / "frontend" / "index.html"
+    """Serve the Claros landing page (frontend/landing.html) only."""
+    path = ROOT / "frontend" / "landing.html"
     if not path.exists():
-        path = ROOT / "test_voice.html"
+        raise HTTPException(status_code=404, detail="landing.html not found")
+    return FileResponse(path, media_type="text/html")
+
+
+@app.get("/app", response_class=HTMLResponse)
+async def app_page():
+    """Serve the Claros worksheet app (frontend/app.html)."""
+    path = ROOT / "frontend" / "app.html"
     if not path.exists():
-        return HTMLResponse("<h1>Not found</h1>", status_code=404)
+        return HTMLResponse("<h1>Not found</h1><p>app.html missing</p>", status_code=404)
     return FileResponse(path, media_type="text/html")
 
 
