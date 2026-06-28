@@ -26,6 +26,14 @@ def test_landing_has_no_app_workspace():
     assert b"Built for students" in response.content
 
 
+def test_app_sample_query_param_hint():
+    """GET /app includes sample=1 auto-load for landing Try sample deep link."""
+    response = client.get("/app")
+    assert response.status_code == 200
+    assert b"sample" in response.content
+    assert b"loadSamplePdf" in response.content
+
+
 def test_app_returns_html():
     """GET /app returns the functional worksheet app."""
     response = client.get("/app")

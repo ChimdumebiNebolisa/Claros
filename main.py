@@ -65,9 +65,11 @@ def load_assignment_from_gcs(assignment_id: str) -> tuple[str, list]:
     bucket = get_gcs_bucket()
     prefix = f"assignments/{assignment_id}/"
     blobs = list(bucket.list_blobs(prefix=prefix))
-    if not blobs:
+    pdf_blobs = [b for b in blobs if b.name.lower().endswith(".pdf")]
+    if not pdf_blobs:
         raise ValueError(f"No PDF found for assignment {assignment_id}")
-    blob = blobs[0]
+    pdf_blobs.sort(key=lambda b: b.name)
+    blob = pdf_blobs[0]
     pdf_bytes = blob.download_as_bytes()
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
         tmp.write(pdf_bytes)
