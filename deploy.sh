@@ -25,10 +25,7 @@ gcloud run deploy "${SERVICE_NAME}" \
   --platform managed \
   --region "${REGION}" \
   --allow-unauthenticated \
-  --set-env-vars \
-    GEMINI_API_KEY="${GEMINI_API_KEY}",\
-GCS_BUCKET_NAME="${GCS_BUCKET_NAME}",\
-GOOGLE_CLOUD_PROJECT="${GOOGLE_CLOUD_PROJECT}"
+  --set-env-vars "GEMINI_API_KEY=${GEMINI_API_KEY},GCS_BUCKET_NAME=${GCS_BUCKET_NAME},GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}"
 
 echo "Deployment complete."
 
