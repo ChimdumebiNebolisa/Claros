@@ -9,8 +9,10 @@ function normalizeTranscript(text) {
   var s = String(text)
     .toLowerCase()
     .trim()
+    .replace(/['\u2018\u2019]/g, '')
     .replace(/[.,!?;:"]/g, ' ')
-    .replace(/\s+/g, ' ');
+    .replace(/\s+/g, ' ')
+    .trim();
   return s;
 }
 
