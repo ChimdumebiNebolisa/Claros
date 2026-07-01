@@ -1,12 +1,18 @@
-"""Integration tests for main FastAPI app (static and HTML routes only; no GCS/Gemini)."""
+"""Integration tests for main FastAPI app (static/export routes only; no GCS/Gemini)."""
 import pytest
 
 from fastapi.testclient import TestClient
 
-# Import app only when running tests that don't need GCS/Gemini (we only hit GET / and GET /test)
-from main import app
+import main as main_module
 
-client = TestClient(app)
+client = TestClient(main_module.app)
+
+
+def _fake_load_assignment(_assignment_id: str):
+    return "Mock Assignment", [
+        {"id": 1, "text": "First question?"},
+        {"id": 2, "text": "Second question?"},
+    ]
 
 
 def test_index_returns_html():
@@ -81,3 +87,33 @@ def test_session_rules_js_served():
     assert response.status_code == 200
     assert "javascript" in response.headers.get("content-type", "").lower()
     assert b"ClarosSessionRules" in response.content
+
+
+def test_export_post_returns_pdf_attachment(monkeypatch):
+    """POST /export accepts answer JSON and returns a downloadable PDF."""
+    monkeypatch.setattr(main_module, "load_assignment_from_gcs", _fake_load_assignment)
+
+    response = client.post(
+        "/export/mock-assignment-id",
+        json={"answers": [{"question_id": 1, "answer_text": "First answer"}]},
+    )
+
+    assert response.status_code == 200
+    assert response.headers.get("content-type", "").lower().startswith("application/pdf")
+    assert response.headers.get("content-disposition") == 'attachment; filename="claros-mock-assignment-id.pdf"'
+    assert response.content.startswith(b"%PDF")
+
+
+def test_export_post_accepts_long_answer_body(monkeypatch):
+    """Long answers travel in the POST body instead of the URL query string."""
+    monkeypatch.setattr(main_module, "load_assignment_from_gcs", _fake_load_assignment)
+    long_answer = "This sentence makes the answer long enough to avoid query-string export. " * 200
+
+    response = client.post(
+        "/export/mock-assignment-id",
+        json={"answers": [{"question_id": 1, "answer_text": long_answer}]},
+    )
+
+    assert response.status_code == 200
+    assert response.headers.get("content-type", "").lower().startswith("application/pdf")
+    assert response.content.startswith(b"%PDF")
