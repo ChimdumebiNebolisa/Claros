@@ -438,12 +438,38 @@
           return { question_id: q.id, answer_text: state.answers[q.id] || '' };
         });
         var source = (opts && opts.source) || 'manual';
-        var q = 'answers=' + encodeURIComponent(JSON.stringify(answers));
-        var href = '/export/' + state.assignmentId + '?' + q;
+        var href = '/export/' + state.assignmentId;
         console.log('[voice-export] Triggering PDF export.', { source: source, href: href });
         errorsEl.textContent = 'Exporting your PDF... your browser should download the file.';
         setChecklistStep(setupStepExport, true);
-        window.location.href = href;
+        fetch(href, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ answers: answers })
+        })
+          .then(function (res) {
+            if (!res.ok) {
+              return res.text().then(function (text) {
+                throw new Error(text || res.statusText || 'Export failed');
+              });
+            }
+            return res.blob();
+          })
+          .then(function (blob) {
+            var url = window.URL.createObjectURL(blob);
+            var link = document.createElement('a');
+            link.href = url;
+            link.download = 'claros-' + state.assignmentId + '.pdf';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(function () { window.URL.revokeObjectURL(url); }, 0);
+            errorsEl.textContent = '';
+          })
+          .catch(function (err) {
+            errorsEl.textContent = (err && err.message) || 'Export failed';
+            setChecklistStep(setupStepExport, false);
+          });
         return true;
       }
 
