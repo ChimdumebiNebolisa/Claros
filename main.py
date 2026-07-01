@@ -98,6 +98,23 @@ class WriteRequest(BaseModel):
     answer_candidate: str = ""
 
 
+class ExportRequest(BaseModel):
+    answers: list[dict]
+
+
+def build_export_response(assignment_id: str, answers_list: list[dict]) -> Response:
+    try:
+        title, questions = load_assignment_from_gcs(assignment_id)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    pdf_bytes = build_export_pdf(title, questions, answers_list)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="claros-{assignment_id}.pdf"'},
+    )
+
+
 @app.get("/api/session-config/{assignment_id}")
 def get_session_config(assignment_id: str):
     """Return ephemeral token + system prompt + model for browser-side Gemini Live. API key stays on server."""
@@ -214,22 +231,19 @@ Based on what was discussed, write only the answer text for Question {body.quest
 
 
 @app.get("/export/{assignment_id}")
-async def export_assignment(assignment_id: str, answers: str = Query(..., alias="answers")):
+async def export_assignment_get(assignment_id: str, answers: str = Query(..., alias="answers")):
     """Generate PDF of questions and answers. Query param 'answers' = JSON array of {question_id, answer_text}."""
     try:
         answers_list = json.loads(answers)
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid answers JSON")
-    try:
-        title, questions = load_assignment_from_gcs(assignment_id)
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    pdf_bytes = build_export_pdf(title, questions, answers_list)
-    return Response(
-        content=pdf_bytes,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="claros-{assignment_id}.pdf"'},
-    )
+    return build_export_response(assignment_id, answers_list)
+
+
+@app.post("/export/{assignment_id}")
+async def export_assignment_post(assignment_id: str, body: ExportRequest):
+    """Generate PDF of questions and answers from a JSON body."""
+    return build_export_response(assignment_id, body.answers)
 
 
 @app.post("/upload")
