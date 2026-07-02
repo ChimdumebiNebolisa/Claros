@@ -117,3 +117,42 @@ def test_export_post_accepts_long_answer_body(monkeypatch):
     assert response.status_code == 200
     assert response.headers.get("content-type", "").lower().startswith("application/pdf")
     assert response.content.startswith(b"%PDF")
+
+
+def test_export_post_rejects_missing_question_id(monkeypatch):
+    """Malformed answer objects return 400 instead of crashing during PDF rendering."""
+    monkeypatch.setattr(main_module, "load_assignment_from_gcs", _fake_load_assignment)
+
+    response = client.post(
+        "/export/mock-assignment-id",
+        json={"answers": [{}]},
+    )
+
+    assert response.status_code == 400
+    assert "question_id" in response.json()["detail"]
+
+
+def test_export_get_rejects_missing_question_id(monkeypatch):
+    """Legacy query-string export validates decoded answer items before rendering."""
+    monkeypatch.setattr(main_module, "load_assignment_from_gcs", _fake_load_assignment)
+
+    response = client.get(
+        "/export/mock-assignment-id",
+        params={"answers": "[{}]"},
+    )
+
+    assert response.status_code == 400
+    assert "question_id" in response.json()["detail"]
+
+
+def test_export_get_rejects_non_list_answers(monkeypatch):
+    """The answers query JSON must decode to a list."""
+    monkeypatch.setattr(main_module, "load_assignment_from_gcs", _fake_load_assignment)
+
+    response = client.get(
+        "/export/mock-assignment-id",
+        params={"answers": "{}"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "answers must be a list"
