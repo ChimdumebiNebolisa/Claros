@@ -17,9 +17,49 @@ function normalizeTranscript(text) {
 }
 
 var WRITE_INTENT_RE = /\b(write|put\s+that\s+down|answer\s+question|write\s+my\s+answer|write\s+it\s+down|write\s+that)\b/;
-var QUESTION_NUM_RE = /question\s*(\d+)/;
-var CLAROS_WRITE_PHRASE_RE = /let me write that for question\s*(\d+)/i;
+var QUESTION_NUM_TOKEN_RE = /\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty/;
+var QUESTION_NUM_RE = new RegExp('question\\s*(' + QUESTION_NUM_TOKEN_RE.source + ')\\b');
+var CLAROS_WRITE_PHRASE_RE = new RegExp('let me write that for question\\s*(' + QUESTION_NUM_TOKEN_RE.source + ')\\b', 'i');
 var ANSWER_STATED_RE = /(?:my|the|final)\s+answer\s+is\b|i\s+think\s+(?:its|it\s+is|the\s+answer\s+is)\b|(?:my|the)\s+final\s+answer\b|thats\s+my\s+answer\b|so\s+(?:its|it\s+is|the\s+answer\s+is)\b/;
+
+var QUESTION_NUM_WORDS = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  eleven: 11,
+  twelve: 12,
+  thirteen: 13,
+  fourteen: 14,
+  fifteen: 15,
+  sixteen: 16,
+  seventeen: 17,
+  eighteen: 18,
+  nineteen: 19,
+  twenty: 20,
+};
+
+function parseQuestionNumToken(token) {
+  if (!token) return null;
+  if (/^\d+$/.test(token)) return parseInt(token, 10);
+  return QUESTION_NUM_WORDS[token.toLowerCase()] || null;
+}
+
+function parseQuestionNum(norm) {
+  var m = QUESTION_NUM_RE.exec(norm || '');
+  return m ? parseQuestionNumToken(m[1]) : null;
+}
+
+function parseClarosWriteQuestionNum(text) {
+  var m = CLAROS_WRITE_PHRASE_RE.exec(text || '');
+  return m ? parseQuestionNumToken(m[1]) : null;
+}
 
 function hasExportIntent(norm) {
   if (!norm) return false;
@@ -36,6 +76,8 @@ function hasExportIntent(norm) {
 var ClarosSessionRules = {
   normalizeTranscript: normalizeTranscript,
   hasExportIntent: hasExportIntent,
+  parseQuestionNum: parseQuestionNum,
+  parseClarosWriteQuestionNum: parseClarosWriteQuestionNum,
   WRITE_INTENT_RE: WRITE_INTENT_RE,
   QUESTION_NUM_RE: QUESTION_NUM_RE,
   CLAROS_WRITE_PHRASE_RE: CLAROS_WRITE_PHRASE_RE,

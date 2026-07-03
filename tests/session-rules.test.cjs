@@ -31,6 +31,13 @@ const cases = [
     questionNum: 2,
   },
   {
+    raw: 'Write my answer for question two.',
+    writeIntent: true,
+    answerStated: false,
+    exportIntent: false,
+    questionNum: 2,
+  },
+  {
     raw: 'My answer is 42 for question 3.',
     writeIntent: false,
     answerStated: true,
@@ -80,6 +87,14 @@ const cases = [
     questionNum: 1,
     clarosWriteQ: 1,
   },
+  {
+    raw: 'Let me write that for question two',
+    writeIntent: true,
+    answerStated: false,
+    exportIntent: false,
+    questionNum: 2,
+    clarosWriteQ: 2,
+  },
 ];
 
 for (const c of cases) {
@@ -87,13 +102,11 @@ for (const c of cases) {
   assert.strictEqual(rules.WRITE_INTENT_RE.test(norm), c.writeIntent, `writeIntent ${c.raw}`);
   assert.strictEqual(rules.ANSWER_STATED_RE.test(norm), c.answerStated, `answerStated ${c.raw}`);
   assert.strictEqual(rules.hasExportIntent(norm), c.exportIntent, `exportIntent ${c.raw}`);
-  const qm = rules.QUESTION_NUM_RE.exec(norm);
-  const num = qm ? parseInt(qm[1], 10) : null;
-  assert.strictEqual(num, c.questionNum, `questionNum ${c.raw}`);
+  assert.strictEqual(rules.parseQuestionNum(norm), c.questionNum, `questionNum ${c.raw}`);
   if (c.clarosWriteQ != null) {
     const m = rules.CLAROS_WRITE_PHRASE_RE.exec(norm);
     assert.ok(m, `claros phrase should match: ${c.raw}`);
-    assert.strictEqual(parseInt(m[1], 10), c.clarosWriteQ);
+    assert.strictEqual(rules.parseClarosWriteQuestionNum(norm), c.clarosWriteQ);
   }
 }
 
