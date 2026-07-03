@@ -163,8 +163,9 @@
         throw new Error('ClarosSessionRules missing');
       }
       var normalizeTranscript = SR.normalizeTranscript;
+      var parseQuestionNum = SR.parseQuestionNum;
+      var parseClarosWriteQuestionNum = SR.parseClarosWriteQuestionNum;
       var WRITE_INTENT_RE = SR.WRITE_INTENT_RE;
-      var QUESTION_NUM_RE = SR.QUESTION_NUM_RE;
       var CLAROS_WRITE_PHRASE_RE = SR.CLAROS_WRITE_PHRASE_RE;
       var ANSWER_STATED_RE = SR.ANSWER_STATED_RE;
       var hasExportIntent = SR.hasExportIntent;
@@ -686,7 +687,7 @@
                   if (clarosOutputBuffer.length > 2000) clarosOutputBuffer = clarosOutputBuffer.slice(-1000);
                   var m = CLAROS_WRITE_PHRASE_RE.exec(clarosOutputBuffer);
                   if (m) {
-                    var qid = parseInt(m[1], 10);
+                    var qid = parseClarosWriteQuestionNum(clarosOutputBuffer);
                     var matchedText = m[0];
                     console.log('[write-chain] Claros write phrase detected qid=' + qid + ' text="' + matchedText + '"');
                     if (!writeInProgress) {
@@ -728,10 +729,10 @@
                     });
                     conversationContext.push({ speaker: 'user', text: full });
                     addTranscript('user', full);
-                    var qm = QUESTION_NUM_RE.exec(norm);
-                    if (qm) currentQuestion = parseInt(qm[1], 10);
+                    var parsedQuestion = parseQuestionNum(norm);
+                    if (parsedQuestion != null) currentQuestion = parsedQuestion;
                     if (ANSWER_STATED_RE.test(norm)) {
-                      var tq = qm ? parseInt(qm[1], 10) : currentQuestion;
+                      var tq = parsedQuestion != null ? parsedQuestion : currentQuestion;
                       if (tq != null) {
                         answerReady[tq] = true;
                         answerCandidate[tq] = full;
@@ -740,7 +741,7 @@
                       }
                     }
                     var hasIntent = WRITE_INTENT_RE.test(norm);
-                    var qid = qm ? parseInt(qm[1], 10) : (currentQuestion || 1);
+                    var qid = parsedQuestion != null ? parsedQuestion : (currentQuestion || 1);
                     var readyBefore = !!answerReady[qid];
                     var candidateBefore = answerCandidate[qid] || '';
                     var usedFallback = false;
