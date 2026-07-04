@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Claros - Worksheet App</title>
+  <title>Claros: Worksheet app</title>
   <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="stylesheet" href="/styles/tokens.css">
   <link rel="stylesheet" href="/styles/app.css">
@@ -15,120 +15,109 @@
         <div class="brand-mark" aria-hidden="true"></div>
         <div class="brand-copy">
           <a href="/" class="brand-link" aria-label="Claros home"><strong>Claros</strong></a>
-          <span>Voice-guided worksheet assistant</span>
+          <span>Voice-guided worksheets</span>
         </div>
       </div>
       <nav class="topbar-links" aria-label="Primary">
-        <a href="/">Home</a>
+        <a href="/#how-it-works">How it works</a>
+        <a href="/#faq">FAQ</a>
       </nav>
       <div class="topbar-right">
         <a href="/" class="nav-pill">Back to home</a>
       </div>
     </header>
 
-    <div class="app-page-header">
-      <h1 class="app-page-title">Worksheet app</h1>
-      <p class="app-page-subtitle">Upload a PDF, talk through each question, and export your completed answers.</p>
-    </div>
+    <main class="app-main">
+      <div class="app-page-header">
+        <div class="app-page-heading">
+          <h1 class="app-page-title">Your worksheet</h1>
+          <p class="app-page-subtitle">Upload a PDF, talk through each question, and export your completed answers.</p>
+        </div>
+        <nav class="step-indicator" aria-label="Worksheet workflow">
+          <span class="step-indicator-item">1&ensp;Upload</span>
+          <span class="step-indicator-item">2&ensp;Talk</span>
+          <span class="step-indicator-item">3&ensp;Review</span>
+          <span class="step-indicator-item">4&ensp;Export</span>
+        </nav>
+      </div>
 
-    <nav class="step-indicator" aria-label="Worksheet workflow">
-      <span class="step-indicator-label">Workflow</span>
-      <span class="step-indicator-item">Upload</span>
-      <span class="step-indicator-item">Talk</span>
-      <span class="step-indicator-item">Review</span>
-      <span class="step-indicator-item">Export</span>
-    </nav>
+      <div class="app-workspace">
+        <div class="app-left">
+          <section class="start-card" aria-labelledby="upload-title">
+            <div class="start-card-head">
+              <h2 class="card-title" id="upload-title">Upload your worksheet</h2>
+              <button type="button" class="btn-test-pdf" id="testPdfBtn">Try the sample worksheet</button>
+            </div>
+            <label class="upload-zone" id="uploadZone">
+              <input type="file" id="fileInput" accept=".pdf">
+              <span class="upload-inner">
+                <span class="upload-art" aria-hidden="true"></span>
+                <span class="upload-copy">
+                  <span class="upload-main" id="uploadLabel">Drop your assignment PDF here</span>
+                  <span class="upload-sub">or click to browse (PDF only)</span>
+                </span>
+              </span>
+            </label>
 
-    <main class="landing-main">
-      <section class="app-section" id="try-claros">
-        <div class="section-container">
-          <div class="app-workspace">
-            <div class="app-left">
-              <section class="start-card">
-                <section class="launch-card">
-                  <div class="setup-title-row">
-                    <div>
-                      <div class="upload-heading">Upload your worksheet</div>
-                      <div class="card-title">Drop a PDF to get started</div>
-                    </div>
-                  </div>
-                  <div class="launch-card-grid">
-                    <label class="upload-zone" id="uploadZone">
-                      <input type="file" id="fileInput" accept=".pdf">
-                      <div>
-                        <div class="upload-art" aria-hidden="true"></div>
-                        <div class="upload-copy">
-                          <div class="upload-main" id="uploadLabel">Drop your assignment PDF here</div>
-                          <div class="upload-sub">or click to browse</div>
-                          <div class="upload-note">PDF only</div>
-                        </div>
-                      </div>
-                    </label>
-                    <div class="launch-actions">
-                      <button type="button" class="btn-test-pdf" id="testPdfBtn">Try sample worksheet</button>
-                    </div>
-                  </div>
-                </section>
-
-                <div class="setup-info-grid">
-                  <section class="info-card" aria-labelledby="info-next-title">
-                    <h2 class="info-card-title" id="info-next-title">What happens next?</h2>
-                    <ol class="info-card-list">
-                      <li>Claros reads your PDF and lists each question.</li>
-                      <li>You start a voice session and talk through answers.</li>
-                      <li>Claros writes only after you state and approve.</li>
-                      <li>Export a completed PDF when you are done.</li>
-                    </ol>
-                  </section>
-                  <section class="info-card" aria-labelledby="info-format-title">
-                    <h2 class="info-card-title" id="info-format-title">Works best with</h2>
-                    <ul class="info-card-list">
-                      <li>Clear PDF worksheets with numbered questions</li>
-                      <li>Typed or neatly scanned pages</li>
-                      <li>Readable text and high contrast</li>
-                    </ul>
-                  </section>
-                </div>
+            <div class="setup-info-grid">
+              <section class="info-card" aria-labelledby="info-next-title">
+                <h3 class="info-card-title" id="info-next-title">What happens next?</h3>
+                <ol class="info-card-list">
+                  <li>Claros reads your PDF and lists each question.</li>
+                  <li>You start a voice session and talk through answers.</li>
+                  <li>Claros writes only after you state and approve.</li>
+                  <li>Export a completed PDF when you are done.</li>
+                </ol>
               </section>
-
-              <section class="worksheet-card">
-                <div class="assignment-title" id="assignmentTitle">Upload a worksheet to begin</div>
-                <div id="questionsContainer"></div>
-                <button class="btn export" id="exportBtn" type="button">Export answers as PDF</button>
+              <section class="info-card" aria-labelledby="info-format-title">
+                <h3 class="info-card-title" id="info-format-title">Works best with</h3>
+                <ul class="info-card-list">
+                  <li>Clear PDF worksheets with numbered questions</li>
+                  <li>Typed or neatly scanned pages</li>
+                  <li>Readable text and high contrast</li>
+                </ul>
               </section>
             </div>
+          </section>
 
-            <aside class="session-panel">
-              <div class="session-head">
-                <div class="session-title">Voice assistant</div>
-                <div class="status-badge">Live voice workspace</div>
-              </div>
-              <div id="status" class="status-bar idle" role="status" aria-live="polite">
-                <span class="status-dot" aria-hidden="true"></span>
-                <span id="statusLabel">Waiting for worksheet</span>
-              </div>
-              <div class="meter-wrap"><div id="meterBar" class="meter-bar"></div></div>
-              <div class="session-checklist">
-                <div class="checklist-title">Setup checklist</div>
-                <ul class="setup-list">
-                  <li class="setup-item" id="setupStepUpload">PDF uploaded</li>
-                  <li class="setup-item" id="setupStepSession">Microphone ready</li>
-                  <li class="setup-item" id="setupStepExport">Session ready</li>
-                </ul>
-                <div class="setup-hidden" id="setupStepReview" aria-hidden="true">Questions parsed</div>
-              </div>
-              <div id="transcript" class="transcript" aria-live="polite"></div>
-              <div id="notice" class="notice" role="status" aria-live="polite"></div>
-              <div id="errors" class="errors" role="alert"></div>
-              <p class="session-privacy-note">You speak first. Claros writes answers only after you state and approve them. Your microphone is used only during an active session.</p>
-              <div class="session-actions">
-                <button class="btn session-btn" id="micBtn" type="button" disabled>Start Session</button>
-                <button class="btn interrupt" id="interruptBtn" type="button" title="Stop Claros speaking so you can talk" aria-label="Interrupt Claros">Interrupt</button>
-              </div>
-            </aside>
-          </div>
+          <section class="worksheet-card" aria-label="Worksheet questions">
+            <div class="worksheet-head">
+              <h2 class="assignment-title" id="assignmentTitle">Upload a worksheet to begin</h2>
+            </div>
+            <div id="questionsContainer" class="questions-container"></div>
+            <button class="btn export" id="exportBtn" type="button">Export answers as PDF</button>
+          </section>
         </div>
-      </section>
+
+        <aside class="session-panel" aria-label="Voice assistant">
+          <div class="session-head">
+            <h2 class="session-title">Voice assistant</h2>
+            <span class="status-badge">Live</span>
+          </div>
+          <div id="status" class="status-bar idle" role="status" aria-live="polite">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span id="statusLabel">Waiting for worksheet</span>
+          </div>
+          <div class="meter-wrap" aria-hidden="true"><div id="meterBar" class="meter-bar"></div></div>
+          <div class="session-checklist">
+            <div class="checklist-title">Setup checklist</div>
+            <ul class="setup-list">
+              <li class="setup-item" id="setupStepUpload">PDF uploaded</li>
+              <li class="setup-item" id="setupStepSession">Microphone ready</li>
+              <li class="setup-item" id="setupStepExport">Session ready</li>
+            </ul>
+            <div class="setup-hidden" id="setupStepReview" aria-hidden="true">Questions parsed</div>
+          </div>
+          <div id="transcript" class="transcript" aria-live="polite"></div>
+          <div id="notice" class="notice" role="status" aria-live="polite"></div>
+          <div id="errors" class="errors" role="alert"></div>
+          <p class="session-privacy-note">You speak first. Claros writes answers only after you state and approve them. Your microphone is used only during an active session.</p>
+          <div class="session-actions">
+            <button class="btn session-btn" id="micBtn" type="button" disabled>Start Session</button>
+            <button class="btn interrupt" id="interruptBtn" type="button" title="Stop Claros speaking so you can talk" aria-label="Interrupt Claros">Interrupt</button>
+          </div>
+        </aside>
+      </div>
     </main>
   </div>
   <script src="/session-rules.js"></script>
