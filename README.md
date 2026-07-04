@@ -64,8 +64,13 @@ Browser (frontend/index.html)
   │     via bundled @google/genai JS SDK (served from app; no runtime CDN), ephemeral token from backend
   └── POST /api/write/{id} (streaming) → answer text for a question
 
-FastAPI backend (main.py)
+FastAPI backend (main.py + service modules)
   │
+  ├── config.py — env, GCS bucket, API key helpers
+  ├── assignment_service.py — load/parse assignments from GCS, export PDF assembly
+  ├── gemini_service.py — ephemeral tokens, answer write streaming
+  ├── storage.py — GCS upload
+  ├── schemas.py — request validation
   ├── Ephemeral token creation (auth_tokens.create) for browser-Gemini Live
   ├── Gemini 2.5 Flash (text) for answer writing via generate_content_stream()
   ├── PDF parser (parser.py - PyMuPDF)
@@ -185,6 +190,7 @@ GEMINI_TEXT_MODEL=gemini-2.5-flash
 | `GCS_BUCKET_NAME` | Google Cloud Storage bucket name for storing uploaded PDFs |
 | `GOOGLE_CLOUD_PROJECT` | Google Cloud project ID |
 | `GEMINI_TEXT_MODEL` | Text model used for answer generation (default: `gemini-2.5-flash`) |
+| `ENABLE_DEBUG_GEMINI` | Set to `true` to expose `GET /debug-gemini` for local Gemini connectivity checks (default: disabled) |
 
 Local development may also require Google Cloud application credentials for GCS access (e.g., `GOOGLE_APPLICATION_CREDENTIALS` or `gcloud auth application-default login`).
 

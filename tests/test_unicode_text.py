@@ -9,6 +9,7 @@ from exporter import build_export_pdf
 from parser import normalize_worksheet_text, parse_pdf
 
 import main as main_module
+import storage
 
 
 def _write_unicode_minus_pdf(path) -> None:
@@ -55,7 +56,7 @@ def test_upload_unicode_pdf_does_not_fail_charmap(monkeypatch, tmp_path):
     path = tmp_path / "upload_unicode.pdf"
     _write_unicode_minus_pdf(path)
 
-    monkeypatch.setattr(main_module, "upload_pdf_to_gcs", lambda *args, **kwargs: "gs://fake/b.pdf")
+    monkeypatch.setattr(storage, "upload_pdf_to_gcs", lambda *args, **kwargs: "gs://fake/b.pdf")
 
     client = TestClient(main_module.app)
     response = client.post(

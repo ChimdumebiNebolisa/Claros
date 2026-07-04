@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import main as main_module
+import assignment_service
 
 
 class _FakeBlob:
@@ -26,14 +26,14 @@ def test_load_assignment_picks_pdf_sorted_by_name(monkeypatch, tmp_path):
     bucket = MagicMock()
     bucket.list_blobs.return_value = blobs
 
-    monkeypatch.setattr(main_module, "get_gcs_bucket", lambda: bucket)
+    monkeypatch.setattr(assignment_service, "get_gcs_bucket", lambda: bucket)
 
     def fake_parse(path):
         return "Title", [SimpleNamespace(id=1, text="Q?")]
 
-    monkeypatch.setattr(main_module, "parse_pdf", fake_parse)
+    monkeypatch.setattr(assignment_service, "parse_pdf", fake_parse)
 
-    title, questions = main_module.load_assignment_from_gcs("abc")
+    title, questions = assignment_service.load_assignment_from_gcs("abc")
 
     assert title == "Title"
     assert questions == [{"id": 1, "text": "Q?"}]
@@ -44,7 +44,7 @@ def test_load_assignment_raises_when_no_pdf(monkeypatch):
     bucket = MagicMock()
     bucket.list_blobs.return_value = [_FakeBlob("assignments/abc/readme.txt")]
 
-    monkeypatch.setattr(main_module, "get_gcs_bucket", lambda: bucket)
+    monkeypatch.setattr(assignment_service, "get_gcs_bucket", lambda: bucket)
 
     with pytest.raises(ValueError, match="No PDF found"):
-        main_module.load_assignment_from_gcs("abc")
+        assignment_service.load_assignment_from_gcs("abc")

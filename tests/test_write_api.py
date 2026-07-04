@@ -2,6 +2,9 @@
 import pytest
 from fastapi.testclient import TestClient
 
+import assignment_service
+import config
+import gemini_service
 import main as main_module
 
 _FIXED_TITLE = "Mock Assignment"
@@ -18,8 +21,8 @@ def _fake_load_assignment(_assignment_id: str):
 
 @pytest.fixture
 def write_client(monkeypatch):
-    monkeypatch.setattr(main_module, "load_assignment_from_gcs", _fake_load_assignment)
-    monkeypatch.setattr(main_module, "get_api_key", lambda: "test-api-key-not-used")
+    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", _fake_load_assignment)
+    monkeypatch.setattr(config, "get_api_key", lambda: "test-api-key-not-used")
 
     class FakeChunk:
         __slots__ = ("text",)
@@ -45,7 +48,7 @@ def write_client(monkeypatch):
 
     import types as std_types
 
-    monkeypatch.setattr(main_module, "genai", std_types.SimpleNamespace(Client=FakeClient))
+    monkeypatch.setattr(gemini_service, "genai", std_types.SimpleNamespace(Client=FakeClient))
     return TestClient(main_module.app)
 
 

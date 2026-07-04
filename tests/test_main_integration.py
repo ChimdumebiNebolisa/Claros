@@ -3,6 +3,7 @@ import pytest
 
 from fastapi.testclient import TestClient
 
+import assignment_service
 import main as main_module
 
 client = TestClient(main_module.app)
@@ -33,11 +34,19 @@ def test_landing_has_no_app_workspace():
 
 
 def test_app_sample_query_param_hint():
-    """GET /app includes sample=1 auto-load for landing Try sample deep link."""
+    """GET /app loads external app.js with sample=1 auto-load deep link."""
     response = client.get("/app")
     assert response.status_code == 200
-    assert b"sample" in response.content
+    assert b"/app.js" in response.content
+
+
+def test_app_js_served():
+    """Worksheet client script is served as a static asset."""
+    response = client.get("/app.js")
+    assert response.status_code == 200
+    assert "javascript" in response.headers.get("content-type", "").lower()
     assert b"loadSamplePdf" in response.content
+    assert b"sample" in response.content
 
 
 def test_app_returns_html():
@@ -91,7 +100,7 @@ def test_session_rules_js_served():
 
 def test_export_post_returns_pdf_attachment(monkeypatch):
     """POST /export accepts answer JSON and returns a downloadable PDF."""
-    monkeypatch.setattr(main_module, "load_assignment_from_gcs", _fake_load_assignment)
+    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", _fake_load_assignment)
 
     response = client.post(
         "/export/mock-assignment-id",
@@ -106,7 +115,7 @@ def test_export_post_returns_pdf_attachment(monkeypatch):
 
 def test_export_post_accepts_long_answer_body(monkeypatch):
     """Long answers travel in the POST body instead of the URL query string."""
-    monkeypatch.setattr(main_module, "load_assignment_from_gcs", _fake_load_assignment)
+    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", _fake_load_assignment)
     long_answer = "This sentence makes the answer long enough to avoid query-string export. " * 200
 
     response = client.post(
@@ -121,7 +130,7 @@ def test_export_post_accepts_long_answer_body(monkeypatch):
 
 def test_export_post_rejects_missing_question_id(monkeypatch):
     """Malformed answer objects return 400 instead of crashing during PDF rendering."""
-    monkeypatch.setattr(main_module, "load_assignment_from_gcs", _fake_load_assignment)
+    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", _fake_load_assignment)
 
     response = client.post(
         "/export/mock-assignment-id",
@@ -134,7 +143,7 @@ def test_export_post_rejects_missing_question_id(monkeypatch):
 
 def test_export_get_rejects_missing_question_id(monkeypatch):
     """Legacy query-string export validates decoded answer items before rendering."""
-    monkeypatch.setattr(main_module, "load_assignment_from_gcs", _fake_load_assignment)
+    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", _fake_load_assignment)
 
     response = client.get(
         "/export/mock-assignment-id",
@@ -147,7 +156,7 @@ def test_export_get_rejects_missing_question_id(monkeypatch):
 
 def test_export_get_rejects_non_list_answers(monkeypatch):
     """The answers query JSON must decode to a list."""
-    monkeypatch.setattr(main_module, "load_assignment_from_gcs", _fake_load_assignment)
+    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", _fake_load_assignment)
 
     response = client.get(
         "/export/mock-assignment-id",
