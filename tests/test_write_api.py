@@ -3,7 +3,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 import assignment_service
-import config
 import gemini_service
 import main as main_module
 
@@ -22,7 +21,7 @@ def _fake_load_assignment(_assignment_id: str):
 @pytest.fixture
 def write_client(monkeypatch):
     monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", _fake_load_assignment)
-    monkeypatch.setattr(config, "get_api_key", lambda: "test-api-key-not-used")
+    monkeypatch.setattr(gemini_service, "get_api_key", lambda: "test-api-key-not-used")
 
     class FakeChunk:
         __slots__ = ("text",)
