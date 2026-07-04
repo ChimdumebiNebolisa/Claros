@@ -132,6 +132,9 @@
       card.innerHTML = '<div class="question-header"><div style="display:flex;align-items:center"><span class="question-index">' + q.id + '</span><div class="question-label">Question ' + q.id + '<span class="ready-badge">Answer stated</span></div></div><div class="question-meta">&nbsp;</div></div><div class="question-text"></div><div class="answer-field" data-question-id="' + q.id + '" data-placeholder="Say your answer in a session, or type it here" contenteditable="true" spellcheck="true"></div>';
       const questionTextEl = card.querySelector('.question-text');
       const answerEl = card.querySelector('.answer-field');
+      answerEl.setAttribute('role', 'textbox');
+      answerEl.setAttribute('aria-label', 'Answer for question ' + q.id);
+      answerEl.setAttribute('aria-multiline', 'true');
       if (questionTextEl) {
         questionTextEl.textContent = questionText;
         console.log('[renderQuestions] Card for Q' + q.id + ': set question-text to', questionText ? questionText.substring(0, 50) + (questionText.length > 50 ? '...' : '') : '(empty)');

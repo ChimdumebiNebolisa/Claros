@@ -47,6 +47,9 @@ def test_app_js_served():
     assert "javascript" in response.headers.get("content-type", "").lower()
     assert b"loadSamplePdf" in response.content
     assert b"sample" in response.content
+    assert b"role', 'textbox" in response.content
+    assert b"aria-label', 'Answer for question" in response.content
+    assert b"aria-multiline', 'true" in response.content
 
 
 def test_app_returns_html():
