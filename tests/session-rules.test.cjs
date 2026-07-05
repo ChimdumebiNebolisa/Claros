@@ -45,6 +45,20 @@ const cases = [
     questionNum: 3,
   },
   {
+    raw: 'My answer for question 2 is 12.',
+    writeIntent: false,
+    answerStated: true,
+    exportIntent: false,
+    questionNum: 2,
+  },
+  {
+    raw: 'My answer for question two is 12.',
+    writeIntent: false,
+    answerStated: true,
+    exportIntent: false,
+    questionNum: 2,
+  },
+  {
     raw: 'I think it is the Civil War.',
     writeIntent: false,
     answerStated: true,

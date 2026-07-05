@@ -20,7 +20,13 @@ var WRITE_INTENT_RE = /\b(write|put\s+that\s+down|answer\s+question|write\s+my\s
 var QUESTION_NUM_TOKEN_RE = /\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty/;
 var QUESTION_NUM_RE = new RegExp('question\\s*(' + QUESTION_NUM_TOKEN_RE.source + ')\\b');
 var CLAROS_WRITE_PHRASE_RE = new RegExp('let me write that for question\\s*(' + QUESTION_NUM_TOKEN_RE.source + ')\\b', 'i');
-var ANSWER_STATED_RE = /(?:my|the|final)\s+answer\s+is\b|i\s+think\s+(?:its|it\s+is|the\s+answer\s+is)\b|(?:my|the)\s+final\s+answer\b|thats\s+my\s+answer\b|so\s+(?:its|it\s+is|the\s+answer\s+is)\b/;
+var ANSWER_STATED_RE = new RegExp(
+  '(?:my|the|final)\\s+answer\\s+(?:for\\s+question\\s+(?:' + QUESTION_NUM_TOKEN_RE.source + ')\\s+)?is\\b' +
+  '|i\\s+think\\s+(?:its|it\\s+is|the\\s+answer\\s+is)\\b' +
+  '|(?:my|the)\\s+final\\s+answer\\b' +
+  '|thats\\s+my\\s+answer\\b' +
+  '|so\\s+(?:its|it\\s+is|the\\s+answer\\s+is)\\b'
+);
 
 var QUESTION_NUM_WORDS = {
   one: 1,
