@@ -70,6 +70,7 @@ function parseClarosWriteQuestionNum(text) {
 function hasExportIntent(norm) {
   if (!norm) return false;
   return norm.indexOf('export pdf') !== -1 ||
+    norm.indexOf('export the pdf') !== -1 ||
     norm.indexOf('export as pdf') !== -1 ||
     norm.indexOf('export this as pdf') !== -1 ||
     norm.indexOf('download pdf') !== -1 ||
