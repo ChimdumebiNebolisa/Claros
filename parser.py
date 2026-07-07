@@ -19,8 +19,8 @@ class Question:
     text: str
 
 
-# Line starting with "Question N:" (case insensitive). Captures N and rest of line.
-_QUESTION_LINE_RE = re.compile(r"^\s*Question\s*(\d+)\s*:\s*(.*)", re.IGNORECASE)
+# Line starting with "Question N:" or "Question N." (case insensitive). Captures N and rest of line.
+_QUESTION_LINE_RE = re.compile(r"^\s*Question\s*(\d+)\s*[:.]\s*(.*)", re.IGNORECASE)
 
 # Line starting with "N." (numbered list) for worksheet-style PDFs. Captures N and rest of line.
 _NUMBERED_LINE_RE = re.compile(r"^\s*(\d+)\.\s*(.*)")

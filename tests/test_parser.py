@@ -1,5 +1,6 @@
 """Tests for parser module: PDF question extraction."""
 import pytest
+import fitz
 
 from parser import parse_pdf, Question, normalize_worksheet_text
 
@@ -15,6 +16,23 @@ def test_parse_pdf_question_format(tmp_pdf_question_format):
     assert 2 in ids
     q1 = next(q for q in questions if q.id == 1)
     assert "3x + 7" in q1.text or "Solve" in q1.text
+
+
+def test_parse_pdf_question_dot_format(tmp_path):
+    """Parser extracts questions from 'Question N.' lines."""
+    path = tmp_path / "question_dot.pdf"
+    doc = fitz.open()
+    page = doc.new_page()
+    page.insert_text((72, 72), "Worksheet", fontsize=14)
+    page.insert_text((72, 100), "Question 1. Solve for x", fontsize=12)
+    page.insert_text((72, 120), "Question 2. Explain your answer", fontsize=12)
+    doc.save(str(path))
+    doc.close()
+
+    _, questions = parse_pdf(path)
+
+    assert [q.id for q in questions] == [1, 2]
+    assert questions[0].text == "Solve for x"
 
 
 def test_parse_pdf_returns_question_objects(tmp_pdf_question_format):
