@@ -94,7 +94,7 @@ def parse_pdf(pdf_path: str | Path) -> tuple[str, List[Question]]:
         if not lines:
             title = path.stem
             result = title, [Question(id=0, text=full_text)]
-            logger.warning("[parser] No lines extracted. title=%r, 1 question (id=0)", title)
+            logger.warning("[parser] No lines extracted. assignment fallback 1 question (id=0)")
             return _normalize_parse_result(*result)
 
         title = lines[0].strip()[:80] if lines else path.stem

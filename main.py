@@ -111,9 +111,9 @@ async def upload_assignment(file: UploadFile = File(...)):
         title, questions = parse_pdf(tmp_path)
         payload = [{"id": q.id, "text": q.text} for q in questions]
         logger.info(
-            "[POST /upload] Parsed questions: title=%r count=%s",
-            title,
+            "[POST /upload] Parsed questions: count=%s assignment_id=%s",
             len(payload),
+            assignment_id,
         )
         return {
             "assignment_id": assignment_id,
