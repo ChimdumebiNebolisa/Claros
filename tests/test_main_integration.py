@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 import assignment_service
 import main as main_module
+from tests.conftest import TEST_ASSIGNMENT_ID
 
 client = TestClient(main_module.app)
 
@@ -106,13 +107,13 @@ def test_export_post_returns_pdf_attachment(monkeypatch):
     monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", _fake_load_assignment)
 
     response = client.post(
-        "/export/mock-assignment-id",
+        f"/export/{TEST_ASSIGNMENT_ID}",
         json={"answers": [{"question_id": 1, "answer_text": "First answer"}]},
     )
 
     assert response.status_code == 200
     assert response.headers.get("content-type", "").lower().startswith("application/pdf")
-    assert response.headers.get("content-disposition") == 'attachment; filename="claros-mock-assignment-id.pdf"'
+    assert response.headers.get("content-disposition") == f'attachment; filename="claros-{TEST_ASSIGNMENT_ID}.pdf"'
     assert response.content.startswith(b"%PDF")
 
 
@@ -122,7 +123,7 @@ def test_export_post_accepts_long_answer_body(monkeypatch):
     long_answer = "This sentence makes the answer long enough to avoid query-string export. " * 200
 
     response = client.post(
-        "/export/mock-assignment-id",
+        f"/export/{TEST_ASSIGNMENT_ID}",
         json={"answers": [{"question_id": 1, "answer_text": long_answer}]},
     )
 
@@ -136,7 +137,7 @@ def test_export_post_rejects_missing_question_id(monkeypatch):
     monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", _fake_load_assignment)
 
     response = client.post(
-        "/export/mock-assignment-id",
+        f"/export/{TEST_ASSIGNMENT_ID}",
         json={"answers": [{}]},
     )
 
@@ -149,7 +150,7 @@ def test_export_get_rejects_missing_question_id(monkeypatch):
     monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", _fake_load_assignment)
 
     response = client.get(
-        "/export/mock-assignment-id",
+        f"/export/{TEST_ASSIGNMENT_ID}",
         params={"answers": "[{}]"},
     )
 
@@ -162,7 +163,7 @@ def test_export_get_rejects_non_list_answers(monkeypatch):
     monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", _fake_load_assignment)
 
     response = client.get(
-        "/export/mock-assignment-id",
+        f"/export/{TEST_ASSIGNMENT_ID}",
         params={"answers": "{}"},
     )
 

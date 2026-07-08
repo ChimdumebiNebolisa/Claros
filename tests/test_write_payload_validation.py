@@ -5,10 +5,9 @@ from fastapi.testclient import TestClient
 import assignment_service
 import main as main_module
 from schemas import MAX_CONVERSATION_TURNS, MAX_MESSAGE_CHARS
+from tests.conftest import TEST_ASSIGNMENT_ID
 
 client = TestClient(main_module.app)
-
-TEST_ASSIGNMENT_ID = "550e8400-e29b-41d4-a716-446655440000"
 
 
 @pytest.fixture(autouse=True)

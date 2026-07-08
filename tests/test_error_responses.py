@@ -1,13 +1,11 @@
 """API error semantics: distinguish missing assignments from backend failures."""
-import pytest
 from fastapi.testclient import TestClient
 
 import assignment_service
 import main as main_module
+from tests.conftest import TEST_ASSIGNMENT_ID
 
 client = TestClient(main_module.app)
-
-TEST_ASSIGNMENT_ID = "550e8400-e29b-41d4-a716-446655440000"
 
 
 def test_write_returns_404_when_assignment_missing(monkeypatch):
@@ -64,3 +62,11 @@ def test_export_returns_500_when_backend_fails(monkeypatch):
     )
     assert response.status_code == 500
     assert "Could not load assignment for export" in response.json()["detail"]
+
+
+def test_invalid_assignment_id_returns_422():
+    response = client.post(
+        "/api/write/not-a-uuid",
+        json={"question_id": 1, "conversation": [], "answer_candidate": ""},
+    )
+    assert response.status_code == 422

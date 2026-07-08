@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 import assignment_service
 import gemini_service
 import main as main_module
+from tests.conftest import TEST_ASSIGNMENT_ID
 
 _FIXED_TITLE = "Mock Assignment"
 _FIXED_QUESTIONS = [
@@ -53,7 +54,7 @@ def write_client(monkeypatch):
 
 def test_write_unknown_question_id_returns_400(write_client: TestClient):
     response = write_client.post(
-        "/api/write/mock-assignment-id",
+        f"/api/write/{TEST_ASSIGNMENT_ID}",
         json={
             "question_id": 99,
             "conversation": [],
@@ -68,7 +69,7 @@ def test_write_unknown_question_id_returns_400(write_client: TestClient):
 
 def test_write_valid_question_id_streams_stub_text(write_client: TestClient):
     response = write_client.post(
-        "/api/write/mock-assignment-id",
+        f"/api/write/{TEST_ASSIGNMENT_ID}",
         json={
             "question_id": 7,
             "conversation": [{"speaker": "user", "text": "My answer is seven."}],

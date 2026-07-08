@@ -5,6 +5,9 @@ from pathlib import Path
 import fitz
 import pytest
 
+# Valid UUID used across API integration tests (matches production assignment_id format).
+TEST_ASSIGNMENT_ID = "550e8400-e29b-41d4-a716-446655440000"
+
 
 @pytest.fixture
 def tmp_pdf_question_format(tmp_path):

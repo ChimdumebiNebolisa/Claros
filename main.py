@@ -7,6 +7,7 @@ import logging
 import os
 import tempfile
 import uuid
+from uuid import UUID
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
@@ -29,10 +30,11 @@ def _assignment_not_found() -> HTTPException:
 
 
 @app.get("/api/session-config/{assignment_id}")
-def get_session_config(assignment_id: str):
+def get_session_config(assignment_id: UUID):
     """Return ephemeral token + system prompt + model for browser-side Gemini Live. API key stays on server."""
+    aid = str(assignment_id)
     try:
-        return create_session_config(assignment_id)
+        return create_session_config(aid)
     except ValueError:
         raise _assignment_not_found()
     except RuntimeError as e:
@@ -40,26 +42,27 @@ def get_session_config(assignment_id: str):
             raise HTTPException(status_code=500, detail="Session setup failed. Please try again.")
         raise HTTPException(status_code=500, detail="Session setup failed. Please try again.")
     except Exception:
-        logger.exception("session-config failed for assignment %s", assignment_id)
+        logger.exception("session-config failed for assignment %s", aid)
         raise HTTPException(status_code=500, detail="Session setup failed. Please try again.")
 
 
 @app.post("/api/write/{assignment_id}")
-async def stream_write(assignment_id: str, body: WriteRequest):
+async def stream_write(assignment_id: UUID, body: WriteRequest):
     """Stream generated answer text for a question. Frontend calls this when write is triggered."""
+    aid = str(assignment_id)
     try:
-        title, questions = assignment_service.load_assignment_from_gcs(assignment_id)
+        title, questions = assignment_service.load_assignment_from_gcs(aid)
     except ValueError:
         raise _assignment_not_found()
     except Exception:
-        logger.exception("write load failed for assignment %s", assignment_id)
+        logger.exception("write load failed for assignment %s", aid)
         raise HTTPException(status_code=500, detail="Could not load assignment. Please try again.")
     qids = [q["id"] for q in questions]
     if body.question_id not in qids:
         raise HTTPException(status_code=400, detail=f"Unknown question id: {body.question_id}")
     return StreamingResponse(
         stream_write_answer(
-            assignment_id,
+            aid,
             body.question_id,
             [item.model_dump() for item in body.conversation],
             body.answer_candidate or "",
@@ -69,19 +72,20 @@ async def stream_write(assignment_id: str, body: WriteRequest):
 
 
 @app.get("/export/{assignment_id}")
-async def export_assignment_get(assignment_id: str, answers: str = Query(..., alias="answers")):
+async def export_assignment_get(assignment_id: UUID, answers: str = Query(..., alias="answers")):
     """Generate PDF of questions and answers. Query param 'answers' = JSON array of {question_id, answer_text}."""
+    aid = str(assignment_id)
     try:
         answers_list = json.loads(answers)
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid answers JSON")
-    return build_export_response(assignment_id, validate_export_answers(answers_list))
+    return build_export_response(aid, validate_export_answers(answers_list))
 
 
 @app.post("/export/{assignment_id}")
-async def export_assignment_post(assignment_id: str, body: ExportRequest):
+async def export_assignment_post(assignment_id: UUID, body: ExportRequest):
     """Generate PDF of questions and answers from a JSON body."""
-    return build_export_response(assignment_id, validate_export_answers(body.answers))
+    return build_export_response(str(assignment_id), validate_export_answers(body.answers))
 
 
 @app.post("/upload")
