@@ -56,7 +56,7 @@ def build_export_response(assignment_id: str, answers_list: list[dict]) -> Respo
         raise HTTPException(status_code=404, detail="Assignment not found")
     except Exception:
         logger.exception("Failed to load assignment %s for export", assignment_id)
-        raise HTTPException(status_code=404, detail="Assignment not found")
+        raise HTTPException(status_code=500, detail="Could not load assignment for export.")
     pdf_bytes = build_export_pdf(title, questions, answers_list)
     return Response(
         content=pdf_bytes,

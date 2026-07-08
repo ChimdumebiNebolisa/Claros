@@ -53,7 +53,7 @@ async def stream_write(assignment_id: str, body: WriteRequest):
         raise _assignment_not_found()
     except Exception:
         logger.exception("write load failed for assignment %s", assignment_id)
-        raise _assignment_not_found()
+        raise HTTPException(status_code=500, detail="Could not load assignment. Please try again.")
     qids = [q["id"] for q in questions]
     if body.question_id not in qids:
         raise HTTPException(status_code=400, detail=f"Unknown question id: {body.question_id}")
