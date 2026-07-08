@@ -90,7 +90,21 @@ FastAPI backend (main.py + service modules)
 
 **Answer readiness gating** is enforced in the frontend: writing is only triggered once the answer is marked ready for that question (student stated it or Claros said "Let me write that for question N"). The backend accepts the request with or without an answer candidate and uses the conversation to generate the written answer.
 
-**PDF pipeline**: Uploaded PDFs are stored in Google Cloud Storage, parsed with PyMuPDF to extract questions matching a `Question N:` pattern, and can be exported back as formatted PDFs with answers using ReportLab.
+**PDF pipeline**: Uploaded PDFs are stored in Google Cloud Storage under `assignments/{uuid}/assignment.pdf`, parsed with PyMuPDF to extract questions matching a `Question N:` pattern, and can be exported back as formatted PDFs with answers using ReportLab.
+
+## Hardening and risk prevention
+
+The backend and frontend include guardrails to reduce common failure modes:
+
+- **Upload abuse**: max byte limit (`MAX_UPLOAD_BYTES`, default 10 MiB) plus `%PDF-` signature validation before parse/storage.
+- **API correctness**: dependency failures return 5xx; 404 is reserved for genuinely missing assignments.
+- **Input contracts**: write payloads use strict conversation schema (speaker enum, bounded text/turn counts); `assignment_id` path params must be UUIDs.
+- **Storage determinism**: uploads always use canonical `assignment.pdf`; legacy multi-blob prefixes fall back to sorted `.pdf` selection.
+- **Privacy-aware logging**: operational logs avoid assignment titles and question text.
+- **Accessibility/resilience**: worksheet upload has an explicit keyboard button; session live badge has class-based fallback beyond CSS `:has()`.
+- **CI consistency**: one canonical workflow (`ci.yml`) with `npm ci`, pytest, session-rules tests, and metrics script.
+
+When extending Claros, preserve these invariants: validate at API boundaries, keep error semantics explicit, and add regression tests for each new guardrail.
 
 ## Google Cloud Deployment
 

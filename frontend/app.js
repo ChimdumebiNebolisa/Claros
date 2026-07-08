@@ -206,6 +206,14 @@
     };
     statusLabel.textContent = labels[mode] || mode;
     statusEl.className = 'status-bar ' + mode;
+    if (sessionPanel) {
+      sessionPanel.classList.remove('is-live', 'is-connecting', 'is-listening', 'is-speaking', 'is-writing');
+      if (mode === 'connecting') {
+        sessionPanel.classList.add('is-connecting');
+      } else if (mode === 'listening' || mode === 'speaking' || mode === 'writing') {
+        sessionPanel.classList.add('is-live', 'is-' + mode);
+      }
+    }
   }
 
   /* ?????? Transcript (streaming) ?????? */

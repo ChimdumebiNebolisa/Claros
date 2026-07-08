@@ -136,13 +136,13 @@ def parse_pdf(pdf_path: str | Path) -> tuple[str, List[Question]]:
 
         if not questions:
             result = title, [Question(id=0, text=full_text)]
-            logger.warning("[parser] No question lines found. title=%r, fallback 1 question (id=0)", title)
+            logger.warning("[parser] No question lines found. fallback 1 question (id=0)")
             return _normalize_parse_result(*result)
 
         question_ids = [q.id for q in questions]
         logger.info(
-            "[parser] title=%r, num_questions=%s, question_ids=%s",
-            title, len(questions), question_ids,
+            "[parser] num_questions=%s question_ids=%s",
+            len(questions), question_ids,
         )
         return _normalize_parse_result(title, questions)
     finally:
