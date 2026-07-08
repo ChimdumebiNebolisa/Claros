@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingRes
 import assignment_service
 import storage
 from assignment_service import build_export_response
-from config import MAX_UPLOAD_BYTES, PDF_MAGIC, ROOT, is_debug_gemini_enabled
+import config
 from gemini_service import create_session_config, debug_gemini_text_call, stream_write_answer
 from parser import parse_pdf
 from schemas import ExportRequest, WriteRequest, validate_export_answers
@@ -91,9 +91,9 @@ async def upload_assignment(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted")
     assignment_id = str(uuid.uuid4())
     content = await file.read()
-    if len(content) > MAX_UPLOAD_BYTES:
+    if len(content) > config.MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File exceeds maximum upload size.")
-    if not content.startswith(PDF_MAGIC):
+    if not content.startswith(config.PDF_MAGIC):
         raise HTTPException(status_code=400, detail="Only valid PDF files are accepted.")
     try:
         storage.upload_pdf_to_gcs(assignment_id, content, file.filename or "assignment.pdf")
@@ -129,7 +129,7 @@ async def upload_assignment(file: UploadFile = File(...)):
 @app.get("/debug-gemini")
 async def debug_gemini():
     """Optional diagnostic: verify backend can reach Gemini text API. Disabled unless ENABLE_DEBUG_GEMINI is set."""
-    if not is_debug_gemini_enabled():
+    if not config.is_debug_gemini_enabled():
         raise HTTPException(status_code=404, detail="Not found")
     try:
         return await debug_gemini_text_call()
@@ -141,7 +141,7 @@ async def debug_gemini():
 @app.get("/test-assignment.pdf")
 async def serve_test_assignment():
     """Serve the test assignment PDF from the project root."""
-    path = ROOT / "test_assignment.pdf"
+    path = config.ROOT / "test_assignment.pdf"
     if not path.exists():
         raise HTTPException(
             status_code=404,
@@ -153,7 +153,7 @@ async def serve_test_assignment():
 @app.get("/genai.bundle.js", response_class=Response)
 async def serve_genai_bundle():
     """Serve the bundled @google/genai SDK for browser (no runtime CDN)."""
-    path = ROOT / "frontend" / "genai.bundle.js"
+    path = config.ROOT / "frontend" / "genai.bundle.js"
     if not path.exists():
         raise HTTPException(
             status_code=503,
@@ -165,7 +165,7 @@ async def serve_genai_bundle():
 @app.get("/session-rules.js", response_class=Response)
 async def serve_session_rules():
     """Serve session intent helpers used by the worksheet UI (see tests/session-rules.test.cjs)."""
-    path = ROOT / "frontend" / "session-rules.js"
+    path = config.ROOT / "frontend" / "session-rules.js"
     if not path.exists():
         raise HTTPException(status_code=503, detail="session-rules.js missing from frontend/")
     return FileResponse(path, media_type="application/javascript; charset=utf-8")
@@ -174,7 +174,7 @@ async def serve_session_rules():
 @app.get("/app.js", response_class=Response)
 async def serve_app_js():
     """Serve the worksheet app client script."""
-    path = ROOT / "frontend" / "app.js"
+    path = config.ROOT / "frontend" / "app.js"
     if not path.exists():
         raise HTTPException(status_code=503, detail="app.js missing from frontend/")
     return FileResponse(path, media_type="application/javascript; charset=utf-8")
@@ -183,7 +183,7 @@ async def serve_app_js():
 @app.get("/favicon.png")
 async def serve_favicon():
     """Serve the Claros favicon asset."""
-    path = ROOT / "claros favicon.png"
+    path = config.ROOT / "claros favicon.png"
     if not path.exists():
         raise HTTPException(status_code=404, detail="claros favicon.png not found")
     return FileResponse(path, media_type="image/png")
@@ -192,7 +192,7 @@ async def serve_favicon():
 @app.get("/logo.png")
 async def serve_logo():
     """Serve the Claros navbar logo asset."""
-    path = ROOT / "claros logo.png"
+    path = config.ROOT / "claros logo.png"
     if not path.exists():
         raise HTTPException(status_code=404, detail="claros logo.png not found")
     return FileResponse(path, media_type="image/png")
@@ -203,7 +203,7 @@ async def serve_style(filename: str):
     """Serve frontend CSS assets (tokens, landing, app)."""
     if not filename.endswith(".css") or "/" in filename or "\\" in filename:
         raise HTTPException(status_code=404, detail="Not found")
-    path = ROOT / "frontend" / "styles" / filename
+    path = config.ROOT / "frontend" / "styles" / filename
     if not path.exists():
         raise HTTPException(status_code=404, detail="Not found")
     return FileResponse(path, media_type="text/css; charset=utf-8")
@@ -212,7 +212,7 @@ async def serve_style(filename: str):
 @app.get("/", response_class=HTMLResponse)
 async def index():
     """Serve the Claros landing page (frontend/landing.html) only."""
-    path = ROOT / "frontend" / "landing.html"
+    path = config.ROOT / "frontend" / "landing.html"
     if not path.exists():
         raise HTTPException(status_code=404, detail="landing.html not found")
     return FileResponse(path, media_type="text/html")
@@ -221,7 +221,7 @@ async def index():
 @app.get("/app", response_class=HTMLResponse)
 async def app_page():
     """Serve the Claros worksheet app (frontend/app.html)."""
-    path = ROOT / "frontend" / "app.html"
+    path = config.ROOT / "frontend" / "app.html"
     if not path.exists():
         return HTMLResponse("<h1>Not found</h1><p>app.html missing</p>", status_code=404)
     return FileResponse(path, media_type="text/html")
@@ -230,7 +230,7 @@ async def app_page():
 @app.get("/test", response_class=HTMLResponse)
 async def test_voice_page():
     """Serve the voice debug test page."""
-    path = ROOT / "test_voice.html"
+    path = config.ROOT / "test_voice.html"
     if not path.exists():
         return HTMLResponse("<h1>Not found</h1><p>test_voice.html missing</p>", status_code=404)
     return FileResponse(path, media_type="text/html")
