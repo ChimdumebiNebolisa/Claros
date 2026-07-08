@@ -61,7 +61,7 @@ async def stream_write(assignment_id: str, body: WriteRequest):
         stream_write_answer(
             assignment_id,
             body.question_id,
-            body.conversation,
+            [item.model_dump() for item in body.conversation],
             body.answer_candidate or "",
         ),
         media_type="text/plain; charset=utf-8",

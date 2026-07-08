@@ -1,12 +1,28 @@
 """Request/response schemas and validation helpers."""
+from enum import Enum
+
 from fastapi import HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+MAX_CONVERSATION_TURNS = 100
+MAX_MESSAGE_CHARS = 8000
+MAX_ANSWER_CANDIDATE_CHARS = 8000
+
+
+class Speaker(str, Enum):
+    user = "user"
+    claros = "claros"
+
+
+class ConversationItem(BaseModel):
+    speaker: Speaker
+    text: str = Field(default="", max_length=MAX_MESSAGE_CHARS)
 
 
 class WriteRequest(BaseModel):
     question_id: int
-    conversation: list[dict]
-    answer_candidate: str = ""
+    conversation: list[ConversationItem] = Field(default_factory=list, max_length=MAX_CONVERSATION_TURNS)
+    answer_candidate: str = Field(default="", max_length=MAX_ANSWER_CANDIDATE_CHARS)
 
 
 class ExportRequest(BaseModel):
