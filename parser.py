@@ -1,6 +1,6 @@
 """
 PDF question extraction for Claros. Handles PDFs where questions are on lines
-starting with "Question 1:", "Question 2:", etc., or with "1.", "2.", "3.", etc.
+starting with "Question 1:", "Question 2:", etc., or with "1.", "2)", "3.", etc.
 Falls back to full text as single block (id=0) only if no question lines found.
 """
 import logging
@@ -22,8 +22,8 @@ class Question:
 # Line starting with "Question N:" or "Question N." (case insensitive). Captures N and rest of line.
 _QUESTION_LINE_RE = re.compile(r"^\s*Question\s*(\d+)\s*[:.]\s*(.*)", re.IGNORECASE)
 
-# Line starting with "N." (numbered list) for worksheet-style PDFs. Captures N and rest of line.
-_NUMBERED_LINE_RE = re.compile(r"^\s*(\d+)\.\s*(.*)")
+# Line starting with "N." or "N)" (numbered list) for worksheet-style PDFs. Captures N and rest of line.
+_NUMBERED_LINE_RE = re.compile(r"^\s*(\d+)[.)]\s*(.*)")
 
 # Conservative Unicode to ASCII substitutions for worksheet text (math-friendly).
 _UNICODE_REPLACEMENTS = (
@@ -80,7 +80,7 @@ def _extract_lines_with_size(doc: fitz.Document) -> List[tuple[str, float]]:
 
 def parse_pdf(pdf_path: str | Path) -> tuple[str, List[Question]]:
     """
-    Parse PDF and extract questions. Tries (1) "Question N:" lines, then (2) "1.", "2.", "3." lines.
+    Parse PDF and extract questions. Tries (1) "Question N:" lines, then (2) "1.", "2)", "3." lines.
     Returns (title, questions). Title is the first line. Falls back to one question (id=0) only
     if neither pattern matches.
     """

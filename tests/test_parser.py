@@ -53,6 +53,23 @@ def test_parse_pdf_numbered_format(tmp_pdf_numbered_format):
     assert 2 in ids
 
 
+def test_parse_pdf_parenthesized_numbered_format(tmp_path):
+    """Parser extracts questions from '1)', '2)' numbered lines."""
+    path = tmp_path / "parenthesized_numbered.pdf"
+    doc = fitz.open()
+    page = doc.new_page()
+    page.insert_text((72, 72), "Worksheet", fontsize=14)
+    page.insert_text((72, 100), "1) First parenthesized prompt", fontsize=12)
+    page.insert_text((72, 120), "2) Second parenthesized prompt", fontsize=12)
+    doc.save(str(path))
+    doc.close()
+
+    _, questions = parse_pdf(path)
+
+    assert [q.id for q in questions] == [1, 2]
+    assert questions[0].text == "First parenthesized prompt"
+
+
 def test_parse_pdf_fallback_single_block(tmp_pdf_no_questions):
     """When no question pattern matches, parser returns single question with id=0."""
     title, questions = parse_pdf(tmp_pdf_no_questions)
