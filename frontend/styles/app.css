@@ -131,7 +131,7 @@
 .upload-zone.hover {
   border-color: var(--iris);
   background: var(--iris-soft);
-  box-shadow: 0 0 0 4px rgba(79, 70, 200, 0.12);
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.16);
 }
 
 .upload-zone input { display: none; }
@@ -382,7 +382,7 @@ body:not(.has-assignment) .assignment-title {
 /* "Writing…" state */
 .question-card.writing {
   border-color: var(--warn-line);
-  box-shadow: 0 0 0 3px rgba(242, 185, 92, 0.18);
+  box-shadow: 0 0 0 3px rgba(255, 179, 103, 0.2);
 }
 
 .question-card.writing .question-meta::before {
@@ -431,7 +431,7 @@ body:not(.has-assignment) .assignment-title {
   outline: none;
   border-color: var(--iris);
   background: var(--surface);
-  box-shadow: 0 0 0 3px rgba(79, 70, 200, 0.14);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.18);
 }
 
 /* ── Voice console (dark panel) ── */
@@ -519,8 +519,8 @@ body:not(.has-assignment) .assignment-title {
 
 .status-bar.connecting {
   color: var(--info-bright);
-  border-color: rgba(143, 180, 255, 0.3);
-  background: rgba(143, 180, 255, 0.08);
+  border-color: rgba(255, 192, 120, 0.34);
+  background: rgba(255, 192, 120, 0.1);
 }
 .status-bar.listening {
   color: var(--success-bright);
@@ -528,19 +528,19 @@ body:not(.has-assignment) .assignment-title {
   background: rgba(87, 217, 154, 0.08);
 }
 .status-bar.speaking {
-  color: #c9beff;
-  border-color: rgba(201, 190, 255, 0.3);
-  background: rgba(201, 190, 255, 0.08);
+  color: #ffce96;
+  border-color: rgba(255, 206, 150, 0.32);
+  background: rgba(255, 206, 150, 0.1);
 }
 .status-bar.writing {
   color: var(--warn-bright);
-  border-color: rgba(242, 185, 92, 0.3);
-  background: rgba(242, 185, 92, 0.08);
+  border-color: rgba(255, 179, 103, 0.34);
+  background: rgba(255, 179, 103, 0.1);
 }
 
 .status-bar.connecting .status-dot { background: var(--info-bright); }
 .status-bar.listening .status-dot { background: var(--success-bright); }
-.status-bar.speaking .status-dot { background: #c9beff; }
+.status-bar.speaking .status-dot { background: #ffce96; }
 .status-bar.writing .status-dot { background: var(--warn-bright); }
 
 .status-bar.connecting .status-dot,
@@ -558,7 +558,7 @@ body:not(.has-assignment) .assignment-title {
 .meter-wrap {
   height: 0.3rem;
   border-radius: 999px;
-  background: rgba(235, 231, 255, 0.1);
+  background: rgba(255, 230, 206, 0.12);
   overflow: hidden;
 }
 
@@ -566,7 +566,7 @@ body:not(.has-assignment) .assignment-title {
   height: 100%;
   width: 0%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #7d74e8, var(--success-bright));
+  background: linear-gradient(90deg, var(--iris), var(--success-bright));
 }
 
 .session-checklist {
@@ -606,7 +606,7 @@ body:not(.has-assignment) .assignment-title {
   width: 0.95rem;
   height: 0.95rem;
   border-radius: 999px;
-  border: 1.5px solid rgba(170, 164, 192, 0.5);
+  border: 1.5px solid rgba(197, 170, 143, 0.5);
   flex-shrink: 0;
   transition: background 0.18s ease, border-color 0.18s ease;
 }
@@ -659,7 +659,7 @@ body:not(.has-assignment) .assignment-title {
 
 .transcript::-webkit-scrollbar { width: 8px; }
 .transcript::-webkit-scrollbar-thumb {
-  background: rgba(170, 164, 192, 0.35);
+  background: rgba(197, 170, 143, 0.4);
   border-radius: 999px;
 }
 
@@ -736,7 +736,7 @@ body:not(.has-assignment) .assignment-title {
   background: var(--iris);
   color: #fff;
   min-height: 3rem;
-  box-shadow: 0 10px 24px rgba(79, 70, 200, 0.35);
+  box-shadow: 0 10px 24px rgba(249, 115, 22, 0.36);
 }
 
 .btn.session-btn:hover:not(:disabled) {
@@ -767,7 +767,7 @@ body:not(.has-assignment) .assignment-title {
 }
 
 .btn.interrupt:hover {
-  border-color: rgba(235, 231, 255, 0.35);
+  border-color: rgba(255, 230, 206, 0.4);
   background: var(--dark-surface);
 }
 

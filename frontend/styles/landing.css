@@ -212,7 +212,7 @@
   margin-top: clamp(3rem, 6vw, 4.5rem);
   padding: clamp(0.65rem, 1.6vw, 1rem);
   border-radius: calc(var(--radius-xl) + 10px);
-  background: linear-gradient(180deg, rgba(79, 70, 200, 0.14), rgba(79, 70, 200, 0.03));
+  background: linear-gradient(180deg, rgba(249, 115, 22, 0.16), rgba(249, 115, 22, 0.04));
   box-shadow: var(--glow-iris);
 }
 
@@ -294,7 +294,7 @@
 
 .preview-question.is-active {
   border-color: var(--iris-line);
-  box-shadow: 0 0 0 3px rgba(79, 70, 200, 0.12), var(--shadow-soft);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.16), var(--shadow-soft);
 }
 
 .preview-question.is-done {
@@ -411,7 +411,7 @@
 
 .preview-export-ready {
   background: linear-gradient(160deg, var(--iris) 0%, var(--iris-deep) 100%);
-  box-shadow: 0 4px 16px rgba(79, 70, 200, 0.28);
+  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.3);
 }
 
 .preview-export-label {
@@ -464,7 +464,7 @@
   width: 0.85rem;
   height: 0.85rem;
   border-radius: 999px;
-  border: 1.5px solid rgba(170, 164, 192, 0.45);
+  border: 1.5px solid rgba(197, 170, 143, 0.45);
   flex-shrink: 0;
 }
 
@@ -485,8 +485,8 @@
   gap: 0.5rem;
   padding: 0.42rem 0.8rem;
   border-radius: var(--radius-pill);
-  background: rgba(87, 217, 154, 0.12);
-  border: 1px solid rgba(87, 217, 154, 0.3);
+  background: rgba(103, 226, 165, 0.12);
+  border: 1px solid rgba(103, 226, 165, 0.3);
   color: var(--success-bright);
   font-size: 0.78rem;
   font-weight: 700;
@@ -562,14 +562,14 @@
 }
 
 .preview-you {
-  background: rgba(143, 180, 255, 0.08);
-  border-color: rgba(143, 180, 255, 0.18);
+  background: rgba(255, 192, 120, 0.08);
+  border-color: rgba(255, 192, 120, 0.2);
 }
 .preview-you b { color: var(--info-bright); }
 
 .preview-claros {
-  background: rgba(87, 217, 154, 0.06);
-  border-color: rgba(87, 217, 154, 0.14);
+  background: rgba(103, 226, 165, 0.08);
+  border-color: rgba(103, 226, 165, 0.18);
 }
 .preview-claros b { color: var(--success-bright); }
 
@@ -587,7 +587,7 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(235, 231, 255, 0.12), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 230, 206, 0.16), transparent);
 }
 
 .session-container {
@@ -602,7 +602,7 @@
   align-items: center;
   color: var(--dark-text);
   box-shadow: var(--shadow-lift), var(--glow-dark-edge);
-  border: 1px solid rgba(235, 231, 255, 0.08);
+  border: 1px solid rgba(255, 230, 206, 0.12);
 }
 
 .session-steps {
@@ -643,8 +643,8 @@
 }
 
 .session-steps li:hover .step-num {
-  border-color: rgba(79, 70, 200, 0.4);
-  box-shadow: 0 0 0 3px rgba(79, 70, 200, 0.12);
+  border-color: rgba(249, 115, 22, 0.5);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.18);
 }
 
 .session-demo {
@@ -666,14 +666,14 @@
 }
 
 .demo-you {
-  background: rgba(143, 180, 255, 0.08);
-  border-color: rgba(143, 180, 255, 0.16);
+  background: rgba(255, 192, 120, 0.09);
+  border-color: rgba(255, 192, 120, 0.2);
   color: var(--dark-text);
 }
 
 .demo-claros {
-  background: rgba(87, 217, 154, 0.06);
-  border-color: rgba(87, 217, 154, 0.14);
+  background: rgba(103, 226, 165, 0.08);
+  border-color: rgba(103, 226, 165, 0.18);
   color: var(--dark-text);
 }
 
@@ -695,8 +695,8 @@
   gap: 0.55rem;
   padding: 0.65rem 0.9rem;
   border-radius: var(--radius-sm);
-  background: rgba(242, 185, 92, 0.12);
-  border: 1px solid rgba(242, 185, 92, 0.32);
+  background: rgba(255, 179, 103, 0.15);
+  border: 1px solid rgba(255, 179, 103, 0.34);
   color: var(--warn-bright);
   font-size: 0.84rem;
   font-weight: 700;
@@ -816,7 +816,7 @@
 .trust-section {
   padding: clamp(4rem, 8vw, 6rem) 0;
   background:
-    radial-gradient(800px 400px at 50% 0%, rgba(79, 70, 200, 0.06), transparent 70%),
+    radial-gradient(800px 400px at 50% 0%, rgba(249, 115, 22, 0.08), transparent 70%),
     var(--bg-blue);
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
@@ -972,7 +972,7 @@
   padding: clamp(3rem, 7vw, 5rem) clamp(1.5rem, 5vw, 4rem);
   text-align: center;
   box-shadow: var(--shadow-lift), var(--glow-iris);
-  border: 1px solid rgba(235, 231, 255, 0.1);
+  border: 1px solid rgba(255, 230, 206, 0.14);
   position: relative;
   overflow: hidden;
 }
@@ -981,7 +981,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(600px 300px at 50% 0%, rgba(79, 70, 200, 0.12), transparent 70%);
+  background: radial-gradient(600px 300px at 50% 0%, rgba(249, 115, 22, 0.14), transparent 70%);
   pointer-events: none;
 }
 
