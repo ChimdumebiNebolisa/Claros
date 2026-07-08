@@ -1,6 +1,5 @@
 """Upload endpoint validation: size limits and PDF signature checks."""
 from io import BytesIO
-from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -43,6 +42,22 @@ def test_upload_rejects_non_pdf_bytes_with_pdf_extension():
     )
     assert response.status_code == 400
     assert "valid pdf" in response.json()["detail"].lower()
+
+
+def test_upload_accepts_pdf_with_leading_whitespace(upload_mocks):
+    response = client.post(
+        "/upload",
+        files={"file": ("worksheet.pdf", BytesIO(b" \r\n" + _MINIMAL_PDF), "application/pdf")},
+    )
+    assert response.status_code == 200
+
+
+def test_upload_accepts_pdf_with_utf8_bom(upload_mocks):
+    response = client.post(
+        "/upload",
+        files={"file": ("worksheet.pdf", BytesIO(b"\xef\xbb\xbf" + _MINIMAL_PDF), "application/pdf")},
+    )
+    assert response.status_code == 200
 
 
 def test_upload_rejects_non_pdf_extension():

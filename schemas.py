@@ -4,7 +4,8 @@ from enum import Enum
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
 
-MAX_CONVERSATION_TURNS = 100
+import config
+
 MAX_MESSAGE_CHARS = 8000
 MAX_ANSWER_CANDIDATE_CHARS = 8000
 
@@ -21,12 +22,26 @@ class ConversationItem(BaseModel):
 
 class WriteRequest(BaseModel):
     question_id: int
-    conversation: list[ConversationItem] = Field(default_factory=list, max_length=MAX_CONVERSATION_TURNS)
+    conversation: list[ConversationItem] = Field(
+        default_factory=list,
+        max_length=config.MAX_CONVERSATION_TURNS,
+    )
     answer_candidate: str = Field(default="", max_length=MAX_ANSWER_CANDIDATE_CHARS)
 
 
 class ExportRequest(BaseModel):
     answers: list[dict]
+
+
+def trim_conversation(
+    items: list[ConversationItem],
+    max_turns: int | None = None,
+) -> list[ConversationItem]:
+    """Keep the most recent turns when conversation history exceeds the soft limit."""
+    limit = max_turns if max_turns is not None else config.CONVERSATION_TRIM_TURNS
+    if len(items) <= limit:
+        return items
+    return items[-limit:]
 
 
 def validate_export_answers(raw_answers) -> list[dict]:

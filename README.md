@@ -96,9 +96,9 @@ FastAPI backend (main.py + service modules)
 
 The backend and frontend include guardrails to reduce common failure modes:
 
-- **Upload abuse**: max byte limit (`MAX_UPLOAD_BYTES`, default 10 MiB) plus `%PDF-` signature validation before parse/storage.
+- **Upload abuse**: chunked reads with max byte limit (`MAX_UPLOAD_BYTES`, default 10 MiB) plus tolerant `%PDF-` signature validation (leading whitespace/BOM allowed).
 - **API correctness**: dependency failures return 5xx; 404 is reserved for genuinely missing assignments.
-- **Input contracts**: write payloads use strict conversation schema (speaker enum, bounded text/turn counts); `assignment_id` path params must be UUIDs.
+- **Input contracts**: write payloads use strict conversation schema (speaker enum, bounded text); long histories are trimmed to the most recent `CONVERSATION_TRIM_TURNS` (default 200) instead of failing mid-session. Hard cap: `MAX_CONVERSATION_TURNS` (default 400).
 - **Storage determinism**: uploads always use canonical `assignment.pdf`; legacy multi-blob prefixes fall back to sorted `.pdf` selection.
 - **Privacy-aware logging**: operational logs avoid assignment titles and question text.
 - **Accessibility/resilience**: worksheet upload has an explicit keyboard button; session live badge has class-based fallback beyond CSS `:has()`.

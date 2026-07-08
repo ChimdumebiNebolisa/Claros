@@ -18,7 +18,7 @@ from assignment_service import build_export_response
 import config
 from gemini_service import create_session_config, debug_gemini_text_call, stream_write_answer
 from parser import parse_pdf
-from schemas import ExportRequest, WriteRequest, validate_export_answers
+from schemas import ExportRequest, WriteRequest, trim_conversation, validate_export_answers
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +27,21 @@ app = FastAPI()
 
 def _assignment_not_found() -> HTTPException:
     return HTTPException(status_code=404, detail="Assignment not found")
+
+
+async def _read_upload_bounded(file: UploadFile, max_bytes: int) -> bytes:
+    """Read upload body in chunks so oversize files fail before buffering the full payload."""
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await file.read(64 * 1024)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > max_bytes:
+            raise HTTPException(status_code=413, detail="File exceeds maximum upload size.")
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 @app.get("/api/session-config/{assignment_id}")
@@ -60,11 +75,19 @@ async def stream_write(assignment_id: UUID, body: WriteRequest):
     qids = [q["id"] for q in questions]
     if body.question_id not in qids:
         raise HTTPException(status_code=400, detail=f"Unknown question id: {body.question_id}")
+    trimmed = trim_conversation(body.conversation)
+    if len(trimmed) < len(body.conversation):
+        logger.info(
+            "Trimmed write conversation from %s to %s turns for assignment %s",
+            len(body.conversation),
+            len(trimmed),
+            aid,
+        )
     return StreamingResponse(
         stream_write_answer(
             aid,
             body.question_id,
-            [item.model_dump() for item in body.conversation],
+            [item.model_dump() for item in trimmed],
             body.answer_candidate or "",
         ),
         media_type="text/plain; charset=utf-8",
@@ -94,10 +117,8 @@ async def upload_assignment(file: UploadFile = File(...)):
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted")
     assignment_id = str(uuid.uuid4())
-    content = await file.read()
-    if len(content) > config.MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="File exceeds maximum upload size.")
-    if not content.startswith(config.PDF_MAGIC):
+    content = await _read_upload_bounded(file, config.MAX_UPLOAD_BYTES)
+    if not config.looks_like_pdf(content):
         raise HTTPException(status_code=400, detail="Only valid PDF files are accepted.")
     try:
         storage.upload_pdf_to_gcs(assignment_id, content)
