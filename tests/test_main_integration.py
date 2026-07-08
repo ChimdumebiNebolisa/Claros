@@ -58,7 +58,7 @@ def test_app_returns_html():
     response = client.get("/app")
     assert response.status_code == 200
     assert "text/html" in response.headers.get("content-type", "")
-    assert b"id=\"micBtn\"" in response.content or b"id=\"uploadZone\"" in response.content
+    assert b"id=\"uploadBtn\"" in response.content
 
 
 def test_styles_css_served():

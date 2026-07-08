@@ -136,6 +136,31 @@
 
 .upload-zone input { display: none; }
 
+.btn-upload-trigger {
+  margin-top: 0.85rem;
+  padding: 0.62rem 1.15rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-upload-trigger:hover {
+  border-color: var(--iris);
+  color: var(--iris-deep);
+  background: var(--iris-soft);
+}
+
+.upload-zone:hover .btn-upload-trigger,
+.upload-zone.hover .btn-upload-trigger {
+  border-color: var(--iris);
+}
+
 .upload-inner {
   display: grid;
   justify-items: center;

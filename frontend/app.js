@@ -6,6 +6,7 @@
   const assignmentTitleEl = document.getElementById('assignmentTitle');
   const uploadZone = document.getElementById('uploadZone');
   const fileInput = document.getElementById('fileInput');
+  const uploadBtn = document.getElementById('uploadBtn');
   const uploadLabel = document.getElementById('uploadLabel');
   const questionsContainer = document.getElementById('questionsContainer');
   const exportBtn = document.getElementById('exportBtn');

@@ -48,16 +48,17 @@
               <h2 class="card-title" id="upload-title">Upload your worksheet</h2>
               <button type="button" class="btn-test-pdf" id="testPdfBtn">Try the sample worksheet</button>
             </div>
-            <label class="upload-zone" id="uploadZone">
-              <input type="file" id="fileInput" accept=".pdf">
+            <div class="upload-zone" id="uploadZone" role="group" aria-labelledby="uploadLabel">
+              <input type="file" id="fileInput" accept=".pdf" hidden>
               <span class="upload-inner">
                 <span class="upload-art" aria-hidden="true"></span>
                 <span class="upload-copy">
                   <span class="upload-main" id="uploadLabel">Drop your assignment PDF here</span>
-                  <span class="upload-sub">or click to browse (PDF only)</span>
+                  <span class="upload-sub">or use the button below (PDF only)</span>
                 </span>
               </span>
-            </label>
+              <button type="button" class="btn-upload-trigger" id="uploadBtn">Choose PDF file</button>
+            </div>
 
             <div class="setup-info-grid">
               <section class="info-card" aria-labelledby="info-next-title">
