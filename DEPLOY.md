@@ -43,4 +43,10 @@ gcloud run deploy claros \
 
 ## Frontend
 
-The app serves `frontend/index.html` at `/`. No config change needed: when users open the Cloud Run URL, the frontend uses the same host for API and WebSocket.
+- `/` serves `frontend/landing.html` (marketing page)
+- `/app` serves `frontend/app.html` (worksheet + voice UI)
+- Shared tokens live in `frontend/styles/tokens.css`
+
+No config change needed: when users open the Cloud Run URL, the frontend uses the same host for API calls.
+
+> **Note:** `frontend/index.html` and `frontend/index.backup.html` are legacy monolithic prototypes and are **not served** by the backend.

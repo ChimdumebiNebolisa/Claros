@@ -57,8 +57,10 @@ This is not about making assignments easier. It is about making them accessible 
 ## Architecture
 
 ```
-Browser (frontend/index.html)
+Browser (frontend/landing.html at `/`, frontend/app.html at `/app`)
   │
+  ├── Shared styles: frontend/styles/tokens.css + landing.css | app.css
+  ├── Worksheet client: frontend/app.js + frontend/session-rules.js
   ├── GET /api/session-config/{id}  → ephemeral token + system prompt + model
   ├── Direct WebSocket to Gemini Live API (voice: audio in/out, transcription)
   │     via bundled @google/genai JS SDK (served from app; no runtime CDN), ephemeral token from backend
