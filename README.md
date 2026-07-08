@@ -102,7 +102,7 @@ The backend and frontend include guardrails to reduce common failure modes:
 - **Storage determinism**: uploads always use canonical `assignment.pdf`; legacy multi-blob prefixes fall back to sorted `.pdf` selection.
 - **Privacy-aware logging**: operational logs avoid assignment titles and question text.
 - **Accessibility/resilience**: worksheet upload has an explicit keyboard button; session live badge has class-based fallback beyond CSS `:has()`.
-- **CI consistency**: one canonical workflow (`ci.yml`) with `npm ci`, pytest, session-rules tests, and metrics script.
+- **CI consistency**: parallel CI jobs (python coverage+lint, frontend contract+bundle, docker smoke); deploy gated by verify job + post-deploy probes.
 
 When extending Claros, preserve these invariants: validate at API boundaries, keep error semantics explicit, and add regression tests for each new guardrail.
 
@@ -212,20 +212,45 @@ Local development may also require Google Cloud application credentials for GCS 
 
 ## Development
 
-To run tests and other dev dependencies:
+Install dev dependencies and run the full local check suite:
 
 ```bash
 pip install -r requirements-dev.txt
-pytest tests/
+npm ci
+
+# Python: lint + tests with coverage gate (72% minimum on app modules)
+python -m ruff check agent.py assignment_service.py config.py exporter.py gemini_service.py main.py parser.py schemas.py storage.py tests/
+pytest tests/ --cov --cov-config=pyproject.toml --cov-report=term-missing
+
+# Frontend: session rules table + static HTML/JS contract checks + genai bundle build
+npm run ci:frontend
+
+# Optional: build the production container locally
+docker build -t claros:local .
 ```
 
-**Light evaluation (deterministic):**
+**Test layers**
 
-- **Parser / worksheet extraction** - Golden PDFs built in [tests/conftest.py](tests/conftest.py) and asserted in [tests/test_parser.py](tests/test_parser.py) (including double-digit `Question 10:`, multiline merges, numbered continuations).
-- **Write API placement** - [tests/test_write_api.py](tests/test_write_api.py) mocks GCS and Gemini; checks unknown `question_id` returns 400 and valid ids stream without calling external APIs.
-- **Session intent strings** - [frontend/session-rules.js](frontend/session-rules.js) holds normalize / regex helpers; table cases in [tests/session-rules.test.cjs](tests/session-rules.test.cjs). Run: `npm run test:session-rules` (Node only; no `npm install` required for this script).
+| Layer | What it covers | Command |
+|-------|----------------|---------|
+| Parser / export | PDF extraction, Unicode normalization, ReportLab export | `pytest tests/test_parser.py tests/test_exporter.py tests/test_unicode_text.py` |
+| API integration | Static routes, upload validation, write/export/session-config | `pytest tests/test_main_integration.py tests/test_upload_validation.py tests/test_session_config.py` |
+| Service units | GCS paths, schema trim/validation, assignment export helpers | `pytest tests/test_storage.py tests/test_schemas.py tests/test_assignment_service.py` |
+| Frontend contract | Required ids/links in `landing.html`, `app.html`, `app.js` | `npm run validate:frontend` |
+| Session rules | Voice intent phrase table (15 cases) | `npm run test:session-rules` |
+| Docker smoke | Image builds and serves `/` on port 8080 | CI `docker` job |
 
-GitHub Actions runs `pytest tests/` and `npm run test:session-rules` on every push and pull request (see [.github/workflows/ci.yml](.github/workflows/ci.yml)).
+**CI/CD (GitHub Actions)**
+
+- **[`.github/workflows/ci.yml`](.github/workflows/ci.yml)** — runs on every push/PR (parallel jobs):
+  - `python`: Ruff lint, pytest with coverage gate + XML artifact, metrics script
+  - `frontend`: `npm run ci:frontend` (session rules, contract validation, genai bundle) + artifact upload
+  - `docker`: production image build + container boot smoke test (`curl /`)
+- **[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)** — runs on `main` push:
+  - `verify`: repeats lint, pytest+coverage, frontend CI, and docker build before deploy
+  - `deploy`: builds genai bundle, pushes image to GCR, deploys Cloud Run, post-deploy smoke (`/`, `/app`, `/styles/tokens.css`)
+
+If branch protection blocks merges, set the required check to the **`CI`** workflow (not the removed `Tests` workflow).
 
 The optional `requirements-voice.txt` stack is for `test_voice.py` (standalone mic/speaker voice test); the main app uses `requirements-server.txt` only.
 

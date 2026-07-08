@@ -3,9 +3,15 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  test:
+  python:
+    name: Python tests & lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,8 +25,31 @@ jobs:
       - name: Install dev dependencies
         run: pip install -r requirements-dev.txt
 
-      - name: Pytest
-        run: pytest tests/ -q --tb=short
+      - name: Ruff lint
+        run: ruff check agent.py assignment_service.py config.py exporter.py gemini_service.py main.py parser.py schemas.py storage.py tests/
+
+      - name: Pytest with coverage gate
+        run: pytest tests/ --cov --cov-config=pyproject.toml --cov-report=term-missing --cov-report=xml
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          if-no-files-found: error
+
+      - name: Metrics script
+        run: python scripts/metrics.py
+
+  frontend:
+    name: Frontend contract & bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
       - uses: actions/setup-node@v4
         with:
@@ -28,8 +57,38 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
-      - name: Session rules table tests
-        run: npm run test:session-rules
+      - name: Frontend CI checks
+        run: npm run ci:frontend
 
-      - name: Metrics script
-        run: python scripts/metrics.py
+      - name: Upload genai bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: genai-bundle
+          path: frontend/genai.bundle.js
+          if-no-files-found: error
+
+  docker:
+    name: Docker image build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build production image
+        run: docker build -t claros:ci .
+
+      - name: Smoke test container boots
+        run: |
+          docker run -d --name claros-ci -e PORT=8080 -p 8080:8080 claros:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8080/ >/dev/null; then
+              echo "health check passed"
+              docker logs claros-ci | tail -n 20
+              docker rm -f claros-ci
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "container failed to serve landing page"
+          docker logs claros-ci || true
+          docker rm -f claros-ci
+          exit 1

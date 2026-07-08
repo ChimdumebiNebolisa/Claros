@@ -2,21 +2,58 @@ name: Deploy to Cloud Run
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  verify:
+    name: Pre-deploy verification
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install dev dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Ruff lint
+        run: ruff check agent.py assignment_service.py config.py exporter.py gemini_service.py main.py parser.py schemas.py storage.py tests/
+
+      - name: Pytest with coverage gate
+        run: pytest tests/ --cov --cov-config=pyproject.toml --cov-report=term-missing -q
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Frontend CI checks
+        run: npm run ci:frontend
+
+      - name: Build production image
+        run: docker build -t claros:predeploy .
+
+  deploy:
+    name: Deploy
+    needs: verify
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
-
     env:
       SERVICE_NAME: claros
       REGION: us-central1
       PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -58,3 +95,13 @@ jobs:
             --region "$REGION" \
             --allow-unauthenticated \
             --set-env-vars "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }},GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }}"
+
+      - name: Post-deploy smoke check
+        if: env.PROJECT_ID != ''
+        run: |
+          URL=$(gcloud run services describe "$SERVICE_NAME" --region "$REGION" --format='value(status.url)')
+          echo "Probing $URL"
+          curl -fsS "$URL/" >/dev/null
+          curl -fsS "$URL/app" >/dev/null
+          curl -fsS "$URL/styles/tokens.css" >/dev/null
+          echo "Post-deploy smoke checks passed"

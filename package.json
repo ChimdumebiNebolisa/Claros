@@ -4,7 +4,10 @@
   "description": "One-time build of @google/genai for frontend; not used at runtime.",
   "scripts": {
     "build:genai": "node build-genai.mjs",
-    "test:session-rules": "node tests/session-rules.test.cjs"
+    "test:session-rules": "node tests/session-rules.test.cjs",
+    "validate:frontend": "python3 scripts/validate_frontend.py",
+    "test:frontend": "npm run test:session-rules && npm run validate:frontend",
+    "ci:frontend": "npm ci && npm run test:frontend && npm run build:genai"
   },
   "devDependencies": {
     "@google/genai": "^1.45.0",
