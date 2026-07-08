@@ -93,6 +93,8 @@ async def upload_assignment(file: UploadFile = File(...)):
     content = await file.read()
     if len(content) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File exceeds maximum upload size.")
+    if not content.startswith(PDF_MAGIC):
+        raise HTTPException(status_code=400, detail="Only valid PDF files are accepted.")
     try:
         storage.upload_pdf_to_gcs(assignment_id, content, file.filename or "assignment.pdf")
     except Exception:
