@@ -12,6 +12,11 @@ if _env_path.exists():
 
 LIVE_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025"
 
+# Upload guardrails (override via MAX_UPLOAD_BYTES env var).
+_DEFAULT_MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MiB
+MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_BYTES", str(_DEFAULT_MAX_UPLOAD_BYTES)))
+PDF_MAGIC = b"%PDF"
+
 
 def get_api_key() -> str:
     key = os.environ.get("GEMINI_API_KEY")

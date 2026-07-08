@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingRes
 import assignment_service
 import storage
 from assignment_service import build_export_response
-from config import ROOT, is_debug_gemini_enabled
+from config import MAX_UPLOAD_BYTES, PDF_MAGIC, ROOT, is_debug_gemini_enabled
 from gemini_service import create_session_config, debug_gemini_text_call, stream_write_answer
 from parser import parse_pdf
 from schemas import ExportRequest, WriteRequest, validate_export_answers
@@ -91,6 +91,8 @@ async def upload_assignment(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted")
     assignment_id = str(uuid.uuid4())
     content = await file.read()
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File exceeds maximum upload size.")
     try:
         storage.upload_pdf_to_gcs(assignment_id, content, file.filename or "assignment.pdf")
     except Exception:
