@@ -11,6 +11,7 @@
   const questionsContainer = document.getElementById('questionsContainer');
   const exportBtn = document.getElementById('exportBtn');
   const statusEl = document.getElementById('status');
+  const sessionPanel = document.getElementById('sessionPanel');
   const statusLabel = document.getElementById('statusLabel');
   const meterBar = document.getElementById('meterBar');
   const transcriptEl = document.getElementById('transcript');
@@ -52,6 +53,10 @@
   }
 
   /* ?????? Upload ?????? */
+  uploadBtn.addEventListener('click', () => fileInput.click());
+  uploadZone.addEventListener('click', (e) => {
+    if (e.target === uploadZone || e.target.closest('.upload-inner')) fileInput.click();
+  });
   uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('hover'); });
   uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('hover'));
   uploadZone.addEventListener('drop', (e) => {

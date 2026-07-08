@@ -513,6 +513,10 @@ body:not(.has-assignment) .assignment-title {
 }
 
 /* light up the badge only while a session is running */
+.session-panel.is-live .status-badge::before,
+.session-panel.is-listening .status-badge::before,
+.session-panel.is-speaking .status-badge::before,
+.session-panel.is-writing .status-badge::before,
 .session-panel:has(.status-bar.listening) .status-badge::before,
 .session-panel:has(.status-bar.speaking) .status-badge::before,
 .session-panel:has(.status-bar.writing) .status-badge::before {
