@@ -1,11 +1,13 @@
 """Assignment loading, parsing, and export helpers."""
 import logging
 import os
+import re
 import tempfile
 
 from fastapi import HTTPException
 from fastapi.responses import Response
 
+from storage import assignment_pdf_path
 from config import get_gcs_bucket
 from exporter import build_export_pdf
 from parser import parse_pdf
@@ -13,17 +15,25 @@ from parser import parse_pdf
 logger = logging.getLogger(__name__)
 
 
+def _export_filename(assignment_id: str) -> str:
+    safe_id = re.sub(r"[^0-9a-fA-F-]", "", assignment_id)
+    return f"claros-{safe_id or 'assignment'}.pdf"
+
+
 def load_assignment_from_gcs(assignment_id: str) -> tuple[str, list]:
     """Load PDF from GCS, parse, return (title, questions) where questions = [{"id": n, "text": "..."}]."""
     bucket = get_gcs_bucket()
-    prefix = f"assignments/{assignment_id}/"
-    blobs = list(bucket.list_blobs(prefix=prefix))
-    pdf_blobs = [b for b in blobs if b.name.lower().endswith(".pdf")]
-    if not pdf_blobs:
-        raise ValueError(f"No PDF found for assignment {assignment_id}")
-    pdf_blobs.sort(key=lambda b: b.name)
-    blob = pdf_blobs[0]
-    pdf_bytes = blob.download_as_bytes()
+    canonical_blob = bucket.blob(assignment_pdf_path(assignment_id))
+    if canonical_blob.exists():
+        pdf_bytes = canonical_blob.download_as_bytes()
+    else:
+        prefix = f"assignments/{assignment_id}/"
+        blobs = list(bucket.list_blobs(prefix=prefix))
+        pdf_blobs = [b for b in blobs if b.name.lower().endswith(".pdf")]
+        if not pdf_blobs:
+            raise ValueError(f"No PDF found for assignment {assignment_id}")
+        pdf_blobs.sort(key=lambda b: b.name)
+        pdf_bytes = pdf_blobs[0].download_as_bytes()
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
         tmp.write(pdf_bytes)
         tmp_path = tmp.name
@@ -61,5 +71,5 @@ def build_export_response(assignment_id: str, answers_list: list[dict]) -> Respo
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="claros-{assignment_id}.pdf"'},
+        headers={"Content-Disposition": f'attachment; filename="{_export_filename(assignment_id)}"'},
     )

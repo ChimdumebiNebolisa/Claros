@@ -100,7 +100,7 @@ async def upload_assignment(file: UploadFile = File(...)):
     if not content.startswith(config.PDF_MAGIC):
         raise HTTPException(status_code=400, detail="Only valid PDF files are accepted.")
     try:
-        storage.upload_pdf_to_gcs(assignment_id, content, file.filename or "assignment.pdf")
+        storage.upload_pdf_to_gcs(assignment_id, content)
     except Exception:
         logger.exception("GCS upload failed for assignment %s", assignment_id)
         raise HTTPException(status_code=500, detail="Upload failed. Please try again.")
