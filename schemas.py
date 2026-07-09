@@ -59,6 +59,11 @@ def validate_export_answers(raw_answers) -> list[dict]:
                 status_code=400,
                 detail=f"answers[{index}].question_id must be an integer",
             )
+        if question_id < 1:
+            raise HTTPException(
+                status_code=400,
+                detail=f"answers[{index}].question_id must be positive",
+            )
 
         answer_text = answer.get("answer_text", "")
         if answer_text is None:
