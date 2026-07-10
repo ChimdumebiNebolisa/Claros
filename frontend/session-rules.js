@@ -75,6 +75,7 @@ function hasExportIntent(norm) {
     norm.indexOf('export this as pdf') !== -1 ||
     norm.indexOf('download pdf') !== -1 ||
     norm.indexOf('download the pdf') !== -1 ||
+    norm.indexOf('download this as pdf') !== -1 ||
     norm.indexOf('save as pdf') !== -1 ||
     norm.indexOf('save this as pdf') !== -1 ||
     norm.indexOf('save it as pdf') !== -1;

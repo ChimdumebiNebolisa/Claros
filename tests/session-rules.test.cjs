@@ -31,6 +31,13 @@ const cases = [
     questionNum: null,
   },
   {
+    raw: 'Download this as PDF please.',
+    writeIntent: false,
+    answerStated: false,
+    exportIntent: true,
+    questionNum: null,
+  },
+  {
     raw: 'Write my answer for question 2.',
     writeIntent: true,
     answerStated: false,
