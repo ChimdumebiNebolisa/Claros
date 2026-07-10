@@ -51,26 +51,28 @@ def build_write_prompt(
     question_id: int,
     answer_candidate: str,
 ) -> str:
+    candidate = (answer_candidate or "").strip()
     conv_str = "\n".join(
         f"{'User' if c.get('speaker') == 'user' else 'Claros'}: {c.get('text', '')}"
         for c in (conversation or [])
     )
-    answer_line = (
-        f'The student stated their answer as: "{answer_candidate}"'
-        if answer_candidate
-        else ""
-    )
-    return f"""You are helping a student with their assignment. Below is the assignment and a transcript of the voice conversation so far.
+    return f"""You are formatting a student's confirmed answer for their worksheet.
 
 Assignment:
 {assignment_text}
 
-Conversation so far:
+Conversation context (for reference only; do not invent new content):
 {conv_str}
 
-The student has asked to have their answer for Question {question_id} written down.
-{answer_line}
-Based on what was discussed, write only the answer text for Question {question_id}. Do not include the question number, labels, or preamble. Output only the answer content that should appear in the answer box. Write the student's own answer, cleaned up for clarity. Do not invent a different answer. Use plain text only: do not use LaTeX or markdown math delimiters (no $ or $$ around expressions)."""
+The student has confirmed their final answer for Question {question_id} as:
+"{candidate}"
+
+Rewrite ONLY this confirmed answer as plain text suitable for the answer box.
+- Do not change the meaning.
+- Do not add facts, steps, or content that are not already implied by the confirmed answer.
+- Do not include the question number, labels, or preamble.
+- Use plain text only (no LaTeX or markdown delimiters).
+Output only the answer text."""
 
 
 async def stream_write_answer(

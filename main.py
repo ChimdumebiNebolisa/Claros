@@ -4,21 +4,27 @@ Real-time voice uses Gemini Live directly from the browser.
 """
 import json
 import logging
-import os
-import tempfile
 import uuid
+import hmac
 from uuid import UUID
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
 
 import assignment_service
-import storage
-from assignment_service import build_export_response
+from assignment_service import build_export_response, delete_assignment, get_parse_diagnostics, persist_assignment_from_pdf_bytes
 import config
 from gemini_service import create_session_config, debug_gemini_text_call, stream_write_answer
-from parser import parse_pdf
-from schemas import ExportRequest, WriteRequest, trim_conversation, validate_export_answers
+from schemas import (
+    ExportRequest,
+    SessionConfirmRequest,
+    SessionRestoreRequest,
+    SessionStartRequest,
+    WriteRequest,
+    trim_conversation,
+    validate_export_answers,
+)
+import session_service
 
 logger = logging.getLogger(__name__)
 
@@ -61,10 +67,60 @@ def get_session_config(assignment_id: UUID):
         raise HTTPException(status_code=500, detail="Session setup failed. Please try again.")
 
 
+@app.post("/api/session/start")
+def start_tutoring_session(body: SessionStartRequest):
+    """Create a durable server-side session for an assignment."""
+    aid = body.assignment_id.strip()
+    try:
+        _ = UUID(aid)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid assignment_id")
+    try:
+        title, questions = assignment_service.load_assignment_from_gcs(aid)
+    except ValueError:
+        raise _assignment_not_found()
+    except Exception:
+        logger.exception("session start load failed for assignment %s", aid)
+        raise HTTPException(status_code=500, detail="Could not load assignment. Please try again.")
+    qids = [q["id"] for q in questions]
+    payload = session_service.create_session(aid, qids)
+    payload["title"] = title
+    payload["questions"] = questions
+    return payload
+
+
+@app.post("/api/session/{session_id}/confirm")
+def confirm_answer_for_question(session_id: UUID, body: SessionConfirmRequest):
+    """Explicitly confirm a student-owned answer and receive a single-use write token."""
+    return session_service.confirm_answer(
+        str(session_id),
+        body.session_secret,
+        body.question_id,
+        body.answer_text,
+    )
+
+
+@app.post("/api/session/{session_id}/restore")
+def restore_session(session_id: UUID, body: SessionRestoreRequest):
+    """Restore confirmed-answer state after a browser refresh."""
+    return session_service.restore_session_for_client(str(session_id), body.session_secret)
+
+
 @app.post("/api/write/{assignment_id}")
 async def stream_write(assignment_id: UUID, body: WriteRequest):
     """Stream generated answer text for a question. Frontend calls this when write is triggered."""
     aid = str(assignment_id)
+    if config.ENFORCE_WRITE_CONTRACT:
+        if not body.answer_candidate.strip():
+            raise HTTPException(status_code=400, detail="answer_candidate must be non-empty")
+        if not body.write_token or not body.session_id or not body.session_secret:
+            raise HTTPException(status_code=403, detail="Confirmed write_token and session credentials are required")
+        state = session_service.load_session(body.session_id)
+        if state.assignment_id != aid:
+            raise HTTPException(status_code=403, detail="Session does not match assignment")
+        if not hmac.compare_digest(state.session_secret, body.session_secret):
+            raise HTTPException(status_code=403, detail="Invalid session credentials")
+        session_service.validate_write_token(state, body.question_id, body.answer_candidate, body.write_token)
     try:
         title, questions = assignment_service.load_assignment_from_gcs(aid)
     except ValueError:
@@ -111,9 +167,28 @@ async def export_assignment_post(assignment_id: UUID, body: ExportRequest):
     return build_export_response(str(assignment_id), validate_export_answers(body.answers))
 
 
+@app.get("/api/assignments/{assignment_id}/parse-diagnostics")
+def parse_diagnostics(assignment_id: UUID):
+    """Return parse warnings and status for an assignment manifest."""
+    try:
+        return get_parse_diagnostics(str(assignment_id))
+    except ValueError:
+        raise _assignment_not_found()
+    except Exception:
+        logger.exception("parse diagnostics failed for assignment %s", assignment_id)
+        raise HTTPException(status_code=500, detail="Could not load parse diagnostics.")
+
+
+@app.delete("/api/assignments/{assignment_id}")
+def delete_assignment_route(assignment_id: UUID):
+    """Delete assignment PDF, manifest, and related objects from storage."""
+    delete_assignment(str(assignment_id))
+    return {"deleted": True, "assignment_id": str(assignment_id)}
+
+
 @app.post("/upload")
 async def upload_assignment(file: UploadFile = File(...)):
-    """Accept PDF, upload to GCS, parse questions. Returns assignment_id, title, questions."""
+    """Accept PDF, parse once, persist manifest + PDF. Returns assignment_id, title, questions."""
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted")
     assignment_id = str(uuid.uuid4())
@@ -121,34 +196,24 @@ async def upload_assignment(file: UploadFile = File(...)):
     if not config.looks_like_pdf(content):
         raise HTTPException(status_code=400, detail="Only valid PDF files are accepted.")
     try:
-        storage.upload_pdf_to_gcs(assignment_id, content)
-    except Exception:
-        logger.exception("GCS upload failed for assignment %s", assignment_id)
-        raise HTTPException(status_code=500, detail="Upload failed. Please try again.")
-    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-        tmp.write(content)
-        tmp_path = tmp.name
-    try:
-        title, questions = parse_pdf(tmp_path)
-        payload = [{"id": q.id, "text": q.text} for q in questions]
+        manifest = persist_assignment_from_pdf_bytes(assignment_id, content)
+        payload = manifest.to_questions_dict()
         logger.info(
-            "[POST /upload] Parsed questions: count=%s assignment_id=%s",
+            "[POST /upload] Parsed questions: count=%s assignment_id=%s parse_status=%s",
             len(payload),
             assignment_id,
+            manifest.parse_status,
         )
         return {
             "assignment_id": assignment_id,
-            "title": title,
+            "title": manifest.title,
             "questions": payload,
+            "parse_status": manifest.parse_status,
+            "parse_warnings": manifest.parse_warnings,
         }
     except Exception:
-        logger.exception("PDF parse failed for assignment %s", assignment_id)
+        logger.exception("PDF parse/upload failed for assignment %s", assignment_id)
         raise HTTPException(status_code=500, detail="Could not read that PDF. Please try another file.")
-    finally:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
 
 
 @app.get("/debug-gemini")

@@ -27,6 +27,23 @@ class WriteRequest(BaseModel):
         max_length=config.MAX_CONVERSATION_TURNS,
     )
     answer_candidate: str = Field(default="", max_length=MAX_ANSWER_CANDIDATE_CHARS)
+    write_token: str = Field(default="", max_length=2048)
+    session_id: str = Field(default="", max_length=64)
+    session_secret: str = Field(default="", max_length=128)
+
+
+class SessionStartRequest(BaseModel):
+    assignment_id: str
+
+
+class SessionConfirmRequest(BaseModel):
+    session_secret: str = Field(min_length=8, max_length=128)
+    question_id: int
+    answer_text: str = Field(min_length=1, max_length=MAX_ANSWER_CANDIDATE_CHARS)
+
+
+class SessionRestoreRequest(BaseModel):
+    session_secret: str = Field(min_length=8, max_length=128)
 
 
 class ExportRequest(BaseModel):

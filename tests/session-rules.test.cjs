@@ -123,6 +123,14 @@ const cases = [
     questionNum: 2,
     clarosWriteQ: 2,
   },
+  {
+    raw: 'My answer is 42',
+    writeIntent: false,
+    answerStated: true,
+    exportIntent: false,
+    questionNum: null,
+    draftContains: '42',
+  },
 ];
 
 for (const c of cases) {
@@ -135,6 +143,10 @@ for (const c of cases) {
     const m = rules.CLAROS_WRITE_PHRASE_RE.exec(norm);
     assert.ok(m, `claros phrase should match: ${c.raw}`);
     assert.strictEqual(rules.parseClarosWriteQuestionNum(norm), c.clarosWriteQ);
+  }
+  if (c.draftContains != null) {
+    const draft = rules.extractDraftAnswer(norm);
+    assert.ok(draft.includes(c.draftContains), `draft should include ${c.draftContains} for ${c.raw}`);
   }
 }
 

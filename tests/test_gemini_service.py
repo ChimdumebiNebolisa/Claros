@@ -15,17 +15,18 @@ def test_build_write_prompt_includes_assignment_and_question():
     assert "Question 1: What is 2+2?" in prompt
     assert "User: I think it is 4." in prompt
     assert "Question 1" in prompt
-    assert 'The student stated their answer as: "4"' in prompt
+    assert '"4"' in prompt
+    assert "confirmed answer" in prompt.lower()
 
 
-def test_build_write_prompt_omits_candidate_line_when_empty():
+def test_build_write_prompt_requires_candidate_text():
     prompt = gemini_service.build_write_prompt(
         "Assignment",
         [],
         question_id=2,
         answer_candidate="",
     )
-    assert "The student stated their answer as" not in prompt
+    assert "confirmed their final answer for Question 2" in prompt
 
 
 def test_stream_write_answer_yields_error_text_on_generation_failure(monkeypatch):

@@ -404,6 +404,34 @@ body:not(.has-assignment) .assignment-title {
   border-color: var(--success-line);
 }
 
+.question-card.answer-drafted {
+  border-color: var(--iris-line);
+}
+
+.btn-confirm-answer {
+  margin-top: 0.65rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--iris-line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-confirm-answer:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-confirm-answer:not(:disabled):hover,
+.btn-confirm-answer:not(:disabled):focus-visible {
+  background: var(--iris-soft);
+  outline: 2px solid var(--iris);
+  outline-offset: 2px;
+}
+
 /* "Writing…" state */
 .question-card.writing {
   border-color: var(--warn-line);
