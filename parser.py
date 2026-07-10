@@ -11,6 +11,8 @@ from typing import List
 
 import fitz  # PyMuPDF
 
+from parser_layout import filter_header_footer_lines
+
 logger = logging.getLogger(__name__)
 
 @dataclass
@@ -78,30 +80,48 @@ def _extract_lines_with_size(doc: fitz.Document) -> List[tuple[str, float]]:
     return lines
 
 
-def parse_pdf(pdf_path: str | Path) -> tuple[str, List[Question]]:
+def _collect_parse_warnings(questions: List[Question], lines: List[str]) -> list[str]:
+    warnings: list[str] = []
+    if not questions:
+        warnings.append("no_questions_detected")
+    elif len(questions) == 1 and questions[0].id == 0:
+        warnings.append("fallback_single_block")
+    ids = [q.id for q in questions]
+    if len(ids) != len(set(ids)):
+        warnings.append("duplicate_question_ids")
+    if not lines:
+        warnings.append("empty_extraction")
+    return warnings
+
+
+def parse_pdf_with_diagnostics(
+    pdf_path: str | Path,
+    *,
+    apply_layout_filters: bool = True,
+) -> tuple[str, List[Question], list[str], str]:
     """
-    Parse PDF and extract questions. Tries (1) "Question N:" lines, then (2) "1.", "2)", "3." lines.
-    Returns (title, questions). Title is the first line. Falls back to one question (id=0) only
-    if neither pattern matches.
+    Parse PDF and return (title, questions, warnings, parse_status).
+    parse_status is one of: ok, fallback_single_block, empty_extraction.
     """
     path = Path(pdf_path)
     doc = fitz.open(path)
     try:
         lines_with_size = _extract_lines_with_size(doc)
+        if apply_layout_filters:
+            lines_with_size = filter_header_footer_lines(lines_with_size)
         lines = [t for t, _ in lines_with_size]
         full_text = "\n".join(lines).strip() or "(No extractable text)"
 
         if not lines:
             title = path.stem
-            result = title, [Question(id=0, text=full_text)]
-            logger.warning("[parser] No lines extracted. assignment fallback 1 question (id=0)")
-            return _normalize_parse_result(*result)
+            questions = [Question(id=0, text=full_text)]
+            warnings = _collect_parse_warnings(questions, lines)
+            return _normalize_parse_result(title, questions) + (warnings, "empty_extraction")
 
         title = lines[0].strip()[:80] if lines else path.stem
         questions: List[Question] = []
         i = 0
 
-        # Strategy 1: "Question N:" lines
         while i < len(lines):
             m = _QUESTION_LINE_RE.match(lines[i])
             if m:
@@ -116,7 +136,6 @@ def parse_pdf(pdf_path: str | Path) -> tuple[str, List[Question]]:
             else:
                 i += 1
 
-        # Strategy 2: "1.", "2.", "3." numbered lines (worksheet format)
         if not questions:
             i = 0
             while i < len(lines):
@@ -129,21 +148,33 @@ def parse_pdf(pdf_path: str | Path) -> tuple[str, List[Question]]:
                         text_parts.append(lines[i])
                         i += 1
                     q_text = "\n".join(text_parts).strip()
-                    if q_text or qid <= 10:  # allow empty only for small numbers (real items)
+                    if q_text or qid <= 10:
                         questions.append(Question(id=qid, text=q_text or f"Question {qid}"))
                 else:
                     i += 1
 
         if not questions:
-            result = title, [Question(id=0, text=full_text)]
+            questions = [Question(id=0, text=full_text)]
+            warnings = _collect_parse_warnings(questions, lines)
             logger.warning("[parser] No question lines found. fallback 1 question (id=0)")
-            return _normalize_parse_result(*result)
+            return _normalize_parse_result(title, questions) + (warnings, "fallback_single_block")
 
+        warnings = _collect_parse_warnings(questions, lines)
         question_ids = [q.id for q in questions]
         logger.info(
             "[parser] num_questions=%s question_ids=%s",
             len(questions), question_ids,
         )
-        return _normalize_parse_result(title, questions)
+        return _normalize_parse_result(title, questions) + (warnings, "ok")
     finally:
         doc.close()
+
+
+def parse_pdf(pdf_path: str | Path) -> tuple[str, List[Question]]:
+    """
+    Parse PDF and extract questions. Tries (1) "Question N:" lines, then (2) "1.", "2)", "3." lines.
+    Returns (title, questions). Title is the first line. Falls back to one question (id=0) only
+    if neither pattern matches.
+    """
+    title, questions, _warnings, _status = parse_pdf_with_diagnostics(pdf_path)
+    return title, questions

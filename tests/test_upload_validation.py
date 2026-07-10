@@ -6,7 +6,6 @@ from fastapi.testclient import TestClient
 
 import config
 import main as main_module
-import storage
 
 client = TestClient(main_module.app)
 
@@ -15,14 +14,17 @@ _MINIMAL_PDF = b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF"
 
 @pytest.fixture
 def upload_mocks(monkeypatch):
-    monkeypatch.setattr(storage, "upload_pdf_to_gcs", lambda *_a, **_k: "gs://bucket/assignments/x/assignment.pdf")
+    from manifest import build_manifest
 
-    def fake_parse(_path):
-        from types import SimpleNamespace
+    def fake_persist(assignment_id, pdf_bytes):
+        return build_manifest(
+            assignment_id=assignment_id,
+            title="Test Title",
+            questions=[{"id": 1, "text": "Question one?"}],
+            parse_status="ok",
+        )
 
-        return "Test Title", [SimpleNamespace(id=1, text="Question one?")]
-
-    monkeypatch.setattr(main_module, "parse_pdf", fake_parse)
+    monkeypatch.setattr(main_module, "persist_assignment_from_pdf_bytes", fake_persist)
 
 
 def test_upload_rejects_oversize_file(monkeypatch):
