@@ -11,6 +11,13 @@ def test_assignment_pdf_path_uses_canonical_filename():
     )
 
 
+def test_assignment_manifest_path():
+    assignment_id = "550e8400-e29b-41d4-a716-446655440000"
+    assert storage.assignment_manifest_path(assignment_id) == (
+        f"assignments/{assignment_id}/manifest.json"
+    )
+
+
 def test_upload_pdf_to_gcs_uploads_canonical_blob(monkeypatch):
     bucket = MagicMock()
     blob = MagicMock()

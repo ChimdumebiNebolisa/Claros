@@ -62,6 +62,9 @@ def validate_app_js_contract() -> None:
         "ClarosSessionRules",
         "/api/write/",
         "/api/session-config/",
+        "/api/session/start",
+        "btn-confirm-answer",
+        "confirmAnswerForQuestion",
     )
     for needle in checks:
         if needle not in js:

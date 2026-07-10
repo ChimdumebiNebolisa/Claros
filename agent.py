@@ -1,6 +1,8 @@
 """
-Claros agent: system prompt builder and [WRITE:question_id] / [END_WRITE:question_id] token detection.
-Emits write_start, write_token, write_end events for the frontend.
+Claros agent: system prompt builder.
+
+Note: WriteTokenParser ([WRITE:N] tokens) is deprecated. Production uses explicit
+server-side answer confirmation plus natural-language tutoring prompts.
 """
 import re
 from typing import Iterator
@@ -57,7 +59,7 @@ OTHER:
 
 
 class WriteTokenParser:
-    """Stateful parser for streaming text. Call feed(text) to get write_start/write_token/write_end events."""
+    """Deprecated: legacy [WRITE:N] token parser kept for unit tests only."""
 
     def __init__(self) -> None:
         self._current_qid: int | None = None

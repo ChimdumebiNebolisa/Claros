@@ -81,11 +81,20 @@ function hasExportIntent(norm) {
     norm.indexOf('save it as pdf') !== -1;
 }
 
+function extractDraftAnswer(norm) {
+  if (!norm) return '';
+  var m = ANSWER_STATED_RE.exec(norm);
+  if (!m) return '';
+  var idx = m.index + m[0].length;
+  return (norm.slice(idx) || norm).trim();
+}
+
 var ClarosSessionRules = {
   normalizeTranscript: normalizeTranscript,
   hasExportIntent: hasExportIntent,
   parseQuestionNum: parseQuestionNum,
   parseClarosWriteQuestionNum: parseClarosWriteQuestionNum,
+  extractDraftAnswer: extractDraftAnswer,
   WRITE_INTENT_RE: WRITE_INTENT_RE,
   QUESTION_NUM_RE: QUESTION_NUM_RE,
   CLAROS_WRITE_PHRASE_RE: CLAROS_WRITE_PHRASE_RE,

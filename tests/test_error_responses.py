@@ -9,6 +9,8 @@ client = TestClient(main_module.app)
 
 
 def test_write_returns_404_when_assignment_missing(monkeypatch):
+    monkeypatch.setattr(main_module.config, "ENFORCE_WRITE_CONTRACT", False)
+
     def raise_not_found(_assignment_id: str):
         raise ValueError("No PDF found")
 
@@ -23,6 +25,8 @@ def test_write_returns_404_when_assignment_missing(monkeypatch):
 
 
 def test_write_returns_500_when_backend_fails(monkeypatch):
+    monkeypatch.setattr(main_module.config, "ENFORCE_WRITE_CONTRACT", False)
+
     def raise_backend(_assignment_id: str):
         raise RuntimeError("GCS unavailable")
 

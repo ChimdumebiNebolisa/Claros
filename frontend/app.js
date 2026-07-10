@@ -36,6 +36,16 @@
   var CLAROS_WRITE_PHRASE_RE = SR.CLAROS_WRITE_PHRASE_RE;
   var ANSWER_STATED_RE = SR.ANSWER_STATED_RE;
   var hasExportIntent = SR.hasExportIntent;
+  var extractDraftAnswer = SR.extractDraftAnswer;
+
+  const SESSION_STORAGE_KEY = 'claros_session_v1';
+  const DEBUG_LOGS = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+
+  function debugLog() {
+    if (DEBUG_LOGS && typeof console !== 'undefined' && console.log) {
+      console.log.apply(console, arguments);
+    }
+  }
 
   function setChecklistStep(stepEl, done) {
     if (!stepEl) return;
@@ -119,6 +129,7 @@
       uploadLabel.textContent = 'Drop your assignment PDF here';
       noticeEl.textContent = 'Worksheet ready. You can start your voice session now.';
       syncChecklist();
+      restoreSessionFromStorage();
     } catch (err) {
       uploadLabel.textContent = 'Drop your assignment PDF here';
       errorsEl.textContent = err.message || 'We could not upload that file. Please try another PDF.';
@@ -135,7 +146,7 @@
       card.className = 'question-card';
       card.dataset.questionId = String(q.id);
       const questionText = (q.text != null && q.text !== '') ? String(q.text) : '';
-      card.innerHTML = '<div class="question-header"><div style="display:flex;align-items:center"><span class="question-index">' + q.id + '</span><div class="question-label">Question ' + q.id + '<span class="ready-badge">Answer stated</span></div></div><div class="question-meta">&nbsp;</div></div><div class="question-text"></div><div class="answer-field" data-question-id="' + q.id + '" data-placeholder="Say your answer in a session, or type it here" contenteditable="true" spellcheck="true"></div>';
+      card.innerHTML = '<div class="question-header"><div style="display:flex;align-items:center"><span class="question-index">' + q.id + '</span><div class="question-label">Question ' + q.id + '<span class="ready-badge">Answer confirmed</span></div></div><div class="question-meta">&nbsp;</div></div><div class="question-text"></div><div class="answer-field" data-question-id="' + q.id + '" data-placeholder="Say your answer in a session, or type it here" contenteditable="true" spellcheck="true"></div><button type="button" class="btn-confirm-answer" data-question-id="' + q.id + '" aria-label="Confirm answer for question ' + q.id + '" disabled>Confirm answer</button>';
       const questionTextEl = card.querySelector('.question-text');
       const answerEl = card.querySelector('.answer-field');
       answerEl.setAttribute('role', 'textbox');
@@ -147,9 +158,18 @@
       }
       answerEl.addEventListener('input', () => {
         state.answers[q.id] = answerEl.textContent;
+        draftAnswer[q.id] = answerEl.textContent.trim();
+        var confirmBtn = card.querySelector('.btn-confirm-answer');
+        if (confirmBtn) confirmBtn.disabled = !draftAnswer[q.id];
         if (answerEl.textContent.trim()) exportBtn.classList.add('visible');
         syncChecklist();
       });
+      var confirmBtn = card.querySelector('.btn-confirm-answer');
+      if (confirmBtn) {
+        confirmBtn.addEventListener('click', function () {
+          confirmAnswerForQuestion(q.id);
+        });
+      }
       questionsContainer.appendChild(card);
     });
     if (state.questions && state.questions.length > 0) {
@@ -163,6 +183,124 @@
   }
   function getCardEl(questionId) {
     return document.querySelector('.question-card[data-question-id="' + questionId + '"]');
+  }
+
+  function persistSessionLocally() {
+    if (!sessionCredentials.sessionId || !sessionCredentials.sessionSecret || !state.assignmentId) return;
+    try {
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
+        assignmentId: state.assignmentId,
+        sessionId: sessionCredentials.sessionId,
+        sessionSecret: sessionCredentials.sessionSecret
+      }));
+    } catch (e) { /* ignore quota errors */ }
+  }
+
+  async function restoreSessionFromStorage() {
+    try {
+      var raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
+      if (!raw || !state.assignmentId) return;
+      var saved = JSON.parse(raw);
+      if (saved.assignmentId !== state.assignmentId) return;
+      sessionCredentials.sessionId = saved.sessionId;
+      sessionCredentials.sessionSecret = saved.sessionSecret;
+      var r = await fetch(API_BASE + '/api/session/' + saved.sessionId + '/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_secret: saved.sessionSecret })
+      });
+      if (!r.ok) return;
+      var data = await r.json();
+      Object.keys(data.questions || {}).forEach(function (qid) {
+        var q = data.questions[qid];
+        if (q.confirmed && q.confirmed_answer) {
+          answerReady[parseInt(qid, 10)] = true;
+          answerCandidate[parseInt(qid, 10)] = q.confirmed_answer;
+          var card = getCardEl(parseInt(qid, 10));
+          if (card) card.classList.add('answer-ready');
+        }
+      });
+      noticeEl.textContent = 'Session restored. Confirmed answers are still available.';
+    } catch (e) {
+      debugLog('[session] restore failed', e);
+    }
+  }
+
+  async function startServerSession() {
+    var r = await fetch(API_BASE + '/api/session/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assignment_id: state.assignmentId })
+    });
+    if (!r.ok) throw new Error('Could not start server session');
+    var data = await r.json();
+    sessionCredentials.sessionId = data.session_id;
+    sessionCredentials.sessionSecret = data.session_secret;
+    persistSessionLocally();
+    return data;
+  }
+
+  async function confirmAnswerForQuestion(questionId) {
+    var qid = questionId;
+    var text = (draftAnswer[qid] || answerCandidate[qid] || (getAnswerEl(qid) && getAnswerEl(qid).textContent) || '').trim();
+    if (!text) {
+      errorsEl.textContent = 'State your answer before confirming question ' + qid + '.';
+      return false;
+    }
+    if (!sessionCredentials.sessionId) {
+      errorsEl.textContent = 'Start a voice session before confirming an answer.';
+      return false;
+    }
+    try {
+      var r = await fetch(API_BASE + '/api/session/' + sessionCredentials.sessionId + '/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_secret: sessionCredentials.sessionSecret,
+          question_id: qid,
+          answer_text: text
+        })
+      });
+      if (!r.ok) {
+        var err = await r.json().catch(function () { return {}; });
+        throw new Error(err.detail || 'Confirm failed');
+      }
+      var data = await r.json();
+      answerReady[qid] = true;
+      answerCandidate[qid] = text;
+      writeTokens[qid] = data.write_token;
+      var card = getCardEl(qid);
+      if (card) {
+        card.classList.add('answer-ready');
+        var btn = card.querySelector('.btn-confirm-answer');
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = 'Answer confirmed';
+        }
+      }
+      noticeEl.textContent = 'Answer confirmed for question ' + qid + '. You can ask Claros to write it when ready.';
+      errorsEl.textContent = '';
+      return true;
+    } catch (err) {
+      errorsEl.textContent = err.message || 'Could not confirm answer';
+      return false;
+    }
+  }
+
+  function markDraftAnswer(questionId, text) {
+    var qid = questionId;
+    if (qid == null) return;
+    var cleaned = (text || '').trim();
+    if (!cleaned) return;
+    draftAnswer[qid] = cleaned;
+    answerCandidate[qid] = cleaned;
+    var card = getCardEl(qid);
+    if (card) {
+      card.classList.add('answer-drafted');
+      var btn = card.querySelector('.btn-confirm-answer');
+      if (btn) btn.disabled = false;
+    }
+    noticeEl.textContent = 'Draft answer captured for question ' + qid + '. Press Confirm answer to approve it.';
   }
 
   const API_BASE = location.origin || 'http://127.0.0.1:8000';
@@ -184,6 +322,9 @@
   let lastExportVoiceNorm = '';
   let writeInProgress = false;
   let keepaliveInterval = null;
+  let sessionCredentials = { sessionId: null, sessionSecret: null };
+  let draftAnswer = {};
+  let writeTokens = {};
 
   function int16ArrayToBase64(int16Arr) {
     var bytes = new Uint8Array(int16Arr.buffer);
@@ -372,11 +513,11 @@
 
   function triggerWrite(questionId) {
     var qid = questionId;
-    var candPreview = (answerCandidate[qid] || '').slice(0, 120);
     var aid = state.assignmentId;
-    console.log('[write-chain] triggerWrite qid=' + qid + ' writeInProgress=' + writeInProgress + ' answerCandidate preview=' + (candPreview ? '"' + candPreview + '"' : '(empty)') + ' assignmentId=' + (aid || '(null)'));
-    if (writeInProgress) {
-      console.log('[write-chain] Aborting triggerWrite: writeInProgress is true');
+    debugLog('[write-chain] triggerWrite qid=' + qid + ' assignmentId=' + (aid || '(null)'));
+    if (writeInProgress) return;
+    if (!answerReady[qid] || !writeTokens[qid]) {
+      noticeEl.textContent = 'Confirm your answer for question ' + qid + ' before writing.';
       return;
     }
     var selector = '.answer-field[data-question-id="' + questionId + '"]';
@@ -396,7 +537,10 @@
     var body = JSON.stringify({
       question_id: questionId,
       conversation: conversationContext,
-      answer_candidate: answerCandidate[questionId] || ''
+      answer_candidate: answerCandidate[questionId] || '',
+      write_token: writeTokens[questionId],
+      session_id: sessionCredentials.sessionId,
+      session_secret: sessionCredentials.sessionSecret
     });
     fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body })
       .then(function (res) {
@@ -482,12 +626,15 @@
     conversationContext = [];
     answerReady = {};
     answerCandidate = {};
+    draftAnswer = {};
+    writeTokens = {};
     currentQuestion = null;
     clarosOutputBuffer = '';
     userTranscriptBuffer = '';
 
     var config;
     try {
+      await startServerSession();
       var r = await fetch(API_BASE + '/api/session-config/' + state.assignmentId);
       if (!r.ok) throw new Error(r.status === 404 ? 'Assignment not found' : (await r.text()) || 'Session config failed');
       config = await r.json();
@@ -570,21 +717,9 @@
               var m = CLAROS_WRITE_PHRASE_RE.exec(clarosOutputBuffer);
               if (m) {
                 var qid = parseClarosWriteQuestionNum(clarosOutputBuffer);
-                var matchedText = m[0];
-                console.log('[write-chain] Claros write phrase detected qid=' + qid + ' text="' + matchedText + '"');
-                if (!writeInProgress) {
-                  if (!answerReady[qid]) {
-                    answerReady[qid] = true;
-                    answerCandidate[qid] = clarosOutputBuffer.trim() || (answerCandidate[qid] || '');
-                    var cardT = getCardEl(qid);
-                    if (cardT) cardT.classList.add('answer-ready');
-                    console.log('[write-chain] Set answerReady from Claros write phrase qid=' + qid + ' candidateLen=' + (answerCandidate[qid] || '').length);
-                  }
-                  clarosOutputBuffer = '';
-                  console.log('[write-chain] triggerWrite about to run qid=' + qid);
-                  triggerWrite(qid);
-                } else {
-                  console.log('[write-chain] Skipping triggerWrite (phrase path): writeInProgress=true');
+                clarosOutputBuffer = '';
+                if (qid != null) {
+                  noticeEl.textContent = 'Claros is ready to write question ' + qid + '. Confirm your answer first, then ask to write.';
                 }
               }
             }
@@ -616,43 +751,16 @@
                 if (ANSWER_STATED_RE.test(norm)) {
                   var tq = parsedQuestion != null ? parsedQuestion : currentQuestion;
                   if (tq != null) {
-                    answerReady[tq] = true;
-                    answerCandidate[tq] = full;
-                    var cardT = getCardEl(tq);
-                    if (cardT) cardT.classList.add('answer-ready');
+                    var draft = extractDraftAnswer(norm) || full;
+                    markDraftAnswer(tq, draft);
                   }
                 }
                 var hasIntent = WRITE_INTENT_RE.test(norm);
                 var qid = parsedQuestion != null ? parsedQuestion : (currentQuestion || 1);
-                var readyBefore = !!answerReady[qid];
-                var candidateBefore = answerCandidate[qid] || '';
-                var usedFallback = false;
-                if (hasIntent && !answerReady[qid] && ANSWER_STATED_RE.test(norm)) {
-                  usedFallback = true;
-                  answerReady[qid] = true;
-                  answerCandidate[qid] = full;
-                  console.log('[intent] Fallback applied for write.', {
-                    qid: qid,
-                    answerCandidatePreview: full.slice(0, 120)
-                  });
-                }
-                console.log('[intent] Write decision.', {
-                  raw: full,
-                  normalized: norm,
-                  qid: qid,
-                  hasWriteIntent: hasIntent,
-                  answerReadyBeforeFallback: readyBefore,
-                  answerCandidateBeforeFallback: candidateBefore.slice(0, 120),
-                  usedFallback: usedFallback,
-                  answerReadyAfterFallback: !!answerReady[qid],
-                  finalAnswerCandidatePreview: (answerCandidate[qid] || '').slice(0, 120),
-                  writeInProgress: writeInProgress
-                });
                 if (hasIntent && answerReady[qid] && !writeInProgress) {
-                  console.log('[write-chain] triggerWrite about to run qid=' + qid);
                   triggerWrite(qid);
                 } else if (hasIntent && !answerReady[qid]) {
-                  console.log('[intent] Not writing because answerReady is false after fallback.', { qid: qid });
+                  noticeEl.textContent = 'Confirm your answer for question ' + qid + ' before writing.';
                 }
                 if (hasExportIntent(norm)) {
                   console.log('[intent] Export intent matched.', { normalized: norm });
@@ -675,6 +783,7 @@
 
     liveSession = session;
     setStatus('listening');
+    restoreSessionFromStorage();
 
     var stream;
     try {

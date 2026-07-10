@@ -71,3 +71,28 @@ def get_text_model() -> str:
 
 def is_debug_gemini_enabled() -> bool:
     return os.environ.get("ENABLE_DEBUG_GEMINI", "").strip().lower() in ("1", "true", "yes")
+
+
+def _bool_env(name: str, default: bool) -> bool:
+    raw = os.environ.get(name, "").strip().lower()
+    if not raw:
+        return default
+    return raw in ("1", "true", "yes")
+
+
+_DEFAULT_SESSION_TTL_HOURS = 48
+_DEFAULT_ASSIGNMENT_TTL_DAYS = 90
+
+SESSION_TTL_HOURS = _int_env("SESSION_TTL_HOURS", _DEFAULT_SESSION_TTL_HOURS)
+ASSIGNMENT_TTL_DAYS = _int_env("ASSIGNMENT_TTL_DAYS", _DEFAULT_ASSIGNMENT_TTL_DAYS)
+USE_MANIFEST = _bool_env("USE_MANIFEST", True)
+ENFORCE_WRITE_CONTRACT = _bool_env("ENFORCE_WRITE_CONTRACT", True)
+ENABLE_OCR = _bool_env("ENABLE_OCR", False)
+
+
+def get_session_hmac_secret() -> str:
+    secret = os.environ.get("SESSION_HMAC_SECRET", "").strip()
+    if secret:
+        return secret
+    # Dev fallback only; production should set SESSION_HMAC_SECRET explicitly.
+    return "claros-dev-session-hmac-change-me"

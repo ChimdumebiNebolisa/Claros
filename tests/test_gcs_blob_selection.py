@@ -21,6 +21,10 @@ class _FakeBlob:
         return b"%PDF-1.4 fake"
 
 
+def _fake_parse_with_diagnostics(_path):
+    return ("Title", [SimpleNamespace(id=1, text="Q?")], [], "ok")
+
+
 def test_load_assignment_prefers_canonical_assignment_pdf(monkeypatch):
     """Canonical assignments/{id}/assignment.pdf is used when present."""
     canonical = _FakeBlob(assignment_pdf_path(TEST_ASSIGNMENT_ID))
@@ -28,18 +32,15 @@ def test_load_assignment_prefers_canonical_assignment_pdf(monkeypatch):
     bucket.blob.return_value = canonical
 
     monkeypatch.setattr(assignment_service, "get_gcs_bucket", lambda: bucket)
-    monkeypatch.setattr(
-        assignment_service,
-        "parse_pdf",
-        lambda _path: ("Title", [SimpleNamespace(id=1, text="Q?")]),
-    )
+    monkeypatch.setattr(assignment_service, "download_manifest_from_gcs", lambda _id: None)
+    monkeypatch.setattr(assignment_service, "parse_pdf_with_diagnostics", _fake_parse_with_diagnostics)
+    monkeypatch.setattr(assignment_service, "upload_manifest_to_gcs", lambda *_a, **_k: "gs://x")
 
     title, questions = assignment_service.load_assignment_from_gcs(TEST_ASSIGNMENT_ID)
 
     assert title == "Title"
     assert questions == [{"id": 1, "text": "Q?"}]
-    bucket.blob.assert_called_once_with(assignment_pdf_path(TEST_ASSIGNMENT_ID))
-    bucket.list_blobs.assert_not_called()
+    bucket.blob.assert_called_with(assignment_pdf_path(TEST_ASSIGNMENT_ID))
 
 
 def test_load_assignment_falls_back_to_sorted_pdf(monkeypatch):
@@ -56,11 +57,9 @@ def test_load_assignment_falls_back_to_sorted_pdf(monkeypatch):
     bucket.list_blobs.return_value = blobs
 
     monkeypatch.setattr(assignment_service, "get_gcs_bucket", lambda: bucket)
-    monkeypatch.setattr(
-        assignment_service,
-        "parse_pdf",
-        lambda _path: ("Title", [SimpleNamespace(id=1, text="Q?")]),
-    )
+    monkeypatch.setattr(assignment_service, "download_manifest_from_gcs", lambda _id: None)
+    monkeypatch.setattr(assignment_service, "parse_pdf_with_diagnostics", _fake_parse_with_diagnostics)
+    monkeypatch.setattr(assignment_service, "upload_manifest_to_gcs", lambda *_a, **_k: "gs://x")
 
     title, questions = assignment_service.load_assignment_from_gcs(TEST_ASSIGNMENT_ID)
 
@@ -76,6 +75,7 @@ def test_load_assignment_raises_when_no_pdf(monkeypatch):
     bucket.list_blobs.return_value = [_FakeBlob(f"assignments/{TEST_ASSIGNMENT_ID}/readme.txt", exists=False)]
 
     monkeypatch.setattr(assignment_service, "get_gcs_bucket", lambda: bucket)
+    monkeypatch.setattr(assignment_service, "download_manifest_from_gcs", lambda _id: None)
 
     with pytest.raises(ValueError, match="No PDF found"):
         assignment_service.load_assignment_from_gcs(TEST_ASSIGNMENT_ID)

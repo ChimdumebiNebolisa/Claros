@@ -77,11 +77,12 @@ def test_write_accepts_long_conversation_and_trims(monkeypatch, fake_assignment)
 
     monkeypatch.setattr(main_module, "stream_write_answer", fake_stream)
     monkeypatch.setattr(main_module.config, "CONVERSATION_TRIM_TURNS", 50)
+    monkeypatch.setattr(main_module.config, "ENFORCE_WRITE_CONTRACT", False)
 
     turns = [{"speaker": "user", "text": f"turn-{i}"} for i in range(120)]
     response = client.post(
         f"/api/write/{TEST_ASSIGNMENT_ID}",
-        json={"question_id": 1, "conversation": turns, "answer_candidate": ""},
+        json={"question_id": 1, "conversation": turns, "answer_candidate": "ok"},
     )
     assert response.status_code == 200
     assert len(captured["conversation"]) == 50
