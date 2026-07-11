@@ -1,6 +1,6 @@
 /**
  * Pure string helpers for voice/write/export intent (browser + Node tests).
- * Loaded in index.html before the main app script; also require()'d from tests/session-rules.test.cjs.
+ * Loaded in app.html before the main app script; also require()'d from tests/session-rules.test.cjs.
  */
 'use strict';
 

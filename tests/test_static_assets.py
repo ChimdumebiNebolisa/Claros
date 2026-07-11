@@ -1,9 +1,12 @@
 """Additional static route and asset coverage."""
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 import main as main_module
 
 client = TestClient(main_module.app)
+ROOT = Path(__file__).resolve().parent.parent
 
 
 def test_styles_rejects_path_traversal():
@@ -27,6 +30,20 @@ def test_landing_page_links_to_app():
     response = client.get("/")
     assert response.status_code == 200
     assert b'href="/app"' in response.content
+
+
+def test_active_frontend_routes_serve_the_documented_entrypoints():
+    for route, filename in (("/", "landing.html"), ("/app", "app.html")):
+        response = client.get(route)
+        expected = (ROOT / "frontend" / filename).read_bytes()
+        assert response.status_code == 200
+        assert response.content == expected
+
+
+def test_legacy_frontend_documents_are_not_routed():
+    for route in ("/index.html", "/index.backup.html"):
+        response = client.get(route)
+        assert response.status_code == 404
 
 
 def test_debug_gemini_disabled_by_default():
