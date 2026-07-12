@@ -61,6 +61,8 @@ def get_session_config(assignment_id: UUID):
     aid = str(assignment_id)
     try:
         return create_session_config(aid)
+    except assignment_service.AssignmentExpiredError:
+        raise HTTPException(status_code=410, detail="Assignment expired")
     except ValueError:
         raise _assignment_not_found()
     except RuntimeError as e:
@@ -82,6 +84,8 @@ def start_tutoring_session(body: SessionStartRequest):
         raise HTTPException(status_code=400, detail="Invalid assignment_id")
     try:
         title, questions = assignment_service.load_assignment_from_gcs(aid)
+    except assignment_service.AssignmentExpiredError:
+        raise HTTPException(status_code=410, detail="Assignment expired")
     except ValueError:
         raise _assignment_not_found()
     except Exception:
@@ -128,6 +132,8 @@ async def stream_write(assignment_id: UUID, body: WriteRequest):
         session_service.validate_write_token(state, body.question_id, body.answer_candidate, body.write_token)
     try:
         title, questions = assignment_service.load_assignment_from_gcs(aid)
+    except assignment_service.AssignmentExpiredError:
+        raise HTTPException(status_code=410, detail="Assignment expired")
     except ValueError:
         raise _assignment_not_found()
     except Exception:
@@ -177,6 +183,8 @@ def parse_diagnostics(assignment_id: UUID):
     """Return parse warnings and status for an assignment manifest."""
     try:
         return get_parse_diagnostics(str(assignment_id))
+    except assignment_service.AssignmentExpiredError:
+        raise HTTPException(status_code=410, detail="Assignment expired")
     except ValueError:
         raise _assignment_not_found()
     except Exception:

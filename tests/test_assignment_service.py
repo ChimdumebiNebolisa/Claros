@@ -88,3 +88,13 @@ def test_load_assignment_manifest_backfill(monkeypatch, tmp_pdf_question_format)
     assert title
     assert questions
     assert manifest_json is not None
+
+
+def test_expired_manifest_is_rejected(monkeypatch):
+    monkeypatch.setattr(
+        assignment_service,
+        "download_manifest_from_gcs",
+        lambda _id: b'{"version":1,"assignment_id":"expired","title":"T","questions":[],"expires_at":"2020-01-01T00:00:00+00:00"}',
+    )
+    with pytest.raises(assignment_service.AssignmentExpiredError):
+        assignment_service.load_assignment_manifest("expired")

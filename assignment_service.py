@@ -23,6 +23,16 @@ from parser import parse_pdf_with_diagnostics
 logger = logging.getLogger(__name__)
 
 
+class AssignmentExpiredError(RuntimeError):
+    """Raised when a persisted assignment is past its configured retention window."""
+
+
+def _ensure_manifest_active(manifest: AssignmentManifest) -> AssignmentManifest:
+    if manifest.is_expired():
+        raise AssignmentExpiredError("Assignment expired")
+    return manifest
+
+
 def _export_filename(assignment_id: str) -> str:
     safe_id = re.sub(r"[^0-9a-fA-F-]", "", assignment_id)
     return f"claros-{safe_id or 'assignment'}.pdf"
@@ -83,7 +93,7 @@ def load_assignment_manifest(assignment_id: str) -> AssignmentManifest:
     if config.USE_MANIFEST:
         raw = download_manifest_from_gcs(assignment_id)
         if raw:
-            return parse_manifest_json(raw)
+            return _ensure_manifest_active(parse_manifest_json(raw))
 
     pdf_bytes = _download_pdf_bytes(assignment_id)
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
@@ -95,7 +105,7 @@ def load_assignment_manifest(assignment_id: str) -> AssignmentManifest:
             upload_manifest_to_gcs(assignment_id, manifest.model_dump_json())
         except Exception:
             logger.exception("Manifest backfill upload failed for %s", assignment_id)
-        return manifest
+        return _ensure_manifest_active(manifest)
     finally:
         try:
             os.unlink(tmp_path)
@@ -136,6 +146,8 @@ def load_assignment_text_from_gcs(assignment_id: str) -> str:
 def build_export_response(assignment_id: str, answers_list: list[dict]) -> Response:
     try:
         title, questions = load_assignment_from_gcs(assignment_id)
+    except AssignmentExpiredError:
+        raise HTTPException(status_code=410, detail="Assignment expired")
     except ValueError:
         raise HTTPException(status_code=404, detail="Assignment not found")
     except Exception:

@@ -29,6 +29,15 @@ class AssignmentManifest(BaseModel):
     def to_questions_dict(self) -> list[dict]:
         return [{"id": q.id, "text": q.text} for q in self.questions]
 
+    def is_expired(self, now: datetime | None = None) -> bool:
+        if not self.expires_at:
+            return False
+        try:
+            expires = datetime.fromisoformat(self.expires_at.replace("Z", "+00:00"))
+        except ValueError:
+            return False
+        return expires <= (now or datetime.now(timezone.utc))
+
     def model_dump_json(self, **kwargs: Any) -> str:
         return json.dumps(self.model_dump(), ensure_ascii=False)
 

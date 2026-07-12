@@ -1,5 +1,6 @@
 """Assignment manifest persistence tests."""
 import json
+from datetime import datetime, timezone
 
 from manifest import AssignmentManifest, build_manifest, parse_manifest_json
 
@@ -42,3 +43,18 @@ def test_parse_manifest_json_validates_version():
     }
     manifest = parse_manifest_json(json.dumps(payload))
     assert manifest.version == 1
+
+
+def test_manifest_expiration_is_enforced_by_time():
+    manifest = AssignmentManifest(
+        assignment_id="expired",
+        title="T",
+        questions=[],
+        expires_at="2026-01-01T00:00:00+00:00",
+    )
+    assert manifest.is_expired(datetime(2026, 1, 2, tzinfo=timezone.utc)) is True
+
+
+def test_manifest_without_expiration_is_active():
+    manifest = AssignmentManifest(assignment_id="active", title="T", questions=[])
+    assert manifest.is_expired() is False

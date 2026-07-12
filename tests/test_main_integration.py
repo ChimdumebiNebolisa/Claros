@@ -31,6 +31,16 @@ def test_healthz_is_dependency_free():
     assert response.json() == {"status": "ok"}
 
 
+def test_session_start_maps_expired_assignment(monkeypatch):
+    def raise_expired(_assignment_id):
+        raise assignment_service.AssignmentExpiredError("expired")
+
+    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", raise_expired)
+    response = client.post("/api/session/start", json={"assignment_id": TEST_ASSIGNMENT_ID})
+    assert response.status_code == 410
+    assert response.json()["detail"] == "Assignment expired"
+
+
 def test_landing_has_no_app_workspace():
     """GET / serves marketing landing without functional upload workspace."""
     response = client.get("/")
