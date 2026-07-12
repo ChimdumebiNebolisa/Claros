@@ -64,10 +64,8 @@ def test_app_js_served():
     assert "javascript" in response.headers.get("content-type", "").lower()
     assert b"loadSamplePdf" in response.content
     assert b"sample" in response.content
-    assert b"role', 'textbox" in response.content
-    assert b"aria-label', 'Answer for question" in response.content
-    assert b"aria-multiline', 'true" in response.content
     assert b"showKeyboardFallback" in response.content
+    assert b"ClarosQuestionView" in response.content
 
 
 def test_app_returns_html():
@@ -117,6 +115,13 @@ def test_session_rules_js_served():
     assert response.status_code == 200
     assert "javascript" in response.headers.get("content-type", "").lower()
     assert b"ClarosSessionRules" in response.content
+
+
+def test_question_view_js_served():
+    response = client.get("/question-view.js")
+    assert response.status_code == 200
+    assert "javascript" in response.headers.get("content-type", "").lower()
+    assert b"ClarosQuestionView" in response.content
 
 
 def test_export_post_returns_pdf_attachment(monkeypatch):

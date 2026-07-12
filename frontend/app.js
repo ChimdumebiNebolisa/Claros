@@ -30,6 +30,11 @@
     errorsEl.textContent = 'Claros failed to load session rules (session-rules.js).';
     throw new Error('ClarosSessionRules missing');
   }
+  const QuestionView = typeof ClarosQuestionView !== 'undefined' ? ClarosQuestionView : null;
+  if (!QuestionView) {
+    errorsEl.textContent = 'Claros failed to load the worksheet renderer.';
+    throw new Error('ClarosQuestionView missing');
+  }
   var normalizeTranscript = SR.normalizeTranscript;
   var parseQuestionNum = SR.parseQuestionNum;
   var parseClarosWriteQuestionNum = SR.parseClarosWriteQuestionNum;
@@ -117,7 +122,6 @@
         throw new Error(err.detail || err.error || 'Upload failed');
       }
       const data = await r.json();
-      console.log('[doUpload] Full upload response:', JSON.stringify(data, null, 2));
       state.assignmentId = data.assignment_id;
       state.title = data.title || 'Assignment';
       state.questions = data.questions || [];
@@ -140,23 +144,10 @@
 
   /* ?????? Question rendering ?????? */
   function renderQuestions() {
-    console.log('[renderQuestions] Received state.questions:', state.questions?.length, state.questions);
     questionsContainer.innerHTML = '';
     state.questions.forEach((q) => {
-      const card = document.createElement('div');
-      card.className = 'question-card';
-      card.dataset.questionId = String(q.id);
-      const questionText = (q.text != null && q.text !== '') ? String(q.text) : '';
-      card.innerHTML = '<div class="question-header"><div style="display:flex;align-items:center"><span class="question-index">' + q.id + '</span><div class="question-label">Question ' + q.id + '<span class="ready-badge">Answer confirmed</span></div></div><div class="question-meta">&nbsp;</div></div><div class="question-text"></div><div class="answer-field" data-question-id="' + q.id + '" data-placeholder="Say your answer in a session, or type it here" contenteditable="true" spellcheck="true"></div><button type="button" class="btn-confirm-answer" data-question-id="' + q.id + '" aria-label="Confirm answer for question ' + q.id + '" disabled>Confirm answer</button>';
-      const questionTextEl = card.querySelector('.question-text');
+      const card = QuestionView.createCard(q);
       const answerEl = card.querySelector('.answer-field');
-      answerEl.setAttribute('role', 'textbox');
-      answerEl.setAttribute('aria-label', 'Answer for question ' + q.id);
-      answerEl.setAttribute('aria-multiline', 'true');
-      if (questionTextEl) {
-        questionTextEl.textContent = questionText;
-        console.log('[renderQuestions] Card for Q' + q.id + ': set question-text to', questionText ? questionText.substring(0, 50) + (questionText.length > 50 ? '...' : '') : '(empty)');
-      }
       answerEl.addEventListener('input', () => {
         state.answers[q.id] = answerEl.textContent;
         draftAnswer[q.id] = answerEl.textContent.trim();
@@ -176,7 +167,6 @@
     if (state.questions && state.questions.length > 0) {
       exportBtn.classList.add('visible');
     }
-    console.log('[renderQuestions] Created', state.questions?.length || 0, 'card(s). DOM children:', questionsContainer.children.length);
   }
 
   function getAnswerEl(questionId) {
@@ -477,9 +467,7 @@
     var answers = state.questions.map(function (q) {
       return { question_id: q.id, answer_text: state.answers[q.id] || '' };
     });
-    var source = (opts && opts.source) || 'manual';
     var href = '/export/' + state.assignmentId;
-    console.log('[voice-export] Triggering PDF export.', { source: source, href: href });
     errorsEl.textContent = 'Exporting your PDF... your browser should download the file.';
     setChecklistStep(setupStepExport, true);
     fetch(href, {
@@ -517,10 +505,8 @@
     if (!hasExportIntent(norm)) return;
     if (!state.assignmentId) return;
     if (norm === lastExportVoiceNorm) {
-      console.log('[voice-export] Skipping duplicate export phrase for same normalized utterance.');
       return;
     }
-    console.log('[voice-export] Voice export intent detected.', { raw: raw, normalized: norm });
     var ok = performExport({ source: 'voice' });
     if (ok) {
       lastExportVoiceNorm = norm;
@@ -570,7 +556,6 @@
       .then(function (reader) {
         var decoder = new TextDecoder();
         var totalChars = 0;
-        var firstChunkLogged = false;
         function read() {
           return reader.read().then(function (_ref) {
             var done = _ref.done;
@@ -581,10 +566,6 @@
             }
             var text = decoder.decode(value, { stream: true });
             if (text) {
-              if (!firstChunkLogged) {
-                console.log('[write-chain] First chunk received qid=' + qid + ' chunkLength=' + text.length + ' chunkPreview=' + (text.length > 80 ? '"' + text.slice(0, 80) + '..."' : '"' + text + '"'));
-                firstChunkLogged = true;
-              }
               totalChars += text.length;
               var targetEl = document.querySelector(selector);
               if (!targetEl) {
@@ -593,7 +574,6 @@
                 var raw = (targetEl.textContent || '') + text;
                 targetEl.textContent = raw.replace(/\$([^$]+)\$/g, '$1');
                 state.answers[questionId] = targetEl.textContent;
-                console.log('[write-chain] DOM updated qid=' + qid + ' selector=' + selector + ' elementFound=true lengthAfterAppend=' + targetEl.textContent.length);
               }
               exportBtn.classList.add('visible');
             }
@@ -679,9 +659,6 @@
       apiKey: config.token,
       httpOptions: { apiVersion: 'v1alpha' }
     });
-    if (typeof console !== 'undefined' && console.log) {
-      console.log('[Claros] Live connect: token present=' + !!(config.token) + ', token length=' + (config.token ? String(config.token).length : 0) + ', model=' + (config.model || '') + ', apiVersion=v1alpha, SDK client created with v1alpha');
-    }
     var session;
     try {
       session = await ai.live.connect({
@@ -775,7 +752,6 @@
                   noticeEl.textContent = 'Confirm your answer for question ' + qid + ' before writing.';
                 }
                 if (hasExportIntent(norm)) {
-                  console.log('[intent] Export intent matched.', { normalized: norm });
                 }
                 triggerVoiceExport(full, norm);
               }

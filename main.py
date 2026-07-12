@@ -293,6 +293,15 @@ async def serve_session_rules():
     return FileResponse(path, media_type="application/javascript; charset=utf-8")
 
 
+@app.get("/question-view.js", response_class=Response)
+async def serve_question_view_js():
+    """Serve the isolated worksheet question-card renderer."""
+    path = config.ROOT / "frontend" / "question-view.js"
+    if not path.exists():
+        raise HTTPException(status_code=503, detail="question-view.js missing from frontend/")
+    return FileResponse(path, media_type="application/javascript; charset=utf-8")
+
+
 @app.get("/app.js", response_class=Response)
 async def serve_app_js():
     """Serve the worksheet app client script."""
