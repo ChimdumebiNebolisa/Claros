@@ -42,7 +42,7 @@ Last updated: 2026-07-12 (America/Chicago)
 - [ ] Phase 11 — PDF processing hardening
 - [ ] Phase 12 — Deployment hardening
 - [ ] Phase 13 — Privacy-safe observability
-- [ ] Phase 14 — Legacy cleanup
+- [x] Phase 14 — Legacy cleanup
 - [ ] Phase 15 — Documentation reconciliation
 
 ## Work-unit evidence
@@ -125,8 +125,10 @@ Producer-to-consumer trace:
 - 2026-07-12 — Enforced assignment manifest expiration with typed errors and HTTP 410 mapping; added page-count and extracted-text PDF limits with recoverable HTTP 400 errors.
 - 2026-07-12 — Added generation-aware session reads/writes and HTTP 409 conflict handling; added fixed-label privacy-safe observability events.
 - 2026-07-12 — Removed `frontend/index.backup.html` after the prior runtime/reference audit; `frontend/index.html` remains for a separate final cleanup unit.
+- 2026-07-12 — Removed `frontend/index.html` after the final repository-wide reference search; `/index.html` and `/index.backup.html` remain 404 regression checks.
+- 2026-07-12 — Merged PRs #10, #11, #12, and #13 into `main` in separately verified batches. The feature branch remains available for subsequent roadmap work.
 
-Remaining incomplete phases: frontend modularization, full browser failure-flow automation, assignment/session cleanup automation, deeper logging adversarial coverage, deployment revision/rollback verification, final legacy removal, and final full-system reconciliation. These remain intentionally unchecked until implementation and verification exist.
+Remaining incomplete phases: deeper frontend modularization, full browser failure-flow automation, assignment cleanup automation, deeper logging adversarial coverage, deployment revision/rollback verification, privacy-safe observability coverage expansion, and final full-system reconciliation. These remain intentionally unchecked until implementation and verification exist.
 
 ### 2026-07-12 full-roadmap execution evidence
 
@@ -157,3 +159,6 @@ Self-review:
 - Remaining roadmap work: full responsive/reduced-motion/200% zoom matrix, color/claim/workflow/storage audits, frontend modularization, storage generation preconditions, assignment expiration enforcement, PDF hardening, observability, legacy removal, and final documentation reconciliation remain incomplete and are not marked complete.
 - Production behaviors not verified locally: live Gemini Live, real GCS, Cloud Run deployment, post-deploy revision verification, and production smoke checks.
 - Final post-change verification: `python -m pytest tests/ --cov --cov-config=pyproject.toml --cov-report=term-missing` — exit 0; 113 passed; total coverage 82.62%. `npm run test:frontend` — exit 0; 17 session-rule cases and 6 validators passed. `git diff --check` — exit 0 apart from existing LF/CRLF notices.
+- Final reconciliation verification: `python -m pytest tests/ --cov --cov-config=pyproject.toml --cov-report=term-missing` — exit 0; 128 passed; total coverage 84.21%. Ruff — exit 0. `npm run ci:frontend` — exit 0; 17 session-rule cases, 6 validators, and 644.8kb bundle build passed. `docker build -t claros:ci .` — exit 0. Curl smoke — exit 0 for `/healthz`, `/`, `/app`, and `/question-view.js`.
+- Privacy review: removed provider debug response content from logs; browser console no longer logs upload payloads, question text, transcript text, or generated answer previews.
+- Production uncertainty: real Cloud Run deployment, immutable revision promotion, rollback, live Gemini, real GCS lifecycle rules, and post-deploy smoke remain unverified locally because no production deployment was performed in this run.
