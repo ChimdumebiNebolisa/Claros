@@ -130,5 +130,5 @@ async def debug_gemini_text_call() -> dict:
         contents="Reply with exactly one word: ok",
     )
     result_text = response.text.strip() if response.text else "(empty)"
-    logger.info("[debug-gemini] SUCCESS: %r", result_text)
+    logger.info("[debug-gemini] SUCCESS response_chars=%s", len(result_text))
     return {"status": "ok", "model": text_model, "response": result_text}
