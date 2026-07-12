@@ -57,6 +57,22 @@ This is not about making assignments easier. It is about making them accessible 
 
 ## Architecture
 
+```mermaid
+flowchart LR
+  Browser[Browser] --> Landing[GET / → landing.html]
+  Browser --> App[GET /app → app.html]
+  App --> Upload[POST /upload]
+  Upload --> Parser[PyMuPDF parser]
+  Parser --> Storage[(Google Cloud Storage)]
+  App --> Session[Session start / restore / confirm]
+  Session --> Storage
+  App --> Live[Direct Gemini Live]
+  App --> Write[POST /api/write]
+  Write --> Gemini[Gemini text stream]
+  App --> Export[POST /export]
+  Export --> PDF[ReportLab PDF]
+```
+
 ```
 Browser (frontend/landing.html at `/`, frontend/app.html at `/app`)
   │

@@ -21,12 +21,12 @@ Last updated: 2026-07-12 (America/Chicago)
 - [x] Run and record frontend bundle build
 - [x] Run and record Docker build
 - [x] Run and record smoke tests
-- [ ] Capture active landing and application states across required viewports and accessibility modes
-- [ ] Audit active hard-coded colors against tokens
-- [ ] Trace the complete product workflow
-- [ ] Map storage and lifecycle behavior
-- [ ] Create producer-to-consumer blast-radius map
-- [ ] Inventory user-facing privacy, accessibility, and retention claims
+- [x] Capture active landing and application states across required viewports and accessibility modes
+- [x] Audit active hard-coded colors against tokens
+- [x] Trace the complete product workflow
+- [x] Map storage and lifecycle behavior
+- [x] Create producer-to-consumer blast-radius map
+- [x] Inventory user-facing privacy, accessibility, and retention claims
 
 ### Later phases
 
@@ -116,6 +116,17 @@ Producer-to-consumer trace:
 - Screens or states verified: static response identity for `/` and `/app`; `/index.html` and `/index.backup.html` 404 behavior; visual states not yet verified.
 - Production behaviors not verified locally: Cloud Run routing, deployed asset contents, credentials, live GCS, Gemini Live, and post-deploy smoke checks.
 - Public claims verified against code: active and legacy entrypoint statements above, plus the `DEPLOY.md` claim that `frontend/index.html` and `frontend/index.backup.html` are legacy monolithic prototypes not served by the backend. Broader README claims remain unaudited.
+
+### Continued roadmap execution
+
+- 2026-07-12 — Captured `output/playwright/landing-desktop-1440.png`, `landing-tablet-768.png`, `landing-mobile-390-full.png`, `landing-reduced-motion.png`, `app-desktop-1440.png`, `app-tablet-768.png`, `app-mobile-390-full.png`, and `app-200-percent-zoom.png`; keyboard focus and accessible snapshot verification completed on `/app`.
+- 2026-07-12 — Completed the active CSS semantic-color audit and centralized speaking, success, error, danger, and on-dark colors through `tokens.css`.
+- 2026-07-12 — Added `docs/CLAROS_AUDIT.md` with the producer-to-consumer flow, storage/lifecycle map, claim inventory, and known gaps.
+- 2026-07-12 — Enforced assignment manifest expiration with typed errors and HTTP 410 mapping; added page-count and extracted-text PDF limits with recoverable HTTP 400 errors.
+- 2026-07-12 — Added generation-aware session reads/writes and HTTP 409 conflict handling; added fixed-label privacy-safe observability events.
+- 2026-07-12 — Removed `frontend/index.backup.html` after the prior runtime/reference audit; `frontend/index.html` remains for a separate final cleanup unit.
+
+Remaining incomplete phases: frontend modularization, full browser failure-flow automation, assignment/session cleanup automation, deeper logging adversarial coverage, deployment revision/rollback verification, final legacy removal, and final full-system reconciliation. These remain intentionally unchecked until implementation and verification exist.
 
 ### 2026-07-12 full-roadmap execution evidence
 
