@@ -31,12 +31,14 @@
   --dark-text: #f8efe4;
   --dark-muted: #d4c0a9;
   --dark-subtle: #a79077;
+  --on-dark: #ffffff;
 
   /* Semantic states */
   --success: #0f7a45;
   --success-soft: #e4f8ec;
   --success-line: #aee3c3;
   --success-bright: #67e2a5;    /* on dark */
+  --success-text: #c4efd8;
   --warn: #92400e;
   --warn-soft: #ffeddc;
   --warn-line: #f5c79d;
@@ -45,6 +47,9 @@
   --error-soft: #fceaee;
   --error-line: #f0bcc9;
   --error-bright: #ff8fa5;      /* on dark */
+  --error-text: #ffd0da;
+  --danger: #c22a4a;
+  --speaking-bright: #ffce96;
   --info-bright: #ffc078;       /* on dark */
 
   /* Type */
@@ -177,9 +182,9 @@ label:focus-within {
   inset: 0;
   border-radius: inherit;
   background:
-    linear-gradient(#fff, #fff) 26% 50% / 0.2rem 34% no-repeat,
-    linear-gradient(#fff, #fff) 50% 50% / 0.2rem 58% no-repeat,
-    linear-gradient(#fff, #fff) 74% 50% / 0.2rem 34% no-repeat;
+    linear-gradient(var(--on-dark), var(--on-dark)) 26% 50% / 0.2rem 34% no-repeat,
+    linear-gradient(var(--on-dark), var(--on-dark)) 50% 50% / 0.2rem 58% no-repeat,
+    linear-gradient(var(--on-dark), var(--on-dark)) 74% 50% / 0.2rem 34% no-repeat;
 }
 
 .brand-copy {
@@ -233,7 +238,7 @@ label:focus-within {
   padding: 0.5rem 1.05rem;
   border-radius: var(--radius-pill);
   border: none;
-  color: #fff;
+  color: var(--on-dark);
   background: var(--ink);
   font-size: 0.84rem;
   font-weight: 700;
