@@ -74,8 +74,9 @@
                 <h3 class="info-card-title" id="info-format-title">Works best with</h3>
                 <ul class="info-card-list">
                   <li>Clear PDF worksheets with numbered questions</li>
-                  <li>Typed or neatly scanned pages</li>
+                  <li>PDFs with selectable text</li>
                   <li>Readable text and high contrast</li>
+                  <li>Image-only scans may need OCR first</li>
                 </ul>
               </section>
             </div>
@@ -112,6 +113,7 @@
           <div id="transcript" class="transcript" aria-live="polite"></div>
           <div id="notice" class="notice" role="status" aria-live="polite"></div>
           <div id="errors" class="errors" role="alert"></div>
+          <p id="keyboardFallback" class="keyboard-fallback" hidden>Voice is unavailable right now. You can still type answers, confirm them, and export your worksheet.</p>
           <p class="session-privacy-note">You speak first. Claros writes answers only after you state and approve them. Your microphone is used only during an active session.</p>
           <div class="session-actions">
             <button class="btn session-btn" id="micBtn" type="button" disabled>Start Session</button>
@@ -122,6 +124,7 @@
     </main>
   </div>
   <script src="/session-rules.js"></script>
+  <script src="/question-view.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

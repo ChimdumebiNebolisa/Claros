@@ -585,7 +585,7 @@ body:not(.has-assignment) .assignment-title {
   background: rgba(87, 217, 154, 0.08);
 }
 .status-bar.speaking {
-  color: #ffce96;
+  color: var(--speaking-bright);
   border-color: rgba(255, 206, 150, 0.32);
   background: rgba(255, 206, 150, 0.1);
 }
@@ -597,7 +597,7 @@ body:not(.has-assignment) .assignment-title {
 
 .status-bar.connecting .status-dot { background: var(--info-bright); }
 .status-bar.listening .status-dot { background: var(--success-bright); }
-.status-bar.speaking .status-dot { background: #ffce96; }
+.status-bar.speaking .status-dot { background: var(--speaking-bright); }
 .status-bar.writing .status-dot { background: var(--warn-bright); }
 
 .status-bar.connecting .status-dot,
@@ -744,7 +744,7 @@ body:not(.has-assignment) .assignment-title {
   border-radius: var(--radius-sm);
   border: 1px solid rgba(87, 217, 154, 0.3);
   background: rgba(87, 217, 154, 0.1);
-  color: #c4efd8;
+  color: var(--success-text);
 }
 
 .notice:empty { display: none; }
@@ -756,10 +756,23 @@ body:not(.has-assignment) .assignment-title {
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255, 143, 165, 0.35);
   background: rgba(255, 143, 165, 0.1);
-  color: #ffd0da;
+  color: var(--error-text);
 }
 
 .errors:empty { display: none; }
+
+.keyboard-fallback {
+  margin-top: 0.85rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--warn-line);
+  border-radius: var(--radius-sm);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.keyboard-fallback[hidden] { display: none; }
 
 .session-privacy-note {
   font-size: 0.74rem;
@@ -791,7 +804,7 @@ body:not(.has-assignment) .assignment-title {
 
 .btn.session-btn {
   background: var(--iris);
-  color: #fff;
+  color: var(--on-dark);
   min-height: 3rem;
   box-shadow: 0 10px 24px rgba(249, 115, 22, 0.36);
 }
@@ -808,12 +821,12 @@ body:not(.has-assignment) .assignment-title {
 }
 
 .btn.session-btn.stop {
-  background: #c22a4a;
+  background: var(--danger);
   box-shadow: 0 10px 24px rgba(194, 42, 74, 0.3);
 }
 
 .btn.session-btn.stop:hover:not(:disabled) {
-  background: #a91e3c;
+  background: var(--error);
 }
 
 .btn.interrupt {
@@ -832,7 +845,7 @@ body:not(.has-assignment) .assignment-title {
 
 .btn.export {
   background: var(--ink);
-  color: #fff;
+  color: var(--on-dark);
   display: none;
   box-shadow: var(--shadow-soft);
 }

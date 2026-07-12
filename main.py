@@ -5,11 +5,10 @@ Real-time voice uses Gemini Live directly from the browser.
 import json
 import logging
 import uuid
-import hmac
 from uuid import UUID
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 
 import assignment_service
 from assignment_service import build_export_response, delete_assignment, get_parse_diagnostics, persist_assignment_from_pdf_bytes
@@ -25,10 +24,28 @@ from schemas import (
     validate_export_answers,
 )
 import session_service
+import storage
+from observability import record_metric
+from parser import PDFProcessingError
 
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+
+
+@app.exception_handler(storage.StorageConflict)
+async def storage_conflict_handler(_request, _exc):
+    record_metric("write_conflict", status="conflict", reason="storage")
+    return JSONResponse(
+        status_code=409,
+        content={"code": "SESSION_WRITE_CONFLICT", "detail": "Session changed. Refresh and try again."},
+    )
+
+
+@app.get("/healthz")
+def healthz():
+    """Lightweight container health endpoint with no external service dependency."""
+    return {"status": "ok"}
 
 
 def _assignment_not_found() -> HTTPException:
@@ -56,6 +73,8 @@ def get_session_config(assignment_id: UUID):
     aid = str(assignment_id)
     try:
         return create_session_config(aid)
+    except assignment_service.AssignmentExpiredError:
+        raise HTTPException(status_code=410, detail="Assignment expired")
     except ValueError:
         raise _assignment_not_found()
     except RuntimeError as e:
@@ -77,6 +96,8 @@ def start_tutoring_session(body: SessionStartRequest):
         raise HTTPException(status_code=400, detail="Invalid assignment_id")
     try:
         title, questions = assignment_service.load_assignment_from_gcs(aid)
+    except assignment_service.AssignmentExpiredError:
+        raise HTTPException(status_code=410, detail="Assignment expired")
     except ValueError:
         raise _assignment_not_found()
     except Exception:
@@ -84,6 +105,7 @@ def start_tutoring_session(body: SessionStartRequest):
         raise HTTPException(status_code=500, detail="Could not load assignment. Please try again.")
     qids = [q["id"] for q in questions]
     payload = session_service.create_session(aid, qids)
+    record_metric("session_created", status="ok")
     payload["title"] = title
     payload["questions"] = questions
     return payload
@@ -92,12 +114,14 @@ def start_tutoring_session(body: SessionStartRequest):
 @app.post("/api/session/{session_id}/confirm")
 def confirm_answer_for_question(session_id: UUID, body: SessionConfirmRequest):
     """Explicitly confirm a student-owned answer and receive a single-use write token."""
-    return session_service.confirm_answer(
+    result = session_service.confirm_answer(
         str(session_id),
         body.session_secret,
         body.question_id,
         body.answer_text,
     )
+    record_metric("confirmation", status="ok")
+    return result
 
 
 @app.post("/api/session/{session_id}/restore")
@@ -118,11 +142,13 @@ async def stream_write(assignment_id: UUID, body: WriteRequest):
         state = session_service.load_session(body.session_id)
         if state.assignment_id != aid:
             raise HTTPException(status_code=403, detail="Session does not match assignment")
-        if not hmac.compare_digest(state.session_secret, body.session_secret):
+        if not state.verify_session_secret(body.session_secret):
             raise HTTPException(status_code=403, detail="Invalid session credentials")
         session_service.validate_write_token(state, body.question_id, body.answer_candidate, body.write_token)
     try:
         title, questions = assignment_service.load_assignment_from_gcs(aid)
+    except assignment_service.AssignmentExpiredError:
+        raise HTTPException(status_code=410, detail="Assignment expired")
     except ValueError:
         raise _assignment_not_found()
     except Exception:
@@ -172,6 +198,8 @@ def parse_diagnostics(assignment_id: UUID):
     """Return parse warnings and status for an assignment manifest."""
     try:
         return get_parse_diagnostics(str(assignment_id))
+    except assignment_service.AssignmentExpiredError:
+        raise HTTPException(status_code=410, detail="Assignment expired")
     except ValueError:
         raise _assignment_not_found()
     except Exception:
@@ -198,6 +226,7 @@ async def upload_assignment(file: UploadFile = File(...)):
     try:
         manifest = persist_assignment_from_pdf_bytes(assignment_id, content)
         payload = manifest.to_questions_dict()
+        record_metric("pdf_parse", status="ok" if manifest.parse_status == "ok" else "fallback")
         logger.info(
             "[POST /upload] Parsed questions: count=%s assignment_id=%s parse_status=%s",
             len(payload),
@@ -211,6 +240,9 @@ async def upload_assignment(file: UploadFile = File(...)):
             "parse_status": manifest.parse_status,
             "parse_warnings": manifest.parse_warnings,
         }
+    except PDFProcessingError as exc:
+        record_metric("pdf_parse", status="error", reason="malformed")
+        raise HTTPException(status_code=400, detail=str(exc))
     except Exception:
         logger.exception("PDF parse/upload failed for assignment %s", assignment_id)
         raise HTTPException(status_code=500, detail="Could not read that PDF. Please try another file.")
@@ -258,6 +290,15 @@ async def serve_session_rules():
     path = config.ROOT / "frontend" / "session-rules.js"
     if not path.exists():
         raise HTTPException(status_code=503, detail="session-rules.js missing from frontend/")
+    return FileResponse(path, media_type="application/javascript; charset=utf-8")
+
+
+@app.get("/question-view.js", response_class=Response)
+async def serve_question_view_js():
+    """Serve the isolated worksheet question-card renderer."""
+    path = config.ROOT / "frontend" / "question-view.js"
+    if not path.exists():
+        raise HTTPException(status_code=503, detail="question-view.js missing from frontend/")
     return FileResponse(path, media_type="application/javascript; charset=utf-8")
 
 

@@ -44,6 +44,7 @@ This is not about making assignments easier. It is about making them accessible 
 ## Features
 
 - **PDF assignment ingestion** - Upload any PDF with "Question N:" formatting. Questions are extracted and rendered as an interactive worksheet.
+- **PDF safety limits** - Uploads are bounded by byte size, page count, and extracted-text size; malformed or unsupported PDFs return a recoverable validation error.
 - **Real-time voice conversation** - Bidirectional audio through Gemini Live. The student speaks and hears Claros respond with natural voice.
 - **Socratic guidance** - Claros defaults to teaching mode, asking guiding questions rather than stating answers.
 - **Per-question answer readiness tracking** - The frontend tracks whether the student has stated a final answer for each question before allowing a write.
@@ -55,6 +56,22 @@ This is not about making assignments easier. It is about making them accessible 
 - **Voice-enabled PDF export** - Saying phrases like “export pdf” or “export this as pdf” from within the voice session triggers the same PDF export as the button; export is allowed even when no answers have been written yet.
 
 ## Architecture
+
+```mermaid
+flowchart LR
+  Browser[Browser] --> Landing[GET / → landing.html]
+  Browser --> App[GET /app → app.html]
+  App --> Upload[POST /upload]
+  Upload --> Parser[PyMuPDF parser]
+  Parser --> Storage[(Google Cloud Storage)]
+  App --> Session[Session start / restore / confirm]
+  Session --> Storage
+  App --> Live[Direct Gemini Live]
+  App --> Write[POST /api/write]
+  Write --> Gemini[Gemini text stream]
+  App --> Export[POST /export]
+  Export --> PDF[ReportLab PDF]
+```
 
 ```
 Browser (frontend/landing.html at `/`, frontend/app.html at `/app`)
@@ -102,6 +119,9 @@ The backend and frontend include guardrails to reduce common failure modes:
 - **Storage determinism**: uploads always use canonical `assignment.pdf`; legacy multi-blob prefixes fall back to sorted `.pdf` selection.
 - **Privacy-aware logging**: operational logs avoid assignment titles and question text.
 - **Accessibility/resilience**: worksheet upload has an explicit keyboard button; session live badge has class-based fallback beyond CSS `:has()`.
+- **Voice fallback**: microphone denial, unavailable audio, and provider connection failures leave typed answers, confirmation, and export available.
+- **Session-secret protection**: new durable session records store a keyed hash instead of the client secret in plaintext; verification remains constant-time.
+- **Privacy-safe observability**: operational metrics use fixed event names and bounded status/reason labels; document, question, answer, token, and secret content is excluded.
 - **CI consistency**: parallel CI jobs (python coverage+lint, frontend contract+bundle, docker smoke); deploy gated by verify job + post-deploy probes.
 
 When extending Claros, preserve these invariants: validate at API boundaries, keep error semantics explicit, and add regression tests for each new guardrail.

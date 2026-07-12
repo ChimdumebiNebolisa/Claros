@@ -17,6 +17,7 @@
   const transcriptEl = document.getElementById('transcript');
   const noticeEl = document.getElementById('notice');
   const errorsEl = document.getElementById('errors');
+  const keyboardFallbackEl = document.getElementById('keyboardFallback');
   const micBtn = document.getElementById('micBtn');
   const interruptBtn = document.getElementById('interruptBtn');
   const setupStepUpload = document.getElementById('setupStepUpload');
@@ -28,6 +29,11 @@
   if (!SR) {
     errorsEl.textContent = 'Claros failed to load session rules (session-rules.js).';
     throw new Error('ClarosSessionRules missing');
+  }
+  const QuestionView = typeof ClarosQuestionView !== 'undefined' ? ClarosQuestionView : null;
+  if (!QuestionView) {
+    errorsEl.textContent = 'Claros failed to load the worksheet renderer.';
+    throw new Error('ClarosQuestionView missing');
   }
   var normalizeTranscript = SR.normalizeTranscript;
   var parseQuestionNum = SR.parseQuestionNum;
@@ -116,7 +122,6 @@
         throw new Error(err.detail || err.error || 'Upload failed');
       }
       const data = await r.json();
-      console.log('[doUpload] Full upload response:', JSON.stringify(data, null, 2));
       state.assignmentId = data.assignment_id;
       state.title = data.title || 'Assignment';
       state.questions = data.questions || [];
@@ -139,23 +144,10 @@
 
   /* ?????? Question rendering ?????? */
   function renderQuestions() {
-    console.log('[renderQuestions] Received state.questions:', state.questions?.length, state.questions);
     questionsContainer.innerHTML = '';
     state.questions.forEach((q) => {
-      const card = document.createElement('div');
-      card.className = 'question-card';
-      card.dataset.questionId = String(q.id);
-      const questionText = (q.text != null && q.text !== '') ? String(q.text) : '';
-      card.innerHTML = '<div class="question-header"><div style="display:flex;align-items:center"><span class="question-index">' + q.id + '</span><div class="question-label">Question ' + q.id + '<span class="ready-badge">Answer confirmed</span></div></div><div class="question-meta">&nbsp;</div></div><div class="question-text"></div><div class="answer-field" data-question-id="' + q.id + '" data-placeholder="Say your answer in a session, or type it here" contenteditable="true" spellcheck="true"></div><button type="button" class="btn-confirm-answer" data-question-id="' + q.id + '" aria-label="Confirm answer for question ' + q.id + '" disabled>Confirm answer</button>';
-      const questionTextEl = card.querySelector('.question-text');
+      const card = QuestionView.createCard(q);
       const answerEl = card.querySelector('.answer-field');
-      answerEl.setAttribute('role', 'textbox');
-      answerEl.setAttribute('aria-label', 'Answer for question ' + q.id);
-      answerEl.setAttribute('aria-multiline', 'true');
-      if (questionTextEl) {
-        questionTextEl.textContent = questionText;
-        console.log('[renderQuestions] Card for Q' + q.id + ': set question-text to', questionText ? questionText.substring(0, 50) + (questionText.length > 50 ? '...' : '') : '(empty)');
-      }
       answerEl.addEventListener('input', () => {
         state.answers[q.id] = answerEl.textContent;
         draftAnswer[q.id] = answerEl.textContent.trim();
@@ -175,7 +167,6 @@
     if (state.questions && state.questions.length > 0) {
       exportBtn.classList.add('visible');
     }
-    console.log('[renderQuestions] Created', state.questions?.length || 0, 'card(s). DOM children:', questionsContainer.children.length);
   }
 
   function getAnswerEl(questionId) {
@@ -357,6 +348,21 @@
     }
   }
 
+  function showKeyboardFallback(message) {
+    if (liveSession && liveSession.close) {
+      try { liveSession.close(); } catch (_) {}
+      liveSession = null;
+    }
+    if (keyboardFallbackEl) keyboardFallbackEl.hidden = false;
+    if (noticeEl) noticeEl.textContent = message || 'Voice is unavailable. You can continue by typing answers.';
+    if (micBtn) {
+      micBtn.disabled = !state.assignmentId;
+      micBtn.textContent = 'Try Voice Again';
+    }
+    if (interruptBtn) interruptBtn.classList.remove('visible');
+    setStatus('idle');
+  }
+
   /* ?????? Transcript (streaming) ?????? */
   let activeClarosMsg = null;
   let userPartialEl = null;
@@ -461,9 +467,7 @@
     var answers = state.questions.map(function (q) {
       return { question_id: q.id, answer_text: state.answers[q.id] || '' };
     });
-    var source = (opts && opts.source) || 'manual';
     var href = '/export/' + state.assignmentId;
-    console.log('[voice-export] Triggering PDF export.', { source: source, href: href });
     errorsEl.textContent = 'Exporting your PDF... your browser should download the file.';
     setChecklistStep(setupStepExport, true);
     fetch(href, {
@@ -501,10 +505,8 @@
     if (!hasExportIntent(norm)) return;
     if (!state.assignmentId) return;
     if (norm === lastExportVoiceNorm) {
-      console.log('[voice-export] Skipping duplicate export phrase for same normalized utterance.');
       return;
     }
-    console.log('[voice-export] Voice export intent detected.', { raw: raw, normalized: norm });
     var ok = performExport({ source: 'voice' });
     if (ok) {
       lastExportVoiceNorm = norm;
@@ -554,7 +556,6 @@
       .then(function (reader) {
         var decoder = new TextDecoder();
         var totalChars = 0;
-        var firstChunkLogged = false;
         function read() {
           return reader.read().then(function (_ref) {
             var done = _ref.done;
@@ -565,10 +566,6 @@
             }
             var text = decoder.decode(value, { stream: true });
             if (text) {
-              if (!firstChunkLogged) {
-                console.log('[write-chain] First chunk received qid=' + qid + ' chunkLength=' + text.length + ' chunkPreview=' + (text.length > 80 ? '"' + text.slice(0, 80) + '..."' : '"' + text + '"'));
-                firstChunkLogged = true;
-              }
               totalChars += text.length;
               var targetEl = document.querySelector(selector);
               if (!targetEl) {
@@ -577,7 +574,6 @@
                 var raw = (targetEl.textContent || '') + text;
                 targetEl.textContent = raw.replace(/\$([^$]+)\$/g, '$1');
                 state.answers[questionId] = targetEl.textContent;
-                console.log('[write-chain] DOM updated qid=' + qid + ' selector=' + selector + ' elementFound=true lengthAfterAppend=' + targetEl.textContent.length);
               }
               exportBtn.classList.add('visible');
             }
@@ -663,9 +659,6 @@
       apiKey: config.token,
       httpOptions: { apiVersion: 'v1alpha' }
     });
-    if (typeof console !== 'undefined' && console.log) {
-      console.log('[Claros] Live connect: token present=' + !!(config.token) + ', token length=' + (config.token ? String(config.token).length : 0) + ', model=' + (config.model || '') + ', apiVersion=v1alpha, SDK client created with v1alpha');
-    }
     var session;
     try {
       session = await ai.live.connect({
@@ -740,10 +733,6 @@
               setStatus('listening');
               if (full) {
                 var norm = normalizeTranscript(full);
-                console.log('[transcript] Final turn.', {
-                  raw: full,
-                  normalized: norm
-                });
                 conversationContext.push({ speaker: 'user', text: full });
                 addTranscript('user', full);
                 var parsedQuestion = parseQuestionNum(norm);
@@ -763,13 +752,15 @@
                   noticeEl.textContent = 'Confirm your answer for question ' + qid + ' before writing.';
                 }
                 if (hasExportIntent(norm)) {
-                  console.log('[intent] Export intent matched.', { normalized: norm });
                 }
                 triggerVoiceExport(full, norm);
               }
             }
           },
-          onerror: function (e) { errorsEl.textContent = (e && e.message) || 'Gemini Live error'; },
+          onerror: function (e) {
+            errorsEl.textContent = (e && e.message) || 'Gemini Live error';
+            showKeyboardFallback('Voice connection failed. You can continue by typing answers, confirming them, and exporting.');
+          },
           onclose: function () { setStatus('idle'); stopSession(); }
         }
       });
@@ -787,6 +778,9 @@
 
     var stream;
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Microphone is not available in this browser.');
+      }
       var audioConstraints = {
         echoCancellation: true,
         noiseSuppression: true,
@@ -795,12 +789,12 @@
       };
       stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
     } catch (e) {
-      errorsEl.textContent = 'Microphone access is required for voice tutoring. Please allow access and try again.';
+      errorsEl.textContent = (e && e.name === 'NotAllowedError')
+        ? 'Microphone permission was denied.'
+        : ((e && e.message) || 'Microphone is unavailable.');
       if (liveSession.close) liveSession.close();
       liveSession = null;
-      setStatus('idle');
-      micBtn.disabled = false;
-      micBtn.textContent = 'Start Session';
+      showKeyboardFallback('Voice is unavailable. You can still type answers, confirm them, and export your worksheet.');
       return;
     }
     mediaStream = stream;

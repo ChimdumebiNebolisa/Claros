@@ -97,7 +97,7 @@
 
 .btn-primary {
   background: var(--ink);
-  color: #fff;
+  color: var(--on-dark);
   box-shadow: var(--shadow-soft);
 }
 .btn-primary:hover {
@@ -118,7 +118,7 @@
 }
 
 .btn-light {
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   box-shadow: var(--shadow-soft);
 }
@@ -400,7 +400,7 @@
   border: none;
   border-radius: var(--radius-md);
   background: var(--ink);
-  color: #fff;
+  color: var(--on-dark);
   font-family: inherit;
   font-size: 0.84rem;
   font-weight: 700;

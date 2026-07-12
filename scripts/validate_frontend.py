@@ -9,7 +9,9 @@ ROOT = Path(__file__).resolve().parent.parent
 FRONTEND = ROOT / "frontend"
 
 REQUIRED_STYLES = ("tokens.css", "landing.css", "app.css")
-REQUIRED_SCRIPTS = ("app.js", "session-rules.js")
+REQUIRED_SCRIPTS = ("app.js", "session-rules.js", "question-view.js")
+LEGACY_FRONTEND_FILES = ("index.html",)
+LEGACY_MARKER = "LEGACY"
 
 
 def _read(path: Path) -> str:
@@ -46,12 +48,21 @@ def validate_app_html() -> None:
         'id="uploadZone"',
         'id="sessionPanel"',
         'id="fileInput"',
+        'id="keyboardFallback"',
         "/app.js",
         "/session-rules.js",
+        "/question-view.js",
     )
     for needle in checks:
         if needle not in html:
             raise AssertionError(f"app.html missing expected content: {needle!r}")
+
+
+def validate_legacy_frontend_files() -> None:
+    for filename in LEGACY_FRONTEND_FILES:
+        html = _read(FRONTEND / filename)
+        if LEGACY_MARKER not in html[:300] or "NOT SERVED" not in html[:300]:
+            raise AssertionError(f"{filename} must keep an explicit legacy/not-served marker while present")
 
 
 def validate_app_js_contract() -> None:
@@ -65,6 +76,8 @@ def validate_app_js_contract() -> None:
         "/api/session/start",
         "btn-confirm-answer",
         "confirmAnswerForQuestion",
+        "ClarosQuestionView",
+        "showKeyboardFallback",
     )
     for needle in checks:
         if needle not in js:
@@ -82,6 +95,7 @@ def main() -> int:
         validate_shared_styles,
         validate_landing_html,
         validate_app_html,
+        validate_legacy_frontend_files,
         validate_app_js_contract,
         validate_session_rules,
     )

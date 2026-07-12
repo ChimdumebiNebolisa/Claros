@@ -25,6 +25,22 @@ def test_index_returns_html():
     assert b"<" in response.content and b"html" in response.content.lower()
 
 
+def test_healthz_is_dependency_free():
+    response = client.get("/healthz")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+def test_session_start_maps_expired_assignment(monkeypatch):
+    def raise_expired(_assignment_id):
+        raise assignment_service.AssignmentExpiredError("expired")
+
+    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", raise_expired)
+    response = client.post("/api/session/start", json={"assignment_id": TEST_ASSIGNMENT_ID})
+    assert response.status_code == 410
+    assert response.json()["detail"] == "Assignment expired"
+
+
 def test_landing_has_no_app_workspace():
     """GET / serves marketing landing without functional upload workspace."""
     response = client.get("/")
@@ -48,9 +64,8 @@ def test_app_js_served():
     assert "javascript" in response.headers.get("content-type", "").lower()
     assert b"loadSamplePdf" in response.content
     assert b"sample" in response.content
-    assert b"role', 'textbox" in response.content
-    assert b"aria-label', 'Answer for question" in response.content
-    assert b"aria-multiline', 'true" in response.content
+    assert b"showKeyboardFallback" in response.content
+    assert b"ClarosQuestionView" in response.content
 
 
 def test_app_returns_html():
@@ -100,6 +115,13 @@ def test_session_rules_js_served():
     assert response.status_code == 200
     assert "javascript" in response.headers.get("content-type", "").lower()
     assert b"ClarosSessionRules" in response.content
+
+
+def test_question_view_js_served():
+    response = client.get("/question-view.js")
+    assert response.status_code == 200
+    assert "javascript" in response.headers.get("content-type", "").lower()
+    assert b"ClarosQuestionView" in response.content
 
 
 def test_export_post_returns_pdf_attachment(monkeypatch):

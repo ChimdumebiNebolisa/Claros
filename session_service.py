@@ -21,8 +21,9 @@ logger = logging.getLogger(__name__)
 class SessionState:
     """In-memory view of a persisted session blob."""
 
-    def __init__(self, data: dict):
+    def __init__(self, data: dict, storage_generation: int | None = None):
         self.data = data
+        self.storage_generation = storage_generation
 
     @property
     def session_id(self) -> str:
@@ -34,7 +35,19 @@ class SessionState:
 
     @property
     def session_secret(self) -> str:
-        return self.data["session_secret"]
+        """Return a legacy plaintext secret when loading pre-hash sessions."""
+        return self.data.get("session_secret", "")
+
+    def verify_session_secret(self, candidate: str) -> bool:
+        """Verify a client secret without exposing or persisting new plaintext secrets."""
+        if not candidate:
+            return False
+        stored_hash = self.data.get("session_secret_hash")
+        if stored_hash:
+            expected = _secret_digest(candidate)
+            return hmac.compare_digest(stored_hash, expected)
+        # Compatibility for sessions created before keyed hashing was introduced.
+        return bool(self.session_secret) and hmac.compare_digest(self.session_secret, candidate)
 
     def get_question(self, question_id: int) -> dict | None:
         return self.data.get("questions", {}).get(str(question_id))
@@ -67,7 +80,8 @@ def create_session(assignment_id: str, question_ids: list[int]) -> dict:
     blob = {
         "session_id": session_id,
         "assignment_id": assignment_id,
-        "session_secret": session_secret,
+        "session_secret_hash": _secret_digest(session_secret),
+        "session_secret_version": 1,
         "created_at": now,
         "expires_at": _session_expires_at(),
         "questions": {str(qid): {} for qid in question_ids},
@@ -83,9 +97,18 @@ def create_session(assignment_id: str, question_ids: list[int]) -> dict:
 
 def load_session(session_id: str) -> SessionState:
     try:
-        raw = storage.download_session_from_gcs(session_id)
+        try:
+            downloaded = storage.download_session_from_gcs(session_id, with_generation=True)
+        except TypeError as exc:
+            if "unexpected keyword" not in str(exc):
+                raise
+            downloaded = storage.download_session_from_gcs(session_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Session not found")
+    if isinstance(downloaded, tuple):
+        raw, generation = downloaded
+    else:
+        raw, generation = downloaded, None
     data = json.loads(raw)
     expires_at = data.get("expires_at")
     if expires_at:
@@ -95,11 +118,26 @@ def load_session(session_id: str) -> SessionState:
                 raise HTTPException(status_code=410, detail="Session expired")
         except ValueError:
             pass
-    return SessionState(data)
+    return SessionState(data, storage_generation=generation)
 
 
 def save_session(state: SessionState) -> None:
-    storage.upload_session_to_gcs(state.session_id, json.dumps(state.data).encode("utf-8"))
+    payload = json.dumps(state.data).encode("utf-8")
+    try:
+        result = storage.upload_session_to_gcs(
+            state.session_id,
+            payload,
+            if_generation_match=state.storage_generation,
+            return_generation=True,
+        )
+    except TypeError as exc:
+        if "unexpected keyword" not in str(exc):
+            raise
+        result = storage.upload_session_to_gcs(state.session_id, payload)
+    if isinstance(result, tuple):
+        state.storage_generation = result[1]
+    else:
+        state.storage_generation = None
 
 
 def _normalize_answer(text: str) -> str:
@@ -113,6 +151,10 @@ def _answer_fingerprint(answer_text: str) -> str:
 def _hmac_secret() -> bytes:
     secret = config.get_session_hmac_secret()
     return secret.encode("utf-8")
+
+
+def _secret_digest(session_secret: str) -> str:
+    return hmac.new(_hmac_secret(), session_secret.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 def issue_write_token(
@@ -185,7 +227,7 @@ def confirm_answer(
     if not answer_text.strip():
         raise HTTPException(status_code=400, detail="answer_text must be non-empty")
     state = load_session(session_id)
-    if not hmac.compare_digest(state.session_secret, session_secret):
+    if not state.verify_session_secret(session_secret):
         raise HTTPException(status_code=403, detail="Invalid session credentials")
     if str(question_id) not in state.data.get("questions", {}):
         raise HTTPException(status_code=400, detail=f"Unknown question id: {question_id}")
@@ -202,7 +244,7 @@ def confirm_answer(
 
 def restore_session_for_client(session_id: str, session_secret: str) -> dict:
     state = load_session(session_id)
-    if not hmac.compare_digest(state.session_secret, session_secret):
+    if not state.verify_session_secret(session_secret):
         raise HTTPException(status_code=403, detail="Invalid session credentials")
     questions = {}
     for qid, qdata in state.data.get("questions", {}).items():

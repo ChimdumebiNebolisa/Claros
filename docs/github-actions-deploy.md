@@ -22,7 +22,7 @@ Steps:
    - Public access: `--allow-unauthenticated`
    - Runtime env vars: `GEMINI_API_KEY`, `GCS_BUCKET_NAME`, `GOOGLE_CLOUD_PROJECT`
 
-The workflow does **not** change application code. It builds the Docker image from the `Dockerfile`, which copies `main.py`, `parser.py`, `agent.py`, `exporter.py`, the full `frontend/` directory, and `test_assignment.pdf`.
+The workflow does **not** change application code. It builds the Docker image from the `Dockerfile`, which copies the backend runtime modules, the full `frontend/` directory, and `test_assignment.pdf`.
 
 ## Authentication model
 
@@ -271,6 +271,7 @@ After a successful deploy, check the production URL.
 
 | URL | Expected |
 |-----|----------|
+| `/healthz` | 200, `{"status":"ok"}` |
 | `/` | 200, marketing landing page only |
 | `/app` | 200, worksheet app |
 | `/app?sample=1` | 200, app with sample PDF auto-load |

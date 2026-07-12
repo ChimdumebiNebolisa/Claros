@@ -2,7 +2,8 @@
 import pytest
 import fitz
 
-from parser import parse_pdf, Question, normalize_worksheet_text
+import config
+from parser import PDFProcessingError, Question, normalize_worksheet_text, parse_pdf
 
 
 def test_parse_pdf_question_format(tmp_pdf_question_format):
@@ -109,3 +110,23 @@ def test_parse_pdf_numbered_continuation_merged(tmp_pdf_numbered_with_continuati
 def test_normalize_worksheet_text_empty():
     assert normalize_worksheet_text("") == ""
     assert normalize_worksheet_text(None) is None
+
+
+def test_parse_pdf_rejects_page_limit(tmp_path, monkeypatch):
+    path = tmp_path / "many-pages.pdf"
+    doc = fitz.open()
+    doc.new_page()
+    doc.new_page()
+    doc.save(str(path))
+    doc.close()
+    monkeypatch.setattr(config, "MAX_PDF_PAGES", 1)
+
+    with pytest.raises(PDFProcessingError, match="page count"):
+        parse_pdf(path)
+
+
+def test_parse_pdf_rejects_extracted_text_limit(tmp_pdf_question_format, monkeypatch):
+    monkeypatch.setattr(config, "MAX_EXTRACTED_TEXT_CHARS", 8)
+
+    with pytest.raises(PDFProcessingError, match="extracted text"):
+        parse_pdf(tmp_pdf_question_format)

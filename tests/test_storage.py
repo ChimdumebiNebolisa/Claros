@@ -1,6 +1,9 @@
 """Storage helper tests."""
 from unittest.mock import MagicMock
 
+import pytest
+from google.api_core.exceptions import PreconditionFailed
+
 import storage
 
 
@@ -32,3 +35,33 @@ def test_upload_pdf_to_gcs_uploads_canonical_blob(monkeypatch):
     )
     blob.upload_from_string.assert_called_once_with(b"%PDF-1.4", content_type="application/pdf")
     assert path.endswith("/assignments/550e8400-e29b-41d4-a716-446655440000/assignment.pdf")
+
+
+def test_session_upload_uses_generation_precondition(monkeypatch):
+    bucket = MagicMock()
+    blob = MagicMock()
+    blob.generation = 9
+    bucket.blob.return_value = blob
+    bucket.name = "claros-bucket"
+    monkeypatch.setattr(storage, "get_gcs_bucket", lambda: bucket)
+
+    result = storage.upload_session_to_gcs("session-1", b"{}", if_generation_match=8, return_generation=True)
+
+    blob.upload_from_string.assert_called_once_with(
+        b"{}",
+        content_type="application/json",
+        if_generation_match=8,
+    )
+    assert result == ("gs://claros-bucket/sessions/session-1.json", 9)
+
+
+def test_session_upload_maps_gcs_precondition_failure(monkeypatch):
+    bucket = MagicMock()
+    blob = MagicMock()
+    blob.upload_from_string.side_effect = PreconditionFailed("conflict")
+    bucket.blob.return_value = blob
+    bucket.name = "claros-bucket"
+    monkeypatch.setattr(storage, "get_gcs_bucket", lambda: bucket)
+
+    with pytest.raises(storage.StorageConflict):
+        storage.upload_session_to_gcs("session-1", b"{}", if_generation_match=8)

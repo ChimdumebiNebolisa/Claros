@@ -12,6 +12,7 @@ source = [
     "schemas",
     "session_service",
     "storage",
+    "observability",
 ]
 omit = [
     "tests/*",
@@ -37,7 +38,6 @@ src = ["."]
 extend-exclude = [
     "frontend/genai.bundle.js",
     "frontend/index.html",
-    "frontend/index.backup.html",
 ]
 
 [tool.ruff.lint]

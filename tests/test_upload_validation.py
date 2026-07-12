@@ -46,6 +46,15 @@ def test_upload_rejects_non_pdf_bytes_with_pdf_extension():
     assert "valid pdf" in response.json()["detail"].lower()
 
 
+def test_upload_rejects_malformed_pdf_after_signature_check():
+    response = client.post(
+        "/upload",
+        files={"file": ("broken.pdf", BytesIO(b"%PDF-1.4\nnot a real document"), "application/pdf")},
+    )
+    assert response.status_code == 400
+    assert "pdf" in response.json()["detail"].lower()
+
+
 def test_upload_accepts_pdf_with_leading_whitespace(upload_mocks):
     response = client.post(
         "/upload",
