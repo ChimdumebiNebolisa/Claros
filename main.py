@@ -8,7 +8,7 @@ import uuid
 from uuid import UUID
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 
 import assignment_service
 from assignment_service import build_export_response, delete_assignment, get_parse_diagnostics, persist_assignment_from_pdf_bytes
@@ -24,10 +24,19 @@ from schemas import (
     validate_export_answers,
 )
 import session_service
+import storage
 
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+
+
+@app.exception_handler(storage.StorageConflict)
+async def storage_conflict_handler(_request, _exc):
+    return JSONResponse(
+        status_code=409,
+        content={"code": "SESSION_WRITE_CONFLICT", "detail": "Session changed. Refresh and try again."},
+    )
 
 
 @app.get("/healthz")

@@ -21,8 +21,9 @@ logger = logging.getLogger(__name__)
 class SessionState:
     """In-memory view of a persisted session blob."""
 
-    def __init__(self, data: dict):
+    def __init__(self, data: dict, storage_generation: int | None = None):
         self.data = data
+        self.storage_generation = storage_generation
 
     @property
     def session_id(self) -> str:
@@ -96,9 +97,18 @@ def create_session(assignment_id: str, question_ids: list[int]) -> dict:
 
 def load_session(session_id: str) -> SessionState:
     try:
-        raw = storage.download_session_from_gcs(session_id)
+        try:
+            downloaded = storage.download_session_from_gcs(session_id, with_generation=True)
+        except TypeError as exc:
+            if "unexpected keyword" not in str(exc):
+                raise
+            downloaded = storage.download_session_from_gcs(session_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Session not found")
+    if isinstance(downloaded, tuple):
+        raw, generation = downloaded
+    else:
+        raw, generation = downloaded, None
     data = json.loads(raw)
     expires_at = data.get("expires_at")
     if expires_at:
@@ -108,11 +118,26 @@ def load_session(session_id: str) -> SessionState:
                 raise HTTPException(status_code=410, detail="Session expired")
         except ValueError:
             pass
-    return SessionState(data)
+    return SessionState(data, storage_generation=generation)
 
 
 def save_session(state: SessionState) -> None:
-    storage.upload_session_to_gcs(state.session_id, json.dumps(state.data).encode("utf-8"))
+    payload = json.dumps(state.data).encode("utf-8")
+    try:
+        result = storage.upload_session_to_gcs(
+            state.session_id,
+            payload,
+            if_generation_match=state.storage_generation,
+            return_generation=True,
+        )
+    except TypeError as exc:
+        if "unexpected keyword" not in str(exc):
+            raise
+        result = storage.upload_session_to_gcs(state.session_id, payload)
+    if isinstance(result, tuple):
+        state.storage_generation = result[1]
+    else:
+        state.storage_generation = None
 
 
 def _normalize_answer(text: str) -> str:

@@ -1,8 +1,14 @@
 """Google Cloud Storage helpers for assignment PDFs, manifests, and sessions."""
+from google.api_core.exceptions import PreconditionFailed
+
 from config import get_gcs_bucket
 from manifest import CANONICAL_MANIFEST_NAME
 CANONICAL_PDF_NAME = "assignment.pdf"
 SESSION_PREFIX = "sessions/"
+
+
+class StorageConflict(RuntimeError):
+    """Raised when a conditional object write loses a concurrent update race."""
 
 
 def assignment_pdf_path(assignment_id: str) -> str:
@@ -54,20 +60,38 @@ def delete_assignment_prefix(assignment_id: str) -> None:
         blob.delete()
 
 
-def upload_session_to_gcs(session_id: str, payload: bytes) -> str:
+def upload_session_to_gcs(
+    session_id: str,
+    payload: bytes,
+    if_generation_match: int | None = None,
+    *,
+    return_generation: bool = False,
+) -> str | tuple[str, int | None]:
     bucket = get_gcs_bucket()
     blob_path = session_blob_path(session_id)
     blob = bucket.blob(blob_path)
-    blob.upload_from_string(payload, content_type="application/json")
-    return f"gs://{bucket.name}/{blob_path}"
+    try:
+        kwargs = {"content_type": "application/json"}
+        if if_generation_match is not None:
+            kwargs["if_generation_match"] = if_generation_match
+        blob.upload_from_string(payload, **kwargs)
+    except PreconditionFailed as exc:
+        raise StorageConflict(f"Session changed concurrently: {session_id}") from exc
+    path = f"gs://{bucket.name}/{blob_path}"
+    if return_generation:
+        return path, getattr(blob, "generation", None)
+    return path
 
 
-def download_session_from_gcs(session_id: str) -> bytes:
+def download_session_from_gcs(session_id: str, *, with_generation: bool = False) -> bytes | tuple[bytes, int | None]:
     bucket = get_gcs_bucket()
     blob = bucket.blob(session_blob_path(session_id))
     if not blob.exists():
         raise ValueError(f"Session not found: {session_id}")
-    return blob.download_as_bytes()
+    payload = blob.download_as_bytes()
+    if with_generation:
+        return payload, getattr(blob, "generation", None)
+    return payload
 
 
 def delete_session_from_gcs(session_id: str) -> None:
