@@ -10,7 +10,7 @@ FRONTEND = ROOT / "frontend"
 
 REQUIRED_STYLES = ("tokens.css", "landing.css", "app.css")
 REQUIRED_SCRIPTS = ("app.js", "session-rules.js", "question-view.js")
-LEGACY_FRONTEND_FILES = ("index.html",)
+LEGACY_FRONTEND_FILES = ()
 LEGACY_MARKER = "LEGACY"
 
 

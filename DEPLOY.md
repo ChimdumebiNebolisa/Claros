@@ -53,4 +53,4 @@ Session credentials returned to the browser are short-lived opaque values. New s
 
 No config change needed: when users open the Cloud Run URL, the frontend uses the same host for API calls.
 
-> **Note:** `frontend/index.html` is the remaining legacy monolithic prototype and is **not served** by the backend. `frontend/index.backup.html` was removed after runtime and deployment references were audited.
+> Legacy monolithic frontend prototypes were removed after runtime, test, build, and deployment references were audited. The active pages are `frontend/landing.html` and `frontend/app.html`.
