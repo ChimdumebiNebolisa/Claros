@@ -26,6 +26,7 @@ from schemas import (
 import session_service
 import storage
 from observability import record_metric
+from parser import PDFProcessingError
 
 logger = logging.getLogger(__name__)
 
@@ -239,6 +240,9 @@ async def upload_assignment(file: UploadFile = File(...)):
             "parse_status": manifest.parse_status,
             "parse_warnings": manifest.parse_warnings,
         }
+    except PDFProcessingError as exc:
+        record_metric("pdf_parse", status="error", reason="malformed")
+        raise HTTPException(status_code=400, detail=str(exc))
     except Exception:
         logger.exception("PDF parse/upload failed for assignment %s", assignment_id)
         raise HTTPException(status_code=500, detail="Could not read that PDF. Please try another file.")

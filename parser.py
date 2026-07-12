@@ -11,6 +11,7 @@ from typing import List
 
 import fitz  # PyMuPDF
 
+import config
 from parser_layout import filter_header_footer_lines
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,10 @@ logger = logging.getLogger(__name__)
 class Question:
     id: int
     text: str
+
+
+class PDFProcessingError(ValueError):
+    """Raised for malformed or resource-exhausting PDF input."""
 
 
 # Line starting with "Question N:" or "Question N." (case insensitive). Captures N and rest of line.
@@ -104,13 +109,20 @@ def parse_pdf_with_diagnostics(
     parse_status is one of: ok, fallback_single_block, empty_extraction.
     """
     path = Path(pdf_path)
-    doc = fitz.open(path)
     try:
+        doc = fitz.open(path)
+    except (fitz.FileDataError, RuntimeError) as exc:
+        raise PDFProcessingError("PDF could not be opened") from exc
+    try:
+        if doc.page_count > config.MAX_PDF_PAGES:
+            raise PDFProcessingError("PDF exceeds the maximum page count")
         lines_with_size = _extract_lines_with_size(doc)
         if apply_layout_filters:
             lines_with_size = filter_header_footer_lines(lines_with_size)
         lines = [t for t, _ in lines_with_size]
         full_text = "\n".join(lines).strip() or "(No extractable text)"
+        if len(full_text) > config.MAX_EXTRACTED_TEXT_CHARS:
+            raise PDFProcessingError("PDF contains too much extracted text")
 
         if not lines:
             title = path.stem

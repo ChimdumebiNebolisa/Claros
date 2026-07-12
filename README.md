@@ -44,6 +44,7 @@ This is not about making assignments easier. It is about making them accessible 
 ## Features
 
 - **PDF assignment ingestion** - Upload any PDF with "Question N:" formatting. Questions are extracted and rendered as an interactive worksheet.
+- **PDF safety limits** - Uploads are bounded by byte size, page count, and extracted-text size; malformed or unsupported PDFs return a recoverable validation error.
 - **Real-time voice conversation** - Bidirectional audio through Gemini Live. The student speaks and hears Claros respond with natural voice.
 - **Socratic guidance** - Claros defaults to teaching mode, asking guiding questions rather than stating answers.
 - **Per-question answer readiness tracking** - The frontend tracks whether the student has stated a final answer for each question before allowing a write.
