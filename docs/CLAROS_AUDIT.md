@@ -48,4 +48,4 @@ flowchart LR
 - Manifest `expires_at` is created but must be enforced in every assignment-consuming route.
 - Session writes currently use unconditional GCS uploads; generation-aware preconditions are required to prevent lost updates.
 - Operational metrics are not yet standardized as content-free events.
-- Legacy frontend files remain packaged but unrouted until final cleanup evidence is complete.
+- `frontend/index.html` remains as the final legacy candidate; `frontend/index.backup.html` was removed after route/build/reference checks.
