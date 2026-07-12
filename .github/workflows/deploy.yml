@@ -83,7 +83,7 @@ jobs:
 
       - name: Build and push image
         run: |
-          IMAGE="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
+          IMAGE="gcr.io/${PROJECT_ID}/${SERVICE_NAME}:${GITHUB_SHA}"
           gcloud builds submit --tag "$IMAGE"
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 

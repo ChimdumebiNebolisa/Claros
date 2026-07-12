@@ -13,9 +13,10 @@
 export PROJECT_ID=your-project-id
 export REGION=us-central1
 export IMAGE=claros-backend
+export TAG=$(git rev-parse HEAD)
 
 # Build with Cloud Build (no local Docker needed)
-gcloud builds submit --tag gcr.io/${PROJECT_ID}/${IMAGE}
+gcloud builds submit --tag gcr.io/${PROJECT_ID}/${IMAGE}:${TAG}
 
 # Or with Artifact Registry
 gcloud artifacts repositories create claros --repository-format=docker --location=${REGION} 2>/dev/null || true
@@ -26,7 +27,7 @@ gcloud builds submit --tag ${REGION}-docker.pkg.dev/${PROJECT_ID}/claros/${IMAGE
 
 ```bash
 gcloud run deploy claros \
-  --image gcr.io/${PROJECT_ID}/${IMAGE} \
+  --image gcr.io/${PROJECT_ID}/${IMAGE}:${TAG} \
   --platform managed \
   --region ${REGION} \
   --allow-unauthenticated \
