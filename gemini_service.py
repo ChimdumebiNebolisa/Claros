@@ -9,6 +9,7 @@ from google.genai import types
 import assignment_service
 from agent import build_system_prompt
 from config import LIVE_MODEL, get_api_key, get_text_model
+from observability import record_metric
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,7 @@ def create_session_config(assignment_id: str) -> dict:
         )
         token_value = token.name if token and getattr(token, "name", None) else None
     except Exception:
+        record_metric("provider_failure", status="error", reason="provider")
         logger.exception("Ephemeral token creation failed for assignment %s", assignment_id)
         raise RuntimeError("Ephemeral token creation failed")
     if not token_value:
@@ -112,6 +114,7 @@ async def stream_write_answer(
                 yield text
         logger.info("[write-chain] stream finished total_chunks=%s", chunk_count)
     except Exception:
+        record_metric("provider_failure", status="error", reason="provider")
         logger.exception("stream_write failed for assignment %s question %s", assignment_id, question_id)
         yield "\n[Error: Answer generation failed. Please try again.]"
 

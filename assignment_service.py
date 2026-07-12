@@ -19,6 +19,7 @@ from storage import (
 from config import get_gcs_bucket
 from exporter import build_export_pdf
 from parser import parse_pdf_with_diagnostics
+from observability import record_metric
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ class AssignmentExpiredError(RuntimeError):
 
 def _ensure_manifest_active(manifest: AssignmentManifest) -> AssignmentManifest:
     if manifest.is_expired():
+        record_metric("session_expired", status="expired")
         raise AssignmentExpiredError("Assignment expired")
     return manifest
 
@@ -154,6 +156,7 @@ def build_export_response(assignment_id: str, answers_list: list[dict]) -> Respo
         logger.exception("Failed to load assignment %s for export", assignment_id)
         raise HTTPException(status_code=500, detail="Could not load assignment for export.")
     pdf_bytes = build_export_pdf(title, questions, answers_list)
+    record_metric("export", status="ok")
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",

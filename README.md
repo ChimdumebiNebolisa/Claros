@@ -104,6 +104,7 @@ The backend and frontend include guardrails to reduce common failure modes:
 - **Accessibility/resilience**: worksheet upload has an explicit keyboard button; session live badge has class-based fallback beyond CSS `:has()`.
 - **Voice fallback**: microphone denial, unavailable audio, and provider connection failures leave typed answers, confirmation, and export available.
 - **Session-secret protection**: new durable session records store a keyed hash instead of the client secret in plaintext; verification remains constant-time.
+- **Privacy-safe observability**: operational metrics use fixed event names and bounded status/reason labels; document, question, answer, token, and secret content is excluded.
 - **CI consistency**: parallel CI jobs (python coverage+lint, frontend contract+bundle, docker smoke); deploy gated by verify job + post-deploy probes.
 
 When extending Claros, preserve these invariants: validate at API boundaries, keep error semantics explicit, and add regression tests for each new guardrail.

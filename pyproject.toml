@@ -12,6 +12,7 @@ source = [
     "schemas",
     "session_service",
     "storage",
+    "observability",
 ]
 omit = [
     "tests/*",

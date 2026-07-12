@@ -3,6 +3,7 @@ from google.api_core.exceptions import PreconditionFailed
 
 from config import get_gcs_bucket
 from manifest import CANONICAL_MANIFEST_NAME
+from observability import record_metric
 CANONICAL_PDF_NAME = "assignment.pdf"
 SESSION_PREFIX = "sessions/"
 
@@ -76,6 +77,7 @@ def upload_session_to_gcs(
             kwargs["if_generation_match"] = if_generation_match
         blob.upload_from_string(payload, **kwargs)
     except PreconditionFailed as exc:
+        record_metric("write_conflict", status="conflict", reason="storage")
         raise StorageConflict(f"Session changed concurrently: {session_id}") from exc
     path = f"gs://{bucket.name}/{blob_path}"
     if return_generation:

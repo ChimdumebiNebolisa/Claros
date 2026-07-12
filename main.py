@@ -25,6 +25,7 @@ from schemas import (
 )
 import session_service
 import storage
+from observability import record_metric
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ app = FastAPI()
 
 @app.exception_handler(storage.StorageConflict)
 async def storage_conflict_handler(_request, _exc):
+    record_metric("write_conflict", status="conflict", reason="storage")
     return JSONResponse(
         status_code=409,
         content={"code": "SESSION_WRITE_CONFLICT", "detail": "Session changed. Refresh and try again."},
@@ -102,6 +104,7 @@ def start_tutoring_session(body: SessionStartRequest):
         raise HTTPException(status_code=500, detail="Could not load assignment. Please try again.")
     qids = [q["id"] for q in questions]
     payload = session_service.create_session(aid, qids)
+    record_metric("session_created", status="ok")
     payload["title"] = title
     payload["questions"] = questions
     return payload
@@ -110,12 +113,14 @@ def start_tutoring_session(body: SessionStartRequest):
 @app.post("/api/session/{session_id}/confirm")
 def confirm_answer_for_question(session_id: UUID, body: SessionConfirmRequest):
     """Explicitly confirm a student-owned answer and receive a single-use write token."""
-    return session_service.confirm_answer(
+    result = session_service.confirm_answer(
         str(session_id),
         body.session_secret,
         body.question_id,
         body.answer_text,
     )
+    record_metric("confirmation", status="ok")
+    return result
 
 
 @app.post("/api/session/{session_id}/restore")
@@ -220,6 +225,7 @@ async def upload_assignment(file: UploadFile = File(...)):
     try:
         manifest = persist_assignment_from_pdf_bytes(assignment_id, content)
         payload = manifest.to_questions_dict()
+        record_metric("pdf_parse", status="ok" if manifest.parse_status == "ok" else "fallback")
         logger.info(
             "[POST /upload] Parsed questions: count=%s assignment_id=%s parse_status=%s",
             len(payload),
