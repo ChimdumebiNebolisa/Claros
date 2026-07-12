@@ -1,4 +1,5 @@
 """Session API tests with mocked GCS session storage."""
+import json
 import pytest
 from fastapi.testclient import TestClient
 
@@ -49,6 +50,23 @@ def test_session_start_returns_credentials(client):
     assert body["session_id"]
     assert body["session_secret"]
     assert len(body["questions"]) == 2
+
+
+def test_session_secret_is_keyed_hash_at_rest(client):
+    start = client.post("/api/session/start", json={"assignment_id": TEST_ASSIGNMENT_ID}).json()
+    stored = json.loads(next(iter(_STORE.values())))
+    assert stored["session_secret_hash"]
+    assert stored["session_secret_hash"] != start["session_secret"]
+    assert "session_secret" not in stored
+
+
+def test_restore_rejects_wrong_session_secret(client):
+    start = client.post("/api/session/start", json={"assignment_id": TEST_ASSIGNMENT_ID}).json()
+    response = client.post(
+        f"/api/session/{start['session_id']}/restore",
+        json={"session_secret": "wrong-secret"},
+    )
+    assert response.status_code == 403
 
 
 def test_confirm_requires_nonempty_answer(client):

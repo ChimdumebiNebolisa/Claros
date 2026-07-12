@@ -761,6 +761,19 @@ body:not(.has-assignment) .assignment-title {
 
 .errors:empty { display: none; }
 
+.keyboard-fallback {
+  margin-top: 0.85rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--warn-line);
+  border-radius: var(--radius-sm);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.keyboard-fallback[hidden] { display: none; }
+
 .session-privacy-note {
   font-size: 0.74rem;
   line-height: 1.55;

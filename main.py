@@ -5,7 +5,6 @@ Real-time voice uses Gemini Live directly from the browser.
 import json
 import logging
 import uuid
-import hmac
 from uuid import UUID
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
@@ -29,6 +28,12 @@ import session_service
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+
+
+@app.get("/healthz")
+def healthz():
+    """Lightweight container health endpoint with no external service dependency."""
+    return {"status": "ok"}
 
 
 def _assignment_not_found() -> HTTPException:
@@ -118,7 +123,7 @@ async def stream_write(assignment_id: UUID, body: WriteRequest):
         state = session_service.load_session(body.session_id)
         if state.assignment_id != aid:
             raise HTTPException(status_code=403, detail="Session does not match assignment")
-        if not hmac.compare_digest(state.session_secret, body.session_secret):
+        if not state.verify_session_secret(body.session_secret):
             raise HTTPException(status_code=403, detail="Invalid session credentials")
         session_service.validate_write_token(state, body.question_id, body.answer_candidate, body.write_token)
     try:

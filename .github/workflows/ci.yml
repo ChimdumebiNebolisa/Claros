@@ -80,7 +80,7 @@ jobs:
         run: |
           docker run -d --name claros-ci -e PORT=8080 -p 8080:8080 claros:ci
           for i in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:8080/ >/dev/null; then
+            if curl -fsS http://127.0.0.1:8080/healthz >/dev/null && curl -fsS http://127.0.0.1:8080/ >/dev/null; then
               echo "health check passed"
               docker logs claros-ci | tail -n 20
               docker rm -f claros-ci

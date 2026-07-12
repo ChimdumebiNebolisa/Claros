@@ -5,7 +5,7 @@ Last updated: 2026-07-12 (America/Chicago)
 ## Current state
 
 - Current roadmap phase: Phase 1 — Audit and baseline
-- Current work unit: None; next is run and record current Python tests
+- Current work unit: Cross-cutting hardening in progress; remaining Phase 1 audits and later roadmap work are not yet complete
 - Active entrypoints under verification: `frontend/landing.html` at `/`; `frontend/app.html` at `/app`
 - Legacy files still present: `frontend/index.html`; `frontend/index.backup.html`
 
@@ -15,12 +15,12 @@ Last updated: 2026-07-12 (America/Chicago)
 
 - [x] Inventory active frontend entrypoints
 - [x] Inventory legacy frontend files and references
-- [ ] Run and record current Python tests
-- [ ] Run and record coverage
-- [ ] Run and record frontend checks
-- [ ] Run and record frontend bundle build
-- [ ] Run and record Docker build
-- [ ] Run and record smoke tests
+- [x] Run and record current Python tests
+- [x] Run and record coverage
+- [x] Run and record frontend checks
+- [x] Run and record frontend bundle build
+- [x] Run and record Docker build
+- [x] Run and record smoke tests
 - [ ] Capture active landing and application states across required viewports and accessibility modes
 - [ ] Audit active hard-coded colors against tokens
 - [ ] Trace the complete product workflow
@@ -116,3 +116,33 @@ Producer-to-consumer trace:
 - Screens or states verified: static response identity for `/` and `/app`; `/index.html` and `/index.backup.html` 404 behavior; visual states not yet verified.
 - Production behaviors not verified locally: Cloud Run routing, deployed asset contents, credentials, live GCS, Gemini Live, and post-deploy smoke checks.
 - Public claims verified against code: active and legacy entrypoint statements above, plus the `DEPLOY.md` claim that `frontend/index.html` and `frontend/index.backup.html` are legacy monolithic prototypes not served by the backend. Broader README claims remain unaudited.
+
+### 2026-07-12 full-roadmap execution evidence
+
+Blast radius: Docker runtime packaging, FastAPI health routing, session-secret persistence/verification, browser voice-failure recovery, frontend contract tests, deployment documentation, and progress evidence. Existing untracked user files were preserved.
+
+- `python -m pytest tests/ --cov --cov-config=pyproject.toml --cov-report=term-missing` — exit 0; 109 passed; total coverage 82.40%.
+- `python -m ruff check agent.py assignment_service.py config.py exporter.py gemini_service.py main.py manifest.py parser.py parser_layout.py schemas.py session_service.py storage.py tests/` — exit 0.
+- `npm run test:frontend` — exit 0; 17 session-rule cases and 6 frontend validators passed.
+- `npm ci` — exit 0; installed locked dependencies. npm reported 5 audit vulnerabilities (3 moderate, 1 high, 1 critical); dependency upgrades were not mixed into this work.
+- `npm run build:genai` — exit 0; bundle generated at `frontend/genai.bundle.js` (644.8kb) with no tracked bundle diff.
+- `docker build -t claros:ci .` — exit 0 after fixing missing `manifest.py`, `parser_layout.py`, and `session_service.py` runtime copies.
+- Container smoke — exit 0 after fix; `/healthz`, `/`, `/app`, and `/styles/tokens.css` each returned 200.
+- Browser evidence: landing desktop screenshot at `output/playwright/landing-desktop.png`; mobile application screenshot at `output/playwright/landing-mobile-390.png`; `/app` accessibility snapshot exposed labeled controls, landmarks, headings, live status regions, and keyboard focus reached “Back to home”.
+
+Implemented changes:
+
+- New sessions persist a keyed HMAC digest and version instead of plaintext session secrets; legacy plaintext session records remain readable for compatibility and all verification uses constant-time comparison.
+- Added dependency-free `/healthz` and CI/deploy probes.
+- Added Docker regression coverage for every backend module required at import time.
+- Added keyboard fallback messaging and retry behavior for missing/denied microphones and Gemini Live errors; removed raw transcript logging from the browser console.
+- Added regression coverage for hashed session secrets, wrong-secret rejection, health checks, Docker runtime files, and keyboard fallback contract.
+
+Self-review:
+
+- Accessibility: typed answer, confirmation, and export controls remain available after voice failure; focus and live-region behavior were verified in the browser snapshot.
+- Security/privacy: new session secrets are not stored plaintext; client transcript content is no longer written to console logs; no token or answer values were added to server logs.
+- Deployment: Docker import failure was reproduced, fixed, rebuilt, and smoke-tested.
+- Remaining roadmap work: full responsive/reduced-motion/200% zoom matrix, color/claim/workflow/storage audits, frontend modularization, storage generation preconditions, assignment expiration enforcement, PDF hardening, observability, legacy removal, and final documentation reconciliation remain incomplete and are not marked complete.
+- Production behaviors not verified locally: live Gemini Live, real GCS, Cloud Run deployment, post-deploy revision verification, and production smoke checks.
+- Final post-change verification: `python -m pytest tests/ --cov --cov-config=pyproject.toml --cov-report=term-missing` — exit 0; 113 passed; total coverage 82.62%. `npm run test:frontend` — exit 0; 17 session-rule cases and 6 validators passed. `git diff --check` — exit 0 apart from existing LF/CRLF notices.

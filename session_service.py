@@ -34,7 +34,19 @@ class SessionState:
 
     @property
     def session_secret(self) -> str:
-        return self.data["session_secret"]
+        """Return a legacy plaintext secret when loading pre-hash sessions."""
+        return self.data.get("session_secret", "")
+
+    def verify_session_secret(self, candidate: str) -> bool:
+        """Verify a client secret without exposing or persisting new plaintext secrets."""
+        if not candidate:
+            return False
+        stored_hash = self.data.get("session_secret_hash")
+        if stored_hash:
+            expected = _secret_digest(candidate)
+            return hmac.compare_digest(stored_hash, expected)
+        # Compatibility for sessions created before keyed hashing was introduced.
+        return bool(self.session_secret) and hmac.compare_digest(self.session_secret, candidate)
 
     def get_question(self, question_id: int) -> dict | None:
         return self.data.get("questions", {}).get(str(question_id))
@@ -67,7 +79,8 @@ def create_session(assignment_id: str, question_ids: list[int]) -> dict:
     blob = {
         "session_id": session_id,
         "assignment_id": assignment_id,
-        "session_secret": session_secret,
+        "session_secret_hash": _secret_digest(session_secret),
+        "session_secret_version": 1,
         "created_at": now,
         "expires_at": _session_expires_at(),
         "questions": {str(qid): {} for qid in question_ids},
@@ -113,6 +126,10 @@ def _answer_fingerprint(answer_text: str) -> str:
 def _hmac_secret() -> bytes:
     secret = config.get_session_hmac_secret()
     return secret.encode("utf-8")
+
+
+def _secret_digest(session_secret: str) -> str:
+    return hmac.new(_hmac_secret(), session_secret.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 def issue_write_token(
@@ -185,7 +202,7 @@ def confirm_answer(
     if not answer_text.strip():
         raise HTTPException(status_code=400, detail="answer_text must be non-empty")
     state = load_session(session_id)
-    if not hmac.compare_digest(state.session_secret, session_secret):
+    if not state.verify_session_secret(session_secret):
         raise HTTPException(status_code=403, detail="Invalid session credentials")
     if str(question_id) not in state.data.get("questions", {}):
         raise HTTPException(status_code=400, detail=f"Unknown question id: {question_id}")
@@ -202,7 +219,7 @@ def confirm_answer(
 
 def restore_session_for_client(session_id: str, session_secret: str) -> dict:
     state = load_session(session_id)
-    if not hmac.compare_digest(state.session_secret, session_secret):
+    if not state.verify_session_secret(session_secret):
         raise HTTPException(status_code=403, detail="Invalid session credentials")
     questions = {}
     for qid, qdata in state.data.get("questions", {}).items():

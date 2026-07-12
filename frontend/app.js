@@ -17,6 +17,7 @@
   const transcriptEl = document.getElementById('transcript');
   const noticeEl = document.getElementById('notice');
   const errorsEl = document.getElementById('errors');
+  const keyboardFallbackEl = document.getElementById('keyboardFallback');
   const micBtn = document.getElementById('micBtn');
   const interruptBtn = document.getElementById('interruptBtn');
   const setupStepUpload = document.getElementById('setupStepUpload');
@@ -355,6 +356,21 @@
         sessionPanel.classList.add('is-live', 'is-' + mode);
       }
     }
+  }
+
+  function showKeyboardFallback(message) {
+    if (liveSession && liveSession.close) {
+      try { liveSession.close(); } catch (_) {}
+      liveSession = null;
+    }
+    if (keyboardFallbackEl) keyboardFallbackEl.hidden = false;
+    if (noticeEl) noticeEl.textContent = message || 'Voice is unavailable. You can continue by typing answers.';
+    if (micBtn) {
+      micBtn.disabled = !state.assignmentId;
+      micBtn.textContent = 'Try Voice Again';
+    }
+    if (interruptBtn) interruptBtn.classList.remove('visible');
+    setStatus('idle');
   }
 
   /* ?????? Transcript (streaming) ?????? */
@@ -740,10 +756,6 @@
               setStatus('listening');
               if (full) {
                 var norm = normalizeTranscript(full);
-                console.log('[transcript] Final turn.', {
-                  raw: full,
-                  normalized: norm
-                });
                 conversationContext.push({ speaker: 'user', text: full });
                 addTranscript('user', full);
                 var parsedQuestion = parseQuestionNum(norm);
@@ -769,7 +781,10 @@
               }
             }
           },
-          onerror: function (e) { errorsEl.textContent = (e && e.message) || 'Gemini Live error'; },
+          onerror: function (e) {
+            errorsEl.textContent = (e && e.message) || 'Gemini Live error';
+            showKeyboardFallback('Voice connection failed. You can continue by typing answers, confirming them, and exporting.');
+          },
           onclose: function () { setStatus('idle'); stopSession(); }
         }
       });
@@ -787,6 +802,9 @@
 
     var stream;
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Microphone is not available in this browser.');
+      }
       var audioConstraints = {
         echoCancellation: true,
         noiseSuppression: true,
@@ -795,12 +813,12 @@
       };
       stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
     } catch (e) {
-      errorsEl.textContent = 'Microphone access is required for voice tutoring. Please allow access and try again.';
+      errorsEl.textContent = (e && e.name === 'NotAllowedError')
+        ? 'Microphone permission was denied.'
+        : ((e && e.message) || 'Microphone is unavailable.');
       if (liveSession.close) liveSession.close();
       liveSession = null;
-      setStatus('idle');
-      micBtn.disabled = false;
-      micBtn.textContent = 'Start Session';
+      showKeyboardFallback('Voice is unavailable. You can still type answers, confirm them, and export your worksheet.');
       return;
     }
     mediaStream = stream;

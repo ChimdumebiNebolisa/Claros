@@ -25,6 +25,12 @@ def test_index_returns_html():
     assert b"<" in response.content and b"html" in response.content.lower()
 
 
+def test_healthz_is_dependency_free():
+    response = client.get("/healthz")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
 def test_landing_has_no_app_workspace():
     """GET / serves marketing landing without functional upload workspace."""
     response = client.get("/")
@@ -51,6 +57,7 @@ def test_app_js_served():
     assert b"role', 'textbox" in response.content
     assert b"aria-label', 'Answer for question" in response.content
     assert b"aria-multiline', 'true" in response.content
+    assert b"showKeyboardFallback" in response.content
 
 
 def test_app_returns_html():

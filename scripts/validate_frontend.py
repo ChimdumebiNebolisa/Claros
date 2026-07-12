@@ -48,6 +48,7 @@ def validate_app_html() -> None:
         'id="uploadZone"',
         'id="sessionPanel"',
         'id="fileInput"',
+        'id="keyboardFallback"',
         "/app.js",
         "/session-rules.js",
     )
@@ -74,6 +75,7 @@ def validate_app_js_contract() -> None:
         "/api/session/start",
         "btn-confirm-answer",
         "confirmAnswerForQuestion",
+        "showKeyboardFallback",
     )
     for needle in checks:
         if needle not in js:
