@@ -14,6 +14,7 @@ from fastapi import HTTPException
 import config
 import storage
 from manifest import AssignmentManifest
+from observability import record_metric
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +116,11 @@ def load_session(session_id: str) -> SessionState:
         try:
             exp = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
             if exp < datetime.now(timezone.utc):
+                try:
+                    storage.delete_session_from_gcs(session_id)
+                except Exception:
+                    logger.exception("Expired session cleanup failed")
+                record_metric("session_expired", status="expired")
                 raise HTTPException(status_code=410, detail="Session expired")
         except ValueError:
             pass

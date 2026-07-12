@@ -15,7 +15,7 @@ Steps:
 3. Authenticate to Google Cloud using Workload Identity Federation (WIF).
 4. Configure `gcloud` with the project from `GCP_PROJECT_ID`.
 5. Build and push a container image with Cloud Build:
-   - Image: `gcr.io/${GCP_PROJECT_ID}/claros`
+   - Image: `gcr.io/${GCP_PROJECT_ID}/claros:${GITHUB_SHA}` (immutable commit tag)
 6. Deploy to Cloud Run:
    - Service name: `claros`
    - Region: `us-central1`
