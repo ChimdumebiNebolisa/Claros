@@ -101,7 +101,7 @@ jobs:
         run: |
           URL=$(gcloud run services describe "$SERVICE_NAME" --region "$REGION" --format='value(status.url)')
           echo "Probing $URL"
-          curl -fsS "$URL/healthz" >/dev/null
+          curl -fsS "$URL/health" >/dev/null
           curl -fsS "$URL/" >/dev/null
           curl -fsS "$URL/app" >/dev/null
           curl -fsS "$URL/styles/tokens.css" >/dev/null

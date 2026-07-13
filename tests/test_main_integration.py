@@ -25,8 +25,8 @@ def test_index_returns_html():
     assert b"<" in response.content and b"html" in response.content.lower()
 
 
-def test_healthz_is_dependency_free():
-    response = client.get("/healthz")
+def test_health_is_dependency_free():
+    response = client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 

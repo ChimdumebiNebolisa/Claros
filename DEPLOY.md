@@ -46,7 +46,7 @@ gcloud run deploy claros \
 
 - `/` serves `frontend/landing.html` (marketing page)
 - `/app` serves `frontend/app.html` (worksheet + voice UI)
-- `/healthz` returns a dependency-free container health response
+- `/health` returns a dependency-free container health response (Cloud Run reserves paths ending in `z`, so `/healthz` is intercepted by the Google Front End and must not be used)
 - Shared tokens live in `frontend/styles/tokens.css`
 
 Session credentials returned to the browser are short-lived opaque values. New server-side session records store only a keyed hash of the session secret; legacy records with a plaintext secret remain readable for compatibility and should be rotated by normal session expiry.

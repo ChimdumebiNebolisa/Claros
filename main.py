@@ -42,9 +42,14 @@ async def storage_conflict_handler(_request, _exc):
     )
 
 
-@app.get("/healthz")
-def healthz():
-    """Lightweight container health endpoint with no external service dependency."""
+@app.get("/health")
+def health():
+    """Lightweight container health endpoint with no external service dependency.
+
+    Note: Cloud Run reserves paths ending in "z" (e.g. "/healthz"); the Google
+    Front End intercepts them and returns 404 before the request reaches the
+    container, so this endpoint must not end in "z".
+    """
     return {"status": "ok"}
 
 
