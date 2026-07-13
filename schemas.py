@@ -52,7 +52,8 @@ class SessionRestoreRequest(BaseModel):
 class LayoutOverride(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    question_id: int = Field(ge=1)
+    # 0 is allowed for fallback_single_block worksheets.
+    question_id: int = Field(ge=0)
     page_index: int = Field(ge=0)
     answer_bbox: list[float]
 
@@ -90,10 +91,10 @@ def validate_export_answers(raw_answers) -> list[dict]:
                 status_code=400,
                 detail=f"answers[{index}].question_id must be an integer",
             )
-        if question_id < 1:
+        if question_id < 0:
             raise HTTPException(
                 status_code=400,
-                detail=f"answers[{index}].question_id must be positive",
+                detail=f"answers[{index}].question_id must be non-negative",
             )
 
         answer_text = answer.get("answer_text", "")

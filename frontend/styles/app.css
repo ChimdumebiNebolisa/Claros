@@ -571,6 +571,28 @@ body.layout-correction .worksheet-answer-field {
   border-color: var(--iris-line);
 }
 
+.worksheet-answer-overlay.answer-ready {
+  border-color: var(--success-line);
+}
+
+.worksheet-answer-overlay.answer-ready .ready-badge {
+  display: inline-flex;
+}
+
+.worksheet-answer-overlay.answer-drafted {
+  border-color: var(--iris-line);
+}
+
+.worksheet-answer-overlay.writing {
+  border-color: var(--warn-line);
+  box-shadow: 0 0 0 3px rgba(255, 179, 103, 0.2);
+}
+
+.worksheet-answer-overlay.writing .worksheet-answer-field {
+  border-color: var(--warn-line);
+  background: var(--warn-soft);
+}
+
 .btn-confirm-answer {
   margin-top: 0.65rem;
   padding: 0.45rem 0.85rem;

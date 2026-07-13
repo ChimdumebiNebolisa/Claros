@@ -119,12 +119,15 @@ def _resolved_answer_bbox(
         page = pages_by_index.get(page_index)
         if page is None:
             raise LayoutExportError(f"layout override for question {qid} references unknown page", [qid])
-        bbox = validate_bbox_within_page(
-            override["answer_bbox"],
-            page_width=float(page["width_points"]),
-            page_height=float(page["height_points"]),
-            label=f"layout_overrides question {qid}",
-        )
+        try:
+            bbox = validate_bbox_within_page(
+                override["answer_bbox"],
+                page_width=float(page["width_points"]),
+                page_height=float(page["height_points"]),
+                label=f"layout_overrides question {qid}",
+            )
+        except ValueError as exc:
+            raise LayoutExportError(str(exc), [qid]) from exc
         return page_index, bbox
 
     bbox = question.get("answer_bbox")
@@ -134,12 +137,15 @@ def _resolved_answer_bbox(
     page = pages_by_index.get(int(page_index))
     if page is None:
         return None
-    validated = validate_bbox_within_page(
-        bbox,
-        page_width=float(page["width_points"]),
-        page_height=float(page["height_points"]),
-        label=f"answer_bbox question {qid}",
-    )
+    try:
+        validated = validate_bbox_within_page(
+            bbox,
+            page_width=float(page["width_points"]),
+            page_height=float(page["height_points"]),
+            label=f"answer_bbox question {qid}",
+        )
+    except ValueError as exc:
+        raise LayoutExportError(str(exc), [qid]) from exc
     return int(page_index), validated
 
 

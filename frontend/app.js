@@ -12,6 +12,10 @@
     layoutCorrectionMode: false,
     selectedQuestionId: null
   };
+  let answerReady = {};
+  let answerCandidate = {};
+  let draftAnswer = {};
+  let writeTokens = {};
 
   const assignmentTitleEl = document.getElementById('assignmentTitle');
   const uploadZone = document.getElementById('uploadZone');
@@ -194,10 +198,28 @@
   }
 
   function bindAnswerField(qid, answerEl, confirmBtn) {
+    if (state.answers[qid]) {
+      answerEl.textContent = state.answers[qid];
+    }
+    if (draftAnswer[qid] && !answerEl.textContent.trim()) {
+      answerEl.textContent = draftAnswer[qid];
+    }
+    if (confirmBtn) {
+      confirmBtn.disabled = !(draftAnswer[qid] || (answerEl.textContent || '').trim());
+      if (answerReady[qid]) {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Answer confirmed';
+      }
+    }
+    var card = answerEl.closest('.question-card, .worksheet-answer-overlay');
+    if (card) {
+      if (answerReady[qid]) card.classList.add('answer-ready');
+      if (draftAnswer[qid] && !answerReady[qid]) card.classList.add('answer-drafted');
+    }
     answerEl.addEventListener('input', function () {
       state.answers[qid] = answerEl.textContent;
       draftAnswer[qid] = answerEl.textContent.trim();
-      if (confirmBtn) confirmBtn.disabled = !draftAnswer[qid];
+      if (confirmBtn && !answerReady[qid]) confirmBtn.disabled = !draftAnswer[qid];
       if (answerEl.textContent.trim()) exportBtn.classList.add('visible');
       syncChecklist();
     });
@@ -498,8 +520,6 @@
   let nextPlaybackTime = 0;
   let scheduledSources = [];
   let conversationContext = [];
-  let answerReady = {};
-  let answerCandidate = {};
   let currentQuestion = null;
   let clarosOutputBuffer = '';
   let userTranscriptBuffer = '';
@@ -507,8 +527,6 @@
   let writeInProgress = false;
   let keepaliveInterval = null;
   let sessionCredentials = { sessionId: null, sessionSecret: null };
-  let draftAnswer = {};
-  let writeTokens = {};
 
   function int16ArrayToBase64(int16Arr) {
     var bytes = new Uint8Array(int16Arr.buffer);
@@ -659,7 +677,7 @@
     if (!state.assignmentId) return false;
     var answers = state.questions.map(function (q) {
       return { question_id: q.id, answer_text: state.answers[q.id] || '' };
-    }).filter(function (a) { return a.question_id > 0; });
+    }).filter(function (a) { return a.question_id >= 0; });
     var overrides = Object.keys(state.layoutOverrides).map(function (k) {
       return state.layoutOverrides[k];
     });

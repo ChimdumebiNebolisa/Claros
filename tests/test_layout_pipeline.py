@@ -5,6 +5,7 @@ import json
 
 import fitz
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 import assignment_service
@@ -127,6 +128,90 @@ def test_two_column_does_not_merge_columns(tmp_path):
     assert all(q.question_bbox[0] > 250 for q in right)
     # Left question text must not include right-column prompts
     assert "Right column" not in left[0].text
+    # Same-column successor must preserve answer regions for every item
+    assert all(q.answer_bbox is not None for q in result.questions)
+
+
+def test_fallback_export_uses_reconstructed_pdf(monkeypatch, tmp_pdf_no_questions):
+    """Pages without usable answer regions must use ReportLab, not a blank original."""
+    from parser import parse_pdf_layout
+
+    result = parse_pdf_layout(tmp_pdf_no_questions)
+    assert result.parse_status == "fallback_single_block"
+    assert all(q.answer_bbox is None for q in result.questions)
+    manifest = build_manifest(
+        assignment_id=TEST_ASSIGNMENT_ID,
+        title=result.title,
+        questions=[
+            {
+                "id": q.id,
+                "text": q.text,
+                "page_index": q.page_index,
+                "question_bbox": q.question_bbox,
+                "answer_bbox": q.answer_bbox,
+                "layout_confidence": q.layout_confidence,
+                "layout_warnings": q.layout_warnings or [],
+            }
+            for q in result.questions
+        ],
+        pages=result.pages,
+    )
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest", lambda _id: manifest)
+    # Layout download must not be required for reconstructed fallback.
+    monkeypatch.setattr(
+        assignment_service,
+        "_download_pdf_bytes",
+        lambda _id: (_ for _ in ()).throw(AssertionError("should not download original")),
+    )
+    response = assignment_service.build_export_response(
+        TEST_ASSIGNMENT_ID,
+        [{"question_id": 0, "answer_text": "student answer"}],
+    )
+    assert response.status_code == 200
+    doc = fitz.open(stream=response.body, filetype="pdf")
+    try:
+        text = " ".join(page.get_text() for page in doc)
+        assert "student answer" in text
+        assert "Claros - Assignment Answers" in text
+    finally:
+        doc.close()
+
+
+def test_layout_override_outside_page_returns_422(monkeypatch, tmp_path):
+    path = write_simple_one_column(tmp_path / "override_oob.pdf")
+    result = parse_pdf_layout(path)
+    q1 = next(q for q in result.questions if q.id == 1)
+    manifest = build_manifest(
+        assignment_id=TEST_ASSIGNMENT_ID,
+        title=result.title,
+        questions=[
+            {
+                "id": q1.id,
+                "text": q1.text,
+                "page_index": q1.page_index,
+                "question_bbox": q1.question_bbox,
+                "answer_bbox": q1.answer_bbox,
+                "layout_confidence": q1.layout_confidence,
+                "layout_warnings": [],
+            }
+        ],
+        pages=result.pages,
+    )
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest", lambda _id: manifest)
+    monkeypatch.setattr(assignment_service, "_download_pdf_bytes", lambda _id: path.read_bytes())
+    with pytest.raises(HTTPException) as exc:
+        assignment_service.build_export_response(
+            TEST_ASSIGNMENT_ID,
+            [{"question_id": 1, "answer_text": "x = 5"}],
+            layout_overrides=[
+                {
+                    "question_id": 1,
+                    "page_index": 0,
+                    "answer_bbox": [0, 0, 900, 50],
+                }
+            ],
+        )
+    assert exc.value.status_code == 422
 
 
 def test_table_like_numbered_items(tmp_path):

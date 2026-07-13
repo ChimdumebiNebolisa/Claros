@@ -221,11 +221,9 @@ def build_export_response(
         logger.exception("Failed to load assignment %s for export", assignment_id)
         raise HTTPException(status_code=500, detail="Could not load assignment for export.")
 
-    has_layout = any(q.get("answer_bbox") for q in questions) or any(
-        (q.get("layout_confidence") == "manual") for q in questions
-    ) or bool(layout_overrides)
+    has_usable_layout = any(q.get("answer_bbox") for q in questions) or bool(layout_overrides)
 
-    if has_layout or manifest.pages:
+    if has_usable_layout:
         try:
             pdf_bytes_src = _download_pdf_bytes(assignment_id)
         except ValueError:
@@ -252,8 +250,17 @@ def build_export_response(
             ) from exc
         except PDFProcessingError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "LAYOUT_EXPORT_INVALID_REGION",
+                    "message": str(exc),
+                    "questions": [],
+                },
+            ) from exc
     else:
-        # Legacy reconstructed export for v1 manifests without region metadata.
+        # Legacy reconstructed export when there are no usable answer regions.
         pdf_bytes = build_export_pdf(title, questions, answers_list)
 
     record_metric("export", status="ok")

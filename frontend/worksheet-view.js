@@ -81,7 +81,7 @@
 
     var meta = document.createElement('div');
     meta.className = 'overlay-meta';
-    meta.innerHTML = '<span class="overlay-qid">Q' + question.id + '</span>';
+    meta.innerHTML = '<span class="overlay-qid">Q' + question.id + '</span><span class="ready-badge">Answer confirmed</span>';
     if (question.layout_confidence && question.layout_confidence !== 'high') {
       var warn = document.createElement('span');
       warn.className = 'overlay-warning';

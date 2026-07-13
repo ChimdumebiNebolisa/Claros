@@ -62,16 +62,32 @@ def median_body_font_size(lines_with_size: list[tuple[str, float]]) -> float:
     return float(median(sizes))
 
 
-def is_likely_header_footer(line: str, font_size: float, body_size: float) -> bool:
+def is_likely_header_footer(
+    line: str,
+    font_size: float,
+    body_size: float,
+    *,
+    y0: float | None = None,
+    page_height: float | None = None,
+) -> bool:
     if not line.strip():
-        return True
-    if body_size > 0 and font_size > 0 and font_size < body_size * 0.85:
         return True
     lower = line.strip().lower()
     if lower.isdigit() and len(lower) <= 3:
         return True
     # Only treat standalone page markers as footers (not "First page item").
     if re.fullmatch(r"page\s+\d+(\s+of\s+\d+)?", lower):
+        return True
+    # Size heuristic only near page edges so mid-page small text is preserved.
+    near_edge = True
+    if y0 is not None and page_height and page_height > 0:
+        near_edge = y0 <= page_height * 0.08 or y0 >= page_height * 0.92
+    if (
+        near_edge
+        and body_size > 0
+        and font_size > 0
+        and font_size < body_size * 0.85
+    ):
         return True
     return False
 
@@ -85,10 +101,23 @@ def filter_header_footer_lines(lines_with_size: list[tuple[str, float]]) -> list
     ]
 
 
-def filter_header_footer_text_lines(lines: list[TextLine]) -> list[TextLine]:
+def filter_header_footer_text_lines(lines: list[TextLine], page_height: float | None = None) -> list[TextLine]:
     sized = [(line.text, line.size) for line in lines]
     body = median_body_font_size(sized)
-    return [line for line in lines if not is_likely_header_footer(line.text, line.size, body)]
+    height = page_height
+    if height is None and lines:
+        height = max(line.bbox[3] for line in lines) + 36.0
+    return [
+        line
+        for line in lines
+        if not is_likely_header_footer(
+            line.text,
+            line.size,
+            body,
+            y0=line.bbox[1],
+            page_height=height,
+        )
+    ]
 
 
 def union_bbox(boxes: list[tuple[float, float, float, float]]) -> tuple[float, float, float, float] | None:
@@ -284,7 +313,7 @@ def detect_layout_questions(pages: list[PageGeometry]) -> tuple[list[LayoutQuest
         if page.requires_ocr:
             warnings.append(f"page_{page.page_index}_requires_ocr")
             continue
-        filtered = filter_header_footer_text_lines(page.lines)
+        filtered = filter_header_footer_text_lines(page.lines, page.height)
         for line in _sort_reading_order(filtered, page.width):
             ordered_lines.append((page, line))
 
@@ -376,10 +405,13 @@ def detect_layout_questions(pages: list[PageGeometry]) -> tuple[list[LayoutQuest
     questions: list[LayoutQuestion] = []
     for index, (qid, text, page, q_lines) in enumerate(labeled):
         next_line = None
-        if index + 1 < len(labeled):
-            next_qid, _next_text, next_page, next_lines = labeled[index + 1]
-            if next_page.page_index == page.page_index:
+        for later_index in range(index + 1, len(labeled)):
+            _next_qid, _next_text, next_page, next_lines = labeled[later_index]
+            if next_page.page_index != page.page_index:
+                break
+            if _same_column(q_lines[0], next_lines[0], page.width):
                 next_line = next_lines[0]
+                break
         answer_bbox, region_warnings, confidence = _propose_answer_bbox(
             question_lines=q_lines,
             next_question_line=next_line,
