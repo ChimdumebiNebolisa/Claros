@@ -13,6 +13,7 @@ source = [
     "session_service",
     "storage",
     "observability",
+    "ocr_adapter",
 ]
 omit = [
     "tests/*",
