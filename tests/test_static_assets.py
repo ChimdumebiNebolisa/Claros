@@ -53,5 +53,11 @@ def test_debug_gemini_disabled_by_default():
 
 def test_dockerfile_copies_all_runtime_python_modules():
     dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
-    for filename in ("manifest.py", "parser_layout.py", "session_service.py", "observability.py"):
+    for filename in (
+        "manifest.py",
+        "parser_layout.py",
+        "session_service.py",
+        "observability.py",
+        "ocr_adapter.py",
+    ):
         assert filename in dockerfile

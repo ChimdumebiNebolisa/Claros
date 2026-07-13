@@ -1,5 +1,4 @@
 """Unit tests for deterministic GCS PDF selection in load_assignment_from_gcs."""
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -21,8 +20,16 @@ class _FakeBlob:
         return b"%PDF-1.4 fake"
 
 
-def _fake_parse_with_diagnostics(_path):
-    return ("Title", [SimpleNamespace(id=1, text="Q?")], [], "ok")
+def _fake_parse_layout(_path):
+    from parser import ParseResult, Question
+
+    return ParseResult(
+        title="Title",
+        questions=[Question(id=1, text="Q?")],
+        pages=[],
+        warnings=[],
+        parse_status="ok",
+    )
 
 
 def test_load_assignment_prefers_canonical_assignment_pdf(monkeypatch):
@@ -33,7 +40,7 @@ def test_load_assignment_prefers_canonical_assignment_pdf(monkeypatch):
 
     monkeypatch.setattr(assignment_service, "get_gcs_bucket", lambda: bucket)
     monkeypatch.setattr(assignment_service, "download_manifest_from_gcs", lambda _id: None)
-    monkeypatch.setattr(assignment_service, "parse_pdf_with_diagnostics", _fake_parse_with_diagnostics)
+    monkeypatch.setattr(assignment_service, "parse_pdf_layout", _fake_parse_layout)
     monkeypatch.setattr(assignment_service, "upload_manifest_to_gcs", lambda *_a, **_k: "gs://x")
 
     title, questions = assignment_service.load_assignment_from_gcs(TEST_ASSIGNMENT_ID)
@@ -58,7 +65,7 @@ def test_load_assignment_falls_back_to_sorted_pdf(monkeypatch):
 
     monkeypatch.setattr(assignment_service, "get_gcs_bucket", lambda: bucket)
     monkeypatch.setattr(assignment_service, "download_manifest_from_gcs", lambda _id: None)
-    monkeypatch.setattr(assignment_service, "parse_pdf_with_diagnostics", _fake_parse_with_diagnostics)
+    monkeypatch.setattr(assignment_service, "parse_pdf_layout", _fake_parse_layout)
     monkeypatch.setattr(assignment_service, "upload_manifest_to_gcs", lambda *_a, **_k: "gs://x")
 
     title, questions = assignment_service.load_assignment_from_gcs(TEST_ASSIGNMENT_ID)

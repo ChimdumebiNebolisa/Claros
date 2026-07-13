@@ -4,7 +4,7 @@ from fastapi import HTTPException
 
 import assignment_service
 import config
-from manifest import parse_manifest_json
+from manifest import build_manifest, parse_manifest_json
 from tests.conftest import TEST_ASSIGNMENT_ID
 
 
@@ -31,7 +31,7 @@ def test_build_export_response_maps_value_error_to_404(monkeypatch):
     def raise_missing(_assignment_id: str):
         raise ValueError("missing")
 
-    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", raise_missing)
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest", raise_missing)
 
     with pytest.raises(HTTPException) as exc:
         assignment_service.build_export_response(TEST_ASSIGNMENT_ID, [])
@@ -42,11 +42,45 @@ def test_build_export_response_maps_backend_error_to_500(monkeypatch):
     def raise_backend(_assignment_id: str):
         raise RuntimeError("gcs down")
 
-    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", raise_backend)
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest", raise_backend)
 
     with pytest.raises(HTTPException) as exc:
         assignment_service.build_export_response(TEST_ASSIGNMENT_ID, [])
     assert exc.value.status_code == 500
+
+
+def test_build_export_response_layout_path(monkeypatch, tmp_path):
+    from tests.layout_fixtures import write_simple_one_column
+    from parser import parse_pdf_layout
+
+    path = write_simple_one_column(tmp_path / "layout_export.pdf")
+    result = parse_pdf_layout(path)
+    manifest = build_manifest(
+        assignment_id=TEST_ASSIGNMENT_ID,
+        title=result.title,
+        questions=[
+            {
+                "id": q.id,
+                "text": q.text,
+                "page_index": q.page_index,
+                "question_bbox": q.question_bbox,
+                "answer_bbox": q.answer_bbox,
+                "layout_confidence": q.layout_confidence,
+                "layout_warnings": q.layout_warnings or [],
+            }
+            for q in result.questions
+        ],
+        pages=result.pages,
+    )
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest", lambda _id: manifest)
+    monkeypatch.setattr(assignment_service, "_download_pdf_bytes", lambda _id: path.read_bytes())
+
+    response = assignment_service.build_export_response(
+        TEST_ASSIGNMENT_ID,
+        [{"question_id": 1, "answer_text": "x = 5"}],
+    )
+    assert response.status_code == 200
+    assert response.body.startswith(b"%PDF")
 
 
 def test_persist_assignment_writes_manifest(monkeypatch, tmp_pdf_question_format):
@@ -69,6 +103,7 @@ def test_persist_assignment_writes_manifest(monkeypatch, tmp_pdf_question_format
     restored = parse_manifest_json(uploaded["manifest"])
     assert restored.title == manifest.title
     assert len(restored.questions) >= 2
+    assert restored.pages
 
 
 def test_load_assignment_manifest_backfill(monkeypatch, tmp_pdf_question_format):

@@ -30,7 +30,7 @@ def test_manifest_to_questions_dict():
     assert manifest.to_questions_dict() == [{"id": 3, "text": "Body"}]
 
 
-def test_parse_manifest_json_validates_version():
+def test_parse_manifest_json_migrates_legacy_version():
     payload = {
         "version": 1,
         "assignment_id": "id",
@@ -42,7 +42,8 @@ def test_parse_manifest_json_validates_version():
         "expires_at": None,
     }
     manifest = parse_manifest_json(json.dumps(payload))
-    assert manifest.version == 1
+    assert manifest.version == 2
+    assert "legacy_manifest_v1" in manifest.parse_warnings
 
 
 def test_manifest_expiration_is_enforced_by_time():
