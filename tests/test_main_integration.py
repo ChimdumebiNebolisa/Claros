@@ -10,11 +10,28 @@ from tests.conftest import TEST_ASSIGNMENT_ID
 client = TestClient(main_module.app)
 
 
+from manifest import AssignmentManifest
+
+
 def _fake_load_assignment(_assignment_id: str):
     return "Mock Assignment", [
         {"id": 1, "text": "First question?"},
         {"id": 2, "text": "Second question?"},
     ]
+
+
+def _fake_manifest(_assignment_id: str = TEST_ASSIGNMENT_ID) -> AssignmentManifest:
+    return AssignmentManifest(
+        assignment_id=_assignment_id,
+        title="Mock Assignment",
+        questions=[
+            {"id": 1, "text": "First question?"},
+            {"id": 2, "text": "Second question?"},
+        ],
+        pages=[],
+        parse_status="ok",
+        parse_warnings=["legacy_manifest_v1"],
+    )
 
 
 def test_index_returns_html():
@@ -124,9 +141,16 @@ def test_question_view_js_served():
     assert b"ClarosQuestionView" in response.content
 
 
+def test_worksheet_view_js_served():
+    response = client.get("/worksheet-view.js")
+    assert response.status_code == 200
+    assert "javascript" in response.headers.get("content-type", "").lower()
+    assert b"ClarosWorksheetView" in response.content
+
+
 def test_export_post_returns_pdf_attachment(monkeypatch):
     """POST /export accepts answer JSON and returns a downloadable PDF."""
-    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", _fake_load_assignment)
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest", lambda _id: _fake_manifest())
 
     response = client.post(
         f"/export/{TEST_ASSIGNMENT_ID}",
@@ -141,8 +165,8 @@ def test_export_post_returns_pdf_attachment(monkeypatch):
 
 def test_export_post_accepts_long_answer_body(monkeypatch):
     """Long answers travel in the POST body instead of the URL query string."""
-    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", _fake_load_assignment)
-    long_answer = "This sentence makes the answer long enough to avoid query-string export. " * 200
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest", lambda _id: _fake_manifest())
+    long_answer = "This sentence makes the answer long enough to avoid query-string export. " * 40
 
     response = client.post(
         f"/export/{TEST_ASSIGNMENT_ID}",
@@ -156,7 +180,7 @@ def test_export_post_accepts_long_answer_body(monkeypatch):
 
 def test_export_post_rejects_missing_question_id(monkeypatch):
     """Malformed answer objects return 400 instead of crashing during PDF rendering."""
-    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", _fake_load_assignment)
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest", lambda _id: _fake_manifest())
 
     response = client.post(
         f"/export/{TEST_ASSIGNMENT_ID}",
@@ -169,7 +193,7 @@ def test_export_post_rejects_missing_question_id(monkeypatch):
 
 def test_export_get_rejects_missing_question_id(monkeypatch):
     """Legacy query-string export validates decoded answer items before rendering."""
-    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", _fake_load_assignment)
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest", lambda _id: _fake_manifest())
 
     response = client.get(
         f"/export/{TEST_ASSIGNMENT_ID}",

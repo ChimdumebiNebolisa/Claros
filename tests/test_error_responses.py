@@ -44,7 +44,7 @@ def test_export_returns_404_when_assignment_missing(monkeypatch):
     def raise_not_found(_assignment_id: str):
         raise ValueError("No PDF found")
 
-    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", raise_not_found)
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest", raise_not_found)
 
     response = client.post(
         f"/export/{TEST_ASSIGNMENT_ID}",
@@ -58,7 +58,7 @@ def test_export_returns_500_when_backend_fails(monkeypatch):
     def raise_backend(_assignment_id: str):
         raise RuntimeError("GCS unavailable")
 
-    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", raise_backend)
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest", raise_backend)
 
     response = client.post(
         f"/export/{TEST_ASSIGNMENT_ID}",

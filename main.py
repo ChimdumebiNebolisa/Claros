@@ -11,7 +11,13 @@ from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 
 import assignment_service
-from assignment_service import build_export_response, delete_assignment, get_parse_diagnostics, persist_assignment_from_pdf_bytes
+from assignment_service import (
+    build_export_response,
+    delete_assignment,
+    get_parse_diagnostics,
+    persist_assignment_from_pdf_bytes,
+    render_page_preview,
+)
 import config
 from gemini_service import create_session_config, debug_gemini_text_call, stream_write_answer
 from schemas import (
@@ -22,6 +28,7 @@ from schemas import (
     WriteRequest,
     trim_conversation,
     validate_export_answers,
+    validate_layout_overrides,
 )
 import session_service
 import storage
@@ -189,13 +196,35 @@ async def export_assignment_get(assignment_id: UUID, answers: str = Query(..., a
         answers_list = json.loads(answers)
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid answers JSON")
-    return build_export_response(aid, validate_export_answers(answers_list))
+    return build_export_response(aid, validate_export_answers(answers_list), layout_overrides=[])
 
 
 @app.post("/export/{assignment_id}")
 async def export_assignment_post(assignment_id: UUID, body: ExportRequest):
-    """Generate PDF of questions and answers from a JSON body."""
-    return build_export_response(str(assignment_id), validate_export_answers(body.answers))
+    """Place answers onto the original worksheet PDF (layout export) or legacy reconstruct."""
+    return build_export_response(
+        str(assignment_id),
+        validate_export_answers(body.answers),
+        layout_overrides=validate_layout_overrides(body.layout_overrides),
+    )
+
+
+@app.get("/api/assignments/{assignment_id}/pages/{page_index}/preview")
+def assignment_page_preview(
+    assignment_id: UUID,
+    page_index: int,
+    dpi: int = Query(default=120, ge=36, le=200),
+):
+    """Render an original worksheet page preview as PNG (bounded DPI/pixels)."""
+    png_bytes, media_type = render_page_preview(str(assignment_id), page_index, dpi=dpi)
+    return Response(
+        content=png_bytes,
+        media_type=media_type,
+        headers={
+            "Cache-Control": "private, max-age=300",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @app.get("/api/assignments/{assignment_id}/parse-diagnostics")
@@ -242,8 +271,10 @@ async def upload_assignment(file: UploadFile = File(...)):
             "assignment_id": assignment_id,
             "title": manifest.title,
             "questions": payload,
+            "pages": manifest.to_pages_dict(),
             "parse_status": manifest.parse_status,
             "parse_warnings": manifest.parse_warnings,
+            "manifest_version": manifest.version,
         }
     except PDFProcessingError as exc:
         record_metric("pdf_parse", status="error", reason="malformed")
@@ -295,6 +326,15 @@ async def serve_session_rules():
     path = config.ROOT / "frontend" / "session-rules.js"
     if not path.exists():
         raise HTTPException(status_code=503, detail="session-rules.js missing from frontend/")
+    return FileResponse(path, media_type="application/javascript; charset=utf-8")
+
+
+@app.get("/worksheet-view.js", response_class=Response)
+async def serve_worksheet_view_js():
+    """Serve the page-based worksheet overlay renderer."""
+    path = config.ROOT / "frontend" / "worksheet-view.js"
+    if not path.exists():
+        raise HTTPException(status_code=503, detail="worksheet-view.js missing from frontend/")
     return FileResponse(path, media_type="application/javascript; charset=utf-8")
 
 

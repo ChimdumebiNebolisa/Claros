@@ -24,13 +24,31 @@ def test_validate_export_answers_rejects_non_object_entry():
     assert "must be an object" in exc.value.detail
 
 
-def test_validate_export_answers_rejects_non_positive_question_id():
+def test_validate_export_answers_rejects_negative_question_id():
     with pytest.raises(HTTPException) as exc:
-        validate_export_answers([{"question_id": 0, "answer_text": "Skipped"}])
+        validate_export_answers([{"question_id": -1, "answer_text": "Skipped"}])
     assert exc.value.status_code == 400
-    assert exc.value.detail == "answers[0].question_id must be positive"
+    assert exc.value.detail == "answers[0].question_id must be non-negative"
+
+
+def test_validate_export_answers_allows_fallback_question_zero():
+    result = validate_export_answers([{"question_id": 0, "answer_text": "Body answer"}])
+    assert result == [{"question_id": 0, "answer_text": "Body answer"}]
 
 
 def test_validate_export_answers_accepts_null_answer_text():
     result = validate_export_answers([{"question_id": 2, "answer_text": None}])
     assert result == [{"question_id": 2, "answer_text": ""}]
+
+
+def test_validate_layout_overrides_rejects_duplicates():
+    from schemas import validate_layout_overrides
+
+    with pytest.raises(HTTPException) as exc:
+        validate_layout_overrides(
+            [
+                {"question_id": 1, "page_index": 0, "answer_bbox": [10, 10, 100, 80]},
+                {"question_id": 1, "page_index": 0, "answer_bbox": [10, 10, 100, 80]},
+            ]
+        )
+    assert exc.value.status_code == 400

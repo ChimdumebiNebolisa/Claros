@@ -1,7 +1,21 @@
 (function () {
   const SAMPLE_RATE = 16000;
   const OUT_SAMPLE_RATE = 24000;
-  let state = { assignmentId: null, title: '', questions: [], answers: {} };
+  let state = {
+    assignmentId: null,
+    title: '',
+    questions: [],
+    pages: [],
+    answers: {},
+    layoutOverrides: {},
+    detectedRegions: {},
+    layoutCorrectionMode: false,
+    selectedQuestionId: null
+  };
+  let answerReady = {};
+  let answerCandidate = {};
+  let draftAnswer = {};
+  let writeTokens = {};
 
   const assignmentTitleEl = document.getElementById('assignmentTitle');
   const uploadZone = document.getElementById('uploadZone');
@@ -10,6 +24,8 @@
   const uploadLabel = document.getElementById('uploadLabel');
   const questionsContainer = document.getElementById('questionsContainer');
   const exportBtn = document.getElementById('exportBtn');
+  const layoutCorrectBtn = document.getElementById('layoutCorrectBtn');
+  const layoutStatusEl = document.getElementById('layoutStatus');
   const statusEl = document.getElementById('status');
   const sessionPanel = document.getElementById('sessionPanel');
   const statusLabel = document.getElementById('statusLabel');
@@ -34,6 +50,11 @@
   if (!QuestionView) {
     errorsEl.textContent = 'Claros failed to load the worksheet renderer.';
     throw new Error('ClarosQuestionView missing');
+  }
+  const WorksheetView = typeof ClarosWorksheetView !== 'undefined' ? ClarosWorksheetView : null;
+  if (!WorksheetView) {
+    errorsEl.textContent = 'Claros failed to load the page worksheet renderer.';
+    throw new Error('ClarosWorksheetView missing');
   }
   var normalizeTranscript = SR.normalizeTranscript;
   var parseQuestionNum = SR.parseQuestionNum;
@@ -125,9 +146,17 @@
       state.assignmentId = data.assignment_id;
       state.title = data.title || 'Assignment';
       state.questions = data.questions || [];
+      state.pages = data.pages || [];
       state.answers = {};
+      state.layoutOverrides = {};
+      state.detectedRegions = {};
+      state.questions.forEach(function (q) {
+        if (q.answer_bbox) state.detectedRegions[q.id] = q.answer_bbox.slice();
+      });
       assignmentTitleEl.textContent = state.title;
+      if (layoutCorrectBtn) layoutCorrectBtn.hidden = !(state.pages && state.pages.length);
       renderQuestions();
+      syncLayoutStatus();
       micBtn.disabled = false;
       micBtn.classList.remove('stop');
       micBtn.textContent = 'Start Session';
@@ -142,38 +171,224 @@
     }
   }
 
-  /* ?????? Question rendering ?????? */
+  function syncLayoutStatus() {
+    if (!layoutStatusEl) return;
+    var ocrPages = (state.pages || []).filter(function (p) { return p.requires_ocr; });
+    var low = (state.questions || []).filter(function (q) {
+      return !q.answer_bbox || q.layout_confidence === 'low' || (q.layout_warnings || []).indexOf('unresolved_answer_region') >= 0;
+    });
+    var messages = [];
+    if (ocrPages.length) {
+      messages.push(ocrPages.length + ' page(s) require OCR and cannot receive auto-detected answer fields yet.');
+    }
+    if (low.length) {
+      messages.push(low.length + ' question(s) have low-confidence or unresolved answer regions. Use Correct layout before export.');
+    }
+    if (state.layoutCorrectionMode) {
+      messages.push('Layout correction mode: select a question overlay, then drag to reposition or drag the corner to resize. Esc exits.');
+    }
+    layoutStatusEl.textContent = messages.join(' ');
+  }
+
+  function effectiveAnswerBBox(question) {
+    if (state.layoutOverrides[question.id] && state.layoutOverrides[question.id].answer_bbox) {
+      return state.layoutOverrides[question.id].answer_bbox;
+    }
+    return question.answer_bbox || null;
+  }
+
+  function bindAnswerField(qid, answerEl, confirmBtn) {
+    if (state.answers[qid]) {
+      answerEl.textContent = state.answers[qid];
+    }
+    if (draftAnswer[qid] && !answerEl.textContent.trim()) {
+      answerEl.textContent = draftAnswer[qid];
+    }
+    if (confirmBtn) {
+      confirmBtn.disabled = !(draftAnswer[qid] || (answerEl.textContent || '').trim());
+      if (answerReady[qid]) {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Answer confirmed';
+      }
+    }
+    var card = answerEl.closest('.question-card, .worksheet-answer-overlay');
+    if (card) {
+      if (answerReady[qid]) card.classList.add('answer-ready');
+      if (draftAnswer[qid] && !answerReady[qid]) card.classList.add('answer-drafted');
+    }
+    answerEl.addEventListener('input', function () {
+      state.answers[qid] = answerEl.textContent;
+      draftAnswer[qid] = answerEl.textContent.trim();
+      if (confirmBtn && !answerReady[qid]) confirmBtn.disabled = !draftAnswer[qid];
+      if (answerEl.textContent.trim()) exportBtn.classList.add('visible');
+      syncChecklist();
+    });
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', function () {
+        confirmAnswerForQuestion(qid);
+      });
+    }
+  }
+
+  /* ——— Question / page rendering ——— */
   function renderQuestions() {
     questionsContainer.innerHTML = '';
-    state.questions.forEach((q) => {
-      const card = QuestionView.createCard(q);
-      const answerEl = card.querySelector('.answer-field');
-      answerEl.addEventListener('input', () => {
-        state.answers[q.id] = answerEl.textContent;
-        draftAnswer[q.id] = answerEl.textContent.trim();
+    var usePages = WorksheetView && state.pages && state.pages.length > 0;
+    if (!usePages) {
+      state.questions.forEach(function (q) {
+        var card = QuestionView.createCard(q);
+        var answerEl = card.querySelector('.answer-field');
         var confirmBtn = card.querySelector('.btn-confirm-answer');
-        if (confirmBtn) confirmBtn.disabled = !draftAnswer[q.id];
-        if (answerEl.textContent.trim()) exportBtn.classList.add('visible');
-        syncChecklist();
+        bindAnswerField(q.id, answerEl, confirmBtn);
+        questionsContainer.appendChild(card);
       });
-      var confirmBtn = card.querySelector('.btn-confirm-answer');
-      if (confirmBtn) {
-        confirmBtn.addEventListener('click', function () {
-          confirmAnswerForQuestion(q.id);
+    } else {
+      state.pages.forEach(function (page) {
+        var previewUrl = '/api/assignments/' + state.assignmentId + '/pages/' + page.page_index + '/preview';
+        var shell = WorksheetView.createPageShell(page, previewUrl);
+        var pageQuestions = state.questions.filter(function (q) {
+          return q.page_index === page.page_index || (q.page_index == null && page.page_index === 0 && q.id === 0);
         });
-      }
-      questionsContainer.appendChild(card);
-    });
+        pageQuestions.forEach(function (q) {
+          var viewQ = Object.assign({}, q, {
+            answer_bbox: effectiveAnswerBBox(q),
+            layout_confidence: state.layoutOverrides[q.id] ? 'manual' : q.layout_confidence
+          });
+          var overlay = WorksheetView.createOverlayField(viewQ, page);
+          var answerEl = overlay.querySelector('.answer-field');
+          var confirmBtn = overlay.querySelector('.btn-confirm-answer');
+          bindAnswerField(q.id, answerEl, confirmBtn);
+          overlay.addEventListener('pointerdown', function (ev) {
+            if (!state.layoutCorrectionMode) return;
+            if (ev.target.closest('.answer-field') || ev.target.closest('.btn-confirm-answer')) return;
+            beginRegionEdit(overlay, page, q, ev);
+          });
+          shell._overlays.appendChild(overlay);
+        });
+        questionsContainer.appendChild(shell);
+      });
+      // Questions without a page index still appear as cards so voice/write keep working.
+      state.questions.filter(function (q) {
+        return q.page_index == null && q.id !== 0;
+      }).forEach(function (q) {
+        var card = QuestionView.createCard(q);
+        var answerEl = card.querySelector('.answer-field');
+        var confirmBtn = card.querySelector('.btn-confirm-answer');
+        bindAnswerField(q.id, answerEl, confirmBtn);
+        questionsContainer.appendChild(card);
+      });
+    }
     if (state.questions && state.questions.length > 0) {
       exportBtn.classList.add('visible');
     }
+    document.body.classList.toggle('layout-correction', !!state.layoutCorrectionMode);
   }
+
+  function beginRegionEdit(overlay, page, question, ev) {
+    state.selectedQuestionId = question.id;
+    overlay.classList.add('selected');
+    var stage = overlay.parentElement.parentElement;
+    var start = WorksheetView.clientToPagePoint(stage, page, ev.clientX, ev.clientY);
+    var current = (effectiveAnswerBBox(question) || [start.x, start.y, start.x + 120, start.y + 40]).slice();
+    var mode = ev.target.classList.contains('resize-handle') ? 'resize' : 'move';
+    var origin = current.slice();
+    var originPoint = start;
+
+    function onMove(e) {
+      var pt = WorksheetView.clientToPagePoint(stage, page, e.clientX, e.clientY);
+      var dx = pt.x - originPoint.x;
+      var dy = pt.y - originPoint.y;
+      var next;
+      if (mode === 'resize') {
+        next = [origin[0], origin[1], Math.max(origin[0] + 24, origin[2] + dx), Math.max(origin[1] + 18, origin[3] + dy)];
+      } else {
+        var w = origin[2] - origin[0];
+        var h = origin[3] - origin[1];
+        var x0 = Math.max(0, Math.min(page.width_points - w, origin[0] + dx));
+        var y0 = Math.max(0, Math.min(page.height_points - h, origin[1] + dy));
+        next = [x0, y0, x0 + w, y0 + h];
+      }
+      current = next;
+      var box = WorksheetView.pct(current, page.width_points, page.height_points);
+      overlay.style.left = box.left + '%';
+      overlay.style.top = box.top + '%';
+      overlay.style.width = box.width + '%';
+      overlay.style.height = box.height + '%';
+    }
+
+    function onUp() {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      state.layoutOverrides[question.id] = {
+        question_id: question.id,
+        page_index: page.page_index,
+        answer_bbox: current
+      };
+      question.answer_bbox = current;
+      question.layout_confidence = 'manual';
+      syncLayoutStatus();
+    }
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    ev.preventDefault();
+  }
+
+  if (layoutCorrectBtn) {
+    layoutCorrectBtn.addEventListener('click', function () {
+      state.layoutCorrectionMode = !state.layoutCorrectionMode;
+      layoutCorrectBtn.textContent = state.layoutCorrectionMode ? 'Done correcting' : 'Correct layout';
+      layoutCorrectBtn.setAttribute('aria-pressed', state.layoutCorrectionMode ? 'true' : 'false');
+      document.querySelectorAll('.worksheet-answer-overlay').forEach(function (el) {
+        var handle = el.querySelector('.resize-handle');
+        if (state.layoutCorrectionMode) {
+          if (!handle) {
+            handle = document.createElement('span');
+            handle.className = 'resize-handle';
+            handle.setAttribute('aria-hidden', 'true');
+            el.appendChild(handle);
+          }
+          var reset = el.querySelector('.btn-reset-region');
+          if (!reset) {
+            reset = document.createElement('button');
+            reset.type = 'button';
+            reset.className = 'btn-reset-region';
+            reset.textContent = 'Reset region';
+            reset.addEventListener('click', function (e) {
+              e.stopPropagation();
+              var qid = parseInt(el.dataset.questionId, 10);
+              delete state.layoutOverrides[qid];
+              var q = state.questions.find(function (item) { return item.id === qid; });
+              if (q && state.detectedRegions[qid]) {
+                q.answer_bbox = state.detectedRegions[qid].slice();
+                q.layout_confidence = q.layout_confidence === 'manual' ? 'medium' : q.layout_confidence;
+              }
+              renderQuestions();
+              syncLayoutStatus();
+            });
+            el.appendChild(reset);
+          }
+        }
+      });
+      document.body.classList.toggle('layout-correction', !!state.layoutCorrectionMode);
+      syncLayoutStatus();
+      noticeEl.textContent = state.layoutCorrectionMode
+        ? 'Layout correction on. Drag an answer region to move it, or use the corner handle to resize.'
+        : 'Layout correction off.';
+    });
+  }
+
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && state.layoutCorrectionMode && layoutCorrectBtn) {
+      layoutCorrectBtn.click();
+    }
+  });
 
   function getAnswerEl(questionId) {
     return document.querySelector('.answer-field[data-question-id="' + questionId + '"]');
   }
   function getCardEl(questionId) {
-    return document.querySelector('.question-card[data-question-id="' + questionId + '"]');
+    return document.querySelector('.question-card[data-question-id="' + questionId + '"], .worksheet-answer-overlay[data-question-id="' + questionId + '"]');
   }
 
   function persistSessionLocally() {
@@ -305,8 +520,6 @@
   let nextPlaybackTime = 0;
   let scheduledSources = [];
   let conversationContext = [];
-  let answerReady = {};
-  let answerCandidate = {};
   let currentQuestion = null;
   let clarosOutputBuffer = '';
   let userTranscriptBuffer = '';
@@ -314,8 +527,6 @@
   let writeInProgress = false;
   let keepaliveInterval = null;
   let sessionCredentials = { sessionId: null, sessionSecret: null };
-  let draftAnswer = {};
-  let writeTokens = {};
 
   function int16ArrayToBase64(int16Arr) {
     var bytes = new Uint8Array(int16Arr.buffer);
@@ -466,6 +677,9 @@
     if (!state.assignmentId) return false;
     var answers = state.questions.map(function (q) {
       return { question_id: q.id, answer_text: state.answers[q.id] || '' };
+    }).filter(function (a) { return a.question_id >= 0; });
+    var overrides = Object.keys(state.layoutOverrides).map(function (k) {
+      return state.layoutOverrides[k];
     });
     var href = '/export/' + state.assignmentId;
     errorsEl.textContent = 'Exporting your PDF... your browser should download the file.';
@@ -473,12 +687,17 @@
     fetch(href, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answers: answers })
+      body: JSON.stringify({ answers: answers, layout_overrides: overrides })
     })
       .then(function (res) {
         if (!res.ok) {
-          return res.text().then(function (text) {
-            throw new Error(text || res.statusText || 'Export failed');
+          return res.json().catch(function () { return {}; }).then(function (body) {
+            var detail = body && body.detail;
+            if (detail && typeof detail === 'object' && detail.message) {
+              throw new Error(detail.message);
+            }
+            if (typeof detail === 'string') throw new Error(detail);
+            throw new Error(res.statusText || 'Export failed');
           });
         }
         return res.blob();

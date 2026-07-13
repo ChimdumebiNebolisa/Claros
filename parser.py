@@ -1,10 +1,14 @@
 """
-PDF question extraction for Claros. Handles PDFs where questions are on lines
-starting with "Question 1:", "Question 2:", etc., or with "1.", "2)", "3.", etc.
-Falls back to full text as single block (id=0) only if no question lines found.
+PDF question extraction for Claros with page geometry and answer-region detection.
+
+Handles PDFs where questions are on lines starting with "Question 1:", "Question 2:",
+etc., or with "1.", "2)", "3.", etc. Image-only pages are marked requires_ocr and are
+not collapsed into a fake question. Text documents without question markers still fall
+back to a single block (id=0) for backward compatibility.
 """
+from __future__ import annotations
+
 import logging
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List
@@ -12,25 +16,41 @@ from typing import List
 import fitz  # PyMuPDF
 
 import config
-from parser_layout import filter_header_footer_lines
+from ocr_adapter import get_ocr_adapter
+from parser_layout import (
+    LayoutQuestion,
+    PageGeometry,
+    detect_layout_questions,
+    extract_page_geometry,
+    filter_header_footer_lines,
+)
 
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class Question:
     id: int
     text: str
+    page_index: int | None = None
+    question_bbox: list[float] | None = None
+    answer_bbox: list[float] | None = None
+    layout_confidence: str | None = None
+    layout_warnings: list[str] | None = None
+
+
+@dataclass
+class ParseResult:
+    title: str
+    questions: List[Question]
+    pages: list[dict]
+    warnings: list[str]
+    parse_status: str
 
 
 class PDFProcessingError(ValueError):
     """Raised for malformed or resource-exhausting PDF input."""
 
-
-# Line starting with "Question N:" or "Question N." (case insensitive). Captures N and rest of line.
-_QUESTION_LINE_RE = re.compile(r"^\s*Question\s*(\d+)\s*[:.]\s*(.*)", re.IGNORECASE)
-
-# Line starting with "N." or "N)" (numbered list) for worksheet-style PDFs. Captures N and rest of line.
-_NUMBERED_LINE_RE = re.compile(r"^\s*(\d+)[.)]\s*(.*)")
 
 # Conservative Unicode to ASCII substitutions for worksheet text (math-friendly).
 _UNICODE_REPLACEMENTS = (
@@ -55,48 +75,116 @@ def normalize_worksheet_text(text: str) -> str:
     return s
 
 
-def _normalize_parse_result(title: str, questions: List[Question]) -> tuple[str, List[Question]]:
-    norm_title = normalize_worksheet_text(title)
-    norm_questions = [
-        Question(id=q.id, text=normalize_worksheet_text(q.text)) for q in questions
+def _layout_to_question(item: LayoutQuestion) -> Question:
+    return Question(
+        id=item.id,
+        text=normalize_worksheet_text(item.text),
+        page_index=item.page_index,
+        question_bbox=list(item.question_bbox) if item.question_bbox else None,
+        answer_bbox=list(item.answer_bbox) if item.answer_bbox else None,
+        layout_confidence=item.layout_confidence,
+        layout_warnings=list(item.layout_warnings),
+    )
+
+
+def _pages_payload(pages: list[PageGeometry]) -> list[dict]:
+    return [
+        {
+            "page_index": page.page_index,
+            "width_points": page.width,
+            "height_points": page.height,
+            "has_usable_text": page.has_usable_text,
+            "requires_ocr": page.requires_ocr,
+        }
+        for page in pages
     ]
-    return norm_title, norm_questions
 
 
-def _extract_lines_with_size(doc: fitz.Document) -> List[tuple[str, float]]:
-    """Extract (line_text, font_size) for each line from PDF. Uses first span size per line."""
-    lines: List[tuple[str, float]] = []
-    for page in doc:
-        block_dict = page.get_text("dict", sort=True)
-        for block in block_dict.get("blocks", []):
-            for line in block.get("lines", []):
-                line_text_parts = []
-                line_size = None
-                for span in line.get("spans", []):
-                    text = span.get("text", "")
-                    if text:
-                        line_text_parts.append(text)
-                        if line_size is None and "size" in span:
-                            line_size = span["size"]
-                if line_text_parts:
-                    text = " ".join(line_text_parts).strip()
-                    if text:
-                        lines.append((text, line_size if line_size is not None else 0.0))
-    return lines
-
-
-def _collect_parse_warnings(questions: List[Question], lines: List[str]) -> list[str]:
-    warnings: list[str] = []
-    if not questions:
+def _collect_parse_warnings(questions: List[Question], pages: list[PageGeometry], extra: list[str]) -> list[str]:
+    warnings = list(extra)
+    if not questions and not any(p.requires_ocr for p in pages):
         warnings.append("no_questions_detected")
     elif len(questions) == 1 and questions[0].id == 0:
         warnings.append("fallback_single_block")
     ids = [q.id for q in questions]
     if len(ids) != len(set(ids)):
         warnings.append("duplicate_question_ids")
-    if not lines:
+    if not any(p.lines for p in pages) and not any(p.requires_ocr for p in pages):
         warnings.append("empty_extraction")
-    return warnings
+    if any(p.requires_ocr for p in pages):
+        warnings.append("requires_ocr")
+    # Preserve deterministic unique order
+    return list(dict.fromkeys(warnings))
+
+
+def parse_pdf_layout(
+    pdf_path: str | Path,
+    *,
+    apply_layout_filters: bool = True,
+) -> ParseResult:
+    """Parse PDF into title, questions with regions, and page metadata."""
+    path = Path(pdf_path)
+    try:
+        doc = fitz.open(path)
+    except (fitz.FileDataError, RuntimeError) as exc:
+        raise PDFProcessingError("PDF could not be opened") from exc
+    try:
+        if doc.page_count > config.MAX_PDF_PAGES:
+            raise PDFProcessingError("PDF exceeds the maximum page count")
+
+        pages: list[PageGeometry] = []
+        for index, page in enumerate(doc):
+            geometry = extract_page_geometry(page, index)
+            if apply_layout_filters and geometry.lines:
+                # Header/footer filtering is applied during detection; keep full line list
+                # here so page OCR/text flags remain accurate.
+                pass
+            if geometry.requires_ocr and config.ENABLE_OCR:
+                adapter = get_ocr_adapter()
+                ocr_result = adapter.extract_page_text(path.read_bytes(), index)
+                # Boundary only: null adapter yields no blocks in this PR.
+                if ocr_result.blocks:
+                    geometry.requires_ocr = False
+                    geometry.has_usable_text = True
+            pages.append(geometry)
+
+        full_text = "\n".join(line.text for page in pages for line in page.lines).strip()
+        if full_text and len(full_text) > config.MAX_EXTRACTED_TEXT_CHARS:
+            raise PDFProcessingError("PDF contains too much extracted text")
+
+        title_source = next((line.text for page in pages for line in page.lines), path.stem)
+        title = normalize_worksheet_text(title_source.strip()[:80] if title_source else path.stem)
+
+        layout_questions, detect_warnings, parse_status = detect_layout_questions(pages)
+        questions = [_layout_to_question(q) for q in layout_questions]
+        warnings = _collect_parse_warnings(questions, pages, detect_warnings)
+
+        if parse_status == "requires_ocr":
+            logger.info("[parser] OCR-required worksheet with no usable text pages=%s", len(pages))
+        elif parse_status == "fallback_single_block":
+            logger.warning("[parser] No question lines found. fallback 1 question (id=0)")
+        else:
+            logger.info(
+                "[parser] num_questions=%s question_ids=%s pages=%s",
+                len(questions),
+                [q.id for q in questions],
+                len(pages),
+            )
+
+        # Keep apply_layout_filters exercised for legacy path parity in diagnostics.
+        if apply_layout_filters:
+            sized = [(line.text, line.size) for page in pages for line in page.lines]
+            _ = filter_header_footer_lines(sized)
+
+        return ParseResult(
+            title=title,
+            questions=questions,
+            pages=_pages_payload(pages),
+            warnings=warnings,
+            parse_status=parse_status,
+        )
+    finally:
+        doc.close()
 
 
 def parse_pdf_with_diagnostics(
@@ -106,87 +194,32 @@ def parse_pdf_with_diagnostics(
 ) -> tuple[str, List[Question], list[str], str]:
     """
     Parse PDF and return (title, questions, warnings, parse_status).
-    parse_status is one of: ok, fallback_single_block, empty_extraction.
+    parse_status is one of: ok, fallback_single_block, empty_extraction, requires_ocr.
     """
-    path = Path(pdf_path)
-    try:
-        doc = fitz.open(path)
-    except (fitz.FileDataError, RuntimeError) as exc:
-        raise PDFProcessingError("PDF could not be opened") from exc
-    try:
-        if doc.page_count > config.MAX_PDF_PAGES:
-            raise PDFProcessingError("PDF exceeds the maximum page count")
-        lines_with_size = _extract_lines_with_size(doc)
-        if apply_layout_filters:
-            lines_with_size = filter_header_footer_lines(lines_with_size)
-        lines = [t for t, _ in lines_with_size]
-        full_text = "\n".join(lines).strip() or "(No extractable text)"
-        if len(full_text) > config.MAX_EXTRACTED_TEXT_CHARS:
-            raise PDFProcessingError("PDF contains too much extracted text")
-
-        if not lines:
-            title = path.stem
-            questions = [Question(id=0, text=full_text)]
-            warnings = _collect_parse_warnings(questions, lines)
-            return _normalize_parse_result(title, questions) + (warnings, "empty_extraction")
-
-        title = lines[0].strip()[:80] if lines else path.stem
-        questions: List[Question] = []
-        i = 0
-
-        while i < len(lines):
-            m = _QUESTION_LINE_RE.match(lines[i])
-            if m:
-                qid = int(m.group(1))
-                text_parts = [m.group(2).strip()] if m.group(2).strip() else []
-                i += 1
-                while i < len(lines) and not _QUESTION_LINE_RE.match(lines[i]):
-                    text_parts.append(lines[i])
-                    i += 1
-                q_text = "\n".join(text_parts).strip()
-                questions.append(Question(id=qid, text=q_text))
-            else:
-                i += 1
-
-        if not questions:
-            i = 0
-            while i < len(lines):
-                m = _NUMBERED_LINE_RE.match(lines[i])
-                if m:
-                    qid = int(m.group(1))
-                    text_parts = [m.group(2).strip()] if m.group(2).strip() else []
-                    i += 1
-                    while i < len(lines) and not _NUMBERED_LINE_RE.match(lines[i]):
-                        text_parts.append(lines[i])
-                        i += 1
-                    q_text = "\n".join(text_parts).strip()
-                    if q_text or qid <= 10:
-                        questions.append(Question(id=qid, text=q_text or f"Question {qid}"))
-                else:
-                    i += 1
-
-        if not questions:
-            questions = [Question(id=0, text=full_text)]
-            warnings = _collect_parse_warnings(questions, lines)
-            logger.warning("[parser] No question lines found. fallback 1 question (id=0)")
-            return _normalize_parse_result(title, questions) + (warnings, "fallback_single_block")
-
-        warnings = _collect_parse_warnings(questions, lines)
-        question_ids = [q.id for q in questions]
-        logger.info(
-            "[parser] num_questions=%s question_ids=%s",
-            len(questions), question_ids,
-        )
-        return _normalize_parse_result(title, questions) + (warnings, "ok")
-    finally:
-        doc.close()
+    result = parse_pdf_layout(pdf_path, apply_layout_filters=apply_layout_filters)
+    return result.title, result.questions, result.warnings, result.parse_status
 
 
 def parse_pdf(pdf_path: str | Path) -> tuple[str, List[Question]]:
     """
     Parse PDF and extract questions. Tries (1) "Question N:" lines, then (2) "1.", "2)", "3." lines.
-    Returns (title, questions). Title is the first line. Falls back to one question (id=0) only
-    if neither pattern matches.
+    Returns (title, questions). Title is the first line.
     """
     title, questions, _warnings, _status = parse_pdf_with_diagnostics(pdf_path)
     return title, questions
+
+
+def questions_to_manifest_payload(questions: List[Question]) -> list[dict]:
+    payload = []
+    for q in questions:
+        item = {
+            "id": q.id,
+            "text": q.text,
+            "page_index": q.page_index,
+            "question_bbox": q.question_bbox,
+            "answer_bbox": q.answer_bbox,
+            "layout_confidence": q.layout_confidence,
+            "layout_warnings": list(q.layout_warnings or []),
+        }
+        payload.append(item)
+    return payload
