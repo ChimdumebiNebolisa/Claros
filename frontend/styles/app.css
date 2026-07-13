@@ -329,6 +329,169 @@ body:not(.has-assignment) .assignment-title {
   text-align: center;
 }
 
+.worksheet-toolbar {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.btn-layout-mode {
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-layout-mode[aria-pressed="true"] {
+  background: var(--iris-soft);
+  border-color: var(--iris-line);
+}
+
+.layout-status {
+  min-height: 1.2rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.layout-status:empty { display: none; }
+
+.worksheet-pages {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.worksheet-page {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.worksheet-page-status {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.worksheet-page-status.requires-ocr {
+  color: var(--warn);
+}
+
+.worksheet-page-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / var(--page-aspect, 1.294);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #f3f1ee;
+}
+
+.worksheet-page-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  user-select: none;
+  pointer-events: none;
+}
+
+.worksheet-overlays {
+  position: absolute;
+  inset: 0;
+}
+
+.worksheet-answer-overlay {
+  position: absolute;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  gap: 0.2rem;
+  padding: 0.15rem;
+  border: 1.5px solid rgba(249, 115, 22, 0.55);
+  background: rgba(255, 255, 255, 0.72);
+  box-sizing: border-box;
+  min-height: 2.4rem;
+}
+
+.worksheet-answer-overlay.unresolved {
+  border-style: dashed;
+  border-color: var(--warn-line);
+  background: rgba(255, 247, 237, 0.85);
+}
+
+.worksheet-answer-overlay.selected {
+  outline: 2px solid var(--iris);
+  outline-offset: 1px;
+}
+
+.worksheet-answer-field {
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 0.86rem;
+  padding: 0.35rem 0.45rem;
+}
+
+.overlay-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.overlay-qid {
+  color: var(--iris-deep);
+}
+
+.overlay-warning {
+  color: var(--warn);
+}
+
+.overlay-confirm {
+  margin-top: 0;
+  justify-self: start;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.72rem;
+}
+
+.resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  background: var(--iris);
+  cursor: nwse-resize;
+  border-radius: 2px 0 0 0;
+}
+
+.btn-reset-region {
+  position: absolute;
+  top: 0.15rem;
+  right: 0.15rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 0.64rem;
+  font-weight: 600;
+  padding: 0.15rem 0.35rem;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+body.layout-correction .worksheet-answer-overlay {
+  cursor: move;
+}
+
+body.layout-correction .worksheet-answer-field {
+  pointer-events: none;
+}
+
 .question-card {
   background: var(--surface);
   border: 1px solid var(--border);

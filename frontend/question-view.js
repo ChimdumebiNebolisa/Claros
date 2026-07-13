@@ -1,5 +1,8 @@
 (function (root) {
   function createCard(question) {
+    if (root.ClarosWorksheetView && root.ClarosWorksheetView.createLegacyCard) {
+      return root.ClarosWorksheetView.createLegacyCard(question);
+    }
     var id = String(question.id);
     var card = document.createElement('div');
     card.className = 'question-card';

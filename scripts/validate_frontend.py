@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parent.parent
 FRONTEND = ROOT / "frontend"
 
 REQUIRED_STYLES = ("tokens.css", "landing.css", "app.css")
-REQUIRED_SCRIPTS = ("app.js", "session-rules.js", "question-view.js")
+REQUIRED_SCRIPTS = ("app.js", "session-rules.js", "question-view.js", "worksheet-view.js")
 LEGACY_FRONTEND_FILES = ()
 LEGACY_MARKER = "LEGACY"
 
@@ -49,9 +49,11 @@ def validate_app_html() -> None:
         'id="sessionPanel"',
         'id="fileInput"',
         'id="keyboardFallback"',
+        'id="layoutCorrectBtn"',
         "/app.js",
         "/session-rules.js",
         "/question-view.js",
+        "/worksheet-view.js",
     )
     for needle in checks:
         if needle not in html:
@@ -77,6 +79,8 @@ def validate_app_js_contract() -> None:
         "btn-confirm-answer",
         "confirmAnswerForQuestion",
         "ClarosQuestionView",
+        "ClarosWorksheetView",
+        "layout_overrides",
         "showKeyboardFallback",
     )
     for needle in checks:
