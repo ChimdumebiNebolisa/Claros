@@ -8,8 +8,8 @@ from fastapi.testclient import TestClient
 from exporter import build_export_pdf
 from parser import normalize_worksheet_text, parse_pdf
 
+import assignment_service
 import main as main_module
-import storage
 
 
 def _write_unicode_minus_pdf(path) -> None:
@@ -56,7 +56,10 @@ def test_upload_unicode_pdf_does_not_fail_charmap(monkeypatch, tmp_path):
     path = tmp_path / "upload_unicode.pdf"
     _write_unicode_minus_pdf(path)
 
-    monkeypatch.setattr(storage, "upload_pdf_to_gcs", lambda *args, **kwargs: "gs://fake/b.pdf")
+    # persist_assignment_from_pdf_bytes imports these names into the assignment_service
+    # namespace, so patch them there (patching storage.* would not affect the bound names).
+    monkeypatch.setattr(assignment_service, "upload_pdf_to_gcs", lambda *args, **kwargs: "gs://fake/b.pdf")
+    monkeypatch.setattr(assignment_service, "upload_manifest_to_gcs", lambda *args, **kwargs: None)
 
     client = TestClient(main_module.app)
     response = client.post(
