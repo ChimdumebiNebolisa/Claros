@@ -18,12 +18,12 @@ Claros closes this gap. It operates directly on the worksheet: guiding the stude
 
 ## How Claros Works
 
-1. **Upload a worksheet PDF** - Claros parses the document and extracts individual questions into an editable worksheet view.
+1. **Upload a worksheet PDF** - Claros parses the document, keeps page geometry, and overlays answer fields on the original worksheet pages.
 2. **Start a voice session** - Claros connects to a real-time audio session. The student speaks through their microphone and hears Claros respond naturally.
 3. **Discuss a question** - Claros guides the student through the problem using Socratic questioning. It does not give the answer directly. Guided reasoning first, not answer generation.
 4. **State the final answer** - The student says their answer out loud (e.g., "I think the answer is 42" or "My answer for question 1 is the Civil War").
 5. **Ask Claros to write it** - The student says something like "Write my answer for question 1," or Claros may offer ("Let me write that for question 1") after the student has worked through the answer. Claros then writes the answer into the correct field on the worksheet.
-6. **Export as PDF** - The Export PDF button appears once an assignment is loaded. The student can export at any time; the PDF includes all questions and answers (or "(No answer)" where none was written).
+6. **Export as PDF** - The Export PDF button appears once an assignment is loaded. Export writes answers onto the **original worksheet PDF** at detected or manually corrected regions.
 
 ## Core Product Rule
 
@@ -43,14 +43,16 @@ This is not about making assignments easier. It is about making them accessible 
 
 ## Features
 
-- **PDF assignment ingestion** - Upload any PDF with "Question N:" formatting. Questions are extracted and rendered as an interactive worksheet.
+- **PDF assignment ingestion** - Upload a PDF worksheet. Claros detects numbered questions, page geometry, and proposed answer regions for overlay editing.
+- **Layout-preserving worksheet view** - Original page previews are shown with accessible answer fields positioned on the page; low-confidence regions can be corrected before export.
 - **PDF safety limits** - Uploads are bounded by byte size, page count, and extracted-text size; malformed or unsupported PDFs return a recoverable validation error.
+- **OCR-required detection** - Image-only/scanned pages are marked `requires_ocr` without inventing fake questions; OCR runtime is intentionally deferred behind an adapter boundary.
 - **Real-time voice conversation** - Bidirectional audio through Gemini Live. The student speaks and hears Claros respond with natural voice.
 - **Socratic guidance** - Claros defaults to teaching mode, asking guiding questions rather than stating answers.
 - **Per-question answer readiness tracking** - The frontend tracks whether the student has stated a final answer for each question before allowing a write.
 - **Controlled answer writing** - When permitted, the frontend calls the backend write API; the answer is streamed into the correct question field via Gemini text generation. LaTeX-style `$...$` delimiters in model output are stripped so answers display as plain text (e.g. "x = 5" instead of "$x = 5$").
 - **Live transcript** - Both sides of the conversation are transcribed and displayed in real time (from Gemini Live in the browser).
-- **PDF export** - The Export PDF button is shown as soon as an assignment is loaded. Export includes all questions and answers (or "(No answer)" where empty); voice phrases like "export pdf" trigger the same flow.
+- **PDF export onto the original worksheet** - Export inserts answers into layout regions on the original PDF. Unresolved/overflow placements return a clear 422 rather than silently truncating. Legacy reconstructed export remains only for manifests without layout metadata.
 - **Answer-stated indicator** - The UI shows a visual badge when the student (or Claros) has indicated the answer for a given question.
 - **Barge-in / interruption** - If the student starts speaking while Claros is talking, Claros’ audio playback is stopped and the app returns to listening. An **Interrupt** button (visible during a session) stops Claros's speech immediately so the student can talk without speaking first.
 - **Voice-enabled PDF export** - Saying phrases like “export pdf” or “export this as pdf” from within the voice session triggers the same PDF export as the button; export is allowed even when no answers have been written yet.
@@ -70,15 +72,16 @@ flowchart LR
   App --> Write[POST /api/write]
   Write --> Gemini[Gemini text stream]
   App --> Export[POST /export]
-  Export --> PDF[ReportLab PDF]
+  Export --> PDF[Original PDF + regions]
 ```
 
 ```
 Browser (frontend/landing.html at `/`, frontend/app.html at `/app`)
   │
   ├── Shared styles: frontend/styles/tokens.css + landing.css | app.css
-  ├── Worksheet client: frontend/app.js + frontend/session-rules.js
+  ├── Worksheet client: frontend/app.js + worksheet-view.js + session-rules.js
   ├── GET /api/session-config/{id}  → ephemeral token + system prompt + model
+  ├── GET /api/assignments/{id}/pages/{n}/preview → original page PNG
   ├── Direct WebSocket to Gemini Live API (voice: audio in/out, transcription)
   │     via bundled @google/genai JS SDK (served from app; no runtime CDN), ephemeral token from backend
   └── POST /api/write/{id} (streaming) → answer text for a question
@@ -86,14 +89,15 @@ Browser (frontend/landing.html at `/`, frontend/app.html at `/app`)
 FastAPI backend (main.py + service modules)
   │
   ├── config.py — env, GCS bucket, API key helpers
-  ├── assignment_service.py — load/parse assignments from GCS, export PDF assembly
+  ├── assignment_service.py — load/parse assignments from GCS, page preview, export assembly
   ├── gemini_service.py — ephemeral tokens, answer write streaming
   ├── storage.py — GCS upload
   ├── schemas.py — request validation
   ├── Ephemeral token creation (auth_tokens.create) for browser-Gemini Live
   ├── Gemini 2.5 Flash (text) for answer writing via generate_content_stream()
-  ├── PDF parser (parser.py - PyMuPDF)
-  ├── PDF exporter (exporter.py - ReportLab)
+  ├── PDF parser (parser.py + parser_layout.py - PyMuPDF geometry)
+  ├── OCR adapter boundary (ocr_adapter.py; no production OCR in this release)
+  ├── PDF exporter (exporter.py - layout-preserving primary, ReportLab legacy fallback)
   └── Google Cloud Storage (assignment PDF persistence)
 ```
 
@@ -103,11 +107,11 @@ FastAPI backend (main.py + service modules)
 
 **Barge-in / interruption** is implemented in the frontend. When the user starts speaking (or clicks the **Interrupt** button) while Claros is playing, the browser stops scheduled audio buffers, clears the playback queue, and returns to listening. This is not full-duplex.
 
-**Voice-enabled PDF export** is detected on the user speech path in the browser. When a user utterance for a completed turn clearly matches export-intent phrases (e.g., “export pdf”, “export as pdf”, “export this as pdf”, “download pdf”, “download the pdf”, “save as pdf”, “save this as pdf”, “save it as pdf”), the frontend triggers the same `/export/{assignment_id}` route as the Export button. Export is allowed with or without answers; the PDF lists all questions and shows "(No answer)" where none was written.
+**Voice-enabled PDF export** is detected on the user speech path in the browser. When a user utterance for a completed turn clearly matches export-intent phrases (e.g., “export pdf”, “export as pdf”, “export this as pdf”, “download pdf”, “download the pdf”, “save as pdf”, “save this as pdf”, “save it as pdf”), the frontend triggers the same `/export/{assignment_id}` route as the Export button. Export is allowed with or without answers; answered text is placed onto the original worksheet when regions are available.
 
 **Answer readiness gating** is enforced in the frontend: writing is only triggered once the answer is marked ready for that question (student stated it or Claros said "Let me write that for question N"). The backend accepts the request with or without an answer candidate and uses the conversation to generate the written answer.
 
-**PDF pipeline**: Uploaded PDFs are stored in Google Cloud Storage under `assignments/{uuid}/assignment.pdf`, parsed with PyMuPDF to extract questions matching a `Question N:` pattern, and can be exported back as formatted PDFs with answers using ReportLab.
+**PDF pipeline**: Uploaded PDFs are stored in Google Cloud Storage under `assignments/{uuid}/assignment.pdf`, parsed once into a versioned layout manifest (see `LAYOUT.md`), previewed as page images, and exported by writing answers into the original PDF regions. See that doc for confidence states, OCR-required pages, and unsupported layouts.
 
 ## Hardening and risk prevention
 
