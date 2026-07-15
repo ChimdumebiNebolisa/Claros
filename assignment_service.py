@@ -1,4 +1,4 @@
-"""Assignment loading, parsing, preview rendering, and export helpers."""
+"""Assignment loading, parsing, and export helpers."""
 import logging
 import os
 import re
@@ -18,15 +18,11 @@ from storage import (
     upload_pdf_to_gcs,
 )
 from config import get_gcs_bucket
-from exporter import build_export_pdf, build_layout_export_pdf, LayoutExportError
-from parser import PDFProcessingError, parse_pdf_layout, questions_to_manifest_payload
+from exporter import build_original_export_pdf
+from parser import parse_pdf_with_diagnostics
 from observability import record_metric
 
 logger = logging.getLogger(__name__)
-
-_DEFAULT_PREVIEW_DPI = 120
-_MAX_PREVIEW_DPI = 200
-_MAX_PREVIEW_PIXELS = 4_000_000
 
 
 class AssignmentExpiredError(RuntimeError):
@@ -60,15 +56,29 @@ def _download_pdf_bytes(assignment_id: str) -> bytes:
 
 
 def _parse_and_build_manifest(assignment_id: str, pdf_path: str) -> AssignmentManifest:
-    result = parse_pdf_layout(pdf_path)
-    payload = questions_to_manifest_payload(result.questions)
+    title, questions, warnings, parse_status = parse_pdf_with_diagnostics(pdf_path)
+    payload = [
+        {
+            "id": q.id,
+            "text": q.text,
+            "page": q.page,
+            "prompt_region": q.prompt_region,
+            "answer_region": q.answer_region,
+            "detected_answer_region": q.detected_answer_region,
+            "layout_confidence": q.layout_confidence,
+            "needs_layout_review": q.needs_layout_review,
+        }
+        for q in questions
+    ]
+    with fitz.open(pdf_path) as document:
+        page_count = document.page_count
     return build_manifest(
         assignment_id=assignment_id,
-        title=result.title,
+        title=title,
         questions=payload,
-        pages=result.pages,
-        parse_status=result.parse_status,
-        parse_warnings=result.warnings,
+        parse_status=parse_status,
+        parse_warnings=warnings,
+        page_count=page_count,
         ttl_days=config.ASSIGNMENT_TTL_DAYS,
     )
 
@@ -127,6 +137,25 @@ def load_assignment_from_gcs(assignment_id: str) -> tuple[str, list]:
     return manifest.title, manifest.to_questions_dict()
 
 
+def load_assignment_pdf_bytes(assignment_id: str) -> bytes:
+    """Return the original worksheet PDF after validating its manifest lifecycle."""
+    load_assignment_manifest(assignment_id)
+    return _download_pdf_bytes(assignment_id)
+
+
+def render_assignment_page(assignment_id: str, page_number: int, scale: float = 1.5) -> bytes:
+    """Render one original worksheet page to PNG for the browser document canvas."""
+    pdf_bytes = load_assignment_pdf_bytes(assignment_id)
+    document = fitz.open(stream=pdf_bytes, filetype="pdf")
+    try:
+        if page_number < 1 or page_number > document.page_count:
+            raise ValueError("Page not found")
+        pixmap = document[page_number - 1].get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False)
+        return pixmap.tobytes("png")
+    finally:
+        document.close()
+
+
 def get_parse_diagnostics(assignment_id: str) -> dict:
     manifest = load_assignment_manifest(assignment_id)
     return {
@@ -135,9 +164,11 @@ def get_parse_diagnostics(assignment_id: str) -> dict:
         "parse_warnings": manifest.parse_warnings,
         "num_questions": len(manifest.questions),
         "question_ids": [q.id for q in manifest.questions],
+        "page_count": manifest.page_count,
+        "layout_review_question_ids": [
+            q.id for q in manifest.questions if q.needs_layout_review
+        ],
         "expires_at": manifest.expires_at,
-        "pages": manifest.to_pages_dict(),
-        "manifest_version": manifest.version,
     }
 
 
@@ -153,66 +184,10 @@ def load_assignment_text_from_gcs(assignment_id: str) -> str:
     return format_assignment_text(title, questions)
 
 
-def render_page_preview(
-    assignment_id: str,
-    page_index: int,
-    *,
-    dpi: int = _DEFAULT_PREVIEW_DPI,
-) -> tuple[bytes, str]:
-    """Render one assignment page to PNG. Returns (bytes, media_type)."""
-    if page_index < 0:
-        raise HTTPException(status_code=400, detail="page_index must be >= 0")
-    if dpi < 36 or dpi > _MAX_PREVIEW_DPI:
-        raise HTTPException(status_code=400, detail=f"dpi must be between 36 and {_MAX_PREVIEW_DPI}")
-
+def build_export_response(assignment_id: str, answers_list: list[dict]) -> Response:
     try:
-        manifest = load_assignment_manifest(assignment_id)
-    except AssignmentExpiredError:
-        raise HTTPException(status_code=410, detail="Assignment expired")
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Assignment not found")
-
-    if manifest.pages:
-        max_index = max(p.page_index for p in manifest.pages)
-        if page_index > max_index:
-            raise HTTPException(status_code=404, detail="Page not found")
-
-    try:
+        _title, questions = load_assignment_from_gcs(assignment_id)
         pdf_bytes = _download_pdf_bytes(assignment_id)
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Assignment not found")
-    except Exception:
-        logger.exception("Failed to download PDF for preview %s", assignment_id)
-        raise HTTPException(status_code=500, detail="Could not load assignment for preview.")
-
-    try:
-        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    except (fitz.FileDataError, RuntimeError) as exc:
-        raise HTTPException(status_code=400, detail="PDF could not be opened") from exc
-    try:
-        if page_index >= doc.page_count:
-            raise HTTPException(status_code=404, detail="Page not found")
-        page = doc.load_page(page_index)
-        scale = dpi / 72.0
-        width_px = page.rect.width * scale
-        height_px = page.rect.height * scale
-        if width_px * height_px > _MAX_PREVIEW_PIXELS:
-            raise HTTPException(status_code=400, detail="Requested preview exceeds maximum pixel budget")
-        pix = page.get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False)
-        return pix.tobytes("png"), "image/png"
-    finally:
-        doc.close()
-
-
-def build_export_response(
-    assignment_id: str,
-    answers_list: list[dict],
-    layout_overrides: list[dict] | None = None,
-) -> Response:
-    try:
-        manifest = load_assignment_manifest(assignment_id)
-        title = manifest.title
-        questions = manifest.to_questions_dict()
     except AssignmentExpiredError:
         raise HTTPException(status_code=410, detail="Assignment expired")
     except ValueError:
@@ -220,49 +195,7 @@ def build_export_response(
     except Exception:
         logger.exception("Failed to load assignment %s for export", assignment_id)
         raise HTTPException(status_code=500, detail="Could not load assignment for export.")
-
-    has_usable_layout = any(q.get("answer_bbox") for q in questions) or bool(layout_overrides)
-
-    if has_usable_layout:
-        try:
-            pdf_bytes_src = _download_pdf_bytes(assignment_id)
-        except ValueError:
-            raise HTTPException(status_code=404, detail="Assignment not found")
-        except Exception:
-            logger.exception("Failed to download original PDF for layout export %s", assignment_id)
-            raise HTTPException(status_code=500, detail="Could not load assignment for export.")
-        try:
-            pdf_bytes = build_layout_export_pdf(
-                pdf_bytes_src,
-                questions,
-                answers_list,
-                pages=manifest.to_pages_dict(),
-                layout_overrides=layout_overrides or [],
-            )
-        except LayoutExportError as exc:
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "code": "LAYOUT_EXPORT_OVERFLOW",
-                    "message": str(exc),
-                    "questions": exc.question_ids,
-                },
-            ) from exc
-        except PDFProcessingError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "code": "LAYOUT_EXPORT_INVALID_REGION",
-                    "message": str(exc),
-                    "questions": [],
-                },
-            ) from exc
-    else:
-        # Legacy reconstructed export when there are no usable answer regions.
-        pdf_bytes = build_export_pdf(title, questions, answers_list)
-
+    pdf_bytes = build_original_export_pdf(pdf_bytes, questions, answers_list)
     record_metric("export", status="ok")
     return Response(
         content=pdf_bytes,
