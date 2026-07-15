@@ -1,5 +1,11 @@
-# Planning and documentation (not tracked in version control)
-docs/
+# Planning and documentation (track durable PDF investigation records only)
+docs/*
+!docs/pdf-acceptance-before-after-report.md
+!docs/pdf-acceptance-report.md
+!docs/pdf-gold-pilot-report.md
+!docs/pdf-understanding-architecture.md
+!docs/pdf-understanding-benchmark-report.md
+!docs/pdf-understanding-roadmap.md
 
 .env
 __pycache__/
