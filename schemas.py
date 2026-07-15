@@ -111,7 +111,39 @@ def validate_export_answers(raw_answers) -> list[dict]:
                 detail=f"answers[{index}].answer_text exceeds maximum length",
             )
 
-        answers.append({"question_id": question_id, "answer_text": answer_text})
+        normalized = {"question_id": question_id, "answer_text": answer_text}
+        answer_region = answer.get("answer_region")
+        if answer_region is not None:
+            if not isinstance(answer_region, dict):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"answers[{index}].answer_region must be an object",
+                )
+            try:
+                region = {
+                    key: float(answer_region[key])
+                    for key in ("x", "y", "width", "height")
+                }
+            except (KeyError, TypeError, ValueError):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"answers[{index}].answer_region is invalid",
+                )
+            if (
+                region["x"] < 0
+                or region["y"] < 0
+                or region["width"] <= 0
+                or region["height"] <= 0
+                or region["x"] + region["width"] > 1
+                or region["y"] + region["height"] > 1
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"answers[{index}].answer_region is outside the page",
+                )
+            normalized["answer_region"] = region
+
+        answers.append(normalized)
 
     return answers
 
