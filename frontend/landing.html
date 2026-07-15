@@ -4,256 +4,209 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Claros: Voice-guided worksheet assistant</title>
-  <meta name="description" content="Claros helps students with typing difficulties work through worksheets by voice. Upload a PDF, talk through each question, and export the completed worksheet.">
+  <meta name="description" content="Talk through a PDF worksheet with Claros, approve your answer, and export the original document.">
   <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="stylesheet" href="/styles/tokens.css">
   <link rel="stylesheet" href="/styles/landing.css">
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
   <div class="app-shell" id="top">
-    <header class="topbar">
+    <header class="topbar landing-topbar">
       <div class="topbar-left brand-lockup">
         <div class="brand-mark" aria-hidden="true"></div>
         <div class="brand-copy">
-          <a href="#top" class="brand-link" aria-label="Go to top"><strong>Claros</strong></a>
+          <a href="#top" class="brand-link" aria-label="Claros home"><strong>Claros</strong></a>
           <span>Voice-guided worksheets</span>
         </div>
       </div>
       <nav class="topbar-links" aria-label="Primary">
         <a href="#how-it-works">How it works</a>
-        <a href="#features">Why Claros</a>
-        <a href="#trust">Accessibility</a>
+        <a href="#accessibility">Accessibility</a>
         <a href="#faq">FAQ</a>
       </nav>
-      <div class="topbar-right">
-        <a href="/app" class="nav-pill">Open the app</a>
-      </div>
+      <a href="/app" class="nav-pill">Start a worksheet</a>
     </header>
 
-    <main class="landing-main">
-
-      <section class="hero-section">
-        <div class="hero-inner">
-          <h1 class="hero-title hero-animate">Say your answer.<br>Claros writes it down.</h1>
-          <p class="hero-copy hero-animate">Claros is a voice-guided worksheet assistant for students who find typing hard. Upload a worksheet PDF, talk through each question with a patient voice tutor, and export the finished worksheet. Claros writes an answer only after you say it.</p>
-          <div class="hero-actions hero-animate">
-            <a href="/app" class="btn btn-primary btn-lg">Start a worksheet</a>
-            <a href="/app?sample=1" class="btn btn-ghost btn-lg">Try the sample</a>
+    <main id="main-content">
+      <section class="hero-section" aria-labelledby="hero-title">
+        <div class="hero-copy-column">
+          <h1 id="hero-title">Say your answer.<br>Claros writes it down.</h1>
+          <p class="hero-description">Talk through your worksheet with a patient voice tutor. Claros writes only answers you approve.</p>
+          <div class="hero-actions">
+            <a href="/app" class="btn btn-primary">Start a worksheet</a>
+            <a href="/app?sample=1" class="btn btn-secondary">Try the sample</a>
           </div>
-          <p class="hero-footnote hero-animate">Upload a PDF, export a PDF&ensp;·&ensp;You approve every answer&ensp;·&ensp;No account needed</p>
+        </div>
 
-          <div class="preview-frame hero-animate">
-            <div class="preview-window" role="img" aria-label="Preview of the Claros app: a loaded worksheet with an active question marked answer stated, a listening voice assistant, and export ready.">
-              <div class="preview-titlebar" aria-hidden="true">
-                <span class="preview-dot"></span><span class="preview-dot"></span><span class="preview-dot"></span>
-                <span class="preview-doc">Math Assignment, Grades 9-10</span>
-                <span class="preview-loaded">Worksheet loaded</span>
-              </div>
-              <div class="preview-body" aria-hidden="true">
-                <div class="preview-worksheet">
-                  <div class="preview-question is-done">
-                    <div class="preview-qhead">
-                      <span class="preview-qnum">1</span> Question 1
-                      <span class="preview-badge preview-badge-done">Complete</span>
-                    </div>
-                    <p class="preview-qtext">Solve for x: 3x + 7 = 22. Show your work.</p>
-                    <div class="preview-answer filled">x = 5</div>
-                  </div>
-                  <div class="preview-question is-active">
-                    <div class="preview-qhead">
-                      <span class="preview-qnum">2</span> Question 2
-                      <span class="preview-badge preview-badge-active">Question active</span>
-                      <span class="preview-stated">Answer stated</span>
-                    </div>
-                    <p class="preview-qtext">Solve for x: −2x − 5 = 11. Show your work.</p>
-                    <div class="preview-answer pending">Answer will appear after you approve</div>
-                  </div>
-                  <div class="preview-export-wrap">
-                    <button type="button" class="preview-export preview-export-ready" tabindex="-1">Export answers as PDF</button>
-                    <span class="preview-export-label">Export ready</span>
-                  </div>
-                </div>
-                <div class="preview-console">
-                  <div class="preview-console-head">Voice assistant <span class="preview-live">Live</span></div>
-                  <div class="preview-status"><span class="preview-status-dot"></span> Listening for your response</div>
-                  <div class="preview-wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-                  <ul class="preview-checklist">
-                    <li class="preview-check done">PDF uploaded</li>
-                    <li class="preview-check done">Microphone ready</li>
-                    <li class="preview-check done">Session active</li>
-                  </ul>
-                  <div class="preview-line preview-you"><b>You</b> My answer for question 2 is −8.</div>
-                  <div class="preview-line preview-claros"><b>Claros</b> Got it. Say "write it down" when you want me to add it.</div>
-                </div>
+        <div class="product-scene" aria-label="Claros sample worksheet showing an answer ready for confirmation">
+          <div class="scene-document" aria-hidden="true">
+            <div class="scene-toolbar">
+              <span>Algebra worksheet</span>
+              <span>Page 1 of 1</span>
+              <span>100%</span>
+            </div>
+            <div class="scene-page-wrap">
+              <img src="/sample-page.png" alt="">
+              <span class="scene-answer-region">Q2 answer area</span>
+            </div>
+          </div>
+          <div class="scene-voice">
+            <div class="scene-voice-head">
+              <span><small>Voice guide</small><strong>Claros</strong></span>
+              <span class="scene-badge">Review</span>
+            </div>
+            <div class="scene-status">
+              <span aria-hidden="true"></span>
+              <div><strong>Answer detected</strong><small>Nothing has been written yet.</small></div>
+            </div>
+            <p class="scene-question">Working on Question 2</p>
+            <div class="scene-confirmation">
+              <small>Proposed final answer</small>
+              <strong>x = -8</strong>
+              <div>
+                <span>Edit</span>
+                <span>Reject</span>
+                <span class="scene-confirm">Confirm answer</span>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="session-section" id="how-it-works">
-        <div class="session-container">
-          <div class="session-copy">
-            <h2 class="section-title on-dark">How a session works</h2>
-            <p class="section-lead on-dark">One conversation, from blank worksheet to finished PDF. Claros guides your thinking; it never does the thinking for you.</p>
-            <ol class="session-steps">
-              <li>
-                <span class="step-num" aria-hidden="true">1</span>
-                <div><strong>Upload your worksheet.</strong> Claros reads the PDF and turns each question into an editable field.</div>
-              </li>
-              <li>
-                <span class="step-num" aria-hidden="true">2</span>
-                <div><strong>Talk it through.</strong> Claros asks guiding questions out loud. It won't hand you the answer.</div>
-              </li>
-              <li>
-                <span class="step-num" aria-hidden="true">3</span>
-                <div><strong>Say your answer.</strong> "My answer for question 2 is 12." That unlocks writing for that question only.</div>
-              </li>
-              <li>
-                <span class="step-num" aria-hidden="true">4</span>
-                <div><strong>Export.</strong> Download the completed worksheet as a PDF, ready to hand in.</div>
-              </li>
-            </ol>
-          </div>
-          <div class="session-demo" aria-label="Example voice exchange">
-            <div class="demo-line demo-you"><span class="demo-speaker">You</span>I added the two sides, so my answer for question 2 is 12.</div>
-            <div class="demo-line demo-claros"><span class="demo-speaker">Claros</span>That works. Want me to write that for question 2?</div>
-            <div class="demo-line demo-you"><span class="demo-speaker">You</span>Yes, write it down.</div>
-            <div class="demo-write"><span class="demo-write-dot" aria-hidden="true"></span>Writing answer for question 2…</div>
-            <p class="demo-rule">The one rule: <strong>Claros never writes an answer you have not stated.</strong> Ask it to write first and it will say, "Tell me your answer, then I will write it."</p>
-          </div>
-        </div>
+      <section class="trust-strip" aria-label="Claros essentials">
+        <p><strong>No account</strong><span>Open a worksheet and begin.</span></p>
+        <p><strong>Review every answer</strong><span>Nothing is written before confirmation.</span></p>
+        <p><strong>Export the original PDF</strong><span>Your worksheet keeps its page layout.</span></p>
       </section>
 
-      <section class="features-section section-reveal" id="features">
-        <div class="section-container">
-          <h2 class="section-title">Built around one rule</h2>
-          <p class="section-lead">Everything in Claros exists to remove the typing barrier without removing the learning.</p>
-          <div class="features-grid">
-            <article class="feature feature-wide">
-              <div class="feature-head">
-                <span class="feature-icon" aria-hidden="true">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-                </span>
-                <h3>You approve every answer</h3>
-              </div>
-              <p>Answer readiness is tracked per question. Claros writes into a field only after you have stated or approved the answer for that exact question. Stating question 1 never unlocks question 2. The worksheet shows an "Answer stated" badge when you are ready, and a clear "Writing…" state while text streams in.</p>
-            </article>
-            <article class="feature">
-              <span class="feature-icon" aria-hidden="true">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
-              </span>
-              <h3>Guidance, not answers</h3>
-              <p>Claros teaches with clarifying questions, hints, and checks in a natural back-and-forth voice conversation you can interrupt at any time.</p>
-            </article>
-            <article class="feature">
-              <span class="feature-icon" aria-hidden="true">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              </span>
-              <h3>Worksheet-native</h3>
-              <p>Your PDF becomes an editable worksheet. Every answer field stays yours: review, edit by hand, or clear anything Claros wrote.</p>
-            </article>
-            <article class="feature">
-              <span class="feature-icon" aria-hidden="true">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
-              </span>
-              <h3>Transcript and export</h3>
-              <p>The whole conversation is transcribed live. When you're done, export a completed PDF by button, or just say "export PDF."</p>
-            </article>
-          </div>
+      <section class="process-section" id="how-it-works">
+        <div class="section-heading">
+          <h2>Your worksheet stays in view while you think out loud.</h2>
+          <p>Claros supports the reasoning. The document remains the main workspace.</p>
         </div>
-      </section>
-
-      <section class="trust-section section-reveal" id="trust">
-        <div class="section-container">
-          <h2 class="section-title">An accessibility tool first</h2>
-          <p class="section-lead">Built for students with motor impairments, dyslexia, injuries, or anything else that makes typing the hard part.</p>
-          <div class="trust-grid">
-            <article class="trust-card">
-              <span class="trust-icon" aria-hidden="true">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/></svg>
-              </span>
-              <h3>Typing-free path</h3>
-              <p>The full flow, from working through questions to exporting, can be driven by voice. Typing is always available, never required.</p>
-            </article>
-            <article class="trust-card">
-              <span class="trust-icon" aria-hidden="true">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-              </span>
-              <h3>You stay in control</h3>
-              <p>The microphone is live only during a session you start and end. Interrupt Claros mid-sentence just by speaking, or with the interrupt button.</p>
-            </article>
-            <article class="trust-card">
-              <span class="trust-icon" aria-hidden="true">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-              </span>
-              <h3>Clear at a glance</h3>
-              <p>High-contrast text, large type, visible focus states, and screen-reader-friendly live regions. Reduced-motion preferences are respected.</p>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section class="faq-section section-reveal" id="faq">
-        <div class="faq-container">
-          <h2 class="section-title">Questions, answered</h2>
-          <details class="faq-item">
-            <summary>Does Claros give students the answers?</summary>
-            <p>No. Claros guides with questions and hints, and it only writes an answer the student has already stated out loud. If you ask it to write before answering, it asks for your answer first.</p>
-          </details>
-          <details class="faq-item">
-            <summary>What kinds of worksheets work best?</summary>
-            <p>PDF worksheets with clearly numbered questions and a selectable text layer work best. Image-only scanned PDFs may need OCR before Claros can extract their questions.</p>
-          </details>
-          <details class="faq-item">
-            <summary>Can answers be edited by hand?</summary>
-            <p>Yes. Every answer field is directly editable at any time: before, during, or after a voice session.</p>
-          </details>
-          <details class="faq-item">
-            <summary>When is the microphone on?</summary>
-            <p>Only during an active voice session. You start the session, you end it, and the level meter shows exactly when Claros is hearing you.</p>
-          </details>
-          <details class="faq-item">
-            <summary>Do I need an account?</summary>
-            <p>No. Open the app, upload a worksheet (or load the sample), and start talking. Uploaded PDFs and session state are stored in the configured worksheet storage so the session can restore and export; export downloads a completed PDF to your device.</p>
-          </details>
-        </div>
-      </section>
-
-      <section class="cta-section">
-        <div class="cta-panel">
-          <h2 class="cta-title">Ready to work through your next worksheet?</h2>
-          <p class="cta-copy">Upload a PDF and start a guided voice session. No sign-up and nothing to install.</p>
-          <div class="cta-actions">
-            <a href="/app" class="btn btn-light btn-lg">Start a worksheet</a>
-            <a href="/app?sample=1" class="btn btn-outline-light btn-lg">Try the sample</a>
-          </div>
-        </div>
-      </section>
-
-      <footer class="footer">
-        <div class="footer-content">
-          <div class="footer-brand">
-            <strong>Claros</strong>
-            <span>Voice-guided worksheet assistant</span>
-          </div>
-          <nav class="footer-nav" aria-label="Footer">
-            <div class="footer-nav-group">
-              <span class="footer-nav-label">Product</span>
-              <a href="#how-it-works">How it works</a>
-              <a href="#features">Why Claros</a>
-              <a href="/app">Open the app</a>
+        <ol class="process-flow">
+          <li>
+            <span class="process-number">1</span>
+            <div>
+              <h3>Add a PDF</h3>
+              <p>Claros reads numbered questions and locates the places where answers belong.</p>
             </div>
-            <div class="footer-nav-group">
-              <span class="footer-nav-label">Support</span>
-              <a href="#trust">Accessibility</a>
-              <a href="#faq">FAQ</a>
+          </li>
+          <li>
+            <span class="process-number">2</span>
+            <div>
+              <h3>Talk through one question</h3>
+              <p>A voice tutor asks focused questions and listens while you explain your reasoning.</p>
             </div>
-          </nav>
-          <p class="footer-copy">&copy; 2026 Claros. All rights reserved.</p>
+          </li>
+          <li>
+            <span class="process-number">3</span>
+            <div>
+              <h3>Approve the final words</h3>
+              <p>Edit, reject, or confirm the proposed answer. Claros writes only after you confirm.</p>
+            </div>
+          </li>
+          <li>
+            <span class="process-number">4</span>
+            <div>
+              <h3>Export the worksheet</h3>
+              <p>Approved answers are placed on the original PDF for review or submission.</p>
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <section class="rule-section" aria-labelledby="rule-title">
+        <div class="rule-copy">
+          <p class="rule-label">Student control</p>
+          <h2 id="rule-title">A spoken answer is a draft until you confirm it.</h2>
+          <p>Claros can detect a likely final answer, but detection never grants permission to write. The confirmation belongs to the current question only.</p>
+          <a href="/app?sample=1">Try this flow in the sample</a>
         </div>
-      </footer>
+        <div class="rule-sequence" aria-label="Answer confirmation sequence">
+          <div><span>1</span><p><strong>Detected</strong>Your words appear for review.</p></div>
+          <div><span>2</span><p><strong>Confirmed</strong>You approve the exact answer.</p></div>
+          <div><span>3</span><p><strong>Written</strong>Claros adds it to that question.</p></div>
+        </div>
+      </section>
+
+      <section class="accessibility-section" id="accessibility" aria-labelledby="accessibility-title">
+        <div class="accessibility-demo" aria-hidden="true">
+          <div class="comfort-toolbar">
+            <span>Fit width</span>
+            <span>−</span>
+            <strong>200%</strong>
+            <span>+</span>
+          </div>
+          <div class="focus-demo">
+            <span>Question 2 answer area</span>
+            <strong>Visible keyboard focus</strong>
+          </div>
+          <div class="fallback-demo">
+            <strong>Voice unavailable</strong>
+            <span>Type, confirm, and export instead.</span>
+          </div>
+        </div>
+        <div class="accessibility-copy">
+          <h2 id="accessibility-title">Built for students who know the answer but find typing difficult.</h2>
+          <p>The interface keeps core actions available by keyboard, pointer, touch, and typed fallback.</p>
+          <ul>
+            <li>Visible focus and labeled controls</li>
+            <li>Zoom and fit-width document controls</li>
+            <li>Reduced-motion support</li>
+            <li>Voice failure never blocks typed answers or export</li>
+          </ul>
+          <p class="accessibility-note">Technical checks reduce barriers, but students with typing difficulties should remain part of ongoing product testing.</p>
+        </div>
+      </section>
+
+      <section class="faq-section" id="faq" aria-labelledby="faq-title">
+        <h2 id="faq-title">Questions about Claros</h2>
+        <div class="faq-list">
+          <details>
+            <summary>Does Claros give students answers?</summary>
+            <p>No. Claros is prompted to guide with questions and hints. The student still states and confirms the final answer.</p>
+          </details>
+          <details>
+            <summary>Which PDFs work best?</summary>
+            <p>Worksheets with selectable text and clearly numbered questions work best. Image-only scans may need OCR first.</p>
+          </details>
+          <details>
+            <summary>When does the microphone turn on?</summary>
+            <p>Only after the student starts a voice session and grants browser permission. Typed answers remain available.</p>
+          </details>
+          <details>
+            <summary>Where are worksheets stored?</summary>
+            <p>Uploaded PDFs and session state use the configured worksheet storage so the session can restore and export.</p>
+          </details>
+        </div>
+      </section>
+
+      <section class="final-cta">
+        <div>
+          <h2>Bring one worksheet. Use your voice for the rest.</h2>
+          <p>Start with your own PDF, or open the sample to see the confirmation flow.</p>
+        </div>
+        <div class="final-actions">
+          <a href="/app" class="btn btn-light">Start a worksheet</a>
+          <a href="/app?sample=1" class="btn btn-dark-outline">Try the sample</a>
+        </div>
+      </section>
     </main>
+
+    <footer class="footer">
+      <div>
+        <strong>Claros</strong>
+        <span>Voice-guided worksheets</span>
+      </div>
+      <nav aria-label="Footer">
+        <a href="#how-it-works">How it works</a>
+        <a href="#accessibility">Accessibility</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <p>&copy; 2026 Claros</p>
+    </footer>
   </div>
 </body>
 </html>
