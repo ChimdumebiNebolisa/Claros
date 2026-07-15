@@ -1,7 +1,7 @@
 """Tests for exporter module: PDF export with questions and answers."""
 import fitz
 
-from exporter import build_export_pdf
+from exporter import build_export_pdf, build_original_export_pdf
 
 
 def _pdf_text(pdf_bytes: bytes) -> str:
@@ -62,3 +62,35 @@ def test_build_export_pdf_unicode_minus_in_body():
     text = _pdf_text(pdf_bytes)
     assert "Solve x" in text
     assert "3 = 5" in text
+
+
+def test_original_export_preserves_page_and_writes_answer():
+    source = fitz.open()
+    page = source.new_page(width=612, height=792)
+    page.insert_text((72, 72), "Original Worksheet", fontsize=16)
+    page.insert_text((72, 120), "Question 1: Solve 2 + 2", fontsize=12)
+    original_bytes = source.tobytes()
+    source.close()
+    questions = [
+        {
+            "id": 1,
+            "text": "Solve 2 + 2",
+            "page": 1,
+            "answer_region": {"x": 0.12, "y": 0.2, "width": 0.45, "height": 0.08},
+        }
+    ]
+
+    exported = build_original_export_pdf(
+        original_bytes,
+        questions,
+        [{"question_id": 1, "answer_text": "4"}],
+    )
+
+    document = fitz.open(stream=exported, filetype="pdf")
+    try:
+        assert document.page_count == 1
+        text = document[0].get_text()
+    finally:
+        document.close()
+    assert "Original Worksheet" in text
+    assert "4" in text

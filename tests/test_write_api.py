@@ -111,4 +111,5 @@ def test_write_valid_question_id_streams_stub_text(write_client: TestClient):
     response = write_client.post(f"/api/write/{TEST_ASSIGNMENT_ID}", json=payload)
     assert response.status_code == 200
     assert "text/plain" in response.headers.get("content-type", "")
-    assert response.text == "stub-answer"
+    # Contract-valid writes stamp the confirmed candidate without Gemini.
+    assert response.text == "7"

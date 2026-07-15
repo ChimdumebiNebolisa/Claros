@@ -52,3 +52,31 @@ def test_validate_layout_overrides_rejects_duplicates():
             ]
         )
     assert exc.value.status_code == 400
+
+
+def test_validate_export_answers_accepts_valid_region():
+    result = validate_export_answers(
+        [
+            {
+                "question_id": 1,
+                "answer_text": "5",
+                "answer_region": {"x": 0.1, "y": 0.2, "width": 0.4, "height": 0.08},
+            }
+        ]
+    )
+    assert result[0]["answer_region"]["width"] == 0.4
+
+
+def test_validate_export_answers_rejects_out_of_bounds_region():
+    with pytest.raises(HTTPException) as exc:
+        validate_export_answers(
+            [
+                {
+                    "question_id": 1,
+                    "answer_text": "5",
+                    "answer_region": {"x": 0.8, "y": 0.8, "width": 0.4, "height": 0.4},
+                }
+            ]
+        )
+    assert exc.value.status_code == 400
+    assert "outside the page" in exc.value.detail

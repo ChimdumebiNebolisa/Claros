@@ -9,7 +9,12 @@ ROOT = Path(__file__).resolve().parent.parent
 FRONTEND = ROOT / "frontend"
 
 REQUIRED_STYLES = ("tokens.css", "landing.css", "app.css")
-REQUIRED_SCRIPTS = ("app.js", "session-rules.js", "question-view.js", "worksheet-view.js")
+REQUIRED_SCRIPTS = (
+    "app.js",
+    "session-rules.js",
+    "ui-state.js",
+    "worksheet-view.js",
+)
 LEGACY_FRONTEND_FILES = ()
 LEGACY_MARKER = "LEGACY"
 
@@ -49,10 +54,20 @@ def validate_app_html() -> None:
         'id="sessionPanel"',
         'id="fileInput"',
         'id="keyboardFallback"',
-        'id="layoutCorrectBtn"',
+        'id="documentViewport"',
+        'id="answerConfirmation"',
+        'id="layoutReviewPanel"',
+        'id="micBtn"',
+        'id="interruptBtn"',
+        'id="voiceBadge"',
+        'id="typedAnswer"',
+        'id="workspaceStatus"',
+        'id="pageImage"',
+        'id="layoutReviewBtn"',
+        'id="confirmRegionBtn"',
         "/app.js",
         "/session-rules.js",
-        "/question-view.js",
+        "/ui-state.js",
         "/worksheet-view.js",
     )
     for needle in checks:
@@ -73,15 +88,16 @@ def validate_app_js_contract() -> None:
         "getElementById('uploadBtn')",
         "getElementById('sessionPanel')",
         "ClarosSessionRules",
+        "ClarosUiState",
+        "ClarosWorksheetView",
         "/api/write/",
         "/api/session-config/",
         "/api/session/start",
-        "btn-confirm-answer",
-        "confirmAnswerForQuestion",
-        "ClarosQuestionView",
-        "ClarosWorksheetView",
-        "layout_overrides",
-        "showKeyboardFallback",
+        "confirmProposedAnswer",
+        "setWorkspaceState",
+        "setVoiceState",
+        "showVoiceFallback",
+        "setSessionPanelExpanded",
     )
     for needle in checks:
         if needle not in js:
@@ -94,6 +110,22 @@ def validate_session_rules() -> None:
         raise AssertionError("session-rules.js must export ClarosSessionRules")
 
 
+def validate_worksheet_view() -> None:
+    js = _read(FRONTEND / "worksheet-view.js")
+    if "ClarosWorksheetView" not in js:
+        raise AssertionError("worksheet-view.js must export ClarosWorksheetView")
+    if "/pages/" not in js:
+        raise AssertionError("worksheet-view.js must load assignment page PNG routes")
+
+
+def validate_ui_state() -> None:
+    js = _read(FRONTEND / "ui-state.js")
+    if "ClarosUiState" not in js:
+        raise AssertionError("ui-state.js must export ClarosUiState")
+    if "WORKSPACE_STATES" not in js or "VOICE_STATES" not in js:
+        raise AssertionError("ui-state.js must declare WORKSPACE_STATES and VOICE_STATES")
+
+
 def main() -> int:
     validators = (
         validate_shared_styles,
@@ -102,6 +134,8 @@ def main() -> int:
         validate_legacy_frontend_files,
         validate_app_js_contract,
         validate_session_rules,
+        validate_worksheet_view,
+        validate_ui_state,
     )
     for fn in validators:
         fn()

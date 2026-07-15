@@ -39,19 +39,18 @@ def api_route_count() -> int:
 
 
 def test_assignment_questions() -> int:
-    """Infer number of questions in test assignment from generate_test_pdf.py or test_assignment.py."""
-    for name in ["generate_test_pdf.py", "test_assignment.py"]:
+    """Infer number of questions from the canonical sample producer."""
+    for name in ["test_assignment.py", "generate_test_pdf.py"]:
         path = ROOT / name
         if not path.exists():
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
         matches = re.findall(r"Question\s+(\d+)\s*:", text)
         if matches:
-            return len(matches)
-        # Numbered list format: "1.", "2." in paragraph content
+            return len(set(matches))
         numbered = re.findall(r"<b>(\d+)\.</b>", text)
         if numbered:
-            return len(numbered)
+            return len(set(numbered))
     return 0
 
 

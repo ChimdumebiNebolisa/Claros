@@ -5,8 +5,9 @@
   "scripts": {
     "build:genai": "node build-genai.mjs",
     "test:session-rules": "node tests/session-rules.test.cjs",
+    "test:ui-state": "node tests/ui-state.test.cjs",
     "validate:frontend": "python3 scripts/validate_frontend.py",
-    "test:frontend": "npm run test:session-rules && npm run validate:frontend",
+    "test:frontend": "npm run test:session-rules && npm run test:ui-state && npm run validate:frontend",
     "ci:frontend": "npm ci && npm run test:frontend && npm run build:genai"
   },
   "devDependencies": {
