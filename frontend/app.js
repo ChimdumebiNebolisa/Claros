@@ -1,1110 +1,991 @@
 (function () {
+  'use strict';
+
   const SAMPLE_RATE = 16000;
   const OUT_SAMPLE_RATE = 24000;
-  let state = {
+  const API_BASE = location.origin || 'http://127.0.0.1:8000';
+  const SESSION_STORAGE_KEY = 'claros_session_v1';
+
+  const UiState = window.ClarosUiState;
+  const SessionRules = window.ClarosSessionRules;
+  const WorksheetView = window.ClarosWorksheetView;
+  if (!UiState || !SessionRules || !WorksheetView) {
+    throw new Error('Claros frontend modules failed to load');
+  }
+
+  const elements = {
+    setupMode: document.getElementById('setupMode'),
+    workspaceMode: document.getElementById('workspaceMode'),
+    workspaceStatus: document.getElementById('workspaceStatus'),
+    startCard: document.querySelector('.start-card'),
+    uploadZone: document.getElementById('uploadZone'),
+    fileInput: document.getElementById('fileInput'),
+    uploadBtn: document.getElementById('uploadBtn'),
+    uploadLabel: document.getElementById('uploadLabel'),
+    testPdfBtn: document.getElementById('testPdfBtn'),
+    processingPanel: document.getElementById('processingPanel'),
+    processingTitle: document.getElementById('processingTitle'),
+    selectedFilename: document.getElementById('selectedFilename'),
+    processingActions: document.getElementById('processingActions'),
+    retryBtn: document.getElementById('retryBtn'),
+    replaceBtn: document.getElementById('replaceBtn'),
+    errors: document.getElementById('errors'),
+    assignmentTitle: document.getElementById('assignmentTitle'),
+    replaceWorksheetBtn: document.getElementById('replaceWorksheetBtn'),
+    exportBtn: document.getElementById('exportBtn'),
+    previousPageBtn: document.getElementById('previousPageBtn'),
+    nextPageBtn: document.getElementById('nextPageBtn'),
+    fitWidthBtn: document.getElementById('fitWidthBtn'),
+    zoomOutBtn: document.getElementById('zoomOutBtn'),
+    zoomInBtn: document.getElementById('zoomInBtn'),
+    pageLabel: document.getElementById('pageLabel'),
+    zoomLabel: document.getElementById('zoomLabel'),
+    layoutReviewBtn: document.getElementById('layoutReviewBtn'),
+    layoutReviewPanel: document.getElementById('layoutReviewPanel'),
+    layoutReviewSummary: document.getElementById('layoutReviewSummary'),
+    resetRegionBtn: document.getElementById('resetRegionBtn'),
+    confirmRegionBtn: document.getElementById('confirmRegionBtn'),
+    finishLayoutBtn: document.getElementById('finishLayoutBtn'),
+    documentViewport: document.getElementById('documentViewport'),
+    documentPage: document.getElementById('documentPage'),
+    pageImage: document.getElementById('pageImage'),
+    answerOverlayLayer: document.getElementById('answerOverlayLayer'),
+    sessionPanel: document.getElementById('sessionPanel'),
+    voiceBadge: document.getElementById('voiceBadge'),
+    voicePanelToggle: document.getElementById('voicePanelToggle'),
+    status: document.getElementById('status'),
+    statusLabel: document.getElementById('statusLabel'),
+    statusDescription: document.getElementById('statusDescription'),
+    meterBar: document.getElementById('meterBar'),
+    currentQuestionLabel: document.getElementById('currentQuestionLabel'),
+    currentQuestionExcerpt: document.getElementById('currentQuestionExcerpt'),
+    questionListToggle: document.getElementById('questionListToggle'),
+    questionsContainer: document.getElementById('questionsContainer'),
+    typedAnswer: document.getElementById('typedAnswer'),
+    confirmTypedBtn: document.getElementById('confirmTypedBtn'),
+    answerConfirmation: document.getElementById('answerConfirmation'),
+    confirmationTitle: document.getElementById('confirmationTitle'),
+    proposedAnswer: document.getElementById('proposedAnswer'),
+    editAnswerBtn: document.getElementById('editAnswerBtn'),
+    rejectAnswerBtn: document.getElementById('rejectAnswerBtn'),
+    confirmAnswerBtn: document.getElementById('confirmAnswerBtn'),
+    notice: document.getElementById('notice'),
+    keyboardFallback: document.getElementById('keyboardFallback'),
+    micBtn: document.getElementById('micBtn'),
+    interruptBtn: document.getElementById('interruptBtn'),
+    transcript: document.getElementById('transcript')
+  };
+
+  const state = {
+    workspace: 'empty',
+    voice: 'unavailable',
     assignmentId: null,
     title: '',
+    filename: '',
+    pageCount: 1,
     questions: [],
-    pages: [],
     answers: {},
-    layoutOverrides: {},
-    detectedRegions: {},
-    layoutCorrectionMode: false,
-    selectedQuestionId: null
+    drafts: {},
+    confirmed: {},
+    writeTokens: {},
+    activeQuestionId: null,
+    proposedQuestionId: null,
+    proposedText: '',
+    lastFile: null,
+    sessionId: null,
+    sessionSecret: null,
+    liveSession: null,
+    conversation: [],
+    writeInProgress: false,
+    correctionMode: false,
+    lastExportVoiceNorm: ''
   };
-  let answerReady = {};
-  let answerCandidate = {};
-  let draftAnswer = {};
-  let writeTokens = {};
 
-  const assignmentTitleEl = document.getElementById('assignmentTitle');
-  const uploadZone = document.getElementById('uploadZone');
-  const fileInput = document.getElementById('fileInput');
-  const uploadBtn = document.getElementById('uploadBtn');
-  const uploadLabel = document.getElementById('uploadLabel');
-  const questionsContainer = document.getElementById('questionsContainer');
-  const exportBtn = document.getElementById('exportBtn');
-  const layoutCorrectBtn = document.getElementById('layoutCorrectBtn');
-  const layoutStatusEl = document.getElementById('layoutStatus');
-  const statusEl = document.getElementById('status');
-  const sessionPanel = document.getElementById('sessionPanel');
-  const statusLabel = document.getElementById('statusLabel');
-  const meterBar = document.getElementById('meterBar');
-  const transcriptEl = document.getElementById('transcript');
-  const noticeEl = document.getElementById('notice');
-  const errorsEl = document.getElementById('errors');
-  const keyboardFallbackEl = document.getElementById('keyboardFallback');
-  const micBtn = document.getElementById('micBtn');
-  const interruptBtn = document.getElementById('interruptBtn');
-  const setupStepUpload = document.getElementById('setupStepUpload');
-  const setupStepReview = document.getElementById('setupStepReview');
-  const setupStepSession = document.getElementById('setupStepSession');
-  const setupStepExport = document.getElementById('setupStepExport');
+  let worksheet;
+  let audioContext = null;
+  let playbackContext = null;
+  let mediaStream = null;
+  let sourceNode = null;
+  let processorNode = null;
+  let nextPlaybackTime = 0;
+  let scheduledSources = [];
+  let keepaliveInterval = null;
+  let activeClarosMessage = null;
+  let userPartialElement = null;
+  let userPartialText = '';
+  let userTranscriptBuffer = '';
+  let clarosOutputBuffer = '';
+  let transcriptPinned = true;
+  let processingTimer = null;
 
-  const SR = typeof ClarosSessionRules !== 'undefined' ? ClarosSessionRules : null;
-  if (!SR) {
-    errorsEl.textContent = 'Claros failed to load session rules (session-rules.js).';
-    throw new Error('ClarosSessionRules missing');
+  function setWorkspaceState(next) {
+    state.workspace = next;
+    const model = UiState.getWorkspaceModel(next, { hasAssignment: !!state.assignmentId });
+    document.body.dataset.workspaceState = next;
+    elements.setupMode.hidden = !model.showSetup;
+    elements.workspaceMode.hidden = !model.showWorkspace;
+    elements.startCard.hidden = next !== 'empty';
+    elements.processingPanel.hidden = !['uploading', 'parsing', 'error'].includes(next);
+    elements.processingActions.hidden = next !== 'error';
+    elements.processingTitle.textContent = model.title;
+    elements.workspaceStatus.textContent = model.title + '. ' + model.description;
+    elements.exportBtn.disabled = !model.canExport;
+    elements.exportBtn.textContent = model.exportLabel;
+    if (next === 'error') elements.processingPanel.focus?.();
   }
-  const QuestionView = typeof ClarosQuestionView !== 'undefined' ? ClarosQuestionView : null;
-  if (!QuestionView) {
-    errorsEl.textContent = 'Claros failed to load the worksheet renderer.';
-    throw new Error('ClarosQuestionView missing');
-  }
-  const WorksheetView = typeof ClarosWorksheetView !== 'undefined' ? ClarosWorksheetView : null;
-  if (!WorksheetView) {
-    errorsEl.textContent = 'Claros failed to load the page worksheet renderer.';
-    throw new Error('ClarosWorksheetView missing');
-  }
-  var normalizeTranscript = SR.normalizeTranscript;
-  var parseQuestionNum = SR.parseQuestionNum;
-  var parseClarosWriteQuestionNum = SR.parseClarosWriteQuestionNum;
-  var WRITE_INTENT_RE = SR.WRITE_INTENT_RE;
-  var CLAROS_WRITE_PHRASE_RE = SR.CLAROS_WRITE_PHRASE_RE;
-  var ANSWER_STATED_RE = SR.ANSWER_STATED_RE;
-  var hasExportIntent = SR.hasExportIntent;
-  var extractDraftAnswer = SR.extractDraftAnswer;
 
-  const SESSION_STORAGE_KEY = 'claros_session_v1';
-  const DEBUG_LOGS = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  function setSessionPanelExpanded(expanded) {
+    elements.sessionPanel.classList.toggle('is-expanded', expanded);
+    elements.voicePanelToggle.setAttribute('aria-expanded', String(expanded));
+    elements.voicePanelToggle.setAttribute(
+      'aria-label',
+      expanded ? 'Collapse Claros panel' : 'Expand Claros panel'
+    );
+  }
 
-  function debugLog() {
-    if (DEBUG_LOGS && typeof console !== 'undefined' && console.log) {
-      console.log.apply(console, arguments);
+  function setVoiceState(next) {
+    state.voice = next;
+    const model = UiState.getVoiceModel(next, {
+      hasAssignment: !!state.assignmentId,
+      liveSession: !!state.liveSession
+    });
+    document.body.dataset.voiceState = next;
+    elements.status.className = 'status-bar ' + next;
+    elements.statusLabel.textContent = model.title;
+    elements.statusDescription.textContent = model.description;
+    elements.voiceBadge.textContent = model.badge;
+    elements.sessionPanel.classList.toggle('is-live', model.isLive);
+    elements.interruptBtn.classList.toggle('visible', model.showInterrupt);
+    elements.micBtn.textContent = model.primaryLabel;
+    elements.micBtn.disabled = model.primaryDisabled;
+    elements.micBtn.title = model.disabledReason;
+    elements.micBtn.setAttribute('aria-describedby', model.disabledReason ? 'statusDescription' : '');
+    elements.answerConfirmation.hidden = !model.showConfirmation;
+    if (model.showConfirmation || next === 'writing') {
+      setSessionPanelExpanded(true);
     }
   }
 
-  function setChecklistStep(stepEl, done) {
-    if (!stepEl) return;
-    if (done) stepEl.classList.add('done');
-    else stepEl.classList.remove('done');
+  function setNotice(message) {
+    elements.notice.textContent = message || '';
   }
 
-  function syncChecklist() {
-    var hasAssignment = !!state.assignmentId;
-    document.body.classList.toggle('has-assignment', hasAssignment);
-    setChecklistStep(setupStepUpload, hasAssignment);
-    setChecklistStep(setupStepReview, hasAssignment && Array.isArray(state.questions) && state.questions.length > 0);
-    setChecklistStep(setupStepSession, hasAssignment);
-    setChecklistStep(setupStepExport, !!liveSession);
+  function setError(message) {
+    elements.errors.textContent = message || '';
   }
 
-  /* ?????? Upload ?????? */
-  uploadBtn.addEventListener('click', () => fileInput.click());
-  uploadZone.addEventListener('click', (e) => {
-    if (e.target === uploadZone || e.target.closest('.upload-inner')) fileInput.click();
-  });
-  uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('hover'); });
-  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('hover'));
-  uploadZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    uploadZone.classList.remove('hover');
-    const file = e.dataTransfer.files[0];
-    if (file && file.name.toLowerCase().endsWith('.pdf')) doUpload(file);
-  });
-  fileInput.addEventListener('change', () => {
-    const file = fileInput.files[0];
-    if (file) doUpload(file);
-  });
+  function setProcessingStep(index) {
+    document.querySelectorAll('[data-processing-step]').forEach(function (item, itemIndex) {
+      item.classList.toggle('is-complete', itemIndex < index);
+      item.classList.toggle('is-active', itemIndex === index);
+    });
+  }
 
-  const testPdfBtn = document.getElementById('testPdfBtn');
+  function startProcessingProgress() {
+    let index = 0;
+    setProcessingStep(index);
+    clearInterval(processingTimer);
+    processingTimer = setInterval(function () {
+      index = Math.min(3, index + 1);
+      setProcessingStep(index);
+    }, 800);
+  }
 
-  async function loadSamplePdf() {
-    uploadLabel.textContent = 'Loading test PDF...';
-    testPdfBtn.disabled = true;
-    errorsEl.textContent = '';
-    noticeEl.textContent = '';
-    try {
-      const r = await fetch('/test-assignment.pdf');
-      if (!r.ok) throw new Error('Failed to load sample worksheet');
-      const blob = await r.blob();
-      const file = new File([blob], 'test_assignment.pdf', { type: 'application/pdf' });
-      await doUpload(file);
-    } catch (err) {
-      errorsEl.textContent = err.message || 'Failed to load sample worksheet';
-    } finally {
-      uploadLabel.textContent = 'Drop your assignment PDF here';
-      testPdfBtn.disabled = false;
+  function finishProcessingProgress() {
+    clearInterval(processingTimer);
+    processingTimer = null;
+    document.querySelectorAll('[data-processing-step]').forEach(function (item) {
+      item.classList.remove('is-active');
+      item.classList.add('is-complete');
+    });
+  }
+
+  function getQuestion(questionId) {
+    return state.questions.find(function (question) {
+      return Number(question.id) === Number(questionId);
+    });
+  }
+
+  function unresolvedQuestions() {
+    return state.questions.filter(function (question) { return question.needs_layout_review; });
+  }
+
+  function renderQuestionPicker() {
+    elements.questionsContainer.innerHTML = '';
+    state.questions.forEach(function (question) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.questionId = question.id;
+      button.textContent = 'Question ' + question.id + (question.needs_layout_review ? ' (layout review)' : '');
+      button.setAttribute('aria-current', String(Number(question.id) === Number(state.activeQuestionId)));
+      button.addEventListener('click', function () {
+        selectQuestion(question.id);
+        elements.questionsContainer.hidden = true;
+      });
+      elements.questionsContainer.appendChild(button);
+    });
+  }
+
+  function selectQuestion(questionId) {
+    const question = getQuestion(questionId);
+    if (!question) return;
+    state.activeQuestionId = question.id;
+    elements.currentQuestionLabel.textContent = 'Working on Question ' + question.id;
+    elements.currentQuestionExcerpt.textContent = question.text || '';
+    elements.typedAnswer.textContent = state.answers[question.id] || state.drafts[question.id] || '';
+    elements.confirmTypedBtn.disabled = !elements.typedAnswer.textContent.trim();
+    if (worksheet) worksheet.setActiveQuestion(question.id);
+    renderQuestionPicker();
+  }
+
+  function renderLayoutState() {
+    const unresolved = unresolvedQuestions();
+    elements.layoutReviewBtn.hidden = unresolved.length === 0;
+    elements.layoutReviewBtn.textContent = unresolved.length
+      ? 'Review layout (' + unresolved.length + ')'
+      : 'Review layout';
+    elements.layoutReviewSummary.textContent = unresolved.length
+      ? unresolved.length + ' answer ' + (unresolved.length === 1 ? 'region needs' : 'regions need') + ' attention.'
+      : 'All answer regions are ready.';
+    if (state.workspace === 'ready' || state.workspace === 'needs_layout_review') {
+      setWorkspaceState(unresolved.length ? 'needs_layout_review' : 'ready');
     }
+    renderQuestionPicker();
   }
 
-  testPdfBtn.addEventListener('click', loadSamplePdf);
+  function initializeWorksheet() {
+    worksheet = WorksheetView.create({
+      container: elements.documentViewport,
+      pageImage: elements.pageImage,
+      overlayLayer: elements.answerOverlayLayer,
+      pageLabel: elements.pageLabel,
+      zoomLabel: elements.zoomLabel,
+      onSelectQuestion: function (question) { selectQuestion(question.id); },
+      onRegionChange: function (question) {
+        elements.layoutReviewSummary.textContent = 'Question ' + question.id + ' region changed. Confirm it when ready.';
+      },
+      onRegionConfirm: function (question) {
+        setNotice('Answer region confirmed for Question ' + question.id + '.');
+        renderLayoutState();
+      }
+    });
+    worksheet.load({
+      assignmentId: state.assignmentId,
+      questions: state.questions,
+      pageCount: state.pageCount,
+      answers: state.answers
+    });
+  }
+
+  function applyAssignment(data) {
+    state.assignmentId = data.assignment_id;
+    state.title = data.title || state.filename || 'Worksheet';
+    state.questions = data.questions || [];
+    state.pageCount = Number(data.page_count || 1);
+    state.answers = {};
+    state.drafts = {};
+    state.confirmed = {};
+    state.writeTokens = {};
+    state.activeQuestionId = state.questions.length ? state.questions[0].id : null;
+    elements.assignmentTitle.textContent = state.filename || state.title;
+    elements.previousPageBtn.disabled = state.pageCount <= 1;
+    elements.nextPageBtn.disabled = state.pageCount <= 1;
+    initializeWorksheet();
+    renderQuestionPicker();
+    if (state.activeQuestionId != null) selectQuestion(state.activeQuestionId);
+    setWorkspaceState(unresolvedQuestions().length ? 'needs_layout_review' : 'ready');
+    setVoiceState('idle');
+    renderLayoutState();
+    restoreSessionFromStorage();
+  }
 
   async function doUpload(file) {
-    uploadLabel.textContent = 'Uploading and reading your assignment...';
-    errorsEl.textContent = '';
-    noticeEl.textContent = '';
+    if (!file) return;
+    state.lastFile = file;
+    state.filename = file.name;
+    elements.selectedFilename.textContent = file.name;
+    elements.uploadLabel.textContent = file.name;
+    elements.testPdfBtn.disabled = true;
+    elements.uploadBtn.disabled = true;
+    setError('');
+    setNotice('');
+    setWorkspaceState('uploading');
+    startProcessingProgress();
     const form = new FormData();
     form.append('file', file);
     try {
-      const r = await fetch('/upload', { method: 'POST', body: form });
-      if (!r.ok) {
-        const err = await r.json().catch(() => ({}));
-        throw new Error(err.detail || err.error || 'Upload failed');
+      const response = await fetch('/upload', { method: 'POST', body: form });
+      setWorkspaceState('parsing');
+      if (!response.ok) {
+        const detail = await response.json().catch(function () { return {}; });
+        throw new Error(detail.detail || detail.error || 'The PDF could not be prepared.');
       }
-      const data = await r.json();
-      state.assignmentId = data.assignment_id;
-      state.title = data.title || 'Assignment';
-      state.questions = data.questions || [];
-      state.pages = data.pages || [];
-      state.answers = {};
-      state.layoutOverrides = {};
-      state.detectedRegions = {};
-      state.questions.forEach(function (q) {
-        if (q.answer_bbox) state.detectedRegions[q.id] = q.answer_bbox.slice();
-      });
-      assignmentTitleEl.textContent = state.title;
-      if (layoutCorrectBtn) layoutCorrectBtn.hidden = !(state.pages && state.pages.length);
-      renderQuestions();
-      syncLayoutStatus();
-      micBtn.disabled = false;
-      micBtn.classList.remove('stop');
-      micBtn.textContent = 'Start Session';
-      uploadLabel.textContent = 'Drop your assignment PDF here';
-      noticeEl.textContent = 'Worksheet ready. You can start your voice session now.';
-      syncChecklist();
-      restoreSessionFromStorage();
-    } catch (err) {
-      uploadLabel.textContent = 'Drop your assignment PDF here';
-      errorsEl.textContent = err.message || 'We could not upload that file. Please try another PDF.';
-      syncChecklist();
+      const data = await response.json();
+      finishProcessingProgress();
+      applyAssignment(data);
+      setNotice('Worksheet ready. The microphone is still off.');
+    } catch (error) {
+      clearInterval(processingTimer);
+      processingTimer = null;
+      setWorkspaceState('error');
+      setError(error.message || 'We could not read this PDF. Retry or choose a different file.');
+    } finally {
+      elements.testPdfBtn.disabled = false;
+      elements.uploadBtn.disabled = false;
     }
   }
 
-  function syncLayoutStatus() {
-    if (!layoutStatusEl) return;
-    var ocrPages = (state.pages || []).filter(function (p) { return p.requires_ocr; });
-    var low = (state.questions || []).filter(function (q) {
-      return !q.answer_bbox || q.layout_confidence === 'low' || (q.layout_warnings || []).indexOf('unresolved_answer_region') >= 0;
-    });
-    var messages = [];
-    if (ocrPages.length) {
-      messages.push(ocrPages.length + ' page(s) require OCR and cannot receive auto-detected answer fields yet.');
-    }
-    if (low.length) {
-      messages.push(low.length + ' question(s) have low-confidence or unresolved answer regions. Use Correct layout before export.');
-    }
-    if (state.layoutCorrectionMode) {
-      messages.push('Layout correction mode: select a question overlay, then drag to reposition or drag the corner to resize. Esc exits.');
-    }
-    layoutStatusEl.textContent = messages.join(' ');
-  }
-
-  function effectiveAnswerBBox(question) {
-    if (state.layoutOverrides[question.id] && state.layoutOverrides[question.id].answer_bbox) {
-      return state.layoutOverrides[question.id].answer_bbox;
-    }
-    return question.answer_bbox || null;
-  }
-
-  function bindAnswerField(qid, answerEl, confirmBtn) {
-    if (state.answers[qid]) {
-      answerEl.textContent = state.answers[qid];
-    }
-    if (draftAnswer[qid] && !answerEl.textContent.trim()) {
-      answerEl.textContent = draftAnswer[qid];
-    }
-    if (confirmBtn) {
-      confirmBtn.disabled = !(draftAnswer[qid] || (answerEl.textContent || '').trim());
-      if (answerReady[qid]) {
-        confirmBtn.disabled = true;
-        confirmBtn.textContent = 'Answer confirmed';
-      }
-    }
-    var card = answerEl.closest('.question-card, .worksheet-answer-overlay');
-    if (card) {
-      if (answerReady[qid]) card.classList.add('answer-ready');
-      if (draftAnswer[qid] && !answerReady[qid]) card.classList.add('answer-drafted');
-    }
-    answerEl.addEventListener('input', function () {
-      state.answers[qid] = answerEl.textContent;
-      draftAnswer[qid] = answerEl.textContent.trim();
-      if (confirmBtn && !answerReady[qid]) confirmBtn.disabled = !draftAnswer[qid];
-      if (answerEl.textContent.trim()) exportBtn.classList.add('visible');
-      syncChecklist();
-    });
-    if (confirmBtn) {
-      confirmBtn.addEventListener('click', function () {
-        confirmAnswerForQuestion(qid);
-      });
+  async function loadSamplePdf() {
+    setError('');
+    try {
+      const response = await fetch('/test-assignment.pdf');
+      if (!response.ok) throw new Error('The sample worksheet is unavailable.');
+      const blob = await response.blob();
+      await doUpload(new File([blob], 'Claros sample algebra worksheet.pdf', { type: 'application/pdf' }));
+    } catch (error) {
+      setWorkspaceState('error');
+      setError(error.message || 'The sample worksheet could not be loaded.');
     }
   }
 
-  /* ——— Question / page rendering ——— */
-  function renderQuestions() {
-    questionsContainer.innerHTML = '';
-    var usePages = WorksheetView && state.pages && state.pages.length > 0;
-    if (!usePages) {
-      state.questions.forEach(function (q) {
-        var card = QuestionView.createCard(q);
-        var answerEl = card.querySelector('.answer-field');
-        var confirmBtn = card.querySelector('.btn-confirm-answer');
-        bindAnswerField(q.id, answerEl, confirmBtn);
-        questionsContainer.appendChild(card);
-      });
-    } else {
-      state.pages.forEach(function (page) {
-        var previewUrl = '/api/assignments/' + state.assignmentId + '/pages/' + page.page_index + '/preview';
-        var shell = WorksheetView.createPageShell(page, previewUrl);
-        var pageQuestions = state.questions.filter(function (q) {
-          return q.page_index === page.page_index || (q.page_index == null && page.page_index === 0 && q.id === 0);
-        });
-        pageQuestions.forEach(function (q) {
-          var viewQ = Object.assign({}, q, {
-            answer_bbox: effectiveAnswerBBox(q),
-            layout_confidence: state.layoutOverrides[q.id] ? 'manual' : q.layout_confidence
-          });
-          var overlay = WorksheetView.createOverlayField(viewQ, page);
-          var answerEl = overlay.querySelector('.answer-field');
-          var confirmBtn = overlay.querySelector('.btn-confirm-answer');
-          bindAnswerField(q.id, answerEl, confirmBtn);
-          overlay.addEventListener('pointerdown', function (ev) {
-            if (!state.layoutCorrectionMode) return;
-            if (ev.target.closest('.answer-field') || ev.target.closest('.btn-confirm-answer')) return;
-            beginRegionEdit(overlay, page, q, ev);
-          });
-          shell._overlays.appendChild(overlay);
-        });
-        questionsContainer.appendChild(shell);
-      });
-      // Questions without a page index still appear as cards so voice/write keep working.
-      state.questions.filter(function (q) {
-        return q.page_index == null && q.id !== 0;
-      }).forEach(function (q) {
-        var card = QuestionView.createCard(q);
-        var answerEl = card.querySelector('.answer-field');
-        var confirmBtn = card.querySelector('.btn-confirm-answer');
-        bindAnswerField(q.id, answerEl, confirmBtn);
-        questionsContainer.appendChild(card);
-      });
-    }
-    if (state.questions && state.questions.length > 0) {
-      exportBtn.classList.add('visible');
-    }
-    document.body.classList.toggle('layout-correction', !!state.layoutCorrectionMode);
-  }
-
-  function beginRegionEdit(overlay, page, question, ev) {
-    state.selectedQuestionId = question.id;
-    overlay.classList.add('selected');
-    var stage = overlay.parentElement.parentElement;
-    var start = WorksheetView.clientToPagePoint(stage, page, ev.clientX, ev.clientY);
-    var current = (effectiveAnswerBBox(question) || [start.x, start.y, start.x + 120, start.y + 40]).slice();
-    var mode = ev.target.classList.contains('resize-handle') ? 'resize' : 'move';
-    var origin = current.slice();
-    var originPoint = start;
-
-    function onMove(e) {
-      var pt = WorksheetView.clientToPagePoint(stage, page, e.clientX, e.clientY);
-      var dx = pt.x - originPoint.x;
-      var dy = pt.y - originPoint.y;
-      var next;
-      if (mode === 'resize') {
-        next = [origin[0], origin[1], Math.max(origin[0] + 24, origin[2] + dx), Math.max(origin[1] + 18, origin[3] + dy)];
-      } else {
-        var w = origin[2] - origin[0];
-        var h = origin[3] - origin[1];
-        var x0 = Math.max(0, Math.min(page.width_points - w, origin[0] + dx));
-        var y0 = Math.max(0, Math.min(page.height_points - h, origin[1] + dy));
-        next = [x0, y0, x0 + w, y0 + h];
-      }
-      current = next;
-      var box = WorksheetView.pct(current, page.width_points, page.height_points);
-      overlay.style.left = box.left + '%';
-      overlay.style.top = box.top + '%';
-      overlay.style.width = box.width + '%';
-      overlay.style.height = box.height + '%';
-    }
-
-    function onUp() {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      state.layoutOverrides[question.id] = {
-        question_id: question.id,
-        page_index: page.page_index,
-        answer_bbox: current
-      };
-      question.answer_bbox = current;
-      question.layout_confidence = 'manual';
-      syncLayoutStatus();
-    }
-
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    ev.preventDefault();
-  }
-
-  if (layoutCorrectBtn) {
-    layoutCorrectBtn.addEventListener('click', function () {
-      state.layoutCorrectionMode = !state.layoutCorrectionMode;
-      layoutCorrectBtn.textContent = state.layoutCorrectionMode ? 'Done correcting' : 'Correct layout';
-      layoutCorrectBtn.setAttribute('aria-pressed', state.layoutCorrectionMode ? 'true' : 'false');
-      document.querySelectorAll('.worksheet-answer-overlay').forEach(function (el) {
-        var handle = el.querySelector('.resize-handle');
-        if (state.layoutCorrectionMode) {
-          if (!handle) {
-            handle = document.createElement('span');
-            handle.className = 'resize-handle';
-            handle.setAttribute('aria-hidden', 'true');
-            el.appendChild(handle);
-          }
-          var reset = el.querySelector('.btn-reset-region');
-          if (!reset) {
-            reset = document.createElement('button');
-            reset.type = 'button';
-            reset.className = 'btn-reset-region';
-            reset.textContent = 'Reset region';
-            reset.addEventListener('click', function (e) {
-              e.stopPropagation();
-              var qid = parseInt(el.dataset.questionId, 10);
-              delete state.layoutOverrides[qid];
-              var q = state.questions.find(function (item) { return item.id === qid; });
-              if (q && state.detectedRegions[qid]) {
-                q.answer_bbox = state.detectedRegions[qid].slice();
-                q.layout_confidence = q.layout_confidence === 'manual' ? 'medium' : q.layout_confidence;
-              }
-              renderQuestions();
-              syncLayoutStatus();
-            });
-            el.appendChild(reset);
-          }
-        }
-      });
-      document.body.classList.toggle('layout-correction', !!state.layoutCorrectionMode);
-      syncLayoutStatus();
-      noticeEl.textContent = state.layoutCorrectionMode
-        ? 'Layout correction on. Drag an answer region to move it, or use the corner handle to resize.'
-        : 'Layout correction off.';
-    });
-  }
-
-  window.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && state.layoutCorrectionMode && layoutCorrectBtn) {
-      layoutCorrectBtn.click();
-    }
-  });
-
-  function getAnswerEl(questionId) {
-    return document.querySelector('.answer-field[data-question-id="' + questionId + '"]');
-  }
-  function getCardEl(questionId) {
-    return document.querySelector('.question-card[data-question-id="' + questionId + '"], .worksheet-answer-overlay[data-question-id="' + questionId + '"]');
+  function resetWorkspace() {
+    stopSession();
+    state.assignmentId = null;
+    state.questions = [];
+    state.answers = {};
+    state.activeQuestionId = null;
+    worksheet = null;
+    elements.fileInput.value = '';
+    elements.uploadLabel.textContent = 'Choose a worksheet PDF';
+    setError('');
+    setNotice('');
+    setWorkspaceState('empty');
+    setVoiceState('unavailable');
   }
 
   function persistSessionLocally() {
-    if (!sessionCredentials.sessionId || !sessionCredentials.sessionSecret || !state.assignmentId) return;
+    if (!state.sessionId || !state.sessionSecret || !state.assignmentId) return;
     try {
       sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
         assignmentId: state.assignmentId,
-        sessionId: sessionCredentials.sessionId,
-        sessionSecret: sessionCredentials.sessionSecret
+        sessionId: state.sessionId,
+        sessionSecret: state.sessionSecret
       }));
-    } catch (e) { /* ignore quota errors */ }
+    } catch (_) {}
   }
 
-  async function restoreSessionFromStorage() {
-    try {
-      var raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
-      if (!raw || !state.assignmentId) return;
-      var saved = JSON.parse(raw);
-      if (saved.assignmentId !== state.assignmentId) return;
-      sessionCredentials.sessionId = saved.sessionId;
-      sessionCredentials.sessionSecret = saved.sessionSecret;
-      var r = await fetch(API_BASE + '/api/session/' + saved.sessionId + '/restore', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_secret: saved.sessionSecret })
-      });
-      if (!r.ok) return;
-      var data = await r.json();
-      Object.keys(data.questions || {}).forEach(function (qid) {
-        var q = data.questions[qid];
-        if (q.confirmed && q.confirmed_answer) {
-          answerReady[parseInt(qid, 10)] = true;
-          answerCandidate[parseInt(qid, 10)] = q.confirmed_answer;
-          var card = getCardEl(parseInt(qid, 10));
-          if (card) card.classList.add('answer-ready');
-        }
-      });
-      noticeEl.textContent = 'Session restored. Confirmed answers are still available.';
-    } catch (e) {
-      debugLog('[session] restore failed', e);
-    }
-  }
-
-  async function startServerSession() {
-    var r = await fetch(API_BASE + '/api/session/start', {
+  async function ensureServerSession() {
+    if (state.sessionId && state.sessionSecret) return;
+    const response = await fetch(API_BASE + '/api/session/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ assignment_id: state.assignmentId })
     });
-    if (!r.ok) throw new Error('Could not start server session');
-    var data = await r.json();
-    sessionCredentials.sessionId = data.session_id;
-    sessionCredentials.sessionSecret = data.session_secret;
+    if (!response.ok) throw new Error('Could not start the worksheet session.');
+    const data = await response.json();
+    state.sessionId = data.session_id;
+    state.sessionSecret = data.session_secret;
     persistSessionLocally();
-    return data;
   }
 
-  async function confirmAnswerForQuestion(questionId) {
-    var qid = questionId;
-    var text = (draftAnswer[qid] || answerCandidate[qid] || (getAnswerEl(qid) && getAnswerEl(qid).textContent) || '').trim();
-    if (!text) {
-      errorsEl.textContent = 'State your answer before confirming question ' + qid + '.';
-      return false;
-    }
-    if (!sessionCredentials.sessionId) {
-      errorsEl.textContent = 'Start a voice session before confirming an answer.';
-      return false;
-    }
+  async function restoreSessionFromStorage() {
     try {
-      var r = await fetch(API_BASE + '/api/session/' + sessionCredentials.sessionId + '/confirm', {
+      const raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
+      if (!raw || !state.assignmentId) return;
+      const saved = JSON.parse(raw);
+      if (saved.assignmentId !== state.assignmentId) return;
+      state.sessionId = saved.sessionId;
+      state.sessionSecret = saved.sessionSecret;
+      const response = await fetch(API_BASE + '/api/session/' + saved.sessionId + '/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_secret: saved.sessionSecret })
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      Object.keys(data.questions || {}).forEach(function (questionId) {
+        const restored = data.questions[questionId];
+        if (restored.confirmed && restored.confirmed_answer) {
+          state.confirmed[questionId] = true;
+          state.drafts[questionId] = restored.confirmed_answer;
+        }
+      });
+      setNotice('Confirmed answers from this session were restored.');
+    } catch (_) {}
+  }
+
+  function presentAnswer(questionId, text) {
+    const cleaned = (text || '').trim();
+    const question = getQuestion(questionId);
+    if (!question || !cleaned) return;
+    state.activeQuestionId = question.id;
+    state.proposedQuestionId = question.id;
+    state.proposedText = cleaned;
+    state.drafts[question.id] = cleaned;
+    selectQuestion(question.id);
+    elements.typedAnswer.textContent = cleaned;
+    elements.proposedAnswer.textContent = cleaned;
+    elements.confirmationTitle.textContent = 'Confirm answer for Question ' + question.id;
+    setVoiceState('answer_detected');
+    setNotice('Review the proposed answer. Nothing has been written yet.');
+  }
+
+  function dismissAnswer(clearText) {
+    if (clearText && state.proposedQuestionId != null) {
+      delete state.drafts[state.proposedQuestionId];
+      state.proposedText = '';
+      elements.typedAnswer.textContent = '';
+    }
+    state.proposedQuestionId = null;
+    state.proposedText = '';
+    setVoiceState(state.liveSession ? 'listening' : 'idle');
+  }
+
+  async function confirmProposedAnswer() {
+    const questionId = state.proposedQuestionId;
+    const text = (state.proposedText || elements.typedAnswer.textContent || '').trim();
+    if (questionId == null || !text) {
+      setError('Add an answer before confirming it.');
+      return;
+    }
+    setVoiceState('confirming');
+    elements.confirmAnswerBtn.disabled = true;
+    try {
+      await ensureServerSession();
+      const response = await fetch(API_BASE + '/api/session/' + state.sessionId + '/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          session_secret: sessionCredentials.sessionSecret,
-          question_id: qid,
+          session_secret: state.sessionSecret,
+          question_id: questionId,
           answer_text: text
         })
       });
-      if (!r.ok) {
-        var err = await r.json().catch(function () { return {}; });
-        throw new Error(err.detail || 'Confirm failed');
+      if (!response.ok) {
+        const detail = await response.json().catch(function () { return {}; });
+        throw new Error(detail.detail || 'The answer could not be confirmed.');
       }
-      var data = await r.json();
-      answerReady[qid] = true;
-      answerCandidate[qid] = text;
-      writeTokens[qid] = data.write_token;
-      var card = getCardEl(qid);
-      if (card) {
-        card.classList.add('answer-ready');
-        var btn = card.querySelector('.btn-confirm-answer');
-        if (btn) {
-          btn.disabled = true;
-          btn.textContent = 'Answer confirmed';
-        }
+      const data = await response.json();
+      state.confirmed[questionId] = true;
+      state.drafts[questionId] = text;
+      state.writeTokens[questionId] = data.write_token;
+      setError('');
+      await triggerWrite(questionId);
+    } catch (error) {
+      setError(error.message || 'The answer could not be confirmed.');
+      setVoiceState('confirming');
+    } finally {
+      elements.confirmAnswerBtn.disabled = false;
+    }
+  }
+
+  async function triggerWrite(questionId) {
+    if (state.writeInProgress) return;
+    if (!state.confirmed[questionId] || !state.writeTokens[questionId]) {
+      presentAnswer(questionId, state.drafts[questionId] || '');
+      setNotice('Confirm this answer before Claros writes it.');
+      return;
+    }
+    state.writeInProgress = true;
+    setVoiceState('writing');
+    setNotice('Writing the confirmed answer into Question ' + questionId + '.');
+    let written = '';
+    try {
+      const response = await fetch(API_BASE + '/api/write/' + state.assignmentId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question_id: questionId,
+          conversation: state.conversation,
+          answer_candidate: state.drafts[questionId] || '',
+          write_token: state.writeTokens[questionId],
+          session_id: state.sessionId,
+          session_secret: state.sessionSecret
+        })
+      });
+      if (!response.ok) {
+        const detail = await response.json().catch(function () { return {}; });
+        throw new Error(detail.detail || 'The confirmed answer could not be written.');
       }
-      noticeEl.textContent = 'Answer confirmed for question ' + qid + '. You can ask Claros to write it when ready.';
-      errorsEl.textContent = '';
-      return true;
-    } catch (err) {
-      errorsEl.textContent = err.message || 'Could not confirm answer';
-      return false;
-    }
-  }
-
-  function markDraftAnswer(questionId, text) {
-    var qid = questionId;
-    if (qid == null) return;
-    var cleaned = (text || '').trim();
-    if (!cleaned) return;
-    draftAnswer[qid] = cleaned;
-    answerCandidate[qid] = cleaned;
-    var card = getCardEl(qid);
-    if (card) {
-      card.classList.add('answer-drafted');
-      var btn = card.querySelector('.btn-confirm-answer');
-      if (btn) btn.disabled = false;
-    }
-    noticeEl.textContent = 'Draft answer captured for question ' + qid + '. Press Confirm answer to approve it.';
-  }
-
-  const API_BASE = location.origin || 'http://127.0.0.1:8000';
-
-  let liveSession = null;
-  let audioContext = null;
-  let mediaStream = null;
-  let sourceNode = null;
-  let processorNode = null;
-  let playbackContext = null;
-  let nextPlaybackTime = 0;
-  let scheduledSources = [];
-  let conversationContext = [];
-  let currentQuestion = null;
-  let clarosOutputBuffer = '';
-  let userTranscriptBuffer = '';
-  let lastExportVoiceNorm = '';
-  let writeInProgress = false;
-  let keepaliveInterval = null;
-  let sessionCredentials = { sessionId: null, sessionSecret: null };
-
-  function int16ArrayToBase64(int16Arr) {
-    var bytes = new Uint8Array(int16Arr.buffer);
-    var binary = '';
-    for (var i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-    return btoa(binary);
-  }
-
-  /* ?????? Status ?????? */
-  let currentMode = 'idle';
-
-  function setStatus(mode) {
-    currentMode = mode;
-    var labels = {
-      idle: 'Waiting for worksheet',
-      connecting: 'Connecting\u2026',
-      listening: 'Listening for your response',
-      speaking: 'Claros is speaking',
-      writing: 'Writing your answer\u2026'
-    };
-    statusLabel.textContent = labels[mode] || mode;
-    statusEl.className = 'status-bar ' + mode;
-    if (sessionPanel) {
-      sessionPanel.classList.remove('is-live', 'is-connecting', 'is-listening', 'is-speaking', 'is-writing');
-      if (mode === 'connecting') {
-        sessionPanel.classList.add('is-connecting');
-      } else if (mode === 'listening' || mode === 'speaking' || mode === 'writing') {
-        sessionPanel.classList.add('is-live', 'is-' + mode);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const result = await reader.read();
+        if (result.done) break;
+        written += decoder.decode(result.value, { stream: true });
+        written = written.replace(/\$([^$]+)\$/g, '$1');
+        state.answers[questionId] = written;
+        elements.typedAnswer.textContent = written;
+        worksheet.updateAnswer(questionId, written);
       }
+      delete state.writeTokens[questionId];
+      state.proposedQuestionId = null;
+      state.proposedText = '';
+      setNotice('Answer written into Question ' + questionId + '.');
+      elements.typedAnswer.focus();
+    } catch (error) {
+      delete state.writeTokens[questionId];
+      state.confirmed[questionId] = false;
+      setError(error.message || 'The confirmed answer could not be written.');
+    } finally {
+      state.writeInProgress = false;
+      setVoiceState(state.liveSession ? 'listening' : 'idle');
     }
   }
 
-  function showKeyboardFallback(message) {
-    if (liveSession && liveSession.close) {
-      try { liveSession.close(); } catch (_) {}
-      liveSession = null;
-    }
-    if (keyboardFallbackEl) keyboardFallbackEl.hidden = false;
-    if (noticeEl) noticeEl.textContent = message || 'Voice is unavailable. You can continue by typing answers.';
-    if (micBtn) {
-      micBtn.disabled = !state.assignmentId;
-      micBtn.textContent = 'Try Voice Again';
-    }
-    if (interruptBtn) interruptBtn.classList.remove('visible');
-    setStatus('idle');
+  function shouldAutoScrollTranscript() {
+    const distance = elements.transcript.scrollHeight - elements.transcript.scrollTop - elements.transcript.clientHeight;
+    return distance < 36;
   }
 
-  /* ?????? Transcript (streaming) ?????? */
-  let activeClarosMsg = null;
-  let userPartialEl = null;
-  let userPartialText = '';
+  function scrollTranscriptIfPinned() {
+    if (transcriptPinned) elements.transcript.scrollTop = elements.transcript.scrollHeight;
+  }
 
   function addTranscript(speaker, text) {
     if (!text || !text.trim()) return;
     if (speaker === 'claros') {
-      if (!activeClarosMsg) {
-        activeClarosMsg = document.createElement('div');
-        activeClarosMsg.className = 'msg claros';
-        var label = document.createElement('span');
-        label.className = 'msg-label';
-        label.textContent = 'Claros ';
-        activeClarosMsg.appendChild(label);
-        transcriptEl.appendChild(activeClarosMsg);
+      if (!activeClarosMessage) {
+        activeClarosMessage = document.createElement('div');
+        activeClarosMessage.className = 'msg claros';
+        activeClarosMessage.innerHTML = '<span class="msg-label">Claros</span>';
+        elements.transcript.appendChild(activeClarosMessage);
       }
-      activeClarosMsg.appendChild(document.createTextNode(text));
+      activeClarosMessage.appendChild(document.createTextNode(text));
     } else {
-      activeClarosMsg = null;
-      var div = document.createElement('div');
-      div.className = 'msg user';
-      var label = document.createElement('span');
-      label.className = 'msg-label';
-      label.textContent = 'You ';
-      div.appendChild(label);
-      div.appendChild(document.createTextNode(text));
-      transcriptEl.appendChild(div);
+      activeClarosMessage = null;
+      const item = document.createElement('div');
+      item.className = 'msg user';
+      item.innerHTML = '<span class="msg-label">You</span>';
+      item.appendChild(document.createTextNode(text));
+      elements.transcript.appendChild(item);
     }
-    transcriptEl.scrollTop = transcriptEl.scrollHeight;
+    scrollTranscriptIfPinned();
   }
 
   function showUserPartial(text) {
     userPartialText += text;
-    if (!userPartialEl) {
-      userPartialEl = document.createElement('div');
-      userPartialEl.className = 'msg user partial';
-      var label = document.createElement('span');
-      label.className = 'msg-label';
-      label.textContent = 'You ';
-      userPartialEl.appendChild(label);
-      userPartialEl._tn = document.createTextNode('');
-      userPartialEl.appendChild(userPartialEl._tn);
-      transcriptEl.appendChild(userPartialEl);
+    if (!userPartialElement) {
+      userPartialElement = document.createElement('div');
+      userPartialElement.className = 'msg user partial';
+      userPartialElement.innerHTML = '<span class="msg-label">You, live</span>';
+      userPartialElement._text = document.createTextNode('');
+      userPartialElement.appendChild(userPartialElement._text);
+      elements.transcript.appendChild(userPartialElement);
     }
-    userPartialEl._tn.textContent = userPartialText;
-    transcriptEl.scrollTop = transcriptEl.scrollHeight;
+    userPartialElement._text.textContent = userPartialText;
+    scrollTranscriptIfPinned();
   }
 
   function clearUserPartial() {
-    if (userPartialEl) {
-      userPartialEl.remove();
-      userPartialEl = null;
-    }
+    if (userPartialElement) userPartialElement.remove();
+    userPartialElement = null;
     userPartialText = '';
   }
 
-  /* ?????? Audio playback with barge-in support ?????? */
+  function int16ArrayToBase64(values) {
+    const bytes = new Uint8Array(values.buffer);
+    let binary = '';
+    for (let index = 0; index < bytes.length; index += 1) binary += String.fromCharCode(bytes[index]);
+    return btoa(binary);
+  }
+
   function queuePcm24kChunk(base64Data) {
-    if (!playbackContext) playbackContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: OUT_SAMPLE_RATE });
+    if (!playbackContext) {
+      playbackContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: OUT_SAMPLE_RATE });
+    }
     if (playbackContext.state === 'suspended') playbackContext.resume();
-    var ctx = playbackContext;
-    var binary = atob(base64Data);
-    var byteLength = binary.length;
-    var numSamples = byteLength >> 1;
-    var bytes = new Uint8Array(byteLength);
-    for (var i = 0; i < byteLength; i++) bytes[i] = binary.charCodeAt(i);
-    var int16Samples = new Int16Array(bytes.buffer, 0, numSamples);
-    var buf = ctx.createBuffer(1, numSamples, OUT_SAMPLE_RATE);
-    var channel = buf.getChannelData(0);
-    for (var i = 0; i < numSamples; i++) channel[i] = int16Samples[i] / 32768;
-    var startTime = Math.max(ctx.currentTime, nextPlaybackTime);
-    var source = ctx.createBufferSource();
-    source.buffer = buf;
-    source.connect(ctx.destination);
+    const binary = atob(base64Data);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+    const samples = new Int16Array(bytes.buffer, 0, binary.length >> 1);
+    const buffer = playbackContext.createBuffer(1, samples.length, OUT_SAMPLE_RATE);
+    const channel = buffer.getChannelData(0);
+    for (let index = 0; index < samples.length; index += 1) channel[index] = samples[index] / 32768;
+    const startTime = Math.max(playbackContext.currentTime, nextPlaybackTime);
+    const source = playbackContext.createBufferSource();
+    source.buffer = buffer;
+    source.connect(playbackContext.destination);
     source.start(startTime);
-    nextPlaybackTime = startTime + buf.duration;
+    nextPlaybackTime = startTime + buffer.duration;
     scheduledSources.push(source);
     source.onended = function () {
-      var idx = scheduledSources.indexOf(source);
-      if (idx !== -1) scheduledSources.splice(idx, 1);
+      scheduledSources = scheduledSources.filter(function (item) { return item !== source; });
     };
   }
 
   function clearPlayback() {
-    var count = scheduledSources.length;
-    if (count > 0 || nextPlaybackTime > 0) {
-      console.log('[barge-in] Playback stopping. Active sources:', count, 'nextPlaybackTime:', nextPlaybackTime);
-    }
-    for (var i = 0; i < scheduledSources.length; i++) {
-      try { scheduledSources[i].stop(); } catch (_) {}
-    }
+    scheduledSources.forEach(function (source) {
+      try { source.stop(); } catch (_) {}
+    });
     scheduledSources = [];
     nextPlaybackTime = 0;
-    if (count > 0) {
-      console.log('[barge-in] Playback queue cleared.');
-    }
   }
 
-  function performExport(opts) {
-    if (!state.assignmentId) return false;
-    var answers = state.questions.map(function (q) {
-      return { question_id: q.id, answer_text: state.answers[q.id] || '' };
-    }).filter(function (a) { return a.question_id >= 0; });
-    var overrides = Object.keys(state.layoutOverrides).map(function (k) {
-      return state.layoutOverrides[k];
-    });
-    var href = '/export/' + state.assignmentId;
-    errorsEl.textContent = 'Exporting your PDF... your browser should download the file.';
-    setChecklistStep(setupStepExport, true);
-    fetch(href, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answers: answers, layout_overrides: overrides })
-    })
-      .then(function (res) {
-        if (!res.ok) {
-          return res.json().catch(function () { return {}; }).then(function (body) {
-            var detail = body && body.detail;
-            if (detail && typeof detail === 'object' && detail.message) {
-              throw new Error(detail.message);
-            }
-            if (typeof detail === 'string') throw new Error(detail);
-            throw new Error(res.statusText || 'Export failed');
-          });
-        }
-        return res.blob();
-      })
-      .then(function (blob) {
-        var url = window.URL.createObjectURL(blob);
-        var link = document.createElement('a');
-        link.href = url;
-        link.download = 'claros-' + state.assignmentId + '.pdf';
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.setTimeout(function () { window.URL.revokeObjectURL(url); }, 0);
-        errorsEl.textContent = '';
-      })
-      .catch(function (err) {
-        errorsEl.textContent = (err && err.message) || 'Export failed';
-        setChecklistStep(setupStepExport, false);
-      });
-    return true;
-  }
-
-  function triggerVoiceExport(raw, norm) {
-    if (!hasExportIntent(norm)) return;
-    if (!state.assignmentId) return;
-    if (norm === lastExportVoiceNorm) {
-      return;
-    }
-    var ok = performExport({ source: 'voice' });
-    if (ok) {
-      lastExportVoiceNorm = norm;
-    }
-  }
-
-  function triggerWrite(questionId) {
-    var qid = questionId;
-    var aid = state.assignmentId;
-    debugLog('[write-chain] triggerWrite qid=' + qid + ' assignmentId=' + (aid || '(null)'));
-    if (writeInProgress) return;
-    if (!answerReady[qid] || !writeTokens[qid]) {
-      noticeEl.textContent = 'Confirm your answer for question ' + qid + ' before writing.';
-      return;
-    }
-    var selector = '.answer-field[data-question-id="' + questionId + '"]';
-    var el = document.querySelector(selector);
-    var card = getCardEl(questionId);
-    if (!el) {
-      console.log('[write-chain] triggerWrite aborted: element not found selector=' + selector);
-      return;
-    }
-    writeInProgress = true;
-    setStatus('writing');
-    el.textContent = '';
-    state.answers[questionId] = '';
-    if (card) card.classList.add('writing');
-    var url = API_BASE + '/api/write/' + state.assignmentId;
-    console.log('[write-chain] Sending fetch qid=' + qid + ' url=' + url);
-    var body = JSON.stringify({
-      question_id: questionId,
-      conversation: conversationContext,
-      answer_candidate: answerCandidate[questionId] || '',
-      write_token: writeTokens[questionId],
-      session_id: sessionCredentials.sessionId,
-      session_secret: sessionCredentials.sessionSecret
-    });
-    fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body })
-      .then(function (res) {
-        if (!res.ok) {
-          return res.json().catch(function () { return {}; }).then(function (data) {
-            throw new Error(data.detail || res.statusText || 'Write failed');
-          });
-        }
-        return res.body.getReader();
-      })
-      .then(function (reader) {
-        var decoder = new TextDecoder();
-        var totalChars = 0;
-        function read() {
-          return reader.read().then(function (_ref) {
-            var done = _ref.done;
-            var value = _ref.value;
-            if (done) {
-              console.log('[write-chain] Stream done qid=' + qid + ' totalCharsAppended=' + totalChars);
-              return;
-            }
-            var text = decoder.decode(value, { stream: true });
-            if (text) {
-              totalChars += text.length;
-              var targetEl = document.querySelector(selector);
-              if (!targetEl) {
-                console.log('[write-chain] DOM update FAILED qid=' + qid + ' selector=' + selector + ' elementFound=false (element missing when appending)');
-              } else {
-                var raw = (targetEl.textContent || '') + text;
-                targetEl.textContent = raw.replace(/\$([^$]+)\$/g, '$1');
-                state.answers[questionId] = targetEl.textContent;
-              }
-              exportBtn.classList.add('visible');
-            }
-            return read();
-          });
-        }
-        return read();
-      })
-      .catch(function (err) {
-        errorsEl.textContent = err.message || 'Write failed';
-      })
-      .finally(function () {
-        writeInProgress = false;
-        if (card) card.classList.remove('writing');
-        setStatus(liveSession ? 'listening' : 'idle');
-      });
-  }
-
-  /* ?????? Mic level meter ?????? */
   function startMeter(stream) {
-    var ctx = new (window.AudioContext || window.webkitAudioContext)();
-    var src = ctx.createMediaStreamSource(stream);
-    var analyser = ctx.createAnalyser();
+    const context = new (window.AudioContext || window.webkitAudioContext)();
+    const analyser = context.createAnalyser();
+    const source = context.createMediaStreamSource(stream);
+    const values = new Uint8Array(analyser.frequencyBinCount);
     analyser.fftSize = 256;
     analyser.smoothingTimeConstant = 0.8;
-    src.connect(analyser);
-    var data = new Uint8Array(analyser.frequencyBinCount);
+    source.connect(analyser);
     function tick() {
-      if (!mediaStream || !mediaStream.active) return;
-      analyser.getByteFrequencyData(data);
-      var sum = 0;
-      for (var i = 0; i < data.length; i++) sum += data[i];
-      meterBar.style.width = Math.min(100, (sum / data.length) * 2) + '%';
+      if (!mediaStream || !mediaStream.active) {
+        context.close();
+        return;
+      }
+      analyser.getByteFrequencyData(values);
+      const average = values.reduce(function (sum, value) { return sum + value; }, 0) / values.length;
+      elements.meterBar.style.width = Math.min(100, average * 2) + '%';
       requestAnimationFrame(tick);
     }
     tick();
   }
 
-  /* ?????? Session lifecycle (direct Gemini Live) ?????? */
+  function showVoiceFallback(message) {
+    elements.keyboardFallback.hidden = false;
+    setNotice(message || 'Voice is unavailable. Continue by typing an answer.');
+    setVoiceState('error');
+  }
+
   async function startSession() {
-    if (!state.assignmentId) return;
-    errorsEl.textContent = '';
-    setStatus('connecting');
-    micBtn.disabled = true;
-    micBtn.textContent = 'Connecting\u2026';
-    conversationContext = [];
-    answerReady = {};
-    answerCandidate = {};
-    draftAnswer = {};
-    writeTokens = {};
-    currentQuestion = null;
-    clarosOutputBuffer = '';
-    userTranscriptBuffer = '';
-
-    var config;
+    if (!state.assignmentId || state.liveSession) return;
+    setError('');
+    elements.keyboardFallback.hidden = true;
+    setVoiceState('connecting');
     try {
-      await startServerSession();
-      var r = await fetch(API_BASE + '/api/session-config/' + state.assignmentId);
-      if (!r.ok) throw new Error(r.status === 404 ? 'Assignment not found' : (await r.text()) || 'Session config failed');
-      config = await r.json();
-    } catch (e) {
-      errorsEl.textContent = e.message || 'Failed to start session configuration';
-      setStatus('idle');
-      micBtn.disabled = false;
-      micBtn.textContent = 'Start Session';
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Microphone access is not available in this browser.');
+      }
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1
+        }
+      });
+      setNotice('Microphone access granted. Connecting Claros now.');
+    } catch (error) {
+      const message = error && error.name === 'NotAllowedError'
+        ? 'Microphone access was denied. You can still type, confirm, and export answers.'
+        : (error.message || 'The microphone is unavailable.');
+      showVoiceFallback(message);
       return;
     }
 
-    var GoogleGenAI;
     try {
-      var mod = await import((API_BASE + '/genai.bundle.js'));
-      GoogleGenAI = mod.GoogleGenAI || mod.default;
-    } catch (e) {
-      errorsEl.textContent = 'Failed to load Gemini SDK. ' + (e.message || 'Check console for details.');
-      if (typeof console !== 'undefined' && console.error) console.error('Gemini SDK load error:', e);
-      setStatus('idle');
-      micBtn.disabled = false;
-      micBtn.textContent = 'Start Session';
-      return;
-    }
-
-    var ai = new GoogleGenAI({
-      apiKey: config.token,
-      httpOptions: { apiVersion: 'v1alpha' }
-    });
-    var session;
-    try {
-      session = await ai.live.connect({
+      await ensureServerSession();
+      const configResponse = await fetch(API_BASE + '/api/session-config/' + state.assignmentId);
+      if (!configResponse.ok) throw new Error('Claros could not connect to the voice provider.');
+      const config = await configResponse.json();
+      const module = await import(API_BASE + '/genai.bundle.js');
+      const GoogleGenAI = module.GoogleGenAI || module.default;
+      const client = new GoogleGenAI({ apiKey: config.token, httpOptions: { apiVersion: 'v1alpha' } });
+      const session = await client.live.connect({
         model: config.model,
         config: {
           responseModalities: ['AUDIO'],
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } },
           systemInstruction: { parts: [{ text: config.system_prompt || '' }] },
-          inputAudioTranscription: {
-            // Prefer activity-based turns to reduce false positives from background noise,
-            // while still allowing responsive interruption.
-            mode: 'ACTIVITY',
-            interimResults: true
-          },
-          outputAudioTranscription: {
-            // Keep Claros' spoken turns well-bounded.
-            mode: 'TURN_BASED'
-          }
+          inputAudioTranscription: { mode: 'ACTIVITY', interimResults: true },
+          outputAudioTranscription: { mode: 'TURN_BASED' }
         },
         callbacks: {
-          onmessage: function (msg) {
-            var sc = msg.serverContent;
-            if (!sc) return;
-            if (sc.setupComplete) {
-              setStatus('listening');
-              setChecklistStep(setupStepSession, true);
-              return;
-            }
-            if (sc.inputTranscription && sc.inputTranscription.text) {
-              userTranscriptBuffer += sc.inputTranscription.text;
-              var wasSpeaking = (scheduledSources && scheduledSources.length > 0) || currentMode === 'speaking';
-              if (wasSpeaking) {
-                console.log('[barge-in] Interruption detected: user started speaking while Claros audio was playing.');
-              }
-              clearPlayback();
-              activeClarosMsg = null;
-              if (wasSpeaking) {
-                setStatus('listening');
-                console.log('[barge-in] Playback stopped and listening resumed.');
-              }
-              showUserPartial(sc.inputTranscription.text);
-            }
-            if (sc.outputTranscription && sc.outputTranscription.text) {
-              var text = sc.outputTranscription.text;
-              conversationContext.push({ speaker: 'claros', text: text });
-              addTranscript('claros', text);
-              clarosOutputBuffer += text;
-              if (clarosOutputBuffer.length > 2000) clarosOutputBuffer = clarosOutputBuffer.slice(-1000);
-              var m = CLAROS_WRITE_PHRASE_RE.exec(clarosOutputBuffer);
-              if (m) {
-                var qid = parseClarosWriteQuestionNum(clarosOutputBuffer);
-                clarosOutputBuffer = '';
-                if (qid != null) {
-                  noticeEl.textContent = 'Claros is ready to write question ' + qid + '. Confirm your answer first, then ask to write.';
-                }
-              }
-            }
-            if (sc.modelTurn && sc.modelTurn.parts) {
-              for (var i = 0; i < sc.modelTurn.parts.length; i++) {
-                var part = sc.modelTurn.parts[i];
-                if (part.inlineData && part.inlineData.data) {
-                  queuePcm24kChunk(part.inlineData.data);
-                  if (!writeInProgress) setStatus('speaking');
-                }
-              }
-            }
-            if (sc.turnComplete) {
-              var full = userTranscriptBuffer.trim();
-              userTranscriptBuffer = '';
-              clearUserPartial();
-              activeClarosMsg = null;
-              setStatus('listening');
-              if (full) {
-                var norm = normalizeTranscript(full);
-                conversationContext.push({ speaker: 'user', text: full });
-                addTranscript('user', full);
-                var parsedQuestion = parseQuestionNum(norm);
-                if (parsedQuestion != null) currentQuestion = parsedQuestion;
-                if (ANSWER_STATED_RE.test(norm)) {
-                  var tq = parsedQuestion != null ? parsedQuestion : currentQuestion;
-                  if (tq != null) {
-                    var draft = extractDraftAnswer(norm) || full;
-                    markDraftAnswer(tq, draft);
-                  }
-                }
-                var hasIntent = WRITE_INTENT_RE.test(norm);
-                var qid = parsedQuestion != null ? parsedQuestion : (currentQuestion || 1);
-                if (hasIntent && answerReady[qid] && !writeInProgress) {
-                  triggerWrite(qid);
-                } else if (hasIntent && !answerReady[qid]) {
-                  noticeEl.textContent = 'Confirm your answer for question ' + qid + ' before writing.';
-                }
-                if (hasExportIntent(norm)) {
-                }
-                triggerVoiceExport(full, norm);
-              }
-            }
+          onmessage: handleLiveMessage,
+          onerror: function () {
+            stopSession(false);
+            showVoiceFallback('The voice connection failed. Continue by typing, or try voice again.');
           },
-          onerror: function (e) {
-            errorsEl.textContent = (e && e.message) || 'Gemini Live error';
-            showKeyboardFallback('Voice connection failed. You can continue by typing answers, confirming them, and exporting.');
-          },
-          onclose: function () { setStatus('idle'); stopSession(); }
+          onclose: function () {
+            stopSession(false);
+            setVoiceState('stopped');
+          }
         }
       });
-    } catch (e) {
-      errorsEl.textContent = (e && e.message) || 'Failed to connect to Gemini Live';
-      setStatus('idle');
-      micBtn.disabled = false;
-      micBtn.textContent = 'Start Session';
-      return;
+      state.liveSession = session;
+      startAudioInput(mediaStream);
+      startMeter(mediaStream);
+      setVoiceState('listening');
+      setNotice('Voice session started. Claros is listening.');
+    } catch (error) {
+      if (mediaStream) mediaStream.getTracks().forEach(function (track) { track.stop(); });
+      mediaStream = null;
+      showVoiceFallback(error.message || 'Claros could not connect to the voice provider.');
     }
+  }
 
-    liveSession = session;
-    setStatus('listening');
-    restoreSessionFromStorage();
-
-    var stream;
-    try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Microphone is not available in this browser.');
-      }
-      var audioConstraints = {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-        channelCount: 1
-      };
-      stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
-    } catch (e) {
-      errorsEl.textContent = (e && e.name === 'NotAllowedError')
-        ? 'Microphone permission was denied.'
-        : ((e && e.message) || 'Microphone is unavailable.');
-      if (liveSession.close) liveSession.close();
-      liveSession = null;
-      showKeyboardFallback('Voice is unavailable. You can still type answers, confirm them, and export your worksheet.');
-      return;
-    }
-    mediaStream = stream;
-    try {
-      var tracks = mediaStream.getAudioTracks();
-      if (tracks && tracks[0]) {
-        console.log('[mic] Track settings granted:', tracks[0].getSettings());
-      }
-    } catch (_) {}
-    startMeter(stream);
-
+  function startAudioInput(stream) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    var inputRate = audioContext.sampleRate;
-    var ratio = inputRate / SAMPLE_RATE;
+    const ratio = audioContext.sampleRate / SAMPLE_RATE;
     sourceNode = audioContext.createMediaStreamSource(stream);
     processorNode = audioContext.createScriptProcessor(1024, 1, 1);
-    processorNode.onaudioprocess = function (e) {
-      if (!liveSession) return;
-      var input = e.inputBuffer.getChannelData(0);
-      var outSamples = Math.floor(input.length / ratio);
-      var out = new Int16Array(outSamples);
-      for (var i = 0; i < outSamples; i++) {
-        var idx = Math.min(Math.floor(i * ratio), input.length - 1);
-        var s = Math.max(-1, Math.min(1, input[idx]));
-        out[i] = s < 0 ? s * 32768 : s * 32767;
+    processorNode.onaudioprocess = function (event) {
+      if (!state.liveSession) return;
+      const input = event.inputBuffer.getChannelData(0);
+      const output = new Int16Array(Math.floor(input.length / ratio));
+      for (let index = 0; index < output.length; index += 1) {
+        const sample = Math.max(-1, Math.min(1, input[Math.min(Math.floor(index * ratio), input.length - 1)]));
+        output[index] = sample < 0 ? sample * 32768 : sample * 32767;
       }
       try {
-        liveSession.sendRealtimeInput({ audio: { data: int16ArrayToBase64(out), mimeType: 'audio/pcm;rate=16000' } });
+        state.liveSession.sendRealtimeInput({
+          audio: { data: int16ArrayToBase64(output), mimeType: 'audio/pcm;rate=16000' }
+        });
       } catch (_) {}
     };
     sourceNode.connect(processorNode);
     processorNode.connect(audioContext.destination);
-
-    var SILENT_320 = new Int16Array(320);
+    const silence = new Int16Array(320);
     keepaliveInterval = setInterval(function () {
-      if (!liveSession) return;
+      if (!state.liveSession) return;
       try {
-        liveSession.sendRealtimeInput({ audio: { data: int16ArrayToBase64(SILENT_320), mimeType: 'audio/pcm;rate=16000' } });
+        state.liveSession.sendRealtimeInput({
+          audio: { data: int16ArrayToBase64(silence), mimeType: 'audio/pcm;rate=16000' }
+        });
       } catch (_) {}
     }, 5000);
-
-    micBtn.disabled = false;
-    micBtn.textContent = 'End Session';
-    micBtn.classList.add('stop');
-    interruptBtn.classList.add('visible');
-    syncChecklist();
   }
 
-  function stopSession() {
-    if (keepaliveInterval) { clearInterval(keepaliveInterval); keepaliveInterval = null; }
+  function handleLiveMessage(message) {
+    const content = message.serverContent;
+    if (!content) return;
+    if (content.inputTranscription && content.inputTranscription.text) {
+      userTranscriptBuffer += content.inputTranscription.text;
+      if (scheduledSources.length || state.voice === 'speaking') {
+        clearPlayback();
+        setVoiceState('listening');
+      }
+      showUserPartial(content.inputTranscription.text);
+    }
+    if (content.outputTranscription && content.outputTranscription.text) {
+      const text = content.outputTranscription.text;
+      state.conversation.push({ speaker: 'claros', text: text });
+      addTranscript('claros', text);
+      clarosOutputBuffer = (clarosOutputBuffer + text).slice(-2000);
+    }
+    if (content.modelTurn && content.modelTurn.parts) {
+      content.modelTurn.parts.forEach(function (part) {
+        if (part.inlineData && part.inlineData.data) {
+          queuePcm24kChunk(part.inlineData.data);
+          if (!state.writeInProgress) setVoiceState('speaking');
+        }
+      });
+    }
+    if (content.turnComplete) {
+      const full = userTranscriptBuffer.trim();
+      userTranscriptBuffer = '';
+      clearUserPartial();
+      activeClarosMessage = null;
+      setVoiceState('listening');
+      if (!full) return;
+      const normalized = SessionRules.normalizeTranscript(full);
+      state.conversation.push({ speaker: 'user', text: full });
+      addTranscript('user', full);
+      const parsedQuestion = SessionRules.parseQuestionNum(normalized);
+      if (parsedQuestion != null && getQuestion(parsedQuestion)) selectQuestion(parsedQuestion);
+      const targetQuestion = parsedQuestion != null ? parsedQuestion : state.activeQuestionId;
+      if (SessionRules.ANSWER_STATED_RE.test(normalized) && targetQuestion != null) {
+        presentAnswer(targetQuestion, SessionRules.extractDraftAnswer(normalized) || full);
+      }
+      if (SessionRules.WRITE_INTENT_RE.test(normalized) && targetQuestion != null) {
+        if (state.confirmed[targetQuestion]) triggerWrite(targetQuestion);
+        else presentAnswer(targetQuestion, state.drafts[targetQuestion] || full);
+      }
+      if (SessionRules.hasExportIntent(normalized) && normalized !== state.lastExportVoiceNorm) {
+        state.lastExportVoiceNorm = normalized;
+        performExport();
+      }
+    }
+  }
+
+  function stopSession(closeProvider) {
+    if (keepaliveInterval) clearInterval(keepaliveInterval);
+    keepaliveInterval = null;
     clearPlayback();
     if (processorNode) {
-      try { processorNode.disconnect(); sourceNode && sourceNode.disconnect(); } catch (_) {}
-      processorNode = null; sourceNode = null;
+      try {
+        processorNode.disconnect();
+        if (sourceNode) sourceNode.disconnect();
+      } catch (_) {}
     }
-    if (mediaStream) { mediaStream.getTracks().forEach(function (t) { t.stop(); }); mediaStream = null; }
-    if (liveSession && liveSession.close) { try { liveSession.close(); } catch (_) {} liveSession = null; }
-    nextPlaybackTime = 0;
-    if (audioContext) { audioContext.close(); audioContext = null; }
-    meterBar.style.width = '0%';
-    micBtn.disabled = !state.assignmentId;
-    micBtn.textContent = 'Start Session';
-    micBtn.classList.remove('stop');
-    interruptBtn.classList.remove('visible');
-    setStatus('idle');
-    activeClarosMsg = null;
+    processorNode = null;
+    sourceNode = null;
+    if (mediaStream) mediaStream.getTracks().forEach(function (track) { track.stop(); });
+    mediaStream = null;
+    if (state.liveSession && closeProvider !== false && state.liveSession.close) {
+      try { state.liveSession.close(); } catch (_) {}
+    }
+    state.liveSession = null;
+    if (audioContext) audioContext.close();
+    audioContext = null;
+    elements.meterBar.style.width = '0%';
     clearUserPartial();
-    syncChecklist();
+    setVoiceState(state.assignmentId ? 'stopped' : 'unavailable');
   }
 
   function interruptAgent() {
-    if (!liveSession) return;
+    if (!state.liveSession) return;
     clearPlayback();
-    setStatus('listening');
-    if (errorsEl) errorsEl.textContent = '';
+    setVoiceState('listening');
+    setNotice('Claros stopped speaking. You can continue.');
   }
 
-  interruptBtn.addEventListener('click', function () { interruptAgent(); });
+  async function performExport() {
+    if (!state.assignmentId || state.workspace === 'exporting') return;
+    setWorkspaceState('exporting');
+    setError('');
+    const answers = state.questions
+      .filter(function (question) {
+        return !!(state.confirmed[question.id] && (state.answers[question.id] || '').trim());
+      })
+      .map(function (question) {
+        return {
+          question_id: question.id,
+          answer_text: state.answers[question.id] || '',
+          answer_region: question.answer_region || undefined
+        };
+      });
+    if (!answers.length) {
+      setWorkspaceState(unresolvedQuestions().length ? 'needs_layout_review' : 'ready');
+      setError('Confirm and write at least one answer before exporting.');
+      return;
+    }
+    try {
+      const response = await fetch('/export/' + state.assignmentId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers: answers })
+      });
+      if (!response.ok) throw new Error('The completed PDF could not be prepared.');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'claros-' + state.assignmentId + '.pdf';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 0);
+      setWorkspaceState('complete');
+      setNotice('Export ready. Your browser downloaded the completed worksheet.');
+    } catch (error) {
+      setWorkspaceState(unresolvedQuestions().length ? 'needs_layout_review' : 'ready');
+      setError(error.message || 'The completed PDF could not be prepared.');
+    }
+  }
 
-  micBtn.addEventListener('click', function () {
-    if (liveSession) stopSession();
+  function enterLayoutReview() {
+    state.correctionMode = true;
+    elements.layoutReviewPanel.hidden = false;
+    worksheet.setCorrectionMode(true);
+    elements.layoutReviewSummary.textContent = unresolvedQuestions().length
+      + ' answer ' + (unresolvedQuestions().length === 1 ? 'region needs' : 'regions need') + ' attention.';
+    elements.confirmRegionBtn.focus();
+  }
+
+  function finishLayoutReview() {
+    state.correctionMode = false;
+    elements.layoutReviewPanel.hidden = true;
+    worksheet.setCorrectionMode(false);
+    renderLayoutState();
+    setNotice(unresolvedQuestions().length ? 'Some answer regions still need review.' : 'Layout ready.');
+    elements.layoutReviewBtn.focus();
+  }
+
+  elements.uploadBtn.addEventListener('click', function () { elements.fileInput.click(); });
+  elements.uploadZone.addEventListener('click', function (event) {
+    if (event.target === elements.uploadZone || event.target.closest('.upload-copy') || event.target.closest('.upload-art')) {
+      elements.fileInput.click();
+    }
+  });
+  elements.uploadZone.addEventListener('dragover', function (event) {
+    event.preventDefault();
+    elements.uploadZone.classList.add('hover');
+  });
+  elements.uploadZone.addEventListener('dragleave', function () { elements.uploadZone.classList.remove('hover'); });
+  elements.uploadZone.addEventListener('drop', function (event) {
+    event.preventDefault();
+    elements.uploadZone.classList.remove('hover');
+    const file = event.dataTransfer.files[0];
+    if (file && file.name.toLowerCase().endsWith('.pdf')) doUpload(file);
+    else setError('Choose a PDF file.');
+  });
+  elements.fileInput.addEventListener('change', function () { doUpload(elements.fileInput.files[0]); });
+  elements.testPdfBtn.addEventListener('click', loadSamplePdf);
+  elements.retryBtn.addEventListener('click', function () { doUpload(state.lastFile); });
+  elements.replaceBtn.addEventListener('click', function () { elements.fileInput.click(); });
+  elements.replaceWorksheetBtn.addEventListener('click', resetWorkspace);
+  elements.exportBtn.addEventListener('click', performExport);
+  elements.previousPageBtn.addEventListener('click', function () {
+    worksheet.setPage(worksheet.getState().currentPage - 1);
+  });
+  elements.nextPageBtn.addEventListener('click', function () {
+    worksheet.setPage(worksheet.getState().currentPage + 1);
+  });
+  elements.fitWidthBtn.addEventListener('click', function () { worksheet.fitWidth(); });
+  elements.zoomOutBtn.addEventListener('click', function () {
+    worksheet.setZoom(worksheet.getState().zoom - 10);
+  });
+  elements.zoomInBtn.addEventListener('click', function () {
+    worksheet.setZoom(worksheet.getState().zoom + 10);
+  });
+  elements.layoutReviewBtn.addEventListener('click', enterLayoutReview);
+  elements.resetRegionBtn.addEventListener('click', function () { worksheet.resetSelected(); });
+  elements.confirmRegionBtn.addEventListener('click', function () { worksheet.confirmSelected(); });
+  elements.finishLayoutBtn.addEventListener('click', finishLayoutReview);
+  document.querySelectorAll('[data-region-action]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      const action = button.dataset.regionAction;
+      const selected = worksheet.getState().selectedQuestionId;
+      const adjustments = {
+        left: [-0.005, 0, 0, 0],
+        right: [0.005, 0, 0, 0],
+        up: [0, -0.005, 0, 0],
+        down: [0, 0.005, 0, 0],
+        wider: [0, 0, 0.01, 0],
+        narrower: [0, 0, -0.01, 0]
+      };
+      worksheet.adjust(selected, ...adjustments[action]);
+    });
+  });
+  elements.questionListToggle.addEventListener('click', function () {
+    elements.questionsContainer.hidden = !elements.questionsContainer.hidden;
+  });
+  elements.typedAnswer.addEventListener('input', function () {
+    const text = elements.typedAnswer.textContent.trim();
+    const questionId = state.activeQuestionId;
+    state.drafts[questionId] = text;
+    elements.confirmTypedBtn.disabled = !text;
+    // Unconfirmed drafts stay in the editor only; overlays and export use written answers.
+  });
+  elements.confirmTypedBtn.addEventListener('click', function () {
+    presentAnswer(state.activeQuestionId, elements.typedAnswer.textContent);
+  });
+  elements.editAnswerBtn.addEventListener('click', function () {
+    setVoiceState(state.liveSession ? 'listening' : 'idle');
+    elements.typedAnswer.focus();
+  });
+  elements.rejectAnswerBtn.addEventListener('click', function () {
+    dismissAnswer(true);
+    setNotice('Proposed answer rejected. Nothing was written.');
+  });
+  elements.confirmAnswerBtn.addEventListener('click', confirmProposedAnswer);
+  elements.micBtn.addEventListener('click', function () {
+    if (state.liveSession) stopSession();
     else startSession();
   });
-
-  exportBtn.addEventListener('click', function () {
-    performExport({ source: 'button' });
+  elements.interruptBtn.addEventListener('click', interruptAgent);
+  elements.voicePanelToggle.addEventListener('click', function () {
+    setSessionPanelExpanded(!elements.sessionPanel.classList.contains('is-expanded'));
+  });
+  elements.transcript.addEventListener('scroll', function () {
+    transcriptPinned = shouldAutoScrollTranscript();
   });
 
-  syncChecklist();
+  setWorkspaceState('empty');
+  setVoiceState('unavailable');
 
-  if (new URLSearchParams(location.search).get('sample') === '1' && !state.assignmentId && testPdfBtn) {
-    loadSamplePdf();
-  }
+  if (new URLSearchParams(location.search).get('sample') === '1') loadSamplePdf();
 })();

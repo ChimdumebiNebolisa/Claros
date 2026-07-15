@@ -1,0 +1,11 @@
+{
+  "pdf": "sample_assignment.pdf",
+  "title": "Math Assignment - Grades 9-10",
+  "questions": [
+    { "id": 1, "text_contains": "Solve for" },
+    { "id": 2, "text_contains": "Solve for" },
+    { "id": 3, "text_contains": "4(" },
+    { "id": 4, "text_contains": "rectangle" },
+    { "id": 5, "text_contains": "Tickets" }
+  ]
+}

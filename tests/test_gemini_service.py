@@ -29,6 +29,15 @@ def test_build_write_prompt_requires_candidate_text():
     assert "confirmed their final answer for Question 2" in prompt
 
 
+def test_stamp_confirmed_answer_yields_candidate_text():
+    chunks = asyncio.run(_collect(gemini_service.stamp_confirmed_answer("  x = 5  ")))
+    assert chunks == ["x = 5"]
+
+
+async def _collect(agen):
+    return [piece async for piece in agen]
+
+
 def test_stream_write_answer_yields_error_text_on_generation_failure(monkeypatch):
     monkeypatch.setattr(
         gemini_service.assignment_service,

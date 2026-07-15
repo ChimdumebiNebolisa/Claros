@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from parser import parse_pdf_with_diagnostics
 
-ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CORPUS = ROOT / "tests" / "fixtures" / "parser"
 
 
@@ -70,6 +74,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Evaluate Claros PDF parser against labeled corpus")
     parser.add_argument("--corpus", type=Path, default=DEFAULT_CORPUS)
     parser.add_argument("--out", type=Path, default=None)
+    parser.add_argument(
+        "--require-corpus",
+        action="store_true",
+        help="Exit non-zero when the corpus has no labeled cases",
+    )
     args = parser.parse_args()
 
     report = evaluate(args.corpus)
@@ -79,6 +88,12 @@ def main() -> int:
         print(f"Wrote report to {args.out}")
     else:
         print(text)
+    if args.require_corpus and report["cases"] == 0:
+        print("Parser eval corpus is empty.", flush=True)
+        return 1
+    if args.require_corpus and report["boundary_recall"] < 1.0:
+        print("Parser eval recall below 1.0.", flush=True)
+        return 1
     return 0
 
 

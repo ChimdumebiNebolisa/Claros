@@ -3,7 +3,13 @@ import pytest
 import fitz
 
 import config
-from parser import PDFProcessingError, Question, normalize_worksheet_text, parse_pdf
+from parser import (
+    PDFProcessingError,
+    Question,
+    normalize_worksheet_text,
+    parse_pdf,
+    parse_pdf_with_diagnostics,
+)
 
 
 def test_parse_pdf_question_format(tmp_pdf_question_format):
@@ -130,3 +136,36 @@ def test_parse_pdf_rejects_extracted_text_limit(tmp_pdf_question_format, monkeyp
 
     with pytest.raises(PDFProcessingError, match="extracted text"):
         parse_pdf(tmp_pdf_question_format)
+
+
+def test_shipped_sample_has_resolved_answer_regions():
+    path = config.ROOT / "test_assignment.pdf"
+
+    _title, questions, warnings, status = parse_pdf_with_diagnostics(path)
+
+    assert status == "ok"
+    assert "layout_review_required" not in warnings
+    assert len(questions) == 5
+    for question in questions:
+        assert question.page == 1
+        assert question.answer_region
+        assert question.detected_answer_region == question.answer_region
+        assert question.layout_confidence >= 0.7
+        assert question.needs_layout_review is False
+        region = question.answer_region
+        assert 0 <= region["x"] < 1
+        assert 0 <= region["y"] < 1
+        assert region["x"] + region["width"] <= 1
+        assert region["y"] + region["height"] <= 1
+
+
+def test_prompt_without_blank_needs_layout_review():
+    path = config.ROOT / "tests" / "fixtures" / "parser" / "needs_layout_review.pdf"
+
+    _title, questions, warnings, status = parse_pdf_with_diagnostics(path)
+
+    assert status == "ok"
+    assert len(questions) == 1
+    assert questions[0].needs_layout_review is True
+    assert questions[0].layout_confidence < 0.7
+    assert "layout_review_required" in warnings

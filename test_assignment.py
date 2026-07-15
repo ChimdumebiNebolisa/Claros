@@ -1,5 +1,8 @@
 """
-Generate a 9th-10th grade math assignment PDF using reportlab.
+Canonical Claros sample worksheet producer.
+
+Writes test_assignment.pdf with one intentional answer blank per question.
+Other scripts must not overwrite this PDF with a blank-free layout.
 """
 
 from reportlab.lib.pagesizes import letter
@@ -10,9 +13,9 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 PDF_FILENAME = "test_assignment.pdf"
 
 
-def build_assignment():
+def build_assignment(output_path: str = PDF_FILENAME) -> str:
     doc = SimpleDocTemplate(
-        PDF_FILENAME,
+        output_path,
         pagesize=letter,
         rightMargin=inch,
         leftMargin=inch,
@@ -33,72 +36,61 @@ def build_assignment():
         spaceBefore=14,
         spaceAfter=6,
     )
-    sub_style = ParagraphStyle(
-        name="Sub",
+    answer_style = ParagraphStyle(
+        name="AnswerLine",
         parent=styles["Normal"],
-        fontSize=11,
-        leftIndent=20,
-        spaceAfter=8,
+        fontSize=12,
+        spaceAfter=10,
     )
 
     story = []
 
     story.append(Paragraph("Math Assignment - Grades 9-10", title_style))
-    story.append(Paragraph(
-        "Name: _______________________ &nbsp;&nbsp;&nbsp; Date: _______________________",
-        styles["Normal"],
-    ))
-    story.append(Spacer(1, 0.3 * inch))
+    story.append(Paragraph("Claros sample algebra worksheet", styles["Normal"]))
+    story.append(Spacer(1, 0.25 * inch))
 
-    # Question 1 - simple: solve for x
     story.append(Paragraph(
-        "<b>1.</b> Solve for <i>x</i>: &nbsp; 3<i>x</i> + 7 = 22",
+        "<b>Question 1:</b> Solve for <i>x</i>: &nbsp; 3<i>x</i> + 7 = 22",
         question_style,
     ))
-    story.append(Paragraph("Show your work. Answer: <i>x</i> = ________", sub_style))
+    story.append(Paragraph("Show your work. Answer: <i>x</i> = ________", answer_style))
 
-    # Question 2 - simple: solve for x
     story.append(Paragraph(
-        "<b>2.</b> Solve for <i>x</i>: &nbsp; −2<i>x</i> − 5 = 11",
+        "<b>Question 2:</b> Solve for <i>x</i>: &nbsp; -2<i>x</i> - 5 = 11",
         question_style,
     ))
-    story.append(Paragraph("Show your work. Answer: <i>x</i> = ________", sub_style))
+    story.append(Paragraph("Show your work. Answer: <i>x</i> = ________", answer_style))
 
-    # Question 3 - medium: multi-step equation
     story.append(Paragraph(
-        "<b>3.</b> Solve for <i>x</i>: &nbsp; 4(<i>x</i> − 3) + 2<i>x</i> = 5<i>x</i> + 6",
+        "<b>Question 3:</b> Solve for <i>x</i>: &nbsp; 4(<i>x</i> - 3) + 2<i>x</i> = 5<i>x</i> + 6",
         question_style,
     ))
     story.append(Paragraph(
         "Simplify both sides, then solve. Show your work. Answer: <i>x</i> = ________",
-        sub_style,
+        answer_style,
     ))
 
-    # Question 4 - word problem
     story.append(Paragraph(
-        "<b>4.</b> A rectangle has a length that is 3 more than twice its width. "
+        "<b>Question 4:</b> A rectangle has a length that is 3 more than twice its width. "
         "The perimeter of the rectangle is 42 cm. Find the width and the length. "
         "Write an equation, solve it, and state your answer with units.",
         question_style,
     ))
-    story.append(Paragraph("Width = ________ &nbsp;&nbsp;&nbsp; Length = ________", sub_style))
+    story.append(Paragraph("Final answer: ________________________________", answer_style))
 
-    # Question 5 - word problem
     story.append(Paragraph(
-        "<b>5.</b> Tickets for a school play cost $5 for students and $8 for adults. "
+        "<b>Question 5:</b> Tickets for a school play cost $5 for students and $8 for adults. "
         "There were 120 tickets sold for a total of $720. How many student tickets "
         "and how many adult tickets were sold? Define variables, write a system of "
         "equations (or one equation), solve, and answer in a full sentence.",
         question_style,
     ))
-    story.append(Paragraph(
-        "Student tickets: ________ &nbsp;&nbsp;&nbsp; Adult tickets: ________",
-        sub_style,
-    ))
+    story.append(Paragraph("Final answer: ________________________________", answer_style))
 
     doc.build(story)
-    print(f"Created {PDF_FILENAME}")
+    return output_path
 
 
 if __name__ == "__main__":
-    build_assignment()
+    path = build_assignment()
+    print(f"Created {path}")

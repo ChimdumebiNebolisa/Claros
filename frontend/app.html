@@ -8,9 +8,10 @@
   <link rel="stylesheet" href="/styles/tokens.css">
   <link rel="stylesheet" href="/styles/app.css">
 </head>
-<body>
+<body data-workspace-state="empty" data-voice-state="unavailable">
+  <a class="skip-link" href="#main-content">Skip to worksheet</a>
   <div class="app-shell" id="top">
-    <header class="topbar">
+    <header class="topbar app-topbar">
       <div class="topbar-left brand-lockup">
         <div class="brand-mark" aria-hidden="true"></div>
         <div class="brand-copy">
@@ -18,118 +19,194 @@
           <span>Voice-guided worksheets</span>
         </div>
       </div>
-      <nav class="topbar-links" aria-label="Primary">
-        <a href="/#how-it-works">How it works</a>
-        <a href="/#faq">FAQ</a>
-      </nav>
       <div class="topbar-right">
-        <a href="/" class="nav-pill">Back to home</a>
+        <details class="help-menu">
+          <summary>Help</summary>
+          <div class="help-menu-panel">
+            <a href="/#how-it-works">How Claros works</a>
+            <a href="/#faq">PDF and privacy questions</a>
+          </div>
+        </details>
+        <a href="/" class="nav-pill">Home</a>
       </div>
     </header>
 
-    <main class="app-main">
-      <div class="app-page-header">
-        <div class="app-page-heading">
-          <h1 class="app-page-title">Your worksheet</h1>
-          <p class="app-page-subtitle">Upload a PDF, talk through each question, and export your completed answers.</p>
+    <main class="app-main" id="main-content">
+      <section class="setup-mode" id="setupMode" aria-labelledby="setup-title">
+        <div class="setup-copy">
+          <p class="product-kicker">Voice-guided worksheet</p>
+          <h1 id="setup-title">Add the PDF you want to work through.</h1>
+          <p>Claros finds each question and its answer area. You choose when to start the microphone.</p>
         </div>
-        <nav class="step-indicator" aria-label="Worksheet workflow">
-          <span class="step-indicator-item">1&ensp;Upload</span>
-          <span class="step-indicator-item">2&ensp;Talk</span>
-          <span class="step-indicator-item">3&ensp;Review</span>
-          <span class="step-indicator-item">4&ensp;Export</span>
-        </nav>
-      </div>
 
-      <div class="app-workspace">
-        <div class="app-left">
-          <section class="start-card" aria-labelledby="upload-title">
-            <div class="start-card-head">
-              <h2 class="card-title" id="upload-title">Upload your worksheet</h2>
-              <button type="button" class="btn-test-pdf" id="testPdfBtn">Try the sample worksheet</button>
-            </div>
-            <div class="upload-zone" id="uploadZone" role="group" aria-labelledby="uploadLabel">
-              <input type="file" id="fileInput" accept=".pdf" hidden>
-              <span class="upload-inner">
-                <span class="upload-art" aria-hidden="true"></span>
-                <span class="upload-copy">
-                  <span class="upload-main" id="uploadLabel">Drop your assignment PDF here</span>
-                  <span class="upload-sub">or use the button below (PDF only)</span>
-                </span>
-              </span>
-              <button type="button" class="btn-upload-trigger" id="uploadBtn">Choose PDF file</button>
+        <div class="start-card">
+          <div class="upload-zone" id="uploadZone" role="group" aria-labelledby="uploadLabel">
+            <input type="file" id="fileInput" accept=".pdf" hidden>
+            <span class="upload-art" aria-hidden="true"></span>
+            <span class="upload-copy">
+              <span class="upload-main" id="uploadLabel">Choose a worksheet PDF</span>
+              <span class="upload-sub">Selectable text and numbered questions work best. Maximum 10 MB.</span>
+            </span>
+            <button type="button" class="btn primary-action" id="uploadBtn">Choose PDF</button>
+          </div>
+          <div class="setup-secondary">
+            <button type="button" class="text-action" id="testPdfBtn">Try the sample</button>
+            <span aria-hidden="true">or</span>
+            <span>drop a PDF anywhere in this panel</span>
+          </div>
+        </div>
+
+        <section class="processing-panel" id="processingPanel" hidden aria-labelledby="processingTitle">
+          <div>
+            <p class="processing-file" id="selectedFilename"></p>
+            <h2 id="processingTitle">Preparing worksheet</h2>
+          </div>
+          <ol class="processing-steps" aria-label="PDF processing progress">
+            <li data-processing-step="upload">Uploading PDF</li>
+            <li data-processing-step="read">Reading pages</li>
+            <li data-processing-step="questions">Finding questions</li>
+            <li data-processing-step="regions">Locating answer regions</li>
+            <li data-processing-step="prepare">Preparing worksheet</li>
+          </ol>
+          <div class="processing-actions" id="processingActions" hidden>
+            <button type="button" class="btn primary-action" id="retryBtn">Retry</button>
+            <button type="button" class="btn secondary-action" id="replaceBtn">Replace PDF</button>
+          </div>
+        </section>
+
+        <div class="setup-facts" aria-label="Before you begin">
+          <p><strong>What happens next:</strong> review the detected answer areas, choose a question, then talk it through.</p>
+          <p><strong>Microphone:</strong> off until you press Start voice session.</p>
+          <p><strong>Scanned PDFs:</strong> image-only files may need OCR first.</p>
+        </div>
+        <div id="workspaceStatus" class="sr-only" role="status" aria-live="polite"></div>
+        <div id="errors" class="setup-error" role="alert"></div>
+      </section>
+
+      <section class="workspace-mode" id="workspaceMode" hidden aria-label="Active worksheet">
+        <header class="workspace-header">
+          <div>
+            <p class="workspace-label">Current worksheet</p>
+            <h1 class="assignment-title" id="assignmentTitle">Worksheet</h1>
+          </div>
+          <div class="workspace-header-actions">
+            <button type="button" class="toolbar-button" id="replaceWorksheetBtn">Replace worksheet</button>
+            <button class="btn export" id="exportBtn" type="button">Export PDF</button>
+          </div>
+        </header>
+
+        <div class="active-workspace">
+          <section class="document-workspace" aria-label="Worksheet document">
+            <div class="document-toolbar" role="toolbar" aria-label="Document controls">
+              <button type="button" class="toolbar-button" id="previousPageBtn" aria-label="Previous page">Previous</button>
+              <span class="toolbar-value" id="pageLabel">Page 1 of 1</span>
+              <button type="button" class="toolbar-button" id="nextPageBtn" aria-label="Next page">Next</button>
+              <span class="toolbar-divider" aria-hidden="true"></span>
+              <button type="button" class="toolbar-button" id="fitWidthBtn">Fit width</button>
+              <button type="button" class="icon-button" id="zoomOutBtn" aria-label="Zoom out">−</button>
+              <span class="toolbar-value" id="zoomLabel">100%</span>
+              <button type="button" class="icon-button" id="zoomInBtn" aria-label="Zoom in">+</button>
+              <button type="button" class="toolbar-button layout-review-button" id="layoutReviewBtn" hidden>Review layout</button>
             </div>
 
-            <div class="setup-info-grid">
-              <section class="info-card" aria-labelledby="info-next-title">
-                <h3 class="info-card-title" id="info-next-title">What happens next?</h3>
-                <ol class="info-card-list">
-                  <li>Claros reads your PDF and lists each question.</li>
-                  <li>You start a voice session and talk through answers.</li>
-                  <li>Claros writes only after you state and approve.</li>
-                  <li>Export a completed PDF when you are done.</li>
-                </ol>
-              </section>
-              <section class="info-card" aria-labelledby="info-format-title">
-                <h3 class="info-card-title" id="info-format-title">Works best with</h3>
-                <ul class="info-card-list">
-                  <li>Clear PDF worksheets with numbered questions</li>
-                  <li>PDFs with selectable text</li>
-                  <li>Readable text and high contrast</li>
-                  <li>Image-only scans may need OCR first</li>
-                </ul>
-              </section>
-            </div>
-          </section>
-
-          <section class="worksheet-card" aria-label="Worksheet pages">
-            <div class="worksheet-head">
-              <h2 class="assignment-title" id="assignmentTitle">Upload a worksheet to begin</h2>
-              <div class="worksheet-toolbar">
-                <button type="button" class="btn-layout-mode" id="layoutCorrectBtn" hidden>Correct layout</button>
+            <div class="layout-review-panel" id="layoutReviewPanel" hidden>
+              <div>
+                <strong>Correct the selected answer region</strong>
+                <p id="layoutReviewSummary">Use the controls or arrow keys. Dragging is not required.</p>
+              </div>
+              <div class="layout-controls" role="group" aria-label="Adjust selected answer region">
+                <button type="button" class="toolbar-button" data-region-action="left">Left</button>
+                <button type="button" class="toolbar-button" data-region-action="right">Right</button>
+                <button type="button" class="toolbar-button" data-region-action="up">Up</button>
+                <button type="button" class="toolbar-button" data-region-action="down">Down</button>
+                <button type="button" class="toolbar-button" data-region-action="wider">Wider</button>
+                <button type="button" class="toolbar-button" data-region-action="narrower">Narrower</button>
+                <button type="button" class="toolbar-button" id="resetRegionBtn">Reset detected region</button>
+                <button type="button" class="btn primary-action" id="confirmRegionBtn">Confirm region</button>
+                <button type="button" class="toolbar-button" id="finishLayoutBtn">Layout ready</button>
               </div>
             </div>
-            <div id="layoutStatus" class="layout-status" role="status" aria-live="polite"></div>
-            <div id="questionsContainer" class="questions-container worksheet-pages"></div>
-            <button class="btn export" id="exportBtn" type="button">Export answers as PDF</button>
-          </section>
-        </div>
 
-        <aside class="session-panel" id="sessionPanel" aria-label="Voice assistant">
-          <div class="session-head">
-            <h2 class="session-title">Voice assistant</h2>
-            <span class="status-badge">Live</span>
-          </div>
-          <div id="status" class="status-bar idle" role="status" aria-live="polite">
-            <span class="status-dot" aria-hidden="true"></span>
-            <span id="statusLabel">Waiting for worksheet</span>
-          </div>
-          <div class="meter-wrap" aria-hidden="true"><div id="meterBar" class="meter-bar"></div></div>
-          <div class="session-checklist">
-            <div class="checklist-title">Setup checklist</div>
-            <ul class="setup-list">
-              <li class="setup-item" id="setupStepUpload">PDF uploaded</li>
-              <li class="setup-item" id="setupStepSession">Microphone ready</li>
-              <li class="setup-item" id="setupStepExport">Session ready</li>
-            </ul>
-            <div class="setup-hidden" id="setupStepReview" aria-hidden="true">Questions parsed</div>
-          </div>
-          <div id="transcript" class="transcript" aria-live="polite"></div>
-          <div id="notice" class="notice" role="status" aria-live="polite"></div>
-          <div id="errors" class="errors" role="alert"></div>
-          <p id="keyboardFallback" class="keyboard-fallback" hidden>Voice is unavailable right now. You can still type answers, confirm them, and export your worksheet.</p>
-          <p class="session-privacy-note">You speak first. Claros writes answers only after you state and approve them. Your microphone is used only during an active session.</p>
-          <div class="session-actions">
-            <button class="btn session-btn" id="micBtn" type="button" disabled>Start Session</button>
-            <button class="btn interrupt" id="interruptBtn" type="button" title="Stop Claros speaking so you can talk" aria-label="Interrupt Claros">Interrupt</button>
-          </div>
-        </aside>
-      </div>
+            <div class="document-scroll" id="documentViewport" tabindex="0" aria-label="Scrollable worksheet page">
+              <figure class="document-page" id="documentPage">
+                <img id="pageImage" alt="">
+                <div class="answer-overlay-layer" id="answerOverlayLayer"></div>
+              </figure>
+            </div>
+          </section>
+
+          <aside class="session-panel" id="sessionPanel" aria-label="Claros voice guide">
+            <div class="session-head">
+              <div>
+                <p class="workspace-label">Voice guide</p>
+                <h2 class="session-title">Claros</h2>
+              </div>
+              <div class="session-head-actions">
+                <span class="status-badge" id="voiceBadge">Offline</span>
+                <button type="button" class="icon-button voice-panel-toggle" id="voicePanelToggle" aria-expanded="false" aria-label="Expand Claros panel">⌃</button>
+              </div>
+            </div>
+
+            <div id="status" class="status-bar idle" role="status" aria-live="polite">
+              <span class="status-icon" aria-hidden="true"></span>
+              <span>
+                <strong id="statusLabel">Session ready</strong>
+                <small id="statusDescription">Start when you are ready.</small>
+              </span>
+            </div>
+            <div class="meter-wrap" aria-hidden="true"><div id="meterBar" class="meter-bar"></div></div>
+
+            <section class="question-context" aria-labelledby="currentQuestionLabel">
+              <div class="question-context-head">
+                <h3 id="currentQuestionLabel">Working on Question 1</h3>
+                <button type="button" class="text-action" id="questionListToggle">Choose question</button>
+              </div>
+              <p id="currentQuestionExcerpt"></p>
+              <div id="questionsContainer" class="question-picker" hidden></div>
+              <div
+                id="typedAnswer"
+                class="answer-field"
+                contenteditable="true"
+                role="textbox"
+                aria-multiline="true"
+                aria-label="Draft answer for the current question"
+                data-placeholder="Type an answer, or state it during a voice session"
+              ></div>
+              <button type="button" class="text-action confirm-typed" id="confirmTypedBtn" disabled>Review this answer</button>
+            </section>
+
+            <section class="answer-confirmation" id="answerConfirmation" hidden aria-labelledby="confirmationTitle">
+              <p class="confirmation-label">Proposed final answer</p>
+              <h3 id="confirmationTitle">Confirm answer for Question 1</h3>
+              <div id="proposedAnswer" class="proposed-answer"></div>
+              <div class="confirmation-actions">
+                <button type="button" class="btn secondary-action" id="editAnswerBtn">Edit</button>
+                <button type="button" class="btn secondary-action" id="rejectAnswerBtn">Reject</button>
+                <button type="button" class="btn primary-action" id="confirmAnswerBtn">Confirm answer</button>
+              </div>
+            </section>
+
+            <div id="notice" class="notice" role="status" aria-live="polite"></div>
+            <p id="keyboardFallback" class="keyboard-fallback" hidden>Voice is unavailable. You can still type answers, confirm them, and export.</p>
+
+            <div class="session-actions">
+              <button class="btn session-btn" id="micBtn" type="button">Start voice session</button>
+              <button class="btn interrupt" id="interruptBtn" type="button" aria-label="Interrupt Claros">Interrupt Claros</button>
+              <p class="session-privacy-note">Your microphone turns on only after you start a voice session.</p>
+            </div>
+
+            <details class="conversation-details">
+              <summary>Conversation history</summary>
+              <div id="transcript" class="transcript" aria-label="Conversation transcript"></div>
+            </details>
+          </aside>
+        </div>
+      </section>
     </main>
   </div>
   <script src="/session-rules.js"></script>
+  <script src="/ui-state.js"></script>
   <script src="/worksheet-view.js"></script>
-  <script src="/question-view.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

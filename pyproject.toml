@@ -8,7 +8,6 @@ source = [
     "main",
     "manifest",
     "parser",
-    "parser_layout",
     "schemas",
     "session_service",
     "storage",

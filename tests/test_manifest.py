@@ -27,7 +27,18 @@ def test_manifest_to_questions_dict():
         title="T",
         questions=[{"id": 3, "text": "Body"}],
     )
-    assert manifest.to_questions_dict() == [{"id": 3, "text": "Body"}]
+    assert manifest.to_questions_dict() == [
+        {
+            "id": 3,
+            "text": "Body",
+            "page": 1,
+            "prompt_region": None,
+            "answer_region": None,
+            "detected_answer_region": None,
+            "layout_confidence": 0.0,
+            "needs_layout_review": True,
+        }
+    ]
 
 
 def test_parse_manifest_json_migrates_legacy_version():

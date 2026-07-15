@@ -1,9 +1,4 @@
-"""Assignment manifest schema and helpers for parse-once worksheet ingestion.
-
-Coordinate system (manifest v2):
-  PDF points with origin at the top-left of each page (PyMuPDF page space).
-  Rectangles are [x0, y0, x1, y1] where x0 < x1 and y0 < y1.
-"""
+"""Assignment manifest schema and helpers for parse-once worksheet ingestion."""
 from __future__ import annotations
 
 import json
@@ -11,7 +6,7 @@ import math
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 MANIFEST_VERSION = 2
 LEGACY_MANIFEST_VERSION = 1
@@ -23,37 +18,15 @@ MIN_ANSWER_WIDTH = 24.0
 MIN_ANSWER_HEIGHT = 18.0
 
 
-class ManifestPage(BaseModel):
-    page_index: int = Field(ge=0)
-    width_points: float = Field(gt=0)
-    height_points: float = Field(gt=0)
-    has_usable_text: bool = True
-    requires_ocr: bool = False
-
-    @field_validator("width_points", "height_points", mode="before")
-    @classmethod
-    def _finite_positive(cls, value: Any) -> float:
-        number = _require_finite_number(value, "page dimension")
-        if number <= 0:
-            raise ValueError("page dimensions must be positive")
-        return float(number)
-
-
 class ManifestQuestion(BaseModel):
     id: int
     text: str
-    page_index: int | None = None
-    question_bbox: list[float] | None = None
-    answer_bbox: list[float] | None = None
-    layout_confidence: LayoutConfidence | None = None
-    layout_warnings: list[str] = Field(default_factory=list)
-
-    @field_validator("question_bbox", "answer_bbox", mode="before")
-    @classmethod
-    def _optional_bbox(cls, value: Any) -> list[float] | None:
-        if value is None:
-            return None
-        return normalize_bbox(value)
+    page: int = 1
+    prompt_region: dict[str, float] | None = None
+    answer_region: dict[str, float] | None = None
+    detected_answer_region: dict[str, float] | None = None
+    layout_confidence: float = 0.0
+    needs_layout_review: bool = True
 
 
 class AssignmentManifest(BaseModel):
@@ -61,32 +34,26 @@ class AssignmentManifest(BaseModel):
     assignment_id: str
     title: str
     questions: list[ManifestQuestion]
-    pages: list[ManifestPage] = Field(default_factory=list)
-    parse_status: str = "ok"  # ok | fallback_single_block | empty_extraction | requires_ocr
+    page_count: int = 1
+    parse_status: str = "ok"  # ok | fallback_single_block | empty_extraction
     parse_warnings: list[str] = Field(default_factory=list)
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     expires_at: str | None = None
 
     def to_questions_dict(self) -> list[dict]:
-        """Return questions for API consumers. Always includes id/text; layout fields when present."""
-        result: list[dict] = []
-        for q in self.questions:
-            item: dict[str, Any] = {"id": q.id, "text": q.text}
-            if q.page_index is not None:
-                item["page_index"] = q.page_index
-            if q.question_bbox is not None:
-                item["question_bbox"] = list(q.question_bbox)
-            if q.answer_bbox is not None:
-                item["answer_bbox"] = list(q.answer_bbox)
-            if q.layout_confidence is not None:
-                item["layout_confidence"] = q.layout_confidence
-            if q.layout_warnings:
-                item["layout_warnings"] = list(q.layout_warnings)
-            result.append(item)
-        return result
-
-    def to_pages_dict(self) -> list[dict]:
-        return [p.model_dump() for p in self.pages]
+        return [
+            {
+                "id": q.id,
+                "text": q.text,
+                "page": q.page,
+                "prompt_region": q.prompt_region,
+                "answer_region": q.answer_region,
+                "detected_answer_region": q.detected_answer_region,
+                "layout_confidence": q.layout_confidence,
+                "needs_layout_review": q.needs_layout_review,
+            }
+            for q in self.questions
+        ]
 
     def is_expired(self, now: datetime | None = None) -> bool:
         if not self.expires_at:
@@ -99,12 +66,6 @@ class AssignmentManifest(BaseModel):
 
     def model_dump_json(self, **kwargs: Any) -> str:
         return json.dumps(self.model_dump(), ensure_ascii=False)
-
-    def page_for_index(self, page_index: int) -> ManifestPage | None:
-        for page in self.pages:
-            if page.page_index == page_index:
-                return page
-        return None
 
 
 def _require_finite_number(value: Any, label: str) -> float:
@@ -144,26 +105,16 @@ def validate_bbox_within_page(
 
 
 def migrate_manifest_data(data: dict[str, Any]) -> dict[str, Any]:
-    """Upgrade v1 (or partial) manifests in memory without mutating stored bytes."""
+    """Normalize older manifests in memory without mutating stored bytes."""
     payload = dict(data)
     version = int(payload.get("version") or LEGACY_MANIFEST_VERSION)
     warnings = list(payload.get("parse_warnings") or [])
     if version < MANIFEST_VERSION:
         if "legacy_manifest_v1" not in warnings:
             warnings.append("legacy_manifest_v1")
-        if "missing_layout_regions" not in warnings:
-            warnings.append("missing_layout_regions")
         payload["version"] = MANIFEST_VERSION
+    payload.setdefault("page_count", 1)
     payload["parse_warnings"] = warnings
-    payload.setdefault("pages", [])
-    migrated_questions = []
-    for question in payload.get("questions") or []:
-        q = dict(question)
-        q.setdefault("layout_warnings", [])
-        if q.get("page_index") is None and "legacy_missing_regions" not in q["layout_warnings"]:
-            q["layout_warnings"] = list(q["layout_warnings"]) + ["legacy_missing_regions"]
-        migrated_questions.append(q)
-    payload["questions"] = migrated_questions
     return payload
 
 
@@ -173,18 +124,17 @@ def build_manifest(
     questions: list[dict],
     parse_status: str = "ok",
     parse_warnings: list[str] | None = None,
+    page_count: int = 1,
     ttl_days: int | None = None,
-    pages: list[dict] | None = None,
 ) -> AssignmentManifest:
     expires_at = None
     if ttl_days and ttl_days > 0:
         expires_at = (datetime.now(timezone.utc) + timedelta(days=ttl_days)).isoformat()
     return AssignmentManifest(
-        version=MANIFEST_VERSION,
         assignment_id=assignment_id,
         title=title,
         questions=[ManifestQuestion.model_validate(q) for q in questions],
-        pages=[ManifestPage.model_validate(p) for p in (pages or [])],
+        page_count=page_count,
         parse_status=parse_status,
         parse_warnings=parse_warnings or [],
         expires_at=expires_at,

@@ -37,6 +37,65 @@ def strip_latex_dollars(s: str) -> str:
     return re.sub(r"\$([^$]+)\$", r"\1", s) if s else ""
 
 
+def build_original_export_pdf(
+    pdf_bytes: bytes,
+    questions: List[dict],
+    answers: List[dict],
+) -> bytes:
+    """Write approved answers onto detected regions in the original worksheet PDF."""
+    answer_by_id = {
+        item["question_id"]: re.sub(
+            r"\$([^$]+)\$",
+            r"\1",
+            normalize_worksheet_text(item.get("answer_text", "") or ""),
+        ).strip()
+        for item in answers
+    }
+    region_by_id = {
+        item["question_id"]: item.get("answer_region")
+        for item in answers
+        if item.get("answer_region")
+    }
+    document = fitz.open(stream=pdf_bytes, filetype="pdf")
+    try:
+        for question in questions:
+            answer = answer_by_id.get(question.get("id"), "")
+            region = region_by_id.get(question.get("id")) or question.get("answer_region")
+            page_number = int(question.get("page", 1)) - 1
+            if not answer or not region or page_number < 0 or page_number >= document.page_count:
+                continue
+            page = document[page_number]
+            rect = fitz.Rect(
+                float(region["x"]) * page.rect.width,
+                float(region["y"]) * page.rect.height,
+                float(region["x"] + region["width"]) * page.rect.width,
+                float(region["y"] + region["height"]) * page.rect.height,
+            )
+            page.draw_rect(rect, color=None, fill=(1, 1, 1), fill_opacity=0.94, overlay=True)
+            font_size = max(8.0, min(12.0, rect.height * 0.36))
+            result = page.insert_textbox(
+                rect + (3, 2, -3, -2),
+                answer,
+                fontname="helv",
+                fontsize=font_size,
+                color=(0.09, 0.07, 0.05),
+                lineheight=1.2,
+                overlay=True,
+            )
+            if result < 0:
+                page.insert_text(
+                    (rect.x0 + 3, rect.y0 + min(rect.height - 3, font_size + 3)),
+                    answer[:180],
+                    fontname="helv",
+                    fontsize=max(7.0, font_size - 2),
+                    color=(0.09, 0.07, 0.05),
+                    overlay=True,
+                )
+        return document.tobytes(garbage=4, deflate=True)
+    finally:
+        document.close()
+
+
 def build_export_pdf(
     title: str,
     questions: List[dict],

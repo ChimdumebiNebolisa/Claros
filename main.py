@@ -7,6 +7,7 @@ import logging
 import uuid
 from uuid import UUID
 
+import fitz
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 
@@ -16,10 +17,10 @@ from assignment_service import (
     delete_assignment,
     get_parse_diagnostics,
     persist_assignment_from_pdf_bytes,
-    render_page_preview,
+    render_assignment_page,
 )
 import config
-from gemini_service import create_session_config, debug_gemini_text_call, stream_write_answer
+from gemini_service import create_session_config, debug_gemini_text_call, stamp_confirmed_answer, stream_write_answer
 from schemas import (
     ExportRequest,
     SessionConfirmRequest,
@@ -28,7 +29,6 @@ from schemas import (
     WriteRequest,
     trim_conversation,
     validate_export_answers,
-    validate_layout_overrides,
 )
 import session_service
 import storage
@@ -177,6 +177,13 @@ async def stream_write(assignment_id: UUID, body: WriteRequest):
             len(trimmed),
             aid,
         )
+    # Confirmed writes already passed the single-use token/fingerprint gate.
+    # Stamp the approved text instead of waiting on Gemini reformatting.
+    if config.ENFORCE_WRITE_CONTRACT:
+        return StreamingResponse(
+            stamp_confirmed_answer(body.answer_candidate or ""),
+            media_type="text/plain; charset=utf-8",
+        )
     return StreamingResponse(
         stream_write_answer(
             aid,
@@ -196,35 +203,13 @@ async def export_assignment_get(assignment_id: UUID, answers: str = Query(..., a
         answers_list = json.loads(answers)
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid answers JSON")
-    return build_export_response(aid, validate_export_answers(answers_list), layout_overrides=[])
+    return build_export_response(aid, validate_export_answers(answers_list))
 
 
 @app.post("/export/{assignment_id}")
 async def export_assignment_post(assignment_id: UUID, body: ExportRequest):
-    """Place answers onto the original worksheet PDF (layout export) or legacy reconstruct."""
-    return build_export_response(
-        str(assignment_id),
-        validate_export_answers(body.answers),
-        layout_overrides=validate_layout_overrides(body.layout_overrides),
-    )
-
-
-@app.get("/api/assignments/{assignment_id}/pages/{page_index}/preview")
-def assignment_page_preview(
-    assignment_id: UUID,
-    page_index: int,
-    dpi: int = Query(default=120, ge=36, le=200),
-):
-    """Render an original worksheet page preview as PNG (bounded DPI/pixels)."""
-    png_bytes, media_type = render_page_preview(str(assignment_id), page_index, dpi=dpi)
-    return Response(
-        content=png_bytes,
-        media_type=media_type,
-        headers={
-            "Cache-Control": "private, max-age=300",
-            "X-Content-Type-Options": "nosniff",
-        },
-    )
+    """Generate PDF of questions and answers from a JSON body."""
+    return build_export_response(str(assignment_id), validate_export_answers(body.answers))
 
 
 @app.get("/api/assignments/{assignment_id}/parse-diagnostics")
@@ -239,6 +224,21 @@ def parse_diagnostics(assignment_id: UUID):
     except Exception:
         logger.exception("parse diagnostics failed for assignment %s", assignment_id)
         raise HTTPException(status_code=500, detail="Could not load parse diagnostics.")
+
+
+@app.get("/api/assignments/{assignment_id}/pages/{page_number}.png")
+def assignment_page_preview(assignment_id: UUID, page_number: int):
+    """Render an original worksheet page for the browser document canvas."""
+    try:
+        content = render_assignment_page(str(assignment_id), page_number)
+    except assignment_service.AssignmentExpiredError:
+        raise HTTPException(status_code=410, detail="Assignment expired")
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Page not found")
+    except Exception:
+        logger.exception("page preview failed for assignment %s", assignment_id)
+        raise HTTPException(status_code=500, detail="Could not render worksheet page.")
+    return Response(content=content, media_type="image/png")
 
 
 @app.delete("/api/assignments/{assignment_id}")
@@ -271,10 +271,9 @@ async def upload_assignment(file: UploadFile = File(...)):
             "assignment_id": assignment_id,
             "title": manifest.title,
             "questions": payload,
-            "pages": manifest.to_pages_dict(),
+            "page_count": manifest.page_count,
             "parse_status": manifest.parse_status,
             "parse_warnings": manifest.parse_warnings,
-            "manifest_version": manifest.version,
         }
     except PDFProcessingError as exc:
         record_metric("pdf_parse", status="error", reason="malformed")
@@ -308,6 +307,20 @@ async def serve_test_assignment():
     return FileResponse(path, media_type="application/pdf")
 
 
+@app.get("/sample-page.png")
+async def serve_sample_page_preview():
+    """Render the first page of the shipped sample for the real landing preview."""
+    path = config.ROOT / "test_assignment.pdf"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Sample worksheet not found")
+    document = fitz.open(path)
+    try:
+        pixmap = document[0].get_pixmap(matrix=fitz.Matrix(1.25, 1.25), alpha=False)
+        return Response(content=pixmap.tobytes("png"), media_type="image/png")
+    finally:
+        document.close()
+
+
 @app.get("/genai.bundle.js", response_class=Response)
 async def serve_genai_bundle():
     """Serve the bundled @google/genai SDK for browser (no runtime CDN)."""
@@ -329,21 +342,28 @@ async def serve_session_rules():
     return FileResponse(path, media_type="application/javascript; charset=utf-8")
 
 
-@app.get("/worksheet-view.js", response_class=Response)
-async def serve_worksheet_view_js():
-    """Serve the page-based worksheet overlay renderer."""
-    path = config.ROOT / "frontend" / "worksheet-view.js"
-    if not path.exists():
-        raise HTTPException(status_code=503, detail="worksheet-view.js missing from frontend/")
-    return FileResponse(path, media_type="application/javascript; charset=utf-8")
-
-
 @app.get("/question-view.js", response_class=Response)
 async def serve_question_view_js():
     """Serve the isolated worksheet question-card renderer."""
     path = config.ROOT / "frontend" / "question-view.js"
     if not path.exists():
         raise HTTPException(status_code=503, detail="question-view.js missing from frontend/")
+    return FileResponse(path, media_type="application/javascript; charset=utf-8")
+
+
+@app.get("/worksheet-view.js", response_class=Response)
+async def serve_worksheet_view_js():
+    path = config.ROOT / "frontend" / "worksheet-view.js"
+    if not path.exists():
+        raise HTTPException(status_code=503, detail="worksheet-view.js missing from frontend/")
+    return FileResponse(path, media_type="application/javascript; charset=utf-8")
+
+
+@app.get("/ui-state.js", response_class=Response)
+async def serve_ui_state_js():
+    path = config.ROOT / "frontend" / "ui-state.js"
+    if not path.exists():
+        raise HTTPException(status_code=503, detail="ui-state.js missing from frontend/")
     return FileResponse(path, media_type="application/javascript; charset=utf-8")
 
 

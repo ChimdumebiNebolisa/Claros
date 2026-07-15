@@ -77,6 +77,13 @@ Rewrite ONLY this confirmed answer as plain text suitable for the answer box.
 Output only the answer text."""
 
 
+async def stamp_confirmed_answer(answer_candidate: str):
+    """Yield the confirmed answer text without calling Gemini."""
+    text = re.sub(r"\$([^$]+)\$", r"\1", (answer_candidate or "").strip())
+    if text:
+        yield text
+
+
 async def stream_write_answer(
     assignment_id: str,
     question_id: int,

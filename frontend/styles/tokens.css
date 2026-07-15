@@ -1,21 +1,21 @@
 /* ── Claros design tokens ─────────────────────────────────────────
-   Light, warm-neutral foundation with an orange + black identity.
+   Neutral document foundation with an orange + black identity.
    Shared by landing.css and app.css. */
 
 :root {
   /* Light surfaces */
-  --bg: #f8f5ef;                 /* warm off-white body */
-  --bg-tint: #f3ece1;            /* pale orange-tinted band */
-  --bg-blue: #f1ece5;            /* neutral warm band */
+  --bg: #f4f4f2;
+  --bg-tint: #ecece8;
+  --bg-blue: #e8e8e4;
   --surface: #ffffff;
-  --surface-soft: #fcf8f2;
-  --border: #e7ddd0;
-  --border-strong: #d2c4b3;
+  --surface-soft: #f8f8f6;
+  --border: #deded8;
+  --border-strong: #c8c7bf;
 
   /* Ink */
   --ink: #17120d;
-  --ink-soft: #3a2f25;
-  --muted: #635546;
+  --ink-soft: #383632;
+  --muted: #5c5953;
 
   /* Accent: signal orange, used sparingly */
   --iris: #f97316;
@@ -24,9 +24,9 @@
   --iris-line: #f4bb8d;
 
   /* Dark counterpoint (voice console, dark landing band) */
-  --dark-bg: #0f0d0b;
-  --dark-surface: #1a1511;
-  --dark-raised: #241d17;
+  --dark-bg: #11110f;
+  --dark-surface: #1c1b18;
+  --dark-raised: #272520;
   --dark-border: rgba(255, 230, 206, 0.14);
   --dark-text: #f8efe4;
   --dark-muted: #d4c0a9;
@@ -90,6 +90,7 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
 
 html {
   -webkit-text-size-adjust: 100%;
@@ -127,7 +128,7 @@ button:focus-visible,
 summary:focus-visible,
 [contenteditable]:focus-visible,
 label:focus-within {
-  outline: 2px solid var(--iris);
+  outline: 3px solid var(--iris-deep);
   outline-offset: 3px;
   border-radius: 4px;
 }
@@ -141,7 +142,7 @@ label:focus-within {
   gap: 1rem;
   padding: 0.7rem clamp(1rem, 4vw, 2.2rem);
   border-bottom: 1px solid var(--border);
-  background: rgba(248, 245, 239, 0.9);
+  background: rgba(244, 244, 242, 0.94);
   backdrop-filter: blur(14px);
   position: sticky;
   top: 0;
@@ -169,7 +170,7 @@ label:focus-within {
   width: 2.15rem;
   height: 2.15rem;
   border-radius: 0.72rem;
-  background: linear-gradient(160deg, var(--iris) 10%, var(--iris-deep));
+  background: var(--iris);
   box-shadow: 0 6px 16px rgba(249, 115, 22, 0.3);
   position: relative;
   flex-shrink: 0;
@@ -198,6 +199,8 @@ label:focus-within {
   color: inherit;
   text-decoration: none;
   display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
   width: fit-content;
 }
 

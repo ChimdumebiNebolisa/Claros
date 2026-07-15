@@ -49,35 +49,37 @@ def test_build_export_response_maps_backend_error_to_500(monkeypatch):
     assert exc.value.status_code == 500
 
 
-def test_build_export_response_layout_path(monkeypatch, tmp_path):
+def test_build_export_response_original_pdf_path(monkeypatch, tmp_path):
     from tests.layout_fixtures import write_simple_one_column
-    from parser import parse_pdf_layout
+    from parser import parse_pdf_with_diagnostics
 
     path = write_simple_one_column(tmp_path / "layout_export.pdf")
-    result = parse_pdf_layout(path)
+    title, questions, warnings, status = parse_pdf_with_diagnostics(path)
     manifest = build_manifest(
         assignment_id=TEST_ASSIGNMENT_ID,
-        title=result.title,
+        title=title,
         questions=[
             {
                 "id": q.id,
                 "text": q.text,
-                "page_index": q.page_index,
-                "question_bbox": q.question_bbox,
-                "answer_bbox": q.answer_bbox,
+                "page": q.page,
+                "answer_region": q.answer_region,
+                "detected_answer_region": q.detected_answer_region,
                 "layout_confidence": q.layout_confidence,
-                "layout_warnings": q.layout_warnings or [],
+                "needs_layout_review": q.needs_layout_review,
             }
-            for q in result.questions
+            for q in questions
         ],
-        pages=result.pages,
+        parse_status=status,
+        parse_warnings=warnings,
+        page_count=1,
     )
     monkeypatch.setattr(assignment_service, "load_assignment_manifest", lambda _id: manifest)
     monkeypatch.setattr(assignment_service, "_download_pdf_bytes", lambda _id: path.read_bytes())
 
     response = assignment_service.build_export_response(
         TEST_ASSIGNMENT_ID,
-        [{"question_id": 1, "answer_text": "x = 5"}],
+        [{"question_id": 1, "answer_text": "x = 5", "answer_region": questions[0].answer_region}],
     )
     assert response.status_code == 200
     assert response.body.startswith(b"%PDF")
@@ -103,7 +105,7 @@ def test_persist_assignment_writes_manifest(monkeypatch, tmp_pdf_question_format
     restored = parse_manifest_json(uploaded["manifest"])
     assert restored.title == manifest.title
     assert len(restored.questions) >= 2
-    assert restored.pages
+    assert restored.page_count >= 1
 
 
 def test_load_assignment_manifest_backfill(monkeypatch, tmp_pdf_question_format):

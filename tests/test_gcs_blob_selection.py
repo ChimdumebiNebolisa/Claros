@@ -1,6 +1,8 @@
 """Unit tests for deterministic GCS PDF selection in load_assignment_from_gcs."""
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import fitz
 import pytest
 
 import assignment_service
@@ -17,19 +19,26 @@ class _FakeBlob:
         return self._exists
 
     def download_as_bytes(self):
-        return b"%PDF-1.4 fake"
+        document = fitz.open()
+        document.new_page()
+        try:
+            return document.tobytes()
+        finally:
+            document.close()
 
 
-def _fake_parse_layout(_path):
-    from parser import ParseResult, Question
-
-    return ParseResult(
-        title="Title",
-        questions=[Question(id=1, text="Q?")],
-        pages=[],
-        warnings=[],
-        parse_status="ok",
+def _fake_parse_with_diagnostics(_path):
+    question = SimpleNamespace(
+        id=1,
+        text="Q?",
+        page=1,
+        prompt_region=None,
+        answer_region=None,
+        detected_answer_region=None,
+        layout_confidence=0.0,
+        needs_layout_review=True,
     )
+    return ("Title", [question], [], "ok")
 
 
 def test_load_assignment_prefers_canonical_assignment_pdf(monkeypatch):
@@ -40,13 +49,24 @@ def test_load_assignment_prefers_canonical_assignment_pdf(monkeypatch):
 
     monkeypatch.setattr(assignment_service, "get_gcs_bucket", lambda: bucket)
     monkeypatch.setattr(assignment_service, "download_manifest_from_gcs", lambda _id: None)
-    monkeypatch.setattr(assignment_service, "parse_pdf_layout", _fake_parse_layout)
+    monkeypatch.setattr(assignment_service, "parse_pdf_with_diagnostics", _fake_parse_with_diagnostics)
     monkeypatch.setattr(assignment_service, "upload_manifest_to_gcs", lambda *_a, **_k: "gs://x")
 
     title, questions = assignment_service.load_assignment_from_gcs(TEST_ASSIGNMENT_ID)
 
     assert title == "Title"
-    assert questions == [{"id": 1, "text": "Q?"}]
+    assert questions == [
+        {
+            "id": 1,
+            "text": "Q?",
+            "page": 1,
+            "prompt_region": None,
+            "answer_region": None,
+            "detected_answer_region": None,
+            "layout_confidence": 0.0,
+            "needs_layout_review": True,
+        }
+    ]
     bucket.blob.assert_called_with(assignment_pdf_path(TEST_ASSIGNMENT_ID))
 
 
@@ -65,13 +85,24 @@ def test_load_assignment_falls_back_to_sorted_pdf(monkeypatch):
 
     monkeypatch.setattr(assignment_service, "get_gcs_bucket", lambda: bucket)
     monkeypatch.setattr(assignment_service, "download_manifest_from_gcs", lambda _id: None)
-    monkeypatch.setattr(assignment_service, "parse_pdf_layout", _fake_parse_layout)
+    monkeypatch.setattr(assignment_service, "parse_pdf_with_diagnostics", _fake_parse_with_diagnostics)
     monkeypatch.setattr(assignment_service, "upload_manifest_to_gcs", lambda *_a, **_k: "gs://x")
 
     title, questions = assignment_service.load_assignment_from_gcs(TEST_ASSIGNMENT_ID)
 
     assert title == "Title"
-    assert questions == [{"id": 1, "text": "Q?"}]
+    assert questions == [
+        {
+            "id": 1,
+            "text": "Q?",
+            "page": 1,
+            "prompt_region": None,
+            "answer_region": None,
+            "detected_answer_region": None,
+            "layout_confidence": 0.0,
+            "needs_layout_review": True,
+        }
+    ]
     bucket.list_blobs.assert_called_once_with(prefix=f"assignments/{TEST_ASSIGNMENT_ID}/")
 
 
