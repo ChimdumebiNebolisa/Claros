@@ -62,3 +62,20 @@ eligible for intentional review and staging.
 
 The next phases establish the canonical physical IR and retire or explicitly
 mark competing paths only after focused tests prove the migration.
+
+## Build Week reconciliation update
+
+Rechecked on 2026-07-18 before the live evidence milestone. Nothing was staged.
+
+| Classification | Paths | Disposition |
+| --- | --- | --- |
+| Current Codex Build Week source | `rate_limit.py`, `providers/`, `document_compiler.py`, additions to `document_model.py`, security/session/export changes and their focused tests | Review as narrow security, compiler, and test commits after benchmark evidence is complete. |
+| Current Codex Build Week evaluation code | `evaluation/pdf_silver_benchmark/`, `tests/test_pdf_silver_benchmark.py`, `tests/test_openai_semantic_compiler.py` | Source is eligible for review; generated labels, predictions, and raw agent outputs remain ignored/local. |
+| Pre-existing local candidate work | `document_pipeline.py`, `semantic_classifier.py`, `review_service.py`, Paddle OCR changes, parser/layout candidates, benchmark scripts | Preserve and compare. Do not claim as current Codex work or stage without a path-specific review. |
+| Generated/private local artifacts | `output/`, external corpus under Downloads, browser/editor state, `.env`, `screencapture-aave-2026-07-04-00_07_19.png` | Intentionally ignored or left untracked. Never stage. |
+| Documentation | `README.md`, architecture/deployment changes, Build Week documents | Review separately; Build Week evidence documents are current work, while broader product-doc rewrites are uncertain until claims are verified. |
+| Unrelated or uncertain | UI styling/landing changes, existing CI/deploy edits, optional OCR requirements | Leave uncommitted unless their individual intent and verification are established. |
+
+The `.env` target is ignored and untracked. The local corpus, raw generated
+benchmark output, browser profiles, and local provider material are also kept
+out of Git. No classification authorizes staging by itself.

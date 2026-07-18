@@ -12,6 +12,7 @@ docs/*
 !docs/LOCAL_WORKTREE_INVENTORY.md
 
 .env
+.env.local
 __pycache__/
 *.pyc
 .coverage
@@ -24,6 +25,14 @@ node_modules/
 .impeccable/
 .playwright-cli/
 output/
+evaluation/pdf_silver_benchmark/agent_outputs/
+evaluation/pdf_silver_benchmark/critiques/
+evaluation/pdf_silver_benchmark/adjudications/
+evaluation/pdf_silver_benchmark/labels/
+evaluation/pdf_silver_benchmark/predictions/
+evaluation/pdf_silver_benchmark/reports/
+evaluation/pdf_silver_benchmark/physical_inputs/
+evaluation/pdf_silver_benchmark/benchmark_manifest.json
 browser-profiles/
 provider-cache/
 ocr-cache/

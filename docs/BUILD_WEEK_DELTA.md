@@ -37,9 +37,35 @@ is pending and must be added only after it exists.
    them.
 2. Phase 1 completed in documentation: baseline, architecture boundaries, and
    durable repository rules are recorded.
-3. The next active implementation phase is P0/P1 assignment/session/export
-   security repair. Existing uncommitted code is treated as candidate work and
-   is verified before promotion.
+3. Phase 2 implementation is complete pending the required red-team review:
+   assignment-scoped browser reset, high-entropy hashed assignment
+   capabilities, protected page/review/delete/export routes, server-authorized
+   written-answer export, production HMAC startup enforcement, bounded
+   in-process upload/provider-session rate limits, and paginated side-panel
+   export with explicit overflow failure.
+4. Existing uncommitted code remains candidate work and is reviewed/staged by
+   intent; no broad staging has been performed.
+
+## Closed-world compiler slice
+
+The repository now has a provider-neutral semantic compiler interface and an
+OpenAI Responses/GPT-5.6 adapter. Its strict Pydantic output is the existing
+closed-world page result: the model can select only supplied block and response
+candidate IDs. Deterministic materialization reconstructs prompt text and
+geometry from those IDs and always sets `write_authorized` to false. The slice
+is covered by mocks; no live OpenAI compiler call has been made and it is not
+the production default yet.
+
+## Phase 2 red-team checkpoint
+
+The required read-only red-team review found and drove repairs for three
+issues: a potentially public debug-provider route, legacy plaintext session
+compatibility, and incomplete expensive-route limits. Debug provider access is
+now unavailable in production and development-only calls are rate-limited;
+plaintext legacy session records cannot authenticate; and upload concurrency
+plus capability-scoped write/review/page limits are in place. This remains an
+in-process prototype limit, so production WAF/gateway controls are still an
+external deployment task.
 
 ## Evidence rules
 
@@ -48,4 +74,31 @@ is pending and must be added only after it exists.
 - Source PDF rights/privacy remain unresolved. Code can store local hashes and
   reproducible render instructions, but external PDFs remain local.
 - OpenAI and deployment claims remain unverified until their offline, mocked,
-  and live checks are separately recorded in `docs/FINAL_VERIFICATION.md`.
+and live checks are separately recorded in `docs/FINAL_VERIFICATION.md`.
+
+## Silver benchmark scaffold
+
+`evaluation/pdf_silver_benchmark/` now provides a local-only freeze manifest
+for AI-adjudicated silver labels. It hashes structured metadata, requires a
+source hash per page, and rejects altered labels. No source PDF, render, raw
+provider payload, human annotation, or live adjudication result was added.
+The existing `pdf_gold_pilot` remains legacy candidate work and is not treated
+as gold by this execution because its own status records that human labels are
+unavailable.
+
+## Live evidence milestone status
+
+The 17 selected pilot pages have been inventoried with local source-PDF hashes,
+render availability, and physical-evidence counts. Fourteen pages have stable
+physical block evidence; three image-only scans have no retained blocks or
+response candidates and are visible input-blocked challenge cases. Independent
+AI annotation contexts completed their first structured-output pass for the
+fourteen available pages. The first live GPT-5.6 structured call reached the
+provider and initially failed safely on a bounded-output truncation; the same
+page succeeded after the schema-only retry raised the response bound.
+
+The subsequent red-team/adjudication pass returned provider `RateLimitError`
+before structured parsing. No final silver label, compiler prediction, or
+promotion metric has been fabricated from those failures. Final freeze,
+system comparison, and product compiler integration remain blocked until the
+project has usable API capacity.
