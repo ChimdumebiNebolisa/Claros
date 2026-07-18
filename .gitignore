@@ -6,6 +6,10 @@ docs/*
 !docs/pdf-understanding-architecture.md
 !docs/pdf-understanding-benchmark-report.md
 !docs/pdf-understanding-roadmap.md
+!docs/ARCHITECTURE.md
+!docs/BUILD_WEEK_*.md
+!docs/FINAL_VERIFICATION.md
+!docs/LOCAL_WORKTREE_INVENTORY.md
 
 .env
 __pycache__/
@@ -13,3 +17,16 @@ __pycache__/
 .coverage
 .pytest_cache/
 node_modules/
+
+# Local tools, generated evidence, and private document-processing artifacts.
+# Keep reproducible source, schemas, and small synthetic fixtures in the repo.
+.cursor/
+.impeccable/
+.playwright-cli/
+output/
+browser-profiles/
+provider-cache/
+ocr-cache/
+tmp-ocr/
+local-corpus/
+private-pdfs/
