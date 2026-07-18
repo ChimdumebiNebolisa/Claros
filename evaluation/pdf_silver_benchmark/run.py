@@ -29,9 +29,12 @@ from evaluation.pdf_gold_pilot.closed_world import (
     derive_tasks,
     validate_closed_world_result,
 )
+from evaluation.pdf_silver_benchmark.execution import cost_ceiling_usd, estimate_cost, worst_case_cost
 
 PILOT_ROOT = ROOT / "output" / "pdf-gold-pilot"
 BENCHMARK_ROOT = Path(__file__).resolve().parent
+ROLE_CONFIG_PATH = BENCHMARK_ROOT / "model_roles.json"
+PRICING_PATH = BENCHMARK_ROOT / "pricing.json"
 
 ROLE_INSTRUCTIONS = {
     "task_annotator": "Find every supportable student task. Avoid under-splitting compound prompts.",
@@ -85,41 +88,71 @@ def _safe_usage(response: Any) -> dict[str, int | None]:
     }
 
 
+def _role_settings(role: str) -> dict[str, Any]:
+    return json.loads(ROLE_CONFIG_PATH.read_text(encoding="utf-8"))["roles"][role]
+
+
+def _spent_cost() -> float:
+    pricing = json.loads(PRICING_PATH.read_text(encoding="utf-8"))
+    total = 0.0
+    for path in (BENCHMARK_ROOT / "agent_outputs").glob("*/*.json"):
+        record = json.loads(path.read_text(encoding="utf-8"))
+        usage = record.get("usage") or {}
+        model = record.get("model")
+        if model in pricing["models"] and usage.get("input_tokens") is not None and usage.get("output_tokens") is not None:
+            total += estimate_cost(pricing, model, input_tokens=usage["input_tokens"], output_tokens=usage["output_tokens"])
+    return round(total, 8)
+
+
+def _enforce_cost_ceiling(*, model: str, text: str, max_output_tokens: int) -> None:
+    pricing = json.loads(PRICING_PATH.read_text(encoding="utf-8"))
+    # Text tokens are conservatively estimated; image tokens receive a fixed
+    # reserve so the cap is applied before the request, not after it.
+    projected = worst_case_cost(pricing, model, input_token_estimate=max(1, len(text) // 4) + 2000, max_output_tokens=max_output_tokens)
+    if _spent_cost() + projected > cost_ceiling_usd():
+        raise RuntimeError("silver benchmark cost ceiling would be exceeded")
+
+
 def _call_structured(
     *,
     instructions: str,
     text: str,
     image: bytes,
     schema: type[BaseModel],
+    model: str | None = None,
+    max_output_tokens: int = 4096,
+    reasoning_effort: str | None = None,
 ) -> tuple[BaseModel, dict[str, Any]]:
     from openai import OpenAI
 
     started = time.perf_counter()
-    response = OpenAI(api_key=config.get_openai_api_key()).responses.parse(
-        model=config.get_openai_reasoning_model(),
-        instructions=instructions,
-        input=[
+    selected_model = model or config.get_openai_reasoning_model()
+    _enforce_cost_ceiling(model=selected_model, text=text, max_output_tokens=max_output_tokens)
+    request: dict[str, Any] = {
+        "model": selected_model,
+        "instructions": instructions,
+        "input": [
             {
                 "role": "user",
                 "content": [
                     {"type": "input_text", "text": text},
-                    {
-                        "type": "input_image",
-                        "image_url": "data:image/png;base64," + base64.b64encode(image).decode("ascii"),
-                    },
+                    {"type": "input_image", "image_url": "data:image/png;base64," + base64.b64encode(image).decode("ascii")},
                 ],
             }
         ],
-        text_format=schema,
-        max_output_tokens=4096,
-        store=False,
-    )
+        "text_format": schema,
+        "max_output_tokens": max_output_tokens,
+        "store": False,
+    }
+    if reasoning_effort:
+        request["reasoning"] = {"effort": reasoning_effort}
+    response = OpenAI(api_key=config.get_openai_api_key()).responses.parse(**request)
     parsed = getattr(response, "output_parsed", None)
     if parsed is None:
         raise RuntimeError("provider returned no structured output")
     result = parsed if isinstance(parsed, schema) else schema.model_validate(parsed)
     return result, {
-        "model": config.get_openai_reasoning_model(),
+        "model": selected_model,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "latency_ms": round((time.perf_counter() - started) * 1000, 2),
         "usage": _safe_usage(response),
@@ -148,12 +181,16 @@ def _write(path: Path, value: Any) -> None:
 
 
 def _run_annotation(page: PilotPageInput, role: str) -> dict[str, Any]:
+    settings = _role_settings(role)
     try:
         result, metadata = _call_structured(
             instructions="Return strict closed-world page classification only.",
             text=_annotation_prompt(page, role),
             image=_image_bytes(page),
             schema=ClosedWorldPageResult,
+            model=settings["model"],
+            max_output_tokens=settings["max_output_tokens"],
+            reasoning_effort=settings["reasoning_effort"],
         )
     except Exception as exc:
         record = {

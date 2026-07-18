@@ -1,0 +1,11 @@
+{
+  "version": "silver-model-roles-v1",
+  "roles": {
+    "task_annotator": {"model": "gpt-5.6-luna", "reasoning_effort": "medium", "max_output_tokens": 2500},
+    "conservative_annotator": {"model": "gpt-5.6-terra", "reasoning_effort": "medium", "max_output_tokens": 2200},
+    "structure_annotator": {"model": "gpt-5.6-terra", "reasoning_effort": "medium", "max_output_tokens": 2500},
+    "red_team_critic": {"model": "gpt-5.6-terra", "reasoning_effort": "high", "max_output_tokens": 3000},
+    "adjudicator": {"model": "gpt-5.6", "reasoning_effort": "high", "max_output_tokens": 3500},
+    "production_compiler": {"model": "gpt-5.6", "reasoning_effort": "high", "max_output_tokens": 3000}
+  }
+}

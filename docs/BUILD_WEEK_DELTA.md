@@ -102,3 +102,11 @@ before structured parsing. No final silver label, compiler prediction, or
 promotion metric has been fabricated from those failures. Final freeze,
 system comparison, and product compiler integration remain blocked until the
 project has usable API capacity.
+
+The controlled follow-up diagnosis classifies the provider response as HTTP
+429 `insufficient_quota`: a billing/quota blocker, not a transient rate limit.
+No live retry is permitted until the selected project has usable API capacity.
+The local benchmark run ledger derives approximately `$3.636345` in estimated
+cost from completed usage metadata under the versioned 2026-07-18 pricing
+table. New requests are gated by `SILVER_BENCHMARK_MAX_COST_USD` (default
+`$5.00`) before they are sent; provider cost was not claimed as reported.

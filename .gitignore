@@ -33,6 +33,7 @@ evaluation/pdf_silver_benchmark/predictions/
 evaluation/pdf_silver_benchmark/reports/
 evaluation/pdf_silver_benchmark/physical_inputs/
 evaluation/pdf_silver_benchmark/benchmark_manifest.json
+evaluation/pdf_silver_benchmark/local_runs/
 browser-profiles/
 provider-cache/
 ocr-cache/
