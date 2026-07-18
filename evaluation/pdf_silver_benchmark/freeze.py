@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import argparse
 from pathlib import Path
 from typing import Any
 
@@ -69,3 +70,16 @@ def load_and_verify(path: Path) -> dict[str, Any]:
     manifest = json.loads(path.read_text(encoding="utf-8"))
     verify_freeze_manifest(manifest)
     return manifest
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--verify", action="store_true")
+    parser.add_argument("--manifest", type=Path, default=Path(__file__).with_name("benchmark_manifest.json"))
+    args = parser.parse_args()
+    if not args.verify:
+        parser.error("--verify is required")
+    if not args.manifest.exists():
+        raise SystemExit("benchmark manifest is absent; no AI-adjudicated silver reference is frozen")
+    load_and_verify(args.manifest)
+    print("silver benchmark freeze verified")
