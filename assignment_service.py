@@ -25,8 +25,9 @@ from storage import (
 from config import get_gcs_bucket
 from exporter import SidePanelOverflowError, build_original_export_pdf
 from document_pipeline import document_questions, parse_document
-from parser import parse_pdf_with_diagnostics
+from parser import PDFProcessingError, parse_pdf_with_diagnostics
 from semantic_classifier import GeminiSemanticClassifier, NullSemanticClassifier
+from providers.openai_semantic_classifier import OpenAIClosedWorldSemanticClassifier
 from review_service import apply_review_actions
 from observability import record_metric
 
@@ -145,17 +146,21 @@ def _parse_and_build_manifest(
             pdf_bytes = pdf_file.read()
         if config.ENABLE_DOCUMENT_SEMANTICS and not config.ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS:
             logger.warning("Synchronous document semantics are disabled; run classification in a parser worker/service")
-        classifier = (
-            GeminiSemanticClassifier()
-            if config.ENABLE_DOCUMENT_SEMANTICS and config.ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS
-            else NullSemanticClassifier()
-        )
-        document_model = parse_document(
-            pdf_bytes,
-            semantic_classifier=classifier,
-            review_mode=review_mode,
-            paddle_all_pages=config.PDF_PARSER_MODE == "paddle",
-        )
+        classifier = NullSemanticClassifier()
+        if config.ENABLE_DOCUMENT_SEMANTICS and config.ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS:
+            if config.DOCUMENT_SEMANTIC_PROVIDER == "openai":
+                classifier = OpenAIClosedWorldSemanticClassifier()
+            elif config.DOCUMENT_SEMANTIC_PROVIDER == "gemini":
+                classifier = GeminiSemanticClassifier()
+        try:
+            document_model = parse_document(
+                pdf_bytes,
+                semantic_classifier=classifier,
+                review_mode=review_mode,
+                paddle_all_pages=config.PDF_PARSER_MODE == "paddle",
+            )
+        except fitz.FileDataError as exc:
+            raise PDFProcessingError("PDF could not be opened") from exc
         parser_name = document_model.parser
         title = document_model.title
         payload = document_questions(document_model)

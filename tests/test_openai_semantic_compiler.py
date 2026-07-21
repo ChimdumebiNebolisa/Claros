@@ -4,6 +4,8 @@ from document_compiler import build_closed_world_page_input, compile_and_materia
 from document_model import BlockSemanticRole, DocumentBlock, DocumentPage, SourceKind
 from evaluation.pdf_gold_pilot.closed_world import ClosedWorldPageResult
 from providers.openai_semantic_compiler import OpenAISemanticCompiler
+from providers.openai_semantic_classifier import OpenAIClosedWorldSemanticClassifier
+from semantic_classifier import SemanticPageResult
 
 
 def _page():
@@ -67,3 +69,48 @@ def test_document_ir_conversion_preserves_evidence_and_candidate_safety():
     assert [block.id for block in compiler_input.blocks] == ["p0-b1"]
     assert compiler_input.response_candidates[0].id == "p0-r1"
     assert compiler_input.response_candidates[0].safe_for_writing is True
+
+
+def test_runtime_adapter_materializes_only_closed_world_evidence():
+    class FakeCompiler:
+        def compile_page(self, _page, _image):
+            return _result()
+
+    page = DocumentPage(page_index=0, width_points=600, height_points=800, block_ids=["block-1", "block-2", "line-1"])
+    blocks = [
+        DocumentBlock(
+            id="block-1", page_index=0, reading_order=1, text="3a. Explain the result.",
+            block_label="native_text", bbox=[20, 30, 300, 60], confidence=1.0, source=SourceKind.native_pdf,
+        ),
+        DocumentBlock(
+            id="block-2", page_index=0, reading_order=2, text="Use evidence from the table.",
+            block_label="native_text", bbox=[20, 62, 320, 86], confidence=1.0, source=SourceKind.native_pdf,
+        ),
+        DocumentBlock(
+            id="line-1", page_index=0, reading_order=3, text="", block_label="answer_line",
+            bbox=[20, 100, 400, 130], confidence=0.92, source=SourceKind.pdf_geometry,
+            semantic_role=BlockSemanticRole.response_area,
+        ),
+    ]
+
+    result = OpenAIClosedWorldSemanticClassifier(compiler=FakeCompiler()).classify_page(
+        page, blocks, page_image=b"png-bytes"
+    )
+
+    assert isinstance(result, SemanticPageResult)
+    assert result.page_role.value == "student_worksheet"
+    assert result.tasks[0].prompt_text == "3a. Explain the result.\nUse evidence from the table."
+    assert result.tasks[0].response_block_ids == ["line-1"]
+
+
+def test_runtime_adapter_rejects_missing_page_image_without_tasks():
+    page = DocumentPage(page_index=0, width_points=600, height_points=800, block_ids=["block-1"])
+    block = DocumentBlock(
+        id="block-1", page_index=0, reading_order=1, text="Explain.",
+        block_label="native_text", bbox=[20, 30, 300, 60], confidence=1.0, source=SourceKind.native_pdf,
+    )
+
+    result = OpenAIClosedWorldSemanticClassifier().classify_page(page, [block])
+
+    assert result.tasks == []
+    assert result.warnings == ["openai_semantic_result_rejected", "page_image_required"]

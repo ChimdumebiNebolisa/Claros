@@ -223,29 +223,35 @@ Create a `.env` file in the project root:
 
 ```
 GEMINI_API_KEY=<your-gemini-api-key>
+OPENAI_API_KEY=<your-openai-api-key>
 GCS_BUCKET_NAME=<your-gcs-bucket-name>
 GOOGLE_CLOUD_PROJECT=<your-gcp-project-id>
 GEMINI_TEXT_MODEL=gemini-2.5-flash
-# PDF_PARSER_MODE=legacy
+# OPENAI_REASONING_MODEL=gpt-5.6
+# DOCUMENT_SEMANTIC_PROVIDER=openai
+# PDF_PARSER_MODE=hybrid
 # ENABLE_PADDLEOCR=false
 # ALLOW_SYNCHRONOUS_PADDLEOCR=false
-# ENABLE_DOCUMENT_SEMANTICS=false
-# ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS=false
+# ENABLE_DOCUMENT_SEMANTICS=true
+# ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS=true
 # ENABLE_DOCUMENT_TASK_AUTO_APPROVE=false
 ```
 
 | Variable | Description |
 |----------|-------------|
 | `GEMINI_API_KEY` | API key for Google Gemini models (voice and text) |
+| `OPENAI_API_KEY` | API key for the default GPT-5.6 closed-world document compiler |
 | `GCS_BUCKET_NAME` | Google Cloud Storage bucket name for storing uploaded PDFs |
 | `GOOGLE_CLOUD_PROJECT` | Google Cloud project ID |
 | `GEMINI_TEXT_MODEL` | Text model used for answer generation (default: `gemini-2.5-flash`) |
 | `ENABLE_DEBUG_GEMINI` | Set to `true` to expose `GET /debug-gemini` for local Gemini connectivity checks (default: disabled) |
-| `PDF_PARSER_MODE` | `legacy` (default), `hybrid`, or `paddle`; candidate modes require the optional parser environment |
+| `OPENAI_REASONING_MODEL` | GPT-5.6 model used by the closed-world semantic compiler (default: `gpt-5.6`) |
+| `DOCUMENT_SEMANTIC_PROVIDER` | `openai` (default), `gemini`, or `none` for document semantics |
+| `PDF_PARSER_MODE` | `hybrid` (default), `legacy`, or `paddle`; hybrid builds deterministic physical evidence before GPT-5.6 selection |
 | `ENABLE_PADDLEOCR` | Enable the local PP-StructureV3 adapter (default: false) |
 | `ALLOW_SYNCHRONOUS_PADDLEOCR` | Development-only worker escape hatch; keep false on the upload service (default: false) |
-| `ENABLE_DOCUMENT_SEMANTICS` | Enable strict Gemini page/block/task classification (default: false) |
-| `ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS` | Development-only worker escape hatch; keep false on the upload service (default: false) |
+| `ENABLE_DOCUMENT_SEMANTICS` | Enable strict closed-world document classification (default: true) |
+| `ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS` | Run the configured compiler during upload (default: true) |
 | `ENABLE_DOCUMENT_TASK_AUTO_APPROVE` | Allow high-confidence hybrid tasks to bypass review; keep false until benchmark promotion (default: false) |
 | `PADDLEOCR_DPI` | Page render DPI for the candidate adapter (default: 150) |
 | `PADDLEOCR_CPU_THREADS` | CPU inference thread count (default: 4) |

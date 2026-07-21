@@ -48,13 +48,15 @@ is pending and must be added only after it exists.
 
 ## Closed-world compiler slice
 
-The repository now has a provider-neutral semantic compiler interface and an
-OpenAI Responses/GPT-5.6 adapter. Its strict Pydantic output is the existing
-closed-world page result: the model can select only supplied block and response
-candidate IDs. Deterministic materialization reconstructs prompt text and
-geometry from those IDs and always sets `write_authorized` to false. The slice
-is covered by mocks; no live OpenAI compiler call has been made and it is not
-the production default yet.
+The default document path now builds deterministic physical evidence and sends
+only that closed-world page input plus a rendered page image to the OpenAI
+Responses/GPT-5.6 compiler. Its strict Pydantic result can select only supplied
+block and response-candidate IDs. Deterministic materialization reconstructs
+prompt text and geometry from those IDs and always sets `write_authorized` to
+false. Provider, schema, or validation failure returns no model-authored task
+data and leaves the page unresolved. The default is covered by mocks and local
+container/browser smoke evidence; production activation remains blocked on a
+Cloud Run OpenAI credential and usable project quota.
 
 ## Phase 2 red-team checkpoint
 

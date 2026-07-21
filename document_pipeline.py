@@ -419,7 +419,7 @@ def parse_document(
             use_image = any(
                 block.block_label in {"table", "image", "chart", "formula", "form_field", "answer_line"}
                 for block in page_blocks
-            )
+            ) or bool(getattr(semantic_classifier, "requires_page_image", False))
             result = semantic_classifier.classify_page(
                 page_model,
                 page_blocks,
@@ -465,9 +465,10 @@ def parse_document(
             None,
         )
         title = (title_block.text.strip() if title_block else "Untitled assignment")[:120]
+        parser_name = getattr(semantic_classifier, "parser_name", "hybrid-physical-ir")
         return IntermediateDocument(
             title=title,
-            parser="hybrid-ppstructurev3-gemini",
+            parser=parser_name,
             status=status,
             pages=pages,
             blocks=all_blocks,

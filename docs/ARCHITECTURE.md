@@ -14,7 +14,7 @@ Uncertain or unsafe placements route to a deterministic side panel.
 
 | Owner | May decide | Must not decide |
 | --- | --- | --- |
-| GPT-5.6 semantic compiler (target) | Page role, task grouping, parent/subpart relationships, selection of supplied source blocks/response candidates, tutoring decisions | Coordinates, source text, IDs, confirmation, authorization, PDF changes, overflow, or side-panel rendering |
+| GPT-5.6 semantic compiler (default document path) | Page role, task grouping, parent/subpart relationships, selection of supplied source blocks/response candidates | Coordinates, source text, IDs, confirmation, authorization, PDF changes, overflow, or side-panel rendering |
 | OpenAI Realtime (target) | Audio transport, speech recognition/output, turn detection, interruption, transcript delivery | Document semantics, geometry, confirmation, authorization, PDF changes, or security decisions |
 | Deterministic application code | Physical IR, stable IDs, coordinate and relationship validation, side-panel routing, student confirmation, capabilities, write tokens, export and PDF modification | Model-authored semantics outside supplied evidence |
 | Student | Confirmation of the exact proposed answer; optional safe correction | Arbitrary unvalidated write coordinates |
@@ -24,8 +24,9 @@ Uncertain or unsafe placements route to a deterministic side panel.
 ```mermaid
 flowchart LR
   U[Browser] -->|PDF upload| A[Assignment service]
-  A --> P[Legacy PyMuPDF parser]
-  P --> M[Manifest v3 / GCS]
+  A --> P[Deterministic physical IR]
+  P --> C[GPT-5.6 closed-world compiler]
+  C --> M[Validated manifest v3 / GCS]
   U -->|start/confirm/write| S[Session service]
   U <-->|audio/transcript| G[Gemini Live]
   S --> W[Deterministic write contract]
@@ -33,9 +34,9 @@ flowchart LR
   E --> X[Original pages plus side-panel pages]
 ```
 
-The checked-in default currently uses the legacy PyMuPDF parser and Gemini
-Live. The OpenAI compiler and Realtime adapters are target architecture, not
-current verified runtime behavior.
+The checked-in default builds a deterministic physical IR, then uses GPT-5.6
+for closed-world document semantics. Gemini Live remains an optional legacy
+voice path; OpenAI Realtime is not part of this runtime.
 
 ## Target document path
 

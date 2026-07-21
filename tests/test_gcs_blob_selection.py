@@ -6,6 +6,7 @@ import fitz
 import pytest
 
 import assignment_service
+import config
 from storage import assignment_pdf_path
 from tests.conftest import TEST_ASSIGNMENT_ID
 
@@ -51,6 +52,7 @@ def test_load_assignment_prefers_canonical_assignment_pdf(monkeypatch):
     monkeypatch.setattr(assignment_service, "download_manifest_from_gcs", lambda _id: None)
     monkeypatch.setattr(assignment_service, "parse_pdf_with_diagnostics", _fake_parse_with_diagnostics)
     monkeypatch.setattr(assignment_service, "upload_manifest_to_gcs", lambda *_a, **_k: "gs://x")
+    monkeypatch.setattr(config, "PDF_PARSER_MODE", "legacy")
 
     title, questions = assignment_service.load_assignment_from_gcs(TEST_ASSIGNMENT_ID)
 
@@ -80,6 +82,7 @@ def test_load_assignment_falls_back_to_sorted_pdf(monkeypatch):
     monkeypatch.setattr(assignment_service, "download_manifest_from_gcs", lambda _id: None)
     monkeypatch.setattr(assignment_service, "parse_pdf_with_diagnostics", _fake_parse_with_diagnostics)
     monkeypatch.setattr(assignment_service, "upload_manifest_to_gcs", lambda *_a, **_k: "gs://x")
+    monkeypatch.setattr(config, "PDF_PARSER_MODE", "legacy")
 
     title, questions = assignment_service.load_assignment_from_gcs(TEST_ASSIGNMENT_ID)
 

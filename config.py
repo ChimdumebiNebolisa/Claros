@@ -134,8 +134,8 @@ ENFORCE_WRITE_CONTRACT = _bool_env("ENFORCE_WRITE_CONTRACT", True)
 ENABLE_OCR = _bool_env("ENABLE_OCR", False)
 ENABLE_PADDLEOCR = _bool_env("ENABLE_PADDLEOCR", False)
 ALLOW_SYNCHRONOUS_PADDLEOCR = _bool_env("ALLOW_SYNCHRONOUS_PADDLEOCR", False)
-ENABLE_DOCUMENT_SEMANTICS = _bool_env("ENABLE_DOCUMENT_SEMANTICS", False)
-ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS = _bool_env("ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS", False)
+ENABLE_DOCUMENT_SEMANTICS = _bool_env("ENABLE_DOCUMENT_SEMANTICS", True)
+ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS = _bool_env("ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS", True)
 # Promotion gate: semantic confidence alone is not sufficient until the corpus
 # demonstrates acceptable task precision and answer-region accuracy.
 ENABLE_DOCUMENT_TASK_AUTO_APPROVE = _bool_env("ENABLE_DOCUMENT_TASK_AUTO_APPROVE", False)
@@ -150,7 +150,11 @@ if APP_ENV in {"production", "prod"} and STORAGE_BACKEND != "gcs":
     raise RuntimeError("Production requires CLAROS_STORAGE_BACKEND=gcs")
 if APP_ENV in {"production", "prod"} and not os.environ.get("GCS_BUCKET_NAME", "").strip():
     raise RuntimeError("GCS_BUCKET_NAME must be set when CLAROS_ENV=production")
-PDF_PARSER_MODE = os.environ.get("PDF_PARSER_MODE", "legacy").strip().lower()
+DOCUMENT_SEMANTIC_PROVIDER = os.environ.get("DOCUMENT_SEMANTIC_PROVIDER", "openai").strip().lower()
+if DOCUMENT_SEMANTIC_PROVIDER not in {"openai", "gemini", "none"}:
+    logger.warning("Invalid DOCUMENT_SEMANTIC_PROVIDER=%r; using openai", DOCUMENT_SEMANTIC_PROVIDER)
+    DOCUMENT_SEMANTIC_PROVIDER = "openai"
+PDF_PARSER_MODE = os.environ.get("PDF_PARSER_MODE", "hybrid").strip().lower()
 if PDF_PARSER_MODE not in {"legacy", "paddle", "hybrid"}:
     logger.warning("Invalid PDF_PARSER_MODE=%r; using legacy", PDF_PARSER_MODE)
     PDF_PARSER_MODE = "legacy"

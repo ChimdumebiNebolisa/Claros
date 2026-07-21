@@ -9,6 +9,7 @@ from exporter import build_export_pdf
 from parser import normalize_worksheet_text, parse_pdf
 
 import assignment_service
+import config
 import main as main_module
 
 
@@ -60,6 +61,7 @@ def test_upload_unicode_pdf_does_not_fail_charmap(monkeypatch, tmp_path):
     # namespace, so patch them there (patching storage.* would not affect the bound names).
     monkeypatch.setattr(assignment_service, "upload_pdf_to_gcs", lambda *args, **kwargs: "gs://fake/b.pdf")
     monkeypatch.setattr(assignment_service, "upload_manifest_to_gcs", lambda *args, **kwargs: None)
+    monkeypatch.setattr(config, "PDF_PARSER_MODE", "legacy")
 
     client = TestClient(main_module.app)
     response = client.post(

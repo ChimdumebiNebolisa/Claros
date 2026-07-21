@@ -99,6 +99,7 @@ def test_persist_assignment_writes_manifest(monkeypatch, tmp_pdf_question_format
     monkeypatch.setattr(assignment_service, "upload_pdf_to_gcs", fake_upload_pdf)
     monkeypatch.setattr(assignment_service, "upload_manifest_to_gcs", fake_upload_manifest)
     monkeypatch.setattr(config, "ASSIGNMENT_TTL_DAYS", 30)
+    monkeypatch.setattr(config, "PDF_PARSER_MODE", "legacy")
 
     pdf_bytes = tmp_pdf_question_format.read_bytes()
     manifest = assignment_service.persist_assignment_from_pdf_bytes("abc-123", pdf_bytes)
@@ -116,6 +117,7 @@ def test_load_assignment_manifest_backfill(monkeypatch, tmp_pdf_question_format)
 
     monkeypatch.setattr(assignment_service, "_download_pdf_bytes", lambda _id: pdf_bytes)
     monkeypatch.setattr(assignment_service, "download_manifest_from_gcs", lambda _id: None)
+    monkeypatch.setattr(config, "PDF_PARSER_MODE", "legacy")
 
     def capture_manifest(assignment_id, raw):
         nonlocal manifest_json
@@ -145,7 +147,7 @@ def test_hybrid_semantics_cannot_run_on_upload_without_explicit_worker_gate(
 ):
     captured = []
 
-    class _FakeGeminiClassifier:
+    class _FakeOpenAIClassifier:
         pass
 
     def fake_parse(_pdf_bytes, *, semantic_classifier, **_kwargs):
@@ -162,7 +164,8 @@ def test_hybrid_semantics_cannot_run_on_upload_without_explicit_worker_gate(
     monkeypatch.setattr(config, "PDF_PARSER_MODE", "hybrid")
     monkeypatch.setattr(config, "ENABLE_DOCUMENT_SEMANTICS", True)
     monkeypatch.setattr(config, "ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS", False)
-    monkeypatch.setattr(assignment_service, "GeminiSemanticClassifier", _FakeGeminiClassifier)
+    monkeypatch.setattr(config, "DOCUMENT_SEMANTIC_PROVIDER", "openai")
+    monkeypatch.setattr(assignment_service, "OpenAIClosedWorldSemanticClassifier", _FakeOpenAIClassifier)
     monkeypatch.setattr(assignment_service, "parse_document", fake_parse)
 
     assignment_service._parse_and_build_manifest("candidate", str(tmp_pdf_question_format))
@@ -170,4 +173,4 @@ def test_hybrid_semantics_cannot_run_on_upload_without_explicit_worker_gate(
 
     monkeypatch.setattr(config, "ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS", True)
     assignment_service._parse_and_build_manifest("candidate", str(tmp_pdf_question_format))
-    assert isinstance(captured[-1], _FakeGeminiClassifier)
+    assert isinstance(captured[-1], _FakeOpenAIClassifier)
