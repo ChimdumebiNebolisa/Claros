@@ -23,5 +23,5 @@ def test_demo_mode_uses_replay_only_for_matching_hero(monkeypatch):
         "demo/hero_worksheet.pdf",
     )
 
-    assert manifest.parser == "demo-replay-synthetic-v1"
+    assert manifest.parser == "offline-synthetic-fixture-v1"
     assert len(manifest.questions) == 4

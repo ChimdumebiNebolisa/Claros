@@ -36,19 +36,18 @@ class SessionState:
 
     @property
     def session_secret(self) -> str:
-        """Return a legacy plaintext secret when loading pre-hash sessions."""
-        return self.data.get("session_secret", "")
+        """Legacy compatibility accessor; plaintext session records are invalid."""
+        return ""
 
     def verify_session_secret(self, candidate: str) -> bool:
         """Verify a client secret without exposing or persisting new plaintext secrets."""
         if not candidate:
             return False
         stored_hash = self.data.get("session_secret_hash")
-        if stored_hash:
-            expected = _secret_digest(candidate)
-            return hmac.compare_digest(stored_hash, expected)
-        # Compatibility for sessions created before keyed hashing was introduced.
-        return bool(self.session_secret) and hmac.compare_digest(self.session_secret, candidate)
+        if not stored_hash:
+            return False
+        expected = _secret_digest(candidate)
+        return hmac.compare_digest(stored_hash, expected)
 
     def get_question(self, question_id: int) -> dict | None:
         return self.data.get("questions", {}).get(str(question_id))
@@ -67,6 +66,13 @@ class SessionState:
     def confirmed_answer(self, question_id: int) -> str:
         q = self.get_question(question_id)
         return (q or {}).get("confirmed_answer", "")
+
+    def mark_written(self, question_id: int, answer_text: str) -> None:
+        q = self.data.setdefault("questions", {}).setdefault(str(question_id), {})
+        if _normalize_answer(q.get("confirmed_answer", "")) != _normalize_answer(answer_text):
+            raise HTTPException(status_code=403, detail="answer_text does not match confirmed answer")
+        q["written_answer"] = answer_text
+        q["written_at"] = datetime.now(timezone.utc).isoformat()
 
 
 def _session_expires_at() -> str:
@@ -222,6 +228,28 @@ def validate_write_token(
     q["pending_write_tokens"] = [item for item in pending if item.get("nonce") != nonce]
     q.setdefault("write_tokens_used", []).append(nonce)
     save_session(state)
+
+
+def mark_answer_written(state: SessionState, question_id: int, answer_text: str) -> None:
+    state.mark_written(question_id, answer_text)
+    save_session(state)
+
+
+def written_answers_for_export(
+    session_id: str,
+    session_secret: str,
+    assignment_id: str,
+) -> list[dict]:
+    state = load_session(session_id)
+    if state.assignment_id != assignment_id:
+        raise HTTPException(status_code=403, detail="Session does not match assignment")
+    if not state.verify_session_secret(session_secret):
+        raise HTTPException(status_code=403, detail="Invalid session credentials")
+    return [
+        {"question_id": int(question_id), "answer_text": data["written_answer"]}
+        for question_id, data in state.data.get("questions", {}).items()
+        if str(data.get("written_answer", "")).strip()
+    ]
 
 
 def confirm_answer(

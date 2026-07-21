@@ -1,6 +1,7 @@
 """Environment and shared configuration."""
 import logging
 import os
+import secrets
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -13,6 +14,9 @@ if _env_path.exists():
 
     load_dotenv(_env_path)
 
+APP_ENV = os.environ.get("CLAROS_ENV", os.environ.get("APP_ENV", "development")).strip().lower()
+_EPHEMERAL_SESSION_HMAC_SECRET = secrets.token_urlsafe(48)
+
 LIVE_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025"
 
 _DEFAULT_MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MiB
@@ -20,8 +24,16 @@ _DEFAULT_MAX_CONVERSATION_TURNS = 400  # hard validation cap
 _DEFAULT_CONVERSATION_TRIM_TURNS = 200  # soft cap sent to Gemini (keeps most recent)
 _DEFAULT_MAX_PDF_PAGES = 100
 _DEFAULT_MAX_EXTRACTED_TEXT_CHARS = 500_000
+_DEFAULT_MAX_UPLOADS_PER_MINUTE = 6 if APP_ENV in {"production", "prod"} else 60
+_DEFAULT_MAX_PROVIDER_SESSIONS_PER_MINUTE = 20 if APP_ENV in {"production", "prod"} else 120
+_DEFAULT_MAX_WRITES_PER_MINUTE = 30 if APP_ENV in {"production", "prod"} else 180
+_DEFAULT_MAX_MUTATIONS_PER_MINUTE = 30 if APP_ENV in {"production", "prod"} else 180
+_DEFAULT_MAX_PAGE_RENDERS_PER_MINUTE = 120 if APP_ENV in {"production", "prod"} else 600
+_DEFAULT_MAX_CONCURRENT_UPLOADS = 2
 _DEFAULT_PREVIEW_DPI = 120
 _DEFAULT_MAX_PREVIEW_DPI = 200
+_DEFAULT_PADDLEOCR_DPI = 150
+_DEFAULT_PADDLEOCR_CPU_THREADS = 4
 
 
 def _int_env(name: str, default: int) -> int:
@@ -43,8 +55,18 @@ MAX_CONVERSATION_TURNS = _int_env("MAX_CONVERSATION_TURNS", _DEFAULT_MAX_CONVERS
 CONVERSATION_TRIM_TURNS = _int_env("CONVERSATION_TRIM_TURNS", _DEFAULT_CONVERSATION_TRIM_TURNS)
 MAX_PDF_PAGES = _int_env("MAX_PDF_PAGES", _DEFAULT_MAX_PDF_PAGES)
 MAX_EXTRACTED_TEXT_CHARS = _int_env("MAX_EXTRACTED_TEXT_CHARS", _DEFAULT_MAX_EXTRACTED_TEXT_CHARS)
+MAX_UPLOADS_PER_MINUTE = _int_env("MAX_UPLOADS_PER_MINUTE", _DEFAULT_MAX_UPLOADS_PER_MINUTE)
+MAX_PROVIDER_SESSIONS_PER_MINUTE = _int_env(
+    "MAX_PROVIDER_SESSIONS_PER_MINUTE", _DEFAULT_MAX_PROVIDER_SESSIONS_PER_MINUTE
+)
+MAX_WRITES_PER_MINUTE = _int_env("MAX_WRITES_PER_MINUTE", _DEFAULT_MAX_WRITES_PER_MINUTE)
+MAX_MUTATIONS_PER_MINUTE = _int_env("MAX_MUTATIONS_PER_MINUTE", _DEFAULT_MAX_MUTATIONS_PER_MINUTE)
+MAX_PAGE_RENDERS_PER_MINUTE = _int_env("MAX_PAGE_RENDERS_PER_MINUTE", _DEFAULT_MAX_PAGE_RENDERS_PER_MINUTE)
+MAX_CONCURRENT_UPLOADS = _int_env("MAX_CONCURRENT_UPLOADS", _DEFAULT_MAX_CONCURRENT_UPLOADS)
 PREVIEW_DPI = _int_env("PREVIEW_DPI", _DEFAULT_PREVIEW_DPI)
 MAX_PREVIEW_DPI = _int_env("MAX_PREVIEW_DPI", _DEFAULT_MAX_PREVIEW_DPI)
+PADDLEOCR_DPI = _int_env("PADDLEOCR_DPI", _DEFAULT_PADDLEOCR_DPI)
+PADDLEOCR_CPU_THREADS = _int_env("PADDLEOCR_CPU_THREADS", _DEFAULT_PADDLEOCR_CPU_THREADS)
 PDF_MAGIC = b"%PDF"
 
 
@@ -63,6 +85,17 @@ def get_api_key() -> str:
     return key.strip()
 
 
+def get_openai_api_key() -> str:
+    key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if not key:
+        raise RuntimeError("OPENAI_API_KEY not set")
+    return key
+
+
+def get_openai_reasoning_model() -> str:
+    return os.environ.get("OPENAI_REASONING_MODEL", "gpt-5.6").strip()
+
+
 def get_gcs_bucket():
     bucket_name = os.environ.get("GCS_BUCKET_NAME", "").strip()
     if not bucket_name:
@@ -78,7 +111,10 @@ def get_text_model() -> str:
 
 
 def is_debug_gemini_enabled() -> bool:
-    return os.environ.get("ENABLE_DEBUG_GEMINI", "").strip().lower() in ("1", "true", "yes")
+    return (
+        APP_ENV not in {"production", "prod"}
+        and os.environ.get("ENABLE_DEBUG_GEMINI", "").strip().lower() in ("1", "true", "yes")
+    )
 
 
 def _bool_env(name: str, default: bool) -> bool:
@@ -96,11 +132,42 @@ ASSIGNMENT_TTL_DAYS = _int_env("ASSIGNMENT_TTL_DAYS", _DEFAULT_ASSIGNMENT_TTL_DA
 USE_MANIFEST = _bool_env("USE_MANIFEST", True)
 ENFORCE_WRITE_CONTRACT = _bool_env("ENFORCE_WRITE_CONTRACT", True)
 ENABLE_OCR = _bool_env("ENABLE_OCR", False)
+ENABLE_PADDLEOCR = _bool_env("ENABLE_PADDLEOCR", False)
+ALLOW_SYNCHRONOUS_PADDLEOCR = _bool_env("ALLOW_SYNCHRONOUS_PADDLEOCR", False)
+ENABLE_DOCUMENT_SEMANTICS = _bool_env("ENABLE_DOCUMENT_SEMANTICS", False)
+ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS = _bool_env("ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS", False)
+# Promotion gate: semantic confidence alone is not sufficient until the corpus
+# demonstrates acceptable task precision and answer-region accuracy.
+ENABLE_DOCUMENT_TASK_AUTO_APPROVE = _bool_env("ENABLE_DOCUMENT_TASK_AUTO_APPROVE", False)
+CLAROS_DEMO_MODE = _bool_env("CLAROS_DEMO_MODE", False)
+STORAGE_BACKEND = os.environ.get(
+    "CLAROS_STORAGE_BACKEND", "local" if CLAROS_DEMO_MODE else "gcs"
+).strip().lower()
+LOCAL_STORAGE_DIR = os.environ.get("CLAROS_LOCAL_STORAGE_DIR", ".claros-data").strip() or ".claros-data"
+if STORAGE_BACKEND not in {"local", "gcs"}:
+    raise RuntimeError("CLAROS_STORAGE_BACKEND must be 'local' or 'gcs'")
+if APP_ENV in {"production", "prod"} and STORAGE_BACKEND != "gcs":
+    raise RuntimeError("Production requires CLAROS_STORAGE_BACKEND=gcs")
+if APP_ENV in {"production", "prod"} and not os.environ.get("GCS_BUCKET_NAME", "").strip():
+    raise RuntimeError("GCS_BUCKET_NAME must be set when CLAROS_ENV=production")
+PDF_PARSER_MODE = os.environ.get("PDF_PARSER_MODE", "legacy").strip().lower()
+if PDF_PARSER_MODE not in {"legacy", "paddle", "hybrid"}:
+    logger.warning("Invalid PDF_PARSER_MODE=%r; using legacy", PDF_PARSER_MODE)
+    PDF_PARSER_MODE = "legacy"
+PADDLEOCR_MIN_CONFIDENCE = 0.55
+TASK_AUTO_APPROVE_CONFIDENCE = 0.90
+ANSWER_REGION_AUTO_APPROVE_CONFIDENCE = 0.90
 
 
 def get_session_hmac_secret() -> str:
     secret = os.environ.get("SESSION_HMAC_SECRET", "").strip()
     if secret:
         return secret
-    # Dev fallback only; production should set SESSION_HMAC_SECRET explicitly.
-    return "claros-dev-session-hmac-change-me"
+    if APP_ENV in {"production", "prod"}:
+        raise RuntimeError("SESSION_HMAC_SECRET must be set when APP_ENV=production")
+    logger.warning("SESSION_HMAC_SECRET is unset; using an ephemeral development secret")
+    return _EPHEMERAL_SESSION_HMAC_SECRET
+
+
+if APP_ENV in {"production", "prod"} and not os.environ.get("SESSION_HMAC_SECRET", "").strip():
+    raise RuntimeError("SESSION_HMAC_SECRET must be set when APP_ENV=production")

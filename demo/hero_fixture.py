@@ -1,4 +1,4 @@
-"""Validated, hash-bound synthetic hero worksheet replay fixture."""
+"""Validated, hash-bound offline synthetic hero semantic fixture."""
 from __future__ import annotations
 
 import hashlib
@@ -15,7 +15,7 @@ def load_hero(pdf_bytes: bytes) -> tuple[PilotPageInput, ClosedWorldPageResult, 
     if hashlib.sha256(pdf_bytes).hexdigest() != manifest["source_sha256"]:
         return None
     page = PilotPageInput.model_validate(manifest["physical_input"])
-    result = ClosedWorldPageResult.model_validate_json((ROOT / "hero_compiler_result.json").read_text(encoding="utf-8"))
+    result = ClosedWorldPageResult.model_validate_json((ROOT / "hero_semantic_fixture.json").read_text(encoding="utf-8"))
     validate_closed_world_result(page, result)
     return page, result, derive_tasks(page, result)
 

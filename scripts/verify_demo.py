@@ -16,6 +16,9 @@ def main() -> None:
     loaded = load_hero(pdf)
     if loaded is None:
         raise SystemExit("hero worksheet hash did not match its replay fixture")
+    manifest = __import__("json").loads(Path("demo/hero_worksheet_manifest.json").read_text(encoding="utf-8"))
+    if manifest.get("semantic_source") != "synthetic_fixture" or manifest.get("generated_by_model") is not False:
+        raise SystemExit("hero semantic fixture provenance is invalid")
     questions = manifest_questions(pdf)
     if questions is None or len(questions) != 4:
         raise SystemExit("hero task graph was not materialized")

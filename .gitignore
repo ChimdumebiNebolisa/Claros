@@ -13,6 +13,7 @@ docs/*
 
 .env
 .env.local
+.claros-data/
 __pycache__/
 *.pyc
 .coverage

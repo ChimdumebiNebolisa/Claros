@@ -2,8 +2,11 @@
   "source_type": "synthetic",
   "source_sha256": "df965b703e31fe11594a6581f837f9e6e909da0109cc5b2db20574e311329ec5",
   "original_or_synthetic": "synthetic",
-  "stored_result_origin": "synthetic fixture; not live GPT-5.6",
-  "replay": true,
+  "semantic_source": "synthetic_fixture",
+  "generated_by_model": false,
+  "eligible_for_model_quality_claims": false,
+  "stored_result_origin": "offline deterministic development fixture",
+  "replay": false,
   "physical_input": {
     "pilot_id": "claros-hero-v1",
     "source_pdf": "hero_worksheet.pdf",
