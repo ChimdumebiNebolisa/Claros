@@ -77,21 +77,20 @@ def test_parse_pdf_parenthesized_numbered_format(tmp_path):
     assert questions[0].text == "First parenthesized prompt"
 
 
-def test_parse_pdf_fallback_single_block(tmp_pdf_no_questions):
-    """When no question pattern matches, parser returns single question with id=0."""
-    title, questions = parse_pdf(tmp_pdf_no_questions)
-    assert len(questions) == 1
-    assert questions[0].id == 0
-    assert "paragraph" in questions[0].text or "text" in questions[0].text.lower()
+def test_parse_pdf_unsupported_layout_has_no_fallback_question(tmp_pdf_no_questions):
+    """Unsupported text never becomes a fake question zero."""
+    title, questions, warnings, status = parse_pdf_with_diagnostics(tmp_pdf_no_questions)
+    assert title
+    assert questions == []
+    assert status == "unsupported_layout"
+    assert "unsupported_layout" in warnings
 
 
 def test_parse_pdf_question_double_digit(tmp_pdf_question_double_digit):
-    """Parser preserves double-digit Question ids (e.g. 10)."""
+    """Parser preserves double-digit source labels with stable internal IDs."""
     _, questions = parse_pdf(tmp_pdf_question_double_digit)
-    ids = {q.id for q in questions}
-    assert 1 in ids
-    assert 10 in ids
-    q10 = next(q for q in questions if q.id == 10)
+    assert [q.id for q in questions] == [1, 2]
+    q10 = next(q for q in questions if q.label == "10")
     assert "Tenth" in q10.text or "tenth" in q10.text.lower()
 
 
@@ -164,7 +163,7 @@ def test_prompt_without_blank_needs_layout_review():
 
     _title, questions, warnings, status = parse_pdf_with_diagnostics(path)
 
-    assert status == "ok"
+    assert status == "layout_review_required"
     assert len(questions) == 1
     assert questions[0].needs_layout_review is True
     assert questions[0].layout_confidence < 0.7
