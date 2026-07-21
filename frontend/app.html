@@ -54,6 +54,10 @@
             <span aria-hidden="true">or</span>
             <span>drop a PDF anywhere in this panel</span>
           </div>
+          <label class="teacher-mode-choice">
+            <input type="checkbox" id="teacherReviewMode">
+            Prepare this packet for teacher review before students receive it
+          </label>
         </div>
 
         <section class="processing-panel" id="processingPanel" hidden aria-labelledby="processingTitle">
@@ -88,6 +92,9 @@
           <div>
             <p class="workspace-label">Current worksheet</p>
             <h1 class="assignment-title" id="assignmentTitle">Worksheet</h1>
+            <p class="demo-replay-indicator" id="demoReplayIndicator" hidden role="status">
+              Offline demo fixture: validated locally, no live provider request.
+            </p>
           </div>
           <div class="workspace-header-actions">
             <button type="button" class="toolbar-button" id="replaceWorksheetBtn">Replace worksheet</button>
@@ -126,6 +133,26 @@
                 <button type="button" class="toolbar-button" id="finishLayoutBtn">Layout ready</button>
               </div>
             </div>
+
+            <section class="layout-review-panel" id="teacherReviewPanel" hidden aria-labelledby="teacherReviewTitle">
+              <div>
+                <strong id="teacherReviewTitle">Teacher assignment review</strong>
+                <p id="teacherReviewSummary">Approve only student-facing tasks. Missing regions use the safe side panel.</p>
+              </div>
+              <label>
+                Prompt text
+                <textarea id="teacherPromptText" rows="4"></textarea>
+              </label>
+              <div class="layout-controls" role="group" aria-label="Teacher task decisions">
+                <button type="button" class="btn primary-action" id="teacherAcceptBtn">Accept</button>
+                <button type="button" class="toolbar-button" id="teacherSaveEditBtn">Save edit</button>
+                <button type="button" class="toolbar-button" id="teacherHideBtn">Hide</button>
+                <button type="button" class="toolbar-button" id="teacherRejectBtn">Reject</button>
+                <button type="button" class="toolbar-button" id="teacherMergeBtn">Merge selected</button>
+                <button type="button" class="toolbar-button" id="teacherSplitBtn">Split at blank lines</button>
+                <button type="button" class="btn primary-action" id="teacherFinalizeBtn">Save reviewed assignment</button>
+              </div>
+            </section>
 
             <div class="document-scroll" id="documentViewport" tabindex="0" aria-label="Scrollable worksheet page">
               <figure class="document-page" id="documentPage">

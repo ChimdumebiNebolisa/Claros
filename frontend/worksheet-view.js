@@ -22,6 +22,7 @@
     var zoomLabel = options.zoomLabel;
     var state = {
       assignmentId: null,
+      assignmentCapability: null,
       questions: [],
       answers: {},
       currentPage: 1,
@@ -68,7 +69,7 @@
           button.classList.add('is-correcting');
         }
         var answer = state.answers[question.id] || '';
-        button.innerHTML = '<span class="region-number">Q' + question.id + '</span><span class="region-answer"></span>';
+        button.innerHTML = '<span class="region-number">Q' + (question.label || question.id) + '</span><span class="region-answer"></span>';
         button.querySelector('.region-answer').textContent = answer || 'Answer area';
         button.addEventListener('click', function () {
           state.activeQuestionId = question.id;
@@ -89,13 +90,27 @@
 
     function renderPage() {
       pageImage.alt = 'Original worksheet page ' + state.currentPage;
-      pageImage.src = '/api/assignments/' + state.assignmentId + '/pages/' + state.currentPage + '.png';
+      var requestUrl = '/api/assignments/' + state.assignmentId + '/pages/' + state.currentPage + '.png';
+      fetch(requestUrl, {
+        headers: { 'X-Assignment-Capability': state.assignmentCapability || '' }
+      }).then(function (response) {
+        if (!response.ok) throw new Error('Could not load worksheet page.');
+        return response.blob();
+      }).then(function (blob) {
+        if (state.pageObjectUrl) URL.revokeObjectURL(state.pageObjectUrl);
+        state.pageObjectUrl = URL.createObjectURL(blob);
+        pageImage.src = state.pageObjectUrl;
+      }).catch(function () {
+        pageImage.removeAttribute('src');
+        if (options.onPageError) options.onPageError();
+      });
       updateToolbar();
       renderOverlays();
     }
 
     function load(data) {
       state.assignmentId = data.assignmentId;
+      state.assignmentCapability = data.assignmentCapability || null;
       state.questions = data.questions || [];
       state.pageCount = Math.max(1, Number(data.pageCount || 1));
       state.currentPage = 1;

@@ -21,6 +21,7 @@
     uploadZone: document.getElementById('uploadZone'),
     fileInput: document.getElementById('fileInput'),
     uploadBtn: document.getElementById('uploadBtn'),
+    teacherReviewMode: document.getElementById('teacherReviewMode'),
     uploadLabel: document.getElementById('uploadLabel'),
     testPdfBtn: document.getElementById('testPdfBtn'),
     processingPanel: document.getElementById('processingPanel'),
@@ -31,6 +32,7 @@
     replaceBtn: document.getElementById('replaceBtn'),
     errors: document.getElementById('errors'),
     assignmentTitle: document.getElementById('assignmentTitle'),
+    demoReplayIndicator: document.getElementById('demoReplayIndicator'),
     replaceWorksheetBtn: document.getElementById('replaceWorksheetBtn'),
     exportBtn: document.getElementById('exportBtn'),
     previousPageBtn: document.getElementById('previousPageBtn'),
@@ -46,6 +48,16 @@
     resetRegionBtn: document.getElementById('resetRegionBtn'),
     confirmRegionBtn: document.getElementById('confirmRegionBtn'),
     finishLayoutBtn: document.getElementById('finishLayoutBtn'),
+    teacherReviewPanel: document.getElementById('teacherReviewPanel'),
+    teacherReviewSummary: document.getElementById('teacherReviewSummary'),
+    teacherPromptText: document.getElementById('teacherPromptText'),
+    teacherAcceptBtn: document.getElementById('teacherAcceptBtn'),
+    teacherSaveEditBtn: document.getElementById('teacherSaveEditBtn'),
+    teacherHideBtn: document.getElementById('teacherHideBtn'),
+    teacherRejectBtn: document.getElementById('teacherRejectBtn'),
+    teacherMergeBtn: document.getElementById('teacherMergeBtn'),
+    teacherSplitBtn: document.getElementById('teacherSplitBtn'),
+    teacherFinalizeBtn: document.getElementById('teacherFinalizeBtn'),
     documentViewport: document.getElementById('documentViewport'),
     documentPage: document.getElementById('documentPage'),
     pageImage: document.getElementById('pageImage'),
@@ -81,6 +93,10 @@
     voice: 'unavailable',
     assignmentId: null,
     title: '',
+    parseStatus: '',
+    reviewMode: 'direct',
+    reviewStatus: 'unreviewed',
+    teacherSelectedTaskIds: new Set(),
     filename: '',
     pageCount: 1,
     questions: [],
@@ -92,6 +108,7 @@
     proposedQuestionId: null,
     proposedText: '',
     lastFile: null,
+    assignmentCapability: null,
     sessionId: null,
     sessionSecret: null,
     liveSession: null,
@@ -206,6 +223,10 @@
     });
   }
 
+  function taskKey(question) {
+    return question.task_id || ('legacy-' + question.id);
+  }
+
   function unresolvedQuestions() {
     return state.questions.filter(function (question) { return question.needs_layout_review; });
   }
@@ -213,16 +234,32 @@
   function renderQuestionPicker() {
     elements.questionsContainer.innerHTML = '';
     state.questions.forEach(function (question) {
+      const row = document.createElement('div');
+      if (state.reviewMode === 'teacher') {
+        const choice = document.createElement('label');
+        choice.className = 'teacher-task-choice';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = state.teacherSelectedTaskIds.has(taskKey(question));
+        checkbox.setAttribute('aria-label', 'Select Question ' + (question.label || question.id) + ' for merge');
+        checkbox.addEventListener('change', function () {
+          if (checkbox.checked) state.teacherSelectedTaskIds.add(taskKey(question));
+          else state.teacherSelectedTaskIds.delete(taskKey(question));
+        });
+        choice.appendChild(checkbox);
+        row.appendChild(choice);
+      }
       const button = document.createElement('button');
       button.type = 'button';
       button.dataset.questionId = question.id;
-      button.textContent = 'Question ' + question.id + (question.needs_layout_review ? ' (layout review)' : '');
+      button.textContent = 'Question ' + (question.label || question.id) + (question.needs_layout_review ? ' (layout review)' : '');
       button.setAttribute('aria-current', String(Number(question.id) === Number(state.activeQuestionId)));
       button.addEventListener('click', function () {
         selectQuestion(question.id);
         elements.questionsContainer.hidden = true;
       });
-      elements.questionsContainer.appendChild(button);
+      row.appendChild(button);
+      elements.questionsContainer.appendChild(row);
     });
   }
 
@@ -230,9 +267,10 @@
     const question = getQuestion(questionId);
     if (!question) return;
     state.activeQuestionId = question.id;
-    elements.currentQuestionLabel.textContent = 'Working on Question ' + question.id;
+    elements.currentQuestionLabel.textContent = 'Working on Question ' + (question.label || question.id);
     elements.currentQuestionExcerpt.textContent = question.text || '';
     elements.typedAnswer.textContent = state.answers[question.id] || state.drafts[question.id] || '';
+    if (state.reviewMode === 'teacher') elements.teacherPromptText.value = question.text || '';
     elements.confirmTypedBtn.disabled = !elements.typedAnswer.textContent.trim();
     if (worksheet) worksheet.setActiveQuestion(question.id);
     renderQuestionPicker();
@@ -271,6 +309,7 @@
     });
     worksheet.load({
       assignmentId: state.assignmentId,
+      assignmentCapability: state.assignmentCapability,
       questions: state.questions,
       pageCount: state.pageCount,
       answers: state.answers
@@ -278,29 +317,52 @@
   }
 
   function applyAssignment(data) {
+    clearAssignmentSessionState();
     state.assignmentId = data.assignment_id;
+    state.assignmentCapability = data.assignment_capability || null;
     state.title = data.title || state.filename || 'Worksheet';
+    state.parseStatus = data.parse_status || 'ok';
+    state.reviewMode = data.review_mode || 'direct';
+    state.reviewStatus = data.review_status || 'unreviewed';
     state.questions = data.questions || [];
     state.pageCount = Number(data.page_count || 1);
     state.answers = {};
+    state.teacherSelectedTaskIds = new Set();
     state.drafts = {};
     state.confirmed = {};
     state.writeTokens = {};
     state.activeQuestionId = state.questions.length ? state.questions[0].id : null;
+    persistSessionLocally();
     elements.assignmentTitle.textContent = state.filename || state.title;
+    elements.demoReplayIndicator.hidden = data.parser !== 'offline-synthetic-fixture-v1';
     elements.previousPageBtn.disabled = state.pageCount <= 1;
     elements.nextPageBtn.disabled = state.pageCount <= 1;
     initializeWorksheet();
     renderQuestionPicker();
     if (state.activeQuestionId != null) selectQuestion(state.activeQuestionId);
-    setWorkspaceState(unresolvedQuestions().length ? 'needs_layout_review' : 'ready');
-    setVoiceState('idle');
+    const rejected = state.parseStatus === 'requires_ocr' || state.parseStatus === 'unsupported_layout';
+    const teacherReview = state.reviewMode === 'teacher';
+    elements.teacherReviewPanel.hidden = !teacherReview;
+    elements.sessionPanel.hidden = teacherReview;
+    if (teacherReview) {
+      elements.teacherReviewSummary.textContent = state.questions.filter(function (question) {
+        return question.review_status === 'needs_review';
+      }).length + ' tasks still need a teacher decision.';
+    }
+    setWorkspaceState(rejected || unresolvedQuestions().length ? 'needs_layout_review' : 'ready');
+    setVoiceState(rejected || teacherReview ? 'unavailable' : 'idle');
+    if (state.parseStatus === 'requires_ocr') {
+      setError('This PDF needs OCR before Claros can identify questions.');
+    } else if (state.parseStatus === 'unsupported_layout') {
+      setError('Claros could not safely identify a supported student worksheet layout.');
+    }
     renderLayoutState();
-    restoreSessionFromStorage();
+    if (!teacherReview) restoreSessionFromStorage();
   }
 
   async function doUpload(file) {
     if (!file) return;
+    if (state.assignmentId || state.sessionId || state.sessionSecret) clearAssignmentSessionState();
     state.lastFile = file;
     state.filename = file.name;
     elements.selectedFilename.textContent = file.name;
@@ -314,7 +376,8 @@
     const form = new FormData();
     form.append('file', file);
     try {
-      const response = await fetch('/upload', { method: 'POST', body: form });
+      const reviewMode = elements.teacherReviewMode.checked ? 'teacher' : 'direct';
+      const response = await fetch('/upload?review_mode=' + reviewMode, { method: 'POST', body: form });
       setWorkspaceState('parsing');
       if (!response.ok) {
         const detail = await response.json().catch(function () { return {}; });
@@ -349,7 +412,7 @@
   }
 
   function resetWorkspace() {
-    stopSession();
+    clearAssignmentSessionState();
     state.assignmentId = null;
     state.questions = [];
     state.answers = {};
@@ -363,22 +426,44 @@
     setVoiceState('unavailable');
   }
 
+  function clearAssignmentSessionState() {
+    stopSession();
+    state.sessionId = null;
+    state.sessionSecret = null;
+    state.assignmentCapability = null;
+    state.liveSession = null;
+    state.conversation = [];
+    state.confirmed = {};
+    state.writeTokens = {};
+    state.drafts = {};
+    state.answers = {};
+    state.proposedQuestionId = null;
+    state.proposedText = '';
+    state.lastExportVoiceNorm = '';
+    try { sessionStorage.removeItem(SESSION_STORAGE_KEY); } catch (_) {}
+  }
+
+  function assignmentHeaders() {
+    return state.assignmentCapability ? { 'X-Assignment-Capability': state.assignmentCapability } : {};
+  }
+
   function persistSessionLocally() {
-    if (!state.sessionId || !state.sessionSecret || !state.assignmentId) return;
+    if (!state.assignmentId || !state.assignmentCapability) return;
     try {
       sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
         assignmentId: state.assignmentId,
-        sessionId: state.sessionId,
-        sessionSecret: state.sessionSecret
+        sessionId: state.sessionId || null,
+        sessionSecret: state.sessionSecret || null,
+        assignmentCapability: state.assignmentCapability
       }));
     } catch (_) {}
   }
 
   async function ensureServerSession() {
-    if (state.sessionId && state.sessionSecret) return;
+    if (state.sessionId && state.sessionSecret && state.assignmentCapability) return;
     const response = await fetch(API_BASE + '/api/session/start', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: Object.assign({ 'Content-Type': 'application/json' }, assignmentHeaders()),
       body: JSON.stringify({ assignment_id: state.assignmentId })
     });
     if (!response.ok) throw new Error('Could not start the worksheet session.');
@@ -393,15 +478,22 @@
       const raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
       if (!raw || !state.assignmentId) return;
       const saved = JSON.parse(raw);
-      if (saved.assignmentId !== state.assignmentId) return;
+      if (saved.assignmentId !== state.assignmentId || !saved.assignmentCapability || saved.assignmentCapability !== state.assignmentCapability) {
+        clearAssignmentSessionState();
+        return;
+      }
       state.sessionId = saved.sessionId;
       state.sessionSecret = saved.sessionSecret;
+      if (!state.sessionId || !state.sessionSecret) return;
       const response = await fetch(API_BASE + '/api/session/' + saved.sessionId + '/restore', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: Object.assign({ 'Content-Type': 'application/json' }, assignmentHeaders()),
         body: JSON.stringify({ session_secret: saved.sessionSecret })
       });
-      if (!response.ok) return;
+      if (!response.ok) {
+        clearAssignmentSessionState();
+        return;
+      }
       const data = await response.json();
       Object.keys(data.questions || {}).forEach(function (questionId) {
         const restored = data.questions[questionId];
@@ -454,7 +546,7 @@
       await ensureServerSession();
       const response = await fetch(API_BASE + '/api/session/' + state.sessionId + '/confirm', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: Object.assign({ 'Content-Type': 'application/json' }, assignmentHeaders()),
         body: JSON.stringify({
           session_secret: state.sessionSecret,
           question_id: questionId,
@@ -481,10 +573,23 @@
 
   async function triggerWrite(questionId) {
     if (state.writeInProgress) return;
+    const question = getQuestion(questionId);
+    if (!question || question.needs_layout_review) {
+      setWorkspaceState('needs_layout_review');
+      setError('Review and confirm this question\'s answer region before writing.');
+      return;
+    }
     if (!state.confirmed[questionId] || !state.writeTokens[questionId]) {
       presentAnswer(questionId, state.drafts[questionId] || '');
       setNotice('Confirm this answer before Claros writes it.');
       return;
+    }
+    if (!question.answer_region) {
+      if (question.answer_region_status !== 'side_panel') {
+        setWorkspaceState('needs_layout_review');
+        setError('Review and confirm this question\'s answer region before writing.');
+        return;
+      }
     }
     state.writeInProgress = true;
     setVoiceState('writing');
@@ -493,14 +598,16 @@
     try {
       const response = await fetch(API_BASE + '/api/write/' + state.assignmentId, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: Object.assign({ 'Content-Type': 'application/json' }, assignmentHeaders()),
         body: JSON.stringify({
           question_id: questionId,
           conversation: state.conversation,
           answer_candidate: state.drafts[questionId] || '',
           write_token: state.writeTokens[questionId],
           session_id: state.sessionId,
-          session_secret: state.sessionSecret
+          session_secret: state.sessionSecret,
+          layout_confirmed: true,
+          answer_region: question.answer_region
         })
       });
       if (!response.ok) {
@@ -677,7 +784,7 @@
 
     try {
       await ensureServerSession();
-      const configResponse = await fetch(API_BASE + '/api/session-config/' + state.assignmentId);
+      const configResponse = await fetch(API_BASE + '/api/session-config/' + state.assignmentId, { headers: assignmentHeaders() });
       if (!configResponse.ok) throw new Error('Claros could not connect to the voice provider.');
       const config = await configResponse.json();
       const module = await import(API_BASE + '/genai.bundle.js');
@@ -836,18 +943,10 @@
     if (!state.assignmentId || state.workspace === 'exporting') return;
     setWorkspaceState('exporting');
     setError('');
-    const answers = state.questions
-      .filter(function (question) {
-        return !!(state.confirmed[question.id] && (state.answers[question.id] || '').trim());
-      })
-      .map(function (question) {
-        return {
-          question_id: question.id,
-          answer_text: state.answers[question.id] || '',
-          answer_region: question.answer_region || undefined
-        };
-      });
-    if (!answers.length) {
+    const hasWrittenAnswer = state.questions.some(function (question) {
+      return !!(state.confirmed[question.id] && (state.answers[question.id] || '').trim());
+    });
+    if (!hasWrittenAnswer || !state.sessionId || !state.sessionSecret) {
       setWorkspaceState(unresolvedQuestions().length ? 'needs_layout_review' : 'ready');
       setError('Confirm and write at least one answer before exporting.');
       return;
@@ -855,8 +954,8 @@
     try {
       const response = await fetch('/export/' + state.assignmentId, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers: answers })
+        headers: Object.assign({ 'Content-Type': 'application/json' }, assignmentHeaders()),
+        body: JSON.stringify({ session_id: state.sessionId, session_secret: state.sessionSecret })
       });
       if (!response.ok) throw new Error('The completed PDF could not be prepared.');
       const blob = await response.blob();
@@ -892,6 +991,41 @@
     renderLayoutState();
     setNotice(unresolvedQuestions().length ? 'Some answer regions still need review.' : 'Layout ready.');
     elements.layoutReviewBtn.focus();
+  }
+
+  async function submitTeacherReview(actions, finalize) {
+    if (state.reviewMode !== 'teacher' || !state.assignmentId) return;
+    setError('');
+    try {
+      const response = await fetch('/api/teacher/assignments/' + state.assignmentId + '/review', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, assignmentHeaders()),
+        body: JSON.stringify({ actions: actions || [], finalize: !!finalize })
+      });
+      const data = await response.json().catch(function () { return {}; });
+      if (!response.ok) throw new Error(data.detail || 'The teacher review could not be saved.');
+      applyAssignment(data);
+      setNotice(finalize ? 'Reviewed assignment saved. Students will receive only approved tasks.' : 'Teacher review saved.');
+    } catch (error) {
+      setError(error.message || 'The teacher review could not be saved.');
+    }
+  }
+
+  function activeTeacherQuestion() {
+    const question = getQuestion(state.activeQuestionId);
+    if (!question) setError('Choose a task first.');
+    return question;
+  }
+
+  function teacherEditAction(question, approve) {
+    return {
+      action: 'edit',
+      task_id: taskKey(question),
+      prompt_text: elements.teacherPromptText.value,
+      answer_region: question.answer_region || null,
+      page_index: Number(question.page || 1) - 1,
+      approve: !!approve
+    };
   }
 
   elements.uploadBtn.addEventListener('click', function () { elements.fileInput.click(); });
@@ -935,6 +1069,53 @@
   elements.resetRegionBtn.addEventListener('click', function () { worksheet.resetSelected(); });
   elements.confirmRegionBtn.addEventListener('click', function () { worksheet.confirmSelected(); });
   elements.finishLayoutBtn.addEventListener('click', finishLayoutReview);
+  elements.teacherAcceptBtn.addEventListener('click', function () {
+    const question = activeTeacherQuestion();
+    if (question) submitTeacherReview([teacherEditAction(question, true)], false);
+  });
+  elements.teacherSaveEditBtn.addEventListener('click', function () {
+    const question = activeTeacherQuestion();
+    if (question) submitTeacherReview([teacherEditAction(question, false)], false);
+  });
+  elements.teacherHideBtn.addEventListener('click', function () {
+    const question = activeTeacherQuestion();
+    if (question) submitTeacherReview([{ action: 'hide', task_id: taskKey(question) }], false);
+  });
+  elements.teacherRejectBtn.addEventListener('click', function () {
+    const question = activeTeacherQuestion();
+    if (question) submitTeacherReview([{ action: 'reject', task_id: taskKey(question) }], false);
+  });
+  elements.teacherMergeBtn.addEventListener('click', function () {
+    const taskIds = Array.from(state.teacherSelectedTaskIds);
+    if (taskIds.length < 2) {
+      setError('Select at least two same-page tasks to merge.');
+      return;
+    }
+    submitTeacherReview([{ action: 'merge', task_ids: taskIds }], false);
+  });
+  elements.teacherSplitBtn.addEventListener('click', function () {
+    const question = activeTeacherQuestion();
+    if (!question) return;
+    const prompts = elements.teacherPromptText.value.split(/\n\s*\n/).map(function (text) {
+      return text.trim();
+    }).filter(Boolean);
+    if (prompts.length < 2) {
+      setError('Separate at least two prompts with a blank line before splitting.');
+      return;
+    }
+    const parts = prompts.map(function (prompt, index) {
+      return {
+        prompt_text: prompt,
+        label: question.label ? question.label + String.fromCharCode(97 + index) : null,
+        page_index: Number(question.page || 1) - 1,
+        source_blocks: question.source_blocks || []
+      };
+    });
+    submitTeacherReview([{ action: 'split', task_id: taskKey(question), parts: parts }], false);
+  });
+  elements.teacherFinalizeBtn.addEventListener('click', function () {
+    submitTeacherReview([], true);
+  });
   document.querySelectorAll('[data-region-action]').forEach(function (button) {
     button.addEventListener('click', function () {
       const action = button.dataset.regionAction;

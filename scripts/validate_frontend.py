@@ -98,6 +98,8 @@ def validate_app_js_contract() -> None:
         "setVoiceState",
         "showVoiceFallback",
         "setSessionPanelExpanded",
+        "clearAssignmentSessionState",
+        "X-Assignment-Capability",
     )
     for needle in checks:
         if needle not in js:
@@ -116,6 +118,8 @@ def validate_worksheet_view() -> None:
         raise AssertionError("worksheet-view.js must export ClarosWorksheetView")
     if "/pages/" not in js:
         raise AssertionError("worksheet-view.js must load assignment page PNG routes")
+    if "X-Assignment-Capability" not in js or "fetch(requestUrl" not in js:
+        raise AssertionError("worksheet-view.js must fetch protected page PNGs with assignment capability")
 
 
 def validate_ui_state() -> None:
