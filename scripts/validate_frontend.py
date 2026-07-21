@@ -37,7 +37,8 @@ def validate_landing_html() -> None:
         'href="/styles/tokens.css"',
         'href="/styles/landing.css"',
         'href="/app"',
-        "Built for students",
+        "Keep the page in view",
+        "Typed works throughout",
     )
     for needle in checks:
         if needle not in html:
@@ -56,15 +57,16 @@ def validate_app_html() -> None:
         'id="keyboardFallback"',
         'id="documentViewport"',
         'id="answerConfirmation"',
-        'id="layoutReviewPanel"',
+        'id="writeConfirmation"',
+        'id="writeConfirmedAnswerBtn"',
+        'id="placementSummary"',
+        'id="returnToWorksheetBtn"',
         'id="micBtn"',
         'id="interruptBtn"',
         'id="voiceBadge"',
         'id="typedAnswer"',
         'id="workspaceStatus"',
         'id="pageImage"',
-        'id="layoutReviewBtn"',
-        'id="confirmRegionBtn"',
         "/app.js",
         "/session-rules.js",
         "/ui-state.js",
@@ -73,6 +75,10 @@ def validate_app_html() -> None:
     for needle in checks:
         if needle not in html:
             raise AssertionError(f"app.html missing expected content: {needle!r}")
+    if "teacherReviewMode" in html or "teacherReviewPanel" in html:
+        raise AssertionError("student app must not expose teacher review controls")
+    if "layoutReviewPanel" in html or "confirmRegionBtn" in html:
+        raise AssertionError("student app must not expose client-side layout approval controls")
 
 
 def validate_legacy_frontend_files() -> None:
@@ -94,6 +100,7 @@ def validate_app_js_contract() -> None:
         "/api/session-config/",
         "/api/session/start",
         "confirmProposedAnswer",
+        "writeConfirmedAnswerBtn",
         "setWorkspaceState",
         "setVoiceState",
         "showVoiceFallback",
@@ -104,6 +111,10 @@ def validate_app_js_contract() -> None:
     for needle in checks:
         if needle not in js:
             raise AssertionError(f"app.js missing expected content: {needle!r}")
+    if "await triggerWrite(questionId);" in js:
+        raise AssertionError("answer confirmation must not automatically trigger a write")
+    if "teacherReviewMode" in js or "teacherReviewPanel" in js:
+        raise AssertionError("student app must not include teacher review branches")
 
 
 def validate_session_rules() -> None:
@@ -120,6 +131,12 @@ def validate_worksheet_view() -> None:
         raise AssertionError("worksheet-view.js must load assignment page PNG routes")
     if "X-Assignment-Capability" not in js or "fetch(requestUrl" not in js:
         raise AssertionError("worksheet-view.js must fetch protected page PNGs with assignment capability")
+    if "setCorrectionMode" in js or "confirmSelected" in js or "function adjust" in js:
+        raise AssertionError("worksheet-view.js must not let students alter answer geometry")
+    if "if (Number(state.activeQuestionId) !== Number(question.id)) return;" not in js:
+        raise AssertionError("worksheet-view.js must render only the active answer region")
+    if "location needs review; writing is unavailable" not in js:
+        raise AssertionError("worksheet regions must announce unsafe placement")
 
 
 def validate_ui_state() -> None:
