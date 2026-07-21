@@ -8,7 +8,9 @@ COPY requirements-server.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Application code
-COPY main.py config.py schemas.py storage.py assignment_service.py gemini_service.py parser.py parser_layout.py manifest.py session_service.py observability.py agent.py exporter.py ocr_adapter.py ./
+COPY main.py config.py schemas.py storage.py assignment_service.py gemini_service.py parser.py parser_layout.py manifest.py session_service.py observability.py agent.py exporter.py ocr_adapter.py document_model.py document_pipeline.py document_compiler.py semantic_classifier.py review_service.py ./
+COPY providers ./providers
+COPY evaluation ./evaluation
 COPY frontend ./frontend
 COPY test_assignment.pdf ./
 

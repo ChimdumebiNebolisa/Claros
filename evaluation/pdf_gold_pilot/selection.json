@@ -1,0 +1,177 @@
+{
+  "version": 1,
+  "selection_basis": "Manual visual inspection for pilot coverage only; these expectations are not gold labels.",
+  "corpus_subdirectory": "corpus",
+  "pages": [
+    {
+      "pilot_id": "pdf01-p01",
+      "source_pdf": "01_selectable_dense_single_page.pdf",
+      "page_number": 1,
+      "selection_rationale": "Dense single-page worksheet where the free-form candidate split one activity into six form-field tasks.",
+      "expected_page_type": "student_worksheet",
+      "physical_response_regions": "explicit",
+      "contains_visual_tasks": false,
+      "coverage_tags": ["dense_student_worksheet", "table_or_form", "lines_boxes_or_cells", "over_splitting_example"]
+    },
+    {
+      "pilot_id": "pdf02-p01",
+      "source_pdf": "02_selectable_mixed_numbering.pdf",
+      "page_number": 1,
+      "selection_rationale": "Compound labels 3a and 3b, instructions, tables, and multiple response boxes on one page.",
+      "expected_page_type": "student_worksheet",
+      "physical_response_regions": "explicit",
+      "contains_visual_tasks": false,
+      "coverage_tags": ["compound_labels", "task_grouping", "table_or_form", "lines_boxes_or_cells"]
+    },
+    {
+      "pilot_id": "pdf02-p02",
+      "source_pdf": "02_selectable_mixed_numbering.pdf",
+      "page_number": 2,
+      "selection_rationale": "Continuation page with 7a/7b, embedded source thumbnails, tables, and several distinct response areas.",
+      "expected_page_type": "student_worksheet",
+      "physical_response_regions": "explicit",
+      "contains_visual_tasks": true,
+      "coverage_tags": ["compound_labels", "task_grouping", "visual_anchor", "lines_boxes_or_cells"]
+    },
+    {
+      "pilot_id": "pdf03-p01",
+      "source_pdf": "03_scan_table_layout.pdf",
+      "page_number": 1,
+      "selection_rationale": "Image-only scan whose task is expressed through a focus question and a large writable table.",
+      "expected_page_type": "student_worksheet",
+      "physical_response_regions": "layout_only",
+      "contains_visual_tasks": false,
+      "coverage_tags": ["image_only_scan", "table_or_form", "lines_boxes_or_cells", "scan_overlay_example"]
+    },
+    {
+      "pilot_id": "pdf05-p01",
+      "source_pdf": "05_selectable_image_questions.pdf",
+      "page_number": 1,
+      "selection_rationale": "Questions depend on visual context and references while the page provides no explicit answer boxes.",
+      "expected_page_type": "student_worksheet",
+      "physical_response_regions": "none",
+      "contains_visual_tasks": true,
+      "coverage_tags": ["visual_activity", "no_physical_response_region", "reference_content"]
+    },
+    {
+      "pilot_id": "pdf07-p01",
+      "source_pdf": "07_selectable_five_page_packet.pdf",
+      "page_number": 1,
+      "selection_rationale": "Student materials mix an objective, numbered resource directions, URLs, and an unnumbered Venn-diagram activity.",
+      "expected_page_type": "student_worksheet",
+      "physical_response_regions": "layout_only",
+      "contains_visual_tasks": true,
+      "coverage_tags": ["mixed_content", "unnumbered_prompt", "visual_activity", "false_positive_pressure"]
+    },
+    {
+      "pilot_id": "pdf07-p03",
+      "source_pdf": "07_selectable_five_page_packet.pdf",
+      "page_number": 3,
+      "selection_rationale": "Numbered resource directions are adjacent to summary response spaces, a known over-production pattern.",
+      "expected_page_type": "student_worksheet",
+      "physical_response_regions": "layout_only",
+      "contains_visual_tasks": false,
+      "coverage_tags": ["numbered_non_tasks", "unnumbered_prompt", "free_space", "over_splitting_example"]
+    },
+    {
+      "pilot_id": "pdf10-p01",
+      "source_pdf": "10_scan_visual_matching.pdf",
+      "page_number": 1,
+      "selection_rationale": "Image-only visual matching worksheet with graphs and checkbox-like response targets.",
+      "expected_page_type": "student_worksheet",
+      "physical_response_regions": "layout_only",
+      "contains_visual_tasks": true,
+      "coverage_tags": ["image_only_scan", "visual_activity", "checkbox", "scan_overlay_example"]
+    },
+    {
+      "pilot_id": "pdf12-p02",
+      "source_pdf": "12_selectable_long_mixed_packet.pdf",
+      "page_number": 2,
+      "selection_rationale": "Two-column teacher lesson overview with a numbered objective list that must not become student tasks.",
+      "expected_page_type": "teacher_guide",
+      "physical_response_regions": "none",
+      "contains_visual_tasks": false,
+      "coverage_tags": ["mixed_teacher_student_packet", "teacher_guide", "multi_column", "numbered_non_tasks"]
+    },
+    {
+      "pilot_id": "pdf12-p08",
+      "source_pdf": "12_selectable_long_mixed_packet.pdf",
+      "page_number": 8,
+      "selection_rationale": "Teacher procedure and discussion page with numbered directions, questions for facilitation, and an instructional image.",
+      "expected_page_type": "teacher_guide",
+      "physical_response_regions": "none",
+      "contains_visual_tasks": true,
+      "coverage_tags": ["mixed_teacher_student_packet", "teacher_guide", "numbered_non_tasks", "visual_anchor"]
+    },
+    {
+      "pilot_id": "pdf12-p09",
+      "source_pdf": "12_selectable_long_mixed_packet.pdf",
+      "page_number": 9,
+      "selection_rationale": "Answer sheet contains question text plus completed answers and must not yield student-answerable tasks.",
+      "expected_page_type": "answer_key",
+      "physical_response_regions": "none",
+      "contains_visual_tasks": false,
+      "coverage_tags": ["mixed_teacher_student_packet", "answer_key", "question_text_not_student_task"]
+    },
+    {
+      "pilot_id": "pdf13-p01",
+      "source_pdf": "13_selectable_history_mixed_layout.pdf",
+      "page_number": 1,
+      "selection_rationale": "Dense worksheet combines reference biography, instructions, ten tasks, images, and a poster-layout visual activity.",
+      "expected_page_type": "student_worksheet",
+      "physical_response_regions": "none",
+      "contains_visual_tasks": true,
+      "coverage_tags": ["dense_student_worksheet", "mixed_layout", "visual_activity", "reference_content"]
+    },
+    {
+      "pilot_id": "pdf14-p01",
+      "source_pdf": "14_selectable_math_word_problems.pdf",
+      "page_number": 1,
+      "selection_rationale": "Visually designed worksheet mixes explanatory text, a meter image, numbered procedure steps, prompts, and answer lines.",
+      "expected_page_type": "student_worksheet",
+      "physical_response_regions": "explicit",
+      "contains_visual_tasks": true,
+      "coverage_tags": ["visual_activity", "numbered_non_tasks", "lines_boxes_or_cells", "reference_value"]
+    },
+    {
+      "pilot_id": "pdf16-p01",
+      "source_pdf": "16_selectable_short_unusual_numbering.pdf",
+      "page_number": 1,
+      "selection_rationale": "Step labels combine procedural directions with answerable prompts and large unmarked free space.",
+      "expected_page_type": "student_worksheet",
+      "physical_response_regions": "ambiguous",
+      "contains_visual_tasks": false,
+      "coverage_tags": ["step_labels", "task_grouping", "free_space", "no_explicit_response_region"]
+    },
+    {
+      "pilot_id": "pdf18-p01",
+      "source_pdf": "18_scan_numbered_questions.pdf",
+      "page_number": 1,
+      "selection_rationale": "Image-only numbered questions were recovered by PaddleOCR but have no explicit writable response areas.",
+      "expected_page_type": "student_worksheet",
+      "physical_response_regions": "none",
+      "contains_visual_tasks": false,
+      "coverage_tags": ["image_only_scan", "no_physical_response_region", "scan_overlay_example"]
+    },
+    {
+      "pilot_id": "pdf19-p03",
+      "source_pdf": "19_selectable_ten_page_packet.pdf",
+      "page_number": 3,
+      "selection_rationale": "Unnumbered student questions are separated by blank space without explicit answer lines or boxes.",
+      "expected_page_type": "student_worksheet",
+      "physical_response_regions": "ambiguous",
+      "contains_visual_tasks": false,
+      "coverage_tags": ["unnumbered_prompt", "free_space", "no_explicit_response_region"]
+    },
+    {
+      "pilot_id": "pdf20-p02",
+      "source_pdf": "20_selectable_form_tables.pdf",
+      "page_number": 2,
+      "selection_rationale": "A large form table mixes prompts, examples, reference values, and writable cells whose grouping depends on layout.",
+      "expected_page_type": "student_worksheet",
+      "physical_response_regions": "layout_only",
+      "contains_visual_tasks": false,
+      "coverage_tags": ["table_or_form", "lines_boxes_or_cells", "reference_value", "task_grouping"]
+    }
+  ]
+}

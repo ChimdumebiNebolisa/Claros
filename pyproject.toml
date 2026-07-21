@@ -13,6 +13,10 @@ source = [
     "storage",
     "observability",
     "ocr_adapter",
+    "document_model",
+    "document_pipeline",
+    "semantic_classifier",
+    "review_service",
 ]
 omit = [
     "tests/*",

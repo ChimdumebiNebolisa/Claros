@@ -46,13 +46,13 @@ This is not about making assignments easier. It is about making them accessible 
 - **PDF assignment ingestion** - Upload a PDF worksheet. Claros detects numbered questions, page geometry, and proposed answer regions for overlay editing.
 - **Layout-preserving worksheet view** - Original page previews are shown with accessible answer fields positioned on the page; low-confidence regions can be corrected before export.
 - **PDF safety limits** - Uploads are bounded by byte size, page count, and extracted-text size; malformed or unsupported PDFs return a recoverable validation error.
-- **OCR-required detection** - Image-only/scanned pages are marked `requires_ocr` without inventing fake questions; OCR runtime is intentionally deferred behind an adapter boundary.
+- **OCR-required detection and candidate adapter** - Image-only/scanned pages are marked `requires_ocr` without fake questions. PP-StructureV3 is available only through an optional, feature-flagged adapter pending corpus and Cloud Run promotion evidence.
 - **Real-time voice conversation** - Bidirectional audio through Gemini Live. The student speaks and hears Claros respond with natural voice.
 - **Socratic guidance** - Claros defaults to teaching mode, asking guiding questions rather than stating answers.
 - **Per-question answer readiness tracking** - The frontend tracks whether the student has stated a final answer for each question before allowing a write.
 - **Controlled answer writing** - When permitted, the frontend calls the backend write API; the answer is streamed into the correct question field via Gemini text generation. LaTeX-style `$...$` delimiters in model output are stripped so answers display as plain text (e.g. "x = 5" instead of "$x = 5$").
 - **Live transcript** - Both sides of the conversation are transcribed and displayed in real time (from Gemini Live in the browser).
-- **PDF export onto the original worksheet** - Export inserts answers into layout regions on the original PDF. Unresolved/overflow placements return a clear 422 rather than silently truncating. Legacy reconstructed export remains only for manifests without layout metadata.
+- **PDF export onto the original worksheet** - Export inserts answers only into approved regions on the original PDF. Confirmed answers without safe coordinates are preserved on appended side-panel pages instead of being silently skipped, truncated, or written to a guessed location.
 - **Answer-stated indicator** - The UI shows a visual badge when the student (or Claros) has indicated the answer for a given question.
 - **Barge-in / interruption** - If the student starts speaking while Claros is talking, Claros’ audio playback is stopped and the app returns to listening. An **Interrupt** button (visible during a session) stops Claros's speech immediately so the student can talk without speaking first.
 - **Voice-enabled PDF export** - Saying phrases like “export pdf” or “export this as pdf” from within the voice session triggers the same PDF export as the button; export is allowed even when no answers have been written yet.
@@ -64,7 +64,8 @@ flowchart LR
   Browser[Browser] --> Landing[GET / → landing.html]
   Browser --> App[GET /app → app.html]
   App --> Upload[POST /upload]
-  Upload --> Parser[PyMuPDF parser]
+  Upload --> Parser[Legacy PyMuPDF parser or flagged hybrid adapter]
+  Parser --> Semantics[Gemini structured semantic classification]
   Parser --> Storage[(Google Cloud Storage)]
   App --> Session[Session start / restore / confirm]
   Session --> Storage
@@ -96,7 +97,8 @@ FastAPI backend (main.py + service modules)
   ├── Ephemeral token creation (auth_tokens.create) for browser-Gemini Live
   ├── Gemini 2.5 Flash (text) for answer writing via generate_content_stream()
   ├── PDF parser (parser.py + parser_layout.py - PyMuPDF geometry)
-  ├── OCR adapter boundary (ocr_adapter.py; no production OCR in this release)
+  ├── Hybrid document model + PP-StructureV3 adapter (flagged; not production default)
+  ├── Gemini structured page/block/task classification (flagged)
   ├── PDF exporter (exporter.py - layout-preserving primary, ReportLab legacy fallback)
   └── Google Cloud Storage (assignment PDF persistence)
 ```
@@ -112,6 +114,8 @@ FastAPI backend (main.py + service modules)
 **Answer readiness gating** is enforced in the frontend: writing is only triggered once the answer is marked ready for that question (student stated it or Claros said "Let me write that for question N"). The backend accepts the request with or without an answer candidate and uses the conversation to generate the written answer.
 
 **PDF pipeline**: Uploaded PDFs are stored in Google Cloud Storage under `assignments/{uuid}/assignment.pdf`, parsed once into a versioned layout manifest (see `LAYOUT.md`), previewed as page images, and exported by writing answers into the original PDF regions. See that doc for confidence states, OCR-required pages, and unsupported layouts.
+
+The candidate hybrid design, teacher-review flow, safety invariants, and benchmark commands are documented in [`docs/pdf-understanding-architecture.md`](docs/pdf-understanding-architecture.md). The existing parser remains the default until the acceptance benchmark supports promotion.
 
 ## Hardening and risk prevention
 
@@ -222,6 +226,12 @@ GEMINI_API_KEY=<your-gemini-api-key>
 GCS_BUCKET_NAME=<your-gcs-bucket-name>
 GOOGLE_CLOUD_PROJECT=<your-gcp-project-id>
 GEMINI_TEXT_MODEL=gemini-2.5-flash
+# PDF_PARSER_MODE=legacy
+# ENABLE_PADDLEOCR=false
+# ALLOW_SYNCHRONOUS_PADDLEOCR=false
+# ENABLE_DOCUMENT_SEMANTICS=false
+# ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS=false
+# ENABLE_DOCUMENT_TASK_AUTO_APPROVE=false
 ```
 
 | Variable | Description |
@@ -231,6 +241,14 @@ GEMINI_TEXT_MODEL=gemini-2.5-flash
 | `GOOGLE_CLOUD_PROJECT` | Google Cloud project ID |
 | `GEMINI_TEXT_MODEL` | Text model used for answer generation (default: `gemini-2.5-flash`) |
 | `ENABLE_DEBUG_GEMINI` | Set to `true` to expose `GET /debug-gemini` for local Gemini connectivity checks (default: disabled) |
+| `PDF_PARSER_MODE` | `legacy` (default), `hybrid`, or `paddle`; candidate modes require the optional parser environment |
+| `ENABLE_PADDLEOCR` | Enable the local PP-StructureV3 adapter (default: false) |
+| `ALLOW_SYNCHRONOUS_PADDLEOCR` | Development-only worker escape hatch; keep false on the upload service (default: false) |
+| `ENABLE_DOCUMENT_SEMANTICS` | Enable strict Gemini page/block/task classification (default: false) |
+| `ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS` | Development-only worker escape hatch; keep false on the upload service (default: false) |
+| `ENABLE_DOCUMENT_TASK_AUTO_APPROVE` | Allow high-confidence hybrid tasks to bypass review; keep false until benchmark promotion (default: false) |
+| `PADDLEOCR_DPI` | Page render DPI for the candidate adapter (default: 150) |
+| `PADDLEOCR_CPU_THREADS` | CPU inference thread count (default: 4) |
 
 Local development may also require Google Cloud application credentials for GCS access (e.g., `GOOGLE_APPLICATION_CREDENTIALS` or `gcloud auth application-default login`).
 

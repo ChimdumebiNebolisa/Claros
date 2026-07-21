@@ -26,7 +26,7 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: Ruff lint
-        run: ruff check agent.py assignment_service.py config.py exporter.py gemini_service.py main.py manifest.py observability.py ocr_adapter.py parser.py parser_layout.py schemas.py session_service.py storage.py tests/
+        run: ruff check agent.py assignment_service.py config.py document_model.py document_pipeline.py exporter.py gemini_service.py main.py manifest.py observability.py ocr_adapter.py parser.py parser_layout.py review_service.py semantic_classifier.py schemas.py session_service.py storage.py scripts/benchmark_pdf_pipeline.py scripts/merge_pdf_benchmark_reports.py tests/
 
       - name: Pytest with coverage gate
         run: pytest tests/ --cov --cov-config=pyproject.toml --cov-report=term-missing --cov-report=xml

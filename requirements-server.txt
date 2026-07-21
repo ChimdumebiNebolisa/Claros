@@ -2,6 +2,7 @@
 fastapi
 uvicorn[standard]
 google-genai
+openai
 python-dotenv
 pymupdf
 google-cloud-storage

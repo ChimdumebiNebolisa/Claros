@@ -64,6 +64,8 @@ from ordered source blocks and derives geometry only from validated candidates.
 - Confirmation state and written answers are server-authoritative for export.
 - Model/provider operational logs exclude worksheet/transcript content by
   default; telemetry uses hashes, latency, cost, and reason codes.
+- Upload and provider-session creation use bounded in-process sliding-window
+  limits. They are prototype safeguards, not a distributed production WAF.
 - Expiration and physical deletion are different. Storage lifecycle behavior is
   documented rather than claimed until verified.
 
