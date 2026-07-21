@@ -158,6 +158,12 @@ def migrate_manifest_data(data: dict[str, Any]) -> dict[str, Any]:
             "answer_region_status",
             "detected" if question.get("answer_region") else "missing",
         )
+        if payload.get("review_mode", "direct") == "direct" and question.get("needs_layout_review"):
+            # Student sessions never approve or alter uncertain page geometry. Preserve
+            # the review signal for diagnostics while routing the answer safely at export.
+            question["answer_region"] = None
+            question["answer_region_status"] = "side_panel"
+            question["approved"] = False
         questions.append(question)
     payload["questions"] = questions
     payload.setdefault("page_count", 1)
@@ -185,10 +191,18 @@ def build_manifest(
     expires_at = None
     if ttl_days and ttl_days > 0:
         expires_at = (datetime.now(timezone.utc) + timedelta(days=ttl_days)).isoformat()
+    normalized_questions = []
+    for raw_question in questions:
+        question = dict(raw_question)
+        if review_mode == "direct" and question.get("needs_layout_review"):
+            question["answer_region"] = None
+            question["answer_region_status"] = "side_panel"
+            question["approved"] = False
+        normalized_questions.append(question)
     return AssignmentManifest(
         assignment_id=assignment_id,
         title=title,
-        questions=[ManifestQuestion.model_validate(q) for q in questions],
+        questions=[ManifestQuestion.model_validate(q) for q in normalized_questions],
         page_count=page_count,
         parse_status=parse_status,
         parse_warnings=parse_warnings or [],

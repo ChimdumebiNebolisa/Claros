@@ -31,7 +31,6 @@ from schemas import (
     TeacherReviewRequest,
     WriteRequest,
     trim_conversation,
-    validate_export_answers,
 )
 import session_service
 import storage
@@ -243,22 +242,11 @@ async def stream_write(
         raise HTTPException(status_code=400, detail=f"Unknown question id: {body.question_id}")
     question = next(q for q in questions if q["id"] == body.question_id)
     if question.get("needs_layout_review"):
-        if not body.layout_confirmed or not body.answer_region:
+        if question.get("answer_region_status") != "side_panel":
             raise HTTPException(
                 status_code=409,
-                detail="Answer layout must be reviewed and confirmed before writing",
+                detail="Layout review is unavailable in student sessions; uncertain placement must use the safe side panel",
             )
-        validated = validate_export_answers(
-            [
-                {
-                    "question_id": body.question_id,
-                    "answer_text": body.answer_candidate,
-                    "answer_region": body.answer_region,
-                }
-            ]
-        )
-        if "answer_region" not in validated[0]:
-            raise HTTPException(status_code=409, detail="A confirmed answer region is required")
     elif not question.get("answer_region") and question.get("answer_region_status") != "side_panel":
         raise HTTPException(status_code=409, detail="A usable answer region is required before writing")
     trimmed = trim_conversation(body.conversation)
@@ -498,6 +486,15 @@ async def serve_sample_page_preview():
         return Response(content=pixmap.tobytes("png"), media_type="image/png")
     finally:
         document.close()
+
+
+@app.get("/sample-workspace.png")
+async def serve_sample_workspace_preview():
+    """Serve the checked-in synthetic sample workspace image used on the landing page."""
+    path = config.ROOT / "frontend" / "sample-workspace.png"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="sample-workspace.png not found")
+    return FileResponse(path, media_type="image/png")
 
 
 @app.get("/genai.bundle.js", response_class=Response)

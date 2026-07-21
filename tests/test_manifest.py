@@ -21,6 +21,46 @@ def test_build_manifest_round_trip():
     assert restored.expires_at is not None
 
 
+def test_direct_manifest_routes_uncertain_region_to_side_panel():
+    manifest = build_manifest(
+        assignment_id="safe-route",
+        title="Quiz",
+        questions=[
+            {
+                "id": 1,
+                "text": "Explain",
+                "answer_region": {"x": 0.2, "y": 0.3, "width": 0.2, "height": 0.05},
+                "needs_layout_review": True,
+                "answer_region_status": "detected",
+            }
+        ],
+    )
+    question = manifest.to_questions_dict()[0]
+    assert question["needs_layout_review"] is True
+    assert question["answer_region"] is None
+    assert question["answer_region_status"] == "side_panel"
+
+
+def test_teacher_manifest_preserves_review_region_for_authorized_workflow():
+    manifest = build_manifest(
+        assignment_id="teacher-route",
+        title="Quiz",
+        review_mode="teacher",
+        questions=[
+            {
+                "id": 1,
+                "text": "Explain",
+                "answer_region": {"x": 0.2, "y": 0.3, "width": 0.2, "height": 0.05},
+                "needs_layout_review": True,
+                "answer_region_status": "detected",
+            }
+        ],
+    )
+    question = manifest.to_questions_dict()[0]
+    assert question["answer_region"] is not None
+    assert question["answer_region_status"] == "detected"
+
+
 def test_manifest_to_questions_dict():
     manifest = AssignmentManifest(
         assignment_id="x",

@@ -138,7 +138,7 @@ def test_low_confidence_answer_region_is_suppressed_and_requires_review(tmp_path
     assert "layout_review_required" in warnings
 
 
-def test_write_rejects_unconfirmed_layout(monkeypatch):
+def test_write_rejects_client_confirmed_layout(monkeypatch):
     monkeypatch.setattr(config, "ENFORCE_WRITE_CONTRACT", False)
     monkeypatch.setattr(main_module, "_require_assignment_capability", lambda *_args: None)
     monkeypatch.setattr(
@@ -162,7 +162,12 @@ def test_write_rejects_unconfirmed_layout(monkeypatch):
 
     response = client.post(
         f"/api/write/{TEST_ASSIGNMENT_ID}",
-        json={"question_id": 1, "answer_candidate": "A response", "layout_confirmed": False},
+        json={
+            "question_id": 1,
+            "answer_candidate": "A response",
+            "layout_confirmed": True,
+            "answer_region": {"x": 0.2, "y": 0.2, "width": 0.2, "height": 0.05},
+        },
     )
 
     assert response.status_code == 409
