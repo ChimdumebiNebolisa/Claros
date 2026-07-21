@@ -32,13 +32,14 @@ def test_validate_bbox_rejects_nan_and_outside_page():
 def test_simple_one_column_layout(tmp_path):
     path = write_simple_one_column(tmp_path / "simple.pdf")
     title, questions, warnings, status = parse_pdf_with_diagnostics(path)
-    assert status == "ok"
+    assert status == "layout_review_required"
     assert title
     assert [q.id for q in questions] == [1, 2]
     for question in questions:
         assert question.page == 1
-        assert question.answer_region is not None
         assert 0.0 <= question.layout_confidence <= 1.0
+    assert questions[0].answer_region is not None
+    assert questions[1].answer_region is None
 
 
 def test_answer_lines_fixture_detects_regions(tmp_path):
@@ -115,6 +116,7 @@ def test_preview_route_happy_path(monkeypatch, tmp_path):
 
     monkeypatch.setattr(assignment_service, "load_assignment_manifest", lambda _id: manifest)
     monkeypatch.setattr(assignment_service, "_download_pdf_bytes", lambda _id: pdf_bytes)
+    monkeypatch.setattr(main_module, "_require_assignment_capability", lambda *_args: None)
 
     response = client.get(f"/api/assignments/{TEST_ASSIGNMENT_ID}/pages/1.png")
     assert response.status_code == 200
@@ -135,6 +137,7 @@ def test_preview_rejects_invalid_page(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(assignment_service, "load_assignment_manifest", lambda _id: manifest)
     monkeypatch.setattr(assignment_service, "_download_pdf_bytes", lambda _id: path.read_bytes())
+    monkeypatch.setattr(main_module, "_require_assignment_capability", lambda *_args: None)
     response = client.get(f"/api/assignments/{TEST_ASSIGNMENT_ID}/pages/99.png")
     assert response.status_code == 404
 
@@ -145,6 +148,7 @@ def test_preview_rejects_expired(monkeypatch):
         "load_assignment_manifest",
         lambda _id: (_ for _ in ()).throw(assignment_service.AssignmentExpiredError("expired")),
     )
+    monkeypatch.setattr(main_module, "_require_assignment_capability", lambda *_args: None)
     response = client.get(f"/api/assignments/{TEST_ASSIGNMENT_ID}/pages/1.png")
     assert response.status_code == 410
 

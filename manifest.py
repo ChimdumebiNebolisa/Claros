@@ -8,7 +8,9 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-MANIFEST_VERSION = 2
+from document_model import IntermediateDocument
+
+MANIFEST_VERSION = 3
 LEGACY_MANIFEST_VERSION = 1
 CANONICAL_MANIFEST_NAME = "manifest.json"
 
@@ -20,13 +22,25 @@ MIN_ANSWER_HEIGHT = 18.0
 
 class ManifestQuestion(BaseModel):
     id: int
+    task_id: str | None = None
     text: str
+    label: str | None = None
     page: int = 1
+    page_index: int | None = None
+    page_role: str = "unknown"
     prompt_region: dict[str, float] | None = None
     answer_region: dict[str, float] | None = None
     detected_answer_region: dict[str, float] | None = None
+    prompt_bbox: list[float] | None = None
+    answer_bbox: list[float] | None = None
+    response_type: str = "short_text"
+    confidence: float = 0.0
     layout_confidence: float = 0.0
     needs_layout_review: bool = True
+    review_status: str = "needs_review"
+    answer_region_status: str = "missing"
+    source_blocks: list[str] = Field(default_factory=list)
+    approved: bool = False
 
 
 class AssignmentManifest(BaseModel):
@@ -35,24 +49,42 @@ class AssignmentManifest(BaseModel):
     title: str
     questions: list[ManifestQuestion]
     page_count: int = 1
-    parse_status: str = "ok"  # ok | fallback_single_block | empty_extraction
+    parse_status: str = "ok"  # ok | layout_review_required | unsupported_layout | requires_ocr
     parse_warnings: list[str] = Field(default_factory=list)
+    parser: str = "legacy"
+    review_mode: str = "direct"
+    review_status: str = "unreviewed"
+    document: IntermediateDocument | None = None
+    assignment_capability_hash: str | None = None
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     expires_at: str | None = None
 
-    def to_questions_dict(self) -> list[dict]:
+    def to_questions_dict(self, *, approved_only: bool = False) -> list[dict]:
         return [
             {
                 "id": q.id,
+                "task_id": q.task_id,
+                "label": q.label,
                 "text": q.text,
                 "page": q.page,
+                "page_index": q.page_index if q.page_index is not None else q.page - 1,
+                "page_role": q.page_role,
                 "prompt_region": q.prompt_region,
                 "answer_region": q.answer_region,
                 "detected_answer_region": q.detected_answer_region,
+                "prompt_bbox": q.prompt_bbox,
+                "answer_bbox": q.answer_bbox,
+                "response_type": q.response_type,
+                "confidence": q.confidence,
                 "layout_confidence": q.layout_confidence,
                 "needs_layout_review": q.needs_layout_review,
+                "review_status": q.review_status,
+                "answer_region_status": q.answer_region_status,
+                "source_blocks": q.source_blocks,
+                "approved": q.approved,
             }
             for q in self.questions
+            if not approved_only or q.approved
         ]
 
     def is_expired(self, now: datetime | None = None) -> bool:
@@ -113,7 +145,25 @@ def migrate_manifest_data(data: dict[str, Any]) -> dict[str, Any]:
         if "legacy_manifest_v1" not in warnings:
             warnings.append("legacy_manifest_v1")
         payload["version"] = MANIFEST_VERSION
+    questions = []
+    for raw_question in payload.get("questions") or []:
+        question = dict(raw_question)
+        approved = bool(
+            question.get("approved", not question.get("needs_layout_review", True) and question.get("answer_region"))
+        )
+        question.setdefault("page_index", max(0, int(question.get("page", 1)) - 1))
+        question.setdefault("approved", approved)
+        question.setdefault("review_status", "auto_approved" if approved else "needs_review")
+        question.setdefault(
+            "answer_region_status",
+            "detected" if question.get("answer_region") else "missing",
+        )
+        questions.append(question)
+    payload["questions"] = questions
     payload.setdefault("page_count", 1)
+    payload.setdefault("parser", "legacy")
+    payload.setdefault("review_mode", "direct")
+    payload.setdefault("review_status", "unreviewed")
     payload["parse_warnings"] = warnings
     return payload
 
@@ -126,6 +176,11 @@ def build_manifest(
     parse_warnings: list[str] | None = None,
     page_count: int = 1,
     ttl_days: int | None = None,
+    parser: str = "legacy",
+    review_mode: str = "direct",
+    review_status: str = "unreviewed",
+    document: IntermediateDocument | None = None,
+    assignment_capability_hash: str | None = None,
 ) -> AssignmentManifest:
     expires_at = None
     if ttl_days and ttl_days > 0:
@@ -138,6 +193,11 @@ def build_manifest(
         parse_status=parse_status,
         parse_warnings=parse_warnings or [],
         expires_at=expires_at,
+        parser=parser,
+        review_mode=review_mode,
+        review_status=review_status,
+        document=document,
+        assignment_capability_hash=assignment_capability_hash,
     )
 
 

@@ -94,3 +94,68 @@ def test_original_export_preserves_page_and_writes_answer():
         document.close()
     assert "Original Worksheet" in text
     assert "4" in text
+
+
+def test_original_export_does_not_use_unreviewed_manifest_region_without_confirmation():
+    source = fitz.open()
+    page = source.new_page(width=612, height=792)
+    page.insert_text((72, 72), "Original Worksheet", fontsize=16)
+    original_bytes = source.tobytes()
+    source.close()
+    region = {"x": 0.12, "y": 0.2, "width": 0.45, "height": 0.08}
+    questions = [
+        {
+            "id": 1,
+            "text": "Explain",
+            "page": 1,
+            "answer_region": region,
+            "needs_layout_review": True,
+        }
+    ]
+
+    safe_fallback = build_original_export_pdf(
+        original_bytes,
+        questions,
+        [{"question_id": 1, "answer_text": "Confirmed answer"}],
+    )
+    document = fitz.open(stream=safe_fallback, filetype="pdf")
+    try:
+        assert document.page_count == 2
+        assert "Confirmed answer" not in document[0].get_text()
+        assert "Confirmed answer" in document[1].get_text()
+    finally:
+        document.close()
+
+    explicit_confirmation = build_original_export_pdf(
+        original_bytes,
+        questions,
+        [{"question_id": 1, "answer_text": "Confirmed answer", "answer_region": region}],
+    )
+    document = fitz.open(stream=explicit_confirmation, filetype="pdf")
+    try:
+        assert document.page_count == 1
+        assert "Confirmed answer" in document[0].get_text()
+    finally:
+        document.close()
+
+
+def test_original_export_paginates_long_side_panel_answers_without_truncation():
+    source = fitz.open()
+    source.new_page(width=612, height=792)
+    original_bytes = source.tobytes()
+    source.close()
+    answer = "lorem ipsum " * 350
+
+    exported = build_original_export_pdf(
+        original_bytes,
+        [{"id": 1, "text": "Explain", "page": 1, "answer_region": None}],
+        [{"question_id": 1, "answer_text": answer}],
+    )
+
+    document = fitz.open(stream=exported, filetype="pdf")
+    try:
+        extracted = " ".join(page.get_text() for page in document)
+        assert document.page_count > 2
+    finally:
+        document.close()
+    assert extracted.count("lorem") == 350

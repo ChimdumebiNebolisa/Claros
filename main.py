@@ -2,13 +2,14 @@
 Claros backend: FastAPI app with PDF upload, session config (ephemeral token), and write/export.
 Real-time voice uses Gemini Live directly from the browser.
 """
+import asyncio
 import json
 import logging
 import uuid
 from uuid import UUID
 
 import fitz
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, Header, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 
 import assignment_service
@@ -18,6 +19,7 @@ from assignment_service import (
     get_parse_diagnostics,
     persist_assignment_from_pdf_bytes,
     render_assignment_page,
+    review_assignment,
 )
 import config
 from gemini_service import create_session_config, debug_gemini_text_call, stamp_confirmed_answer, stream_write_answer
@@ -26,6 +28,7 @@ from schemas import (
     SessionConfirmRequest,
     SessionRestoreRequest,
     SessionStartRequest,
+    TeacherReviewRequest,
     WriteRequest,
     trim_conversation,
     validate_export_answers,
@@ -34,10 +37,30 @@ import session_service
 import storage
 from observability import record_metric
 from parser import PDFProcessingError
+from rate_limit import SlidingWindowRateLimiter
 
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+rate_limiter = SlidingWindowRateLimiter()
+upload_semaphore = asyncio.Semaphore(config.MAX_CONCURRENT_UPLOADS)
+
+
+@app.middleware("http")
+async def limit_upload_concurrency(request: Request, call_next):
+    if request.url.path != "/upload":
+        return await call_next(request)
+    try:
+        await asyncio.wait_for(upload_semaphore.acquire(), timeout=0.1)
+    except TimeoutError:
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Upload capacity is temporarily full. Please retry shortly."},
+        )
+    try:
+        return await call_next(request)
+    finally:
+        upload_semaphore.release()
 
 
 @app.exception_handler(storage.StorageConflict)
@@ -64,6 +87,29 @@ def _assignment_not_found() -> HTTPException:
     return HTTPException(status_code=404, detail="Assignment not found")
 
 
+def _require_assignment_capability(assignment_id: str, capability: str | None) -> None:
+    """Require the browser-held assignment capability for sensitive resources."""
+    try:
+        assignment_service.require_assignment_capability(assignment_id, capability)
+    except assignment_service.AssignmentExpiredError:
+        raise HTTPException(status_code=410, detail="Assignment expired")
+    except ValueError:
+        raise _assignment_not_found()
+
+
+def _rate_limit_key(request: Request, capability: str | None = None) -> str:
+    if capability:
+        return f"capability:{assignment_service.assignment_capability_digest(capability)}"
+    client = request.client.host if request.client else "unknown"
+    return f"ip:{client}"
+
+
+def _enforce_rate_limit(request: Request, bucket: str, limit: int, capability: str | None = None) -> None:
+    if not rate_limiter.allow(f"{bucket}:{_rate_limit_key(request, capability)}", limit):
+        record_metric("rate_limit", status="blocked", reason=bucket)
+        raise HTTPException(status_code=429, detail="Too many requests. Please try again shortly.")
+
+
 async def _read_upload_bounded(file: UploadFile, max_bytes: int) -> bytes:
     """Read upload body in chunks so oversize files fail before buffering the full payload."""
     chunks: list[bytes] = []
@@ -80,9 +126,15 @@ async def _read_upload_bounded(file: UploadFile, max_bytes: int) -> bytes:
 
 
 @app.get("/api/session-config/{assignment_id}")
-def get_session_config(assignment_id: UUID):
+def get_session_config(
+    assignment_id: UUID,
+    request: Request,
+    x_assignment_capability: str | None = Header(default=None),
+):
     """Return ephemeral token + system prompt + model for browser-side Gemini Live. API key stays on server."""
     aid = str(assignment_id)
+    _require_assignment_capability(aid, x_assignment_capability)
+    _enforce_rate_limit(request, "provider_session", config.MAX_PROVIDER_SESSIONS_PER_MINUTE, x_assignment_capability)
     try:
         return create_session_config(aid)
     except assignment_service.AssignmentExpiredError:
@@ -99,13 +151,14 @@ def get_session_config(assignment_id: UUID):
 
 
 @app.post("/api/session/start")
-def start_tutoring_session(body: SessionStartRequest):
+def start_tutoring_session(body: SessionStartRequest, x_assignment_capability: str | None = Header(default=None)):
     """Create a durable server-side session for an assignment."""
     aid = body.assignment_id.strip()
     try:
         _ = UUID(aid)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid assignment_id")
+    _require_assignment_capability(aid, x_assignment_capability)
     try:
         title, questions = assignment_service.load_assignment_from_gcs(aid)
     except assignment_service.AssignmentExpiredError:
@@ -124,8 +177,14 @@ def start_tutoring_session(body: SessionStartRequest):
 
 
 @app.post("/api/session/{session_id}/confirm")
-def confirm_answer_for_question(session_id: UUID, body: SessionConfirmRequest):
+def confirm_answer_for_question(
+    session_id: UUID,
+    body: SessionConfirmRequest,
+    x_assignment_capability: str | None = Header(default=None),
+):
     """Explicitly confirm a student-owned answer and receive a single-use write token."""
+    state = session_service.load_session(str(session_id))
+    _require_assignment_capability(state.assignment_id, x_assignment_capability)
     result = session_service.confirm_answer(
         str(session_id),
         body.session_secret,
@@ -137,15 +196,28 @@ def confirm_answer_for_question(session_id: UUID, body: SessionConfirmRequest):
 
 
 @app.post("/api/session/{session_id}/restore")
-def restore_session(session_id: UUID, body: SessionRestoreRequest):
+def restore_session(
+    session_id: UUID,
+    body: SessionRestoreRequest,
+    x_assignment_capability: str | None = Header(default=None),
+):
     """Restore confirmed-answer state after a browser refresh."""
+    state = session_service.load_session(str(session_id))
+    _require_assignment_capability(state.assignment_id, x_assignment_capability)
     return session_service.restore_session_for_client(str(session_id), body.session_secret)
 
 
 @app.post("/api/write/{assignment_id}")
-async def stream_write(assignment_id: UUID, body: WriteRequest):
+async def stream_write(
+    assignment_id: UUID,
+    body: WriteRequest,
+    request: Request,
+    x_assignment_capability: str | None = Header(default=None),
+):
     """Stream generated answer text for a question. Frontend calls this when write is triggered."""
     aid = str(assignment_id)
+    _require_assignment_capability(aid, x_assignment_capability)
+    _enforce_rate_limit(request, "write", config.MAX_WRITES_PER_MINUTE, x_assignment_capability)
     if config.ENFORCE_WRITE_CONTRACT:
         if not body.answer_candidate.strip():
             raise HTTPException(status_code=400, detail="answer_candidate must be non-empty")
@@ -169,6 +241,26 @@ async def stream_write(assignment_id: UUID, body: WriteRequest):
     qids = [q["id"] for q in questions]
     if body.question_id not in qids:
         raise HTTPException(status_code=400, detail=f"Unknown question id: {body.question_id}")
+    question = next(q for q in questions if q["id"] == body.question_id)
+    if question.get("needs_layout_review"):
+        if not body.layout_confirmed or not body.answer_region:
+            raise HTTPException(
+                status_code=409,
+                detail="Answer layout must be reviewed and confirmed before writing",
+            )
+        validated = validate_export_answers(
+            [
+                {
+                    "question_id": body.question_id,
+                    "answer_text": body.answer_candidate,
+                    "answer_region": body.answer_region,
+                }
+            ]
+        )
+        if "answer_region" not in validated[0]:
+            raise HTTPException(status_code=409, detail="A confirmed answer region is required")
+    elif not question.get("answer_region") and question.get("answer_region_status") != "side_panel":
+        raise HTTPException(status_code=409, detail="A usable answer region is required before writing")
     trimmed = trim_conversation(body.conversation)
     if len(trimmed) < len(body.conversation):
         logger.info(
@@ -180,6 +272,7 @@ async def stream_write(assignment_id: UUID, body: WriteRequest):
     # Confirmed writes already passed the single-use token/fingerprint gate.
     # Stamp the approved text instead of waiting on Gemini reformatting.
     if config.ENFORCE_WRITE_CONTRACT:
+        session_service.mark_answer_written(state, body.question_id, body.answer_candidate)
         return StreamingResponse(
             stamp_confirmed_answer(body.answer_candidate or ""),
             media_type="text/plain; charset=utf-8",
@@ -196,26 +289,31 @@ async def stream_write(assignment_id: UUID, body: WriteRequest):
 
 
 @app.get("/export/{assignment_id}")
-async def export_assignment_get(assignment_id: UUID, answers: str = Query(..., alias="answers")):
-    """Generate PDF of questions and answers. Query param 'answers' = JSON array of {question_id, answer_text}."""
-    aid = str(assignment_id)
-    try:
-        answers_list = json.loads(answers)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid answers JSON")
-    return build_export_response(aid, validate_export_answers(answers_list))
+async def export_assignment_get(assignment_id: UUID):
+    """Legacy query-string export is disabled to prevent answer injection."""
+    raise HTTPException(status_code=405, detail="Use the authorized POST export flow")
 
 
 @app.post("/export/{assignment_id}")
-async def export_assignment_post(assignment_id: UUID, body: ExportRequest):
-    """Generate PDF of questions and answers from a JSON body."""
-    return build_export_response(str(assignment_id), validate_export_answers(body.answers))
+async def export_assignment_post(
+    assignment_id: UUID,
+    body: ExportRequest,
+    x_assignment_capability: str | None = Header(default=None),
+):
+    """Export only answers written through the confirmed server-side flow."""
+    aid = str(assignment_id)
+    _require_assignment_capability(aid, x_assignment_capability)
+    answers = session_service.written_answers_for_export(body.session_id, body.session_secret, aid)
+    if not answers:
+        raise HTTPException(status_code=409, detail="No confirmed written answers are available for export")
+    return build_export_response(aid, answers)
 
 
 @app.get("/api/assignments/{assignment_id}/parse-diagnostics")
-def parse_diagnostics(assignment_id: UUID):
+def parse_diagnostics(assignment_id: UUID, x_assignment_capability: str | None = Header(default=None)):
     """Return parse warnings and status for an assignment manifest."""
     try:
+        _require_assignment_capability(str(assignment_id), x_assignment_capability)
         return get_parse_diagnostics(str(assignment_id))
     except assignment_service.AssignmentExpiredError:
         raise HTTPException(status_code=410, detail="Assignment expired")
@@ -226,11 +324,58 @@ def parse_diagnostics(assignment_id: UUID):
         raise HTTPException(status_code=500, detail="Could not load parse diagnostics.")
 
 
+@app.get("/api/teacher/assignments/{assignment_id}")
+def teacher_assignment_review(assignment_id: UUID, x_assignment_capability: str | None = Header(default=None)):
+    """Return the complete review manifest, including uncertain and rejected tasks."""
+    try:
+        _require_assignment_capability(str(assignment_id), x_assignment_capability)
+        manifest = assignment_service.load_assignment_manifest(str(assignment_id))
+    except assignment_service.AssignmentExpiredError:
+        raise HTTPException(status_code=410, detail="Assignment expired")
+    except ValueError:
+        raise _assignment_not_found()
+    if manifest.review_mode != "teacher":
+        raise HTTPException(status_code=409, detail="Assignment is not in teacher review mode")
+    return manifest.model_dump(mode="json")
+
+
+@app.post("/api/teacher/assignments/{assignment_id}/review")
+def update_teacher_assignment(
+    assignment_id: UUID,
+    body: TeacherReviewRequest,
+    request: Request,
+    x_assignment_capability: str | None = Header(default=None),
+):
+    """Apply explicit accept/edit/merge/split/hide/reject decisions and optionally finalize."""
+    try:
+        _require_assignment_capability(str(assignment_id), x_assignment_capability)
+        _enforce_rate_limit(request, "assignment_mutation", config.MAX_MUTATIONS_PER_MINUTE, x_assignment_capability)
+        manifest = review_assignment(
+            str(assignment_id),
+            [action.model_dump(exclude_unset=True) for action in body.actions],
+            finalize=body.finalize,
+        )
+    except assignment_service.AssignmentExpiredError:
+        raise HTTPException(status_code=410, detail="Assignment expired")
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    return manifest.model_dump(mode="json")
+
+
 @app.get("/api/assignments/{assignment_id}/pages/{page_number}.png")
-def assignment_page_preview(assignment_id: UUID, page_number: int):
+def assignment_page_preview(
+    assignment_id: UUID,
+    page_number: int,
+    request: Request,
+    x_assignment_capability: str | None = Header(default=None),
+):
     """Render an original worksheet page for the browser document canvas."""
     try:
+        _require_assignment_capability(str(assignment_id), x_assignment_capability)
+        _enforce_rate_limit(request, "page_render", config.MAX_PAGE_RENDERS_PER_MINUTE, x_assignment_capability)
         content = render_assignment_page(str(assignment_id), page_number)
+    except HTTPException:
+        raise
     except assignment_service.AssignmentExpiredError:
         raise HTTPException(status_code=410, detail="Assignment expired")
     except ValueError:
@@ -242,23 +387,47 @@ def assignment_page_preview(assignment_id: UUID, page_number: int):
 
 
 @app.delete("/api/assignments/{assignment_id}")
-def delete_assignment_route(assignment_id: UUID):
+def delete_assignment_route(
+    assignment_id: UUID,
+    request: Request,
+    x_assignment_capability: str | None = Header(default=None),
+):
     """Delete assignment PDF, manifest, and related objects from storage."""
+    _require_assignment_capability(str(assignment_id), x_assignment_capability)
+    _enforce_rate_limit(request, "assignment_mutation", config.MAX_MUTATIONS_PER_MINUTE, x_assignment_capability)
     delete_assignment(str(assignment_id))
     return {"deleted": True, "assignment_id": str(assignment_id)}
 
 
 @app.post("/upload")
-async def upload_assignment(file: UploadFile = File(...)):
+async def upload_assignment(
+    request: Request,
+    file: UploadFile = File(...),
+    review_mode: str = Query("direct", pattern="^(direct|teacher)$"),
+):
     """Accept PDF, parse once, persist manifest + PDF. Returns assignment_id, title, questions."""
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted")
+    _enforce_rate_limit(request, "upload", config.MAX_UPLOADS_PER_MINUTE)
     assignment_id = str(uuid.uuid4())
+    assignment_capability = assignment_service.create_assignment_capability()
     content = await _read_upload_bounded(file, config.MAX_UPLOAD_BYTES)
     if not config.looks_like_pdf(content):
         raise HTTPException(status_code=400, detail="Only valid PDF files are accepted.")
     try:
-        manifest = persist_assignment_from_pdf_bytes(assignment_id, content)
+        if review_mode == "teacher":
+            manifest = persist_assignment_from_pdf_bytes(
+                assignment_id,
+                content,
+                review_mode=review_mode,
+                assignment_capability_hash=assignment_service.assignment_capability_digest(assignment_capability),
+            )
+        else:
+            manifest = persist_assignment_from_pdf_bytes(
+                assignment_id,
+                content,
+                assignment_capability_hash=assignment_service.assignment_capability_digest(assignment_capability),
+            )
         payload = manifest.to_questions_dict()
         record_metric("pdf_parse", status="ok" if manifest.parse_status == "ok" else "fallback")
         logger.info(
@@ -269,11 +438,20 @@ async def upload_assignment(file: UploadFile = File(...)):
         )
         return {
             "assignment_id": assignment_id,
+            "assignment_capability": assignment_capability,
             "title": manifest.title,
             "questions": payload,
             "page_count": manifest.page_count,
             "parse_status": manifest.parse_status,
             "parse_warnings": manifest.parse_warnings,
+            "parser": manifest.parser,
+            "review_mode": manifest.review_mode,
+            "review_status": manifest.review_status,
+            "pages": (
+                [page.model_dump(mode="json") for page in manifest.document.pages]
+                if manifest.document is not None
+                else []
+            ),
         }
     except PDFProcessingError as exc:
         record_metric("pdf_parse", status="error", reason="malformed")
@@ -284,10 +462,11 @@ async def upload_assignment(file: UploadFile = File(...)):
 
 
 @app.get("/debug-gemini")
-async def debug_gemini():
+async def debug_gemini(request: Request):
     """Optional diagnostic: verify backend can reach Gemini text API. Disabled unless ENABLE_DEBUG_GEMINI is set."""
     if not config.is_debug_gemini_enabled():
         raise HTTPException(status_code=404, detail="Not found")
+    _enforce_rate_limit(request, "debug_provider", 1)
     try:
         return await debug_gemini_text_call()
     except Exception:

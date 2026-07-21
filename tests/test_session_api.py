@@ -31,8 +31,25 @@ def mock_session_storage(monkeypatch):
     monkeypatch.setattr(
         assignment_service,
         "load_assignment_from_gcs",
-        lambda _id: ("Mock", [{"id": 1, "text": "Q1"}, {"id": 2, "text": "Q2"}]),
+        lambda _id: (
+            "Mock",
+            [
+                {
+                    "id": 1,
+                    "text": "Q1",
+                    "answer_region": {"x": 0.1, "y": 0.2, "width": 0.4, "height": 0.1},
+                    "needs_layout_review": False,
+                },
+                {
+                    "id": 2,
+                    "text": "Q2",
+                    "answer_region": {"x": 0.1, "y": 0.4, "width": 0.4, "height": 0.1},
+                    "needs_layout_review": False,
+                },
+            ],
+        ),
     )
+    monkeypatch.setattr(main_module, "_require_assignment_capability", lambda *_args: None)
 
 
 @pytest.fixture
@@ -58,6 +75,18 @@ def test_session_secret_is_keyed_hash_at_rest(client):
     assert stored["session_secret_hash"]
     assert stored["session_secret_hash"] != start["session_secret"]
     assert "session_secret" not in stored
+
+
+def test_legacy_plaintext_session_secret_cannot_authenticate():
+    state = session_service.SessionState(
+        {
+            "session_id": "legacy",
+            "assignment_id": TEST_ASSIGNMENT_ID,
+            "session_secret": "legacy-plaintext-secret",
+            "questions": {},
+        }
+    )
+    assert state.verify_session_secret("legacy-plaintext-secret") is False
 
 
 def test_restore_rejects_wrong_session_secret(client):

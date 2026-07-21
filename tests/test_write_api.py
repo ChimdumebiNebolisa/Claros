@@ -11,9 +11,9 @@ from tests.conftest import TEST_ASSIGNMENT_ID
 
 _FIXED_TITLE = "Mock Assignment"
 _FIXED_QUESTIONS = [
-    {"id": 1, "text": "First?"},
-    {"id": 3, "text": "Second?"},
-    {"id": 7, "text": "Third?"},
+    {"id": 1, "text": "First?", "answer_region": {"x": 0.1, "y": 0.2, "width": 0.4, "height": 0.1}, "needs_layout_review": False},
+    {"id": 3, "text": "Second?", "answer_region": {"x": 0.1, "y": 0.4, "width": 0.4, "height": 0.1}, "needs_layout_review": False},
+    {"id": 7, "text": "Third?", "answer_region": {"x": 0.1, "y": 0.6, "width": 0.4, "height": 0.1}, "needs_layout_review": False},
 ]
 
 _STORE: dict[str, bytes] = {}
@@ -39,6 +39,7 @@ def write_client(monkeypatch):
     monkeypatch.setattr(session_service.storage, "upload_session_to_gcs", upload)
     monkeypatch.setattr(session_service.storage, "download_session_from_gcs", download)
     monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", _fake_load_assignment)
+    monkeypatch.setattr(main_module, "_require_assignment_capability", lambda *_args: None)
     monkeypatch.setattr(gemini_service, "get_api_key", lambda: "test-api-key-not-used")
     monkeypatch.setattr(config, "ENFORCE_WRITE_CONTRACT", True)
 

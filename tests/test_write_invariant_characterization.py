@@ -18,6 +18,7 @@ def write_client(monkeypatch):
         lambda _id: ("Mock", [{"id": 1, "text": "Q?"}]),
     )
     monkeypatch.setattr(gemini_service, "get_api_key", lambda: "test-api-key-not-used")
+    monkeypatch.setattr(main_module, "_require_assignment_capability", lambda *_args: None)
 
     class FakeChunk:
         __slots__ = ("text",)
@@ -80,14 +81,13 @@ def test_write_prompt_requires_confirmed_candidate_text():
     assert "do not invent" in prompt.lower()
 
 
-def test_parser_fallback_single_block_reports_warning(tmp_pdf_no_questions):
+def test_parser_unsupported_layout_has_no_fallback_question(tmp_pdf_no_questions):
     from parser import parse_pdf_with_diagnostics
 
     _title, questions, warnings, status = parse_pdf_with_diagnostics(tmp_pdf_no_questions)
-    assert len(questions) == 1
-    assert questions[0].id == 0
-    assert status == "fallback_single_block"
-    assert "fallback_single_block" in warnings
+    assert questions == []
+    assert status == "unsupported_layout"
+    assert "unsupported_layout" in warnings
 
 
 def test_session_confirm_issues_write_token(monkeypatch, write_client):
@@ -96,7 +96,7 @@ def test_session_confirm_issues_write_token(monkeypatch, write_client):
         "blob": {
             "session_id": "550e8400-e29b-41d4-a716-446655440001",
             "assignment_id": TEST_ASSIGNMENT_ID,
-            "session_secret": "secret-abc",
+            "session_secret_hash": session_service._secret_digest("secret-abc"),
             "expires_at": "2099-01-01T00:00:00+00:00",
             "questions": {"1": {}},
         }
@@ -105,7 +105,7 @@ def test_session_confirm_issues_write_token(monkeypatch, write_client):
     def fake_create(assignment_id, question_ids):
         return {
             "session_id": created["blob"]["session_id"],
-            "session_secret": created["blob"]["session_secret"],
+            "session_secret": "secret-abc",
             "expires_at": created["blob"]["expires_at"],
         }
 

@@ -55,18 +55,11 @@ def test_load_assignment_prefers_canonical_assignment_pdf(monkeypatch):
     title, questions = assignment_service.load_assignment_from_gcs(TEST_ASSIGNMENT_ID)
 
     assert title == "Title"
-    assert questions == [
-        {
-            "id": 1,
-            "text": "Q?",
-            "page": 1,
-            "prompt_region": None,
-            "answer_region": None,
-            "detected_answer_region": None,
-            "layout_confidence": 0.0,
-            "needs_layout_review": True,
-        }
-    ]
+    assert len(questions) == 1
+    assert questions[0]["id"] == 1
+    assert questions[0]["text"] == "Q?"
+    assert questions[0]["needs_layout_review"] is True
+    assert questions[0]["answer_region_status"] == "side_panel"
     bucket.blob.assert_called_with(assignment_pdf_path(TEST_ASSIGNMENT_ID))
 
 
@@ -91,18 +84,11 @@ def test_load_assignment_falls_back_to_sorted_pdf(monkeypatch):
     title, questions = assignment_service.load_assignment_from_gcs(TEST_ASSIGNMENT_ID)
 
     assert title == "Title"
-    assert questions == [
-        {
-            "id": 1,
-            "text": "Q?",
-            "page": 1,
-            "prompt_region": None,
-            "answer_region": None,
-            "detected_answer_region": None,
-            "layout_confidence": 0.0,
-            "needs_layout_review": True,
-        }
-    ]
+    assert len(questions) == 1
+    assert questions[0]["id"] == 1
+    assert questions[0]["text"] == "Q?"
+    assert questions[0]["needs_layout_review"] is True
+    assert questions[0]["answer_region_status"] == "side_panel"
     bucket.list_blobs.assert_called_once_with(prefix=f"assignments/{TEST_ASSIGNMENT_ID}/")
 
 

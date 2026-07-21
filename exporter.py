@@ -33,8 +33,26 @@ class LayoutExportError(ValueError):
         self.question_ids = question_ids
 
 
+class SidePanelOverflowError(ValueError):
+    """Raised only when a confirmed answer cannot be rendered without loss."""
+
+    def __init__(self, affected_task_ids: list[str]):
+        super().__init__("Confirmed answer could not be rendered in the side panel")
+        self.affected_task_ids = affected_task_ids
+
+
 def strip_latex_dollars(s: str) -> str:
     return re.sub(r"\$([^$]+)\$", r"\1", s) if s else ""
+
+
+def _valid_normalized_region(region: dict | None) -> bool:
+    if not isinstance(region, dict):
+        return False
+    try:
+        x, y, width, height = (float(region[key]) for key in ("x", "y", "width", "height"))
+    except (KeyError, TypeError, ValueError):
+        return False
+    return x >= 0 and y >= 0 and width > 0 and height > 0 and x + width <= 1 and y + height <= 1
 
 
 def build_original_export_pdf(
@@ -42,7 +60,7 @@ def build_original_export_pdf(
     questions: List[dict],
     answers: List[dict],
 ) -> bytes:
-    """Write approved answers onto detected regions in the original worksheet PDF."""
+    """Write approved regions and append side-panel answers without guessing coordinates."""
     answer_by_id = {
         item["question_id"]: re.sub(
             r"\$([^$]+)\$",
@@ -57,12 +75,32 @@ def build_original_export_pdf(
         if item.get("answer_region")
     }
     document = fitz.open(stream=pdf_bytes, filetype="pdf")
+    side_panel_items: list[tuple[str, str, str]] = []
     try:
         for question in questions:
             answer = answer_by_id.get(question.get("id"), "")
-            region = region_by_id.get(question.get("id")) or question.get("answer_region")
+            explicit_region = region_by_id.get(question.get("id"))
+            approved_manifest_region = (
+                question.get("answer_region")
+                if question.get("needs_layout_review") is not True
+                else None
+            )
+            region = explicit_region or approved_manifest_region
             page_number = int(question.get("page", 1)) - 1
-            if not answer or not region or page_number < 0 or page_number >= document.page_count:
+            if not answer:
+                continue
+            if (
+                not _valid_normalized_region(region)
+                or page_number < 0
+                or page_number >= document.page_count
+            ):
+                side_panel_items.append(
+                    (
+                        str(question.get("label") or question.get("id")),
+                        normalize_worksheet_text(question.get("text") or ""),
+                        answer,
+                    )
+                )
                 continue
             page = document[page_number]
             rect = fitz.Rect(
@@ -71,10 +109,20 @@ def build_original_export_pdf(
                 float(region["x"] + region["width"]) * page.rect.width,
                 float(region["y"] + region["height"]) * page.rect.height,
             )
-            page.draw_rect(rect, color=None, fill=(1, 1, 1), fill_opacity=0.94, overlay=True)
             font_size = max(8.0, min(12.0, rect.height * 0.36))
+            inset = rect + (3, 2, -3, -2)
+            if not _textbox_fits(page.rect.width, page.rect.height, inset, answer, font_size):
+                side_panel_items.append(
+                    (
+                        str(question.get("label") or question.get("id")),
+                        normalize_worksheet_text(question.get("text") or ""),
+                        answer,
+                    )
+                )
+                continue
+            page.draw_rect(rect, color=None, fill=(1, 1, 1), fill_opacity=0.94, overlay=True)
             result = page.insert_textbox(
-                rect + (3, 2, -3, -2),
+                inset,
                 answer,
                 fontname="helv",
                 fontsize=font_size,
@@ -83,17 +131,68 @@ def build_original_export_pdf(
                 overlay=True,
             )
             if result < 0:
-                page.insert_text(
-                    (rect.x0 + 3, rect.y0 + min(rect.height - 3, font_size + 3)),
-                    answer[:180],
-                    fontname="helv",
-                    fontsize=max(7.0, font_size - 2),
-                    color=(0.09, 0.07, 0.05),
-                    overlay=True,
+                side_panel_items.append(
+                    (
+                        str(question.get("label") or question.get("id")),
+                        normalize_worksheet_text(question.get("text") or ""),
+                        answer,
+                    )
                 )
+        if side_panel_items:
+            _append_side_panel_pages(document, side_panel_items)
         return document.tobytes(garbage=4, deflate=True)
     finally:
         document.close()
+
+
+def _append_side_panel_pages(document: fitz.Document, items: list[tuple[str, str, str]]) -> None:
+    """Append complete confirmed answers, paginating conservatively when needed."""
+
+    def new_page():
+        page = document.new_page(width=612, height=792)
+        page.insert_text((54, 54), "Claros confirmed answers (side panel)", fontname="helv", fontsize=16)
+        page.insert_text(
+            (54, 76),
+            "Original worksheet pages are preserved; these answers had no approved writable region.",
+            fontname="helv",
+            fontsize=9,
+        )
+        return page
+
+    def chunks(text: str, size: int = 400) -> list[str]:
+        remaining = text
+        result: list[str] = []
+        while remaining:
+            if len(remaining) <= size:
+                result.append(remaining)
+                break
+            split = remaining.rfind(" ", 0, size + 1)
+            if split <= 0:
+                split = size
+            result.append(remaining[:split])
+            remaining = remaining[split:]
+        return result or [""]
+
+    for label, prompt, answer in items:
+        prompt = prompt.replace("\n", " ")[:280]
+        for index, chunk in enumerate(chunks(answer)):
+            page = new_page()
+            heading = f"Question {label}: {prompt}" if index == 0 else f"Question {label} (continued)"
+            heading_result = page.insert_textbox(
+                fitz.Rect(54, 104, page.rect.width - 54, 146),
+                heading,
+                fontname="helv",
+                fontsize=10,
+            )
+            answer_result = page.insert_textbox(
+                fitz.Rect(54, 150, page.rect.width - 54, page.rect.height - 54),
+                chunk,
+                fontname="helv",
+                fontsize=10,
+                lineheight=1.25,
+            )
+            if heading_result < 0 or answer_result < 0:
+                raise SidePanelOverflowError([label])
 
 
 def build_export_pdf(

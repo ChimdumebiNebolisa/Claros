@@ -6,7 +6,13 @@ from fastapi.testclient import TestClient
 
 import assignment_service
 import main as main_module
+import session_service
 from tests.conftest import TEST_ASSIGNMENT_ID
+
+
+@pytest.fixture(autouse=True)
+def bypass_assignment_capability(monkeypatch):
+    monkeypatch.setattr(main_module, "_require_assignment_capability", lambda *_args: None)
 
 client = TestClient(main_module.app)
 
@@ -181,12 +187,17 @@ def test_assignment_page_preview_rejects_missing_page(monkeypatch):
 
 
 def test_export_post_returns_pdf_attachment(monkeypatch):
-    """POST /export accepts answer JSON and returns a downloadable PDF."""
+    """POST /export renders only answers supplied by the server-side session."""
     _mock_export_source(monkeypatch)
+    monkeypatch.setattr(
+        session_service,
+        "written_answers_for_export",
+        lambda *_args: [{"question_id": 1, "answer_text": "First answer"}],
+    )
 
     response = client.post(
         f"/export/{TEST_ASSIGNMENT_ID}",
-        json={"answers": [{"question_id": 1, "answer_text": "First answer"}]},
+        json={"session_id": "session-1", "session_secret": "session-secret"},
     )
 
     assert response.status_code == 200
@@ -196,13 +207,18 @@ def test_export_post_returns_pdf_attachment(monkeypatch):
 
 
 def test_export_post_accepts_long_answer_body(monkeypatch):
-    """Long answers travel in the POST body instead of the URL query string."""
+    """Long confirmed answers are loaded from server-side session state."""
     _mock_export_source(monkeypatch)
     long_answer = "This sentence makes the answer long enough to avoid query-string export. " * 40
+    monkeypatch.setattr(
+        session_service,
+        "written_answers_for_export",
+        lambda *_args: [{"question_id": 1, "answer_text": long_answer}],
+    )
 
     response = client.post(
         f"/export/{TEST_ASSIGNMENT_ID}",
-        json={"answers": [{"question_id": 1, "answer_text": long_answer}]},
+        json={"session_id": "session-1", "session_secret": "session-secret"},
     )
 
     assert response.status_code == 200
@@ -210,21 +226,20 @@ def test_export_post_accepts_long_answer_body(monkeypatch):
     assert response.content.startswith(b"%PDF")
 
 
-def test_export_post_rejects_missing_question_id(monkeypatch):
-    """Malformed answer objects return 400 instead of crashing during PDF rendering."""
+def test_export_post_rejects_client_supplied_answers(monkeypatch):
+    """Client answer text cannot bypass confirmation via the export request."""
     _mock_export_source(monkeypatch)
 
     response = client.post(
         f"/export/{TEST_ASSIGNMENT_ID}",
-        json={"answers": [{}]},
+        json={"session_id": "session-1", "session_secret": "session-secret", "answers": [{}]},
     )
 
-    assert response.status_code == 400
-    assert "question_id" in response.json()["detail"]
+    assert response.status_code == 422
 
 
-def test_export_get_rejects_missing_question_id(monkeypatch):
-    """Legacy query-string export validates decoded answer items before rendering."""
+def test_export_get_is_disabled(monkeypatch):
+    """Legacy query-string export is disabled to prevent answer injection."""
     _mock_export_source(monkeypatch)
 
     response = client.get(
@@ -232,12 +247,11 @@ def test_export_get_rejects_missing_question_id(monkeypatch):
         params={"answers": "[{}]"},
     )
 
-    assert response.status_code == 400
-    assert "question_id" in response.json()["detail"]
+    assert response.status_code == 405
 
 
-def test_export_get_rejects_non_list_answers(monkeypatch):
-    """The answers query JSON must decode to a list."""
+def test_export_get_is_disabled_for_non_list_payloads(monkeypatch):
+    """No query-string payload is accepted by the export route."""
     _mock_export_source(monkeypatch)
 
     response = client.get(
@@ -245,5 +259,4 @@ def test_export_get_rejects_non_list_answers(monkeypatch):
         params={"answers": "{}"},
     )
 
-    assert response.status_code == 400
-    assert response.json()["detail"] == "answers must be a list"
+    assert response.status_code == 405

@@ -13,18 +13,14 @@ def test_session_config_invalid_assignment_id_returns_422():
     assert response.status_code == 422
 
 
-def test_session_config_missing_assignment_returns_404(monkeypatch):
-    def raise_missing(_assignment_id: str):
-        raise ValueError("No PDF found")
-
-    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", raise_missing)
-
+def test_session_config_requires_assignment_capability_before_lookup():
     response = client.get(f"/api/session-config/{TEST_ASSIGNMENT_ID}")
-    assert response.status_code == 404
-    assert response.json()["detail"] == "Assignment not found"
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Assignment capability is required"
 
 
 def test_session_config_token_failure_returns_500(monkeypatch):
+    monkeypatch.setattr(main_module, "_require_assignment_capability", lambda *_args: None)
     monkeypatch.setattr(
         assignment_service,
         "load_assignment_from_gcs",
@@ -42,6 +38,7 @@ def test_session_config_token_failure_returns_500(monkeypatch):
 
 
 def test_session_config_success_returns_payload(monkeypatch):
+    monkeypatch.setattr(main_module, "_require_assignment_capability", lambda *_args: None)
     monkeypatch.setattr(
         main_module,
         "create_session_config",

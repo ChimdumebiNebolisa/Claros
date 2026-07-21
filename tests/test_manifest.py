@@ -2,7 +2,7 @@
 import json
 from datetime import datetime, timezone
 
-from manifest import AssignmentManifest, build_manifest, parse_manifest_json
+from manifest import MANIFEST_VERSION, AssignmentManifest, build_manifest, parse_manifest_json
 
 
 def test_build_manifest_round_trip():
@@ -27,18 +27,13 @@ def test_manifest_to_questions_dict():
         title="T",
         questions=[{"id": 3, "text": "Body"}],
     )
-    assert manifest.to_questions_dict() == [
-        {
-            "id": 3,
-            "text": "Body",
-            "page": 1,
-            "prompt_region": None,
-            "answer_region": None,
-            "detected_answer_region": None,
-            "layout_confidence": 0.0,
-            "needs_layout_review": True,
-        }
-    ]
+    question = manifest.to_questions_dict()[0]
+    assert question["id"] == 3
+    assert question["text"] == "Body"
+    assert question["page_index"] == 0
+    assert question["review_status"] == "needs_review"
+    assert question["answer_region_status"] == "missing"
+    assert question["approved"] is False
 
 
 def test_parse_manifest_json_migrates_legacy_version():
@@ -53,7 +48,7 @@ def test_parse_manifest_json_migrates_legacy_version():
         "expires_at": None,
     }
     manifest = parse_manifest_json(json.dumps(payload))
-    assert manifest.version == 2
+    assert manifest.version == MANIFEST_VERSION
     assert "legacy_manifest_v1" in manifest.parse_warnings
 
 

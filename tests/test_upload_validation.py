@@ -16,12 +16,13 @@ _MINIMAL_PDF = b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF"
 def upload_mocks(monkeypatch):
     from manifest import build_manifest
 
-    def fake_persist(assignment_id, pdf_bytes):
+    def fake_persist(assignment_id, pdf_bytes, *, assignment_capability_hash=None):
         return build_manifest(
             assignment_id=assignment_id,
             title="Test Title",
             questions=[{"id": 1, "text": "Question one?"}],
             parse_status="ok",
+            assignment_capability_hash=assignment_capability_hash,
         )
 
     monkeypatch.setattr(main_module, "persist_assignment_from_pdf_bytes", fake_persist)

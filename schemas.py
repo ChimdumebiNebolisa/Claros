@@ -1,5 +1,6 @@
 """Request/response schemas and validation helpers."""
 from enum import Enum
+from typing import Literal
 
 from fastapi import HTTPException
 from pydantic import BaseModel, Field, ConfigDict
@@ -33,6 +34,8 @@ class WriteRequest(BaseModel):
     write_token: str = Field(default="", max_length=2048)
     session_id: str = Field(default="", max_length=64)
     session_secret: str = Field(default="", max_length=128)
+    layout_confirmed: bool = False
+    answer_region: dict[str, float] | None = None
 
 
 class SessionStartRequest(BaseModel):
@@ -61,8 +64,33 @@ class LayoutOverride(BaseModel):
 class ExportRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    answers: list[dict]
-    layout_overrides: list[LayoutOverride] = Field(default_factory=list, max_length=MAX_LAYOUT_OVERRIDES)
+    session_id: str = Field(min_length=1, max_length=64)
+    session_secret: str = Field(min_length=8, max_length=128)
+
+
+class TeacherReviewAction(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    action: Literal["accept", "edit", "merge", "split", "hide", "reject"]
+    task_id: str | None = None
+    task_ids: list[str] = Field(default_factory=list)
+    label: str | None = None
+    prompt_text: str | None = None
+    response_type: str | None = None
+    page_index: int | None = Field(default=None, ge=0)
+    prompt_bbox: list[float] | None = None
+    answer_bbox: list[float] | None = None
+    answer_region: dict[str, float] | None = None
+    source_blocks: list[str] = Field(default_factory=list)
+    parts: list[dict] = Field(default_factory=list)
+    approve: bool = False
+
+
+class TeacherReviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    actions: list[TeacherReviewAction] = Field(default_factory=list, max_length=200)
+    finalize: bool = False
 
 
 def trim_conversation(

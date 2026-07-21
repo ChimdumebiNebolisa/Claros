@@ -13,10 +13,21 @@ client = TestClient(main_module.app)
 
 @pytest.fixture
 def fake_assignment(monkeypatch):
+    monkeypatch.setattr(main_module, "_require_assignment_capability", lambda *_args: None)
     monkeypatch.setattr(
         assignment_service,
         "load_assignment_from_gcs",
-        lambda _id: ("Mock", [{"id": 1, "text": "Q?"}]),
+        lambda _id: (
+            "Mock",
+            [
+                {
+                    "id": 1,
+                    "text": "Q?",
+                    "answer_region": {"x": 0.1, "y": 0.2, "width": 0.4, "height": 0.1},
+                    "needs_layout_review": False,
+                }
+            ],
+        ),
     )
 
 

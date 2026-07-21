@@ -4,7 +4,9 @@ from fastapi import HTTPException
 
 import assignment_service
 import config
+from document_model import DocumentPage, IntermediateDocument, ParseStatus
 from manifest import build_manifest, parse_manifest_json
+from semantic_classifier import NullSemanticClassifier
 from tests.conftest import TEST_ASSIGNMENT_ID
 
 
@@ -100,7 +102,7 @@ def test_persist_assignment_writes_manifest(monkeypatch, tmp_pdf_question_format
 
     pdf_bytes = tmp_pdf_question_format.read_bytes()
     manifest = assignment_service.persist_assignment_from_pdf_bytes("abc-123", pdf_bytes)
-    assert manifest.parse_status == "ok"
+    assert manifest.parse_status == "layout_review_required"
     assert uploaded["pdf"] == pdf_bytes
     restored = parse_manifest_json(uploaded["manifest"])
     assert restored.title == manifest.title
@@ -135,3 +137,37 @@ def test_expired_manifest_is_rejected(monkeypatch):
     )
     with pytest.raises(assignment_service.AssignmentExpiredError):
         assignment_service.load_assignment_manifest("expired")
+
+
+def test_hybrid_semantics_cannot_run_on_upload_without_explicit_worker_gate(
+    monkeypatch,
+    tmp_pdf_question_format,
+):
+    captured = []
+
+    class _FakeGeminiClassifier:
+        pass
+
+    def fake_parse(_pdf_bytes, *, semantic_classifier, **_kwargs):
+        captured.append(semantic_classifier)
+        return IntermediateDocument(
+            title="Candidate",
+            parser="hybrid-ppstructurev3-gemini",
+            status=ParseStatus.low_confidence,
+            pages=[DocumentPage(page_index=0, width_points=612, height_points=792)],
+            blocks=[],
+            tasks=[],
+        )
+
+    monkeypatch.setattr(config, "PDF_PARSER_MODE", "hybrid")
+    monkeypatch.setattr(config, "ENABLE_DOCUMENT_SEMANTICS", True)
+    monkeypatch.setattr(config, "ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS", False)
+    monkeypatch.setattr(assignment_service, "GeminiSemanticClassifier", _FakeGeminiClassifier)
+    monkeypatch.setattr(assignment_service, "parse_document", fake_parse)
+
+    assignment_service._parse_and_build_manifest("candidate", str(tmp_pdf_question_format))
+    assert isinstance(captured[-1], NullSemanticClassifier)
+
+    monkeypatch.setattr(config, "ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS", True)
+    assignment_service._parse_and_build_manifest("candidate", str(tmp_pdf_question_format))
+    assert isinstance(captured[-1], _FakeGeminiClassifier)
