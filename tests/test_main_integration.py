@@ -68,7 +68,7 @@ def test_landing_has_no_app_workspace():
     assert response.status_code == 200
     assert b"id=\"uploadZone\"" not in response.content
     assert b"id=\"micBtn\"" not in response.content
-    assert b"Built for students" in response.content
+    assert b"Keep the page in view" in response.content
 
 
 def test_app_sample_query_param_hint():
@@ -161,6 +161,13 @@ def test_workspace_modules_served(path, marker):
 
 def test_sample_page_preview_served():
     response = client.get("/sample-page.png")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("image/png")
+    assert response.content.startswith(b"\x89PNG")
+
+
+def test_sample_workspace_preview_served():
+    response = client.get("/sample-workspace.png")
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("image/png")
     assert response.content.startswith(b"\x89PNG")
