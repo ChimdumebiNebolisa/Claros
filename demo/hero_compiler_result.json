@@ -1,0 +1,84 @@
+{
+  "page_index": 0,
+  "page_role": "student_worksheet",
+  "selected_block_ids": [
+    "h-q1",
+    "h-a",
+    "h-b",
+    "h-q2"
+  ],
+  "rejected_blocks": [
+    {
+      "block_id": "h-title",
+      "reason": "navigation"
+    },
+    {
+      "block_id": "h-instruction",
+      "reason": "teacher_instruction"
+    }
+  ],
+  "groupings": [
+    {
+      "group_index": 1,
+      "prompt_block_ids": [
+        "h-q1"
+      ],
+      "visual_anchor_block_ids": [],
+      "parent_group_index": null,
+      "subpart": null,
+      "response_candidate_ids": [],
+      "response_disposition": "side_panel_only",
+      "needs_review": true,
+      "reason": "compound prompt has no single response region"
+    },
+    {
+      "group_index": 2,
+      "prompt_block_ids": [
+        "h-a"
+      ],
+      "visual_anchor_block_ids": [],
+      "parent_group_index": 1,
+      "subpart": "a",
+      "response_candidate_ids": [
+        "h-r-a"
+      ],
+      "response_disposition": "safe_physical",
+      "needs_review": false,
+      "reason": "explicit answer line"
+    },
+    {
+      "group_index": 3,
+      "prompt_block_ids": [
+        "h-b"
+      ],
+      "visual_anchor_block_ids": [],
+      "parent_group_index": 1,
+      "subpart": "b",
+      "response_candidate_ids": [
+        "h-r-b"
+      ],
+      "response_disposition": "safe_physical",
+      "needs_review": false,
+      "reason": "explicit answer line"
+    },
+    {
+      "group_index": 4,
+      "prompt_block_ids": [
+        "h-q2"
+      ],
+      "visual_anchor_block_ids": [],
+      "parent_group_index": null,
+      "subpart": null,
+      "response_candidate_ids": [],
+      "response_disposition": "side_panel_only",
+      "needs_review": true,
+      "reason": "drawing placement is intentionally uncertain"
+    }
+  ],
+  "selected_response_candidate_ids": [
+    "h-r-a",
+    "h-r-b"
+  ],
+  "needs_review": true,
+  "reason": "synthetic fixture; replay is deterministic and not a live provider result"
+}
