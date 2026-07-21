@@ -37,6 +37,15 @@
 
 .hero-copy-column { position: relative; z-index: 2; }
 
+.hero-eyebrow {
+  margin-bottom: 1rem;
+  color: var(--iris-deep);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .hero-copy-column h1 {
   max-width: none;
   font-size: clamp(3rem, 4.6vw, 4.1rem);
@@ -92,6 +101,17 @@
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(16rem, 0.65fr);
   align-items: center;
+}
+
+.product-scene::before {
+  content: "";
+  position: absolute;
+  inset: 8% 2% 10% 10%;
+  z-index: 0;
+  border: 1px solid var(--border);
+  background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 2rem 2rem;
+  opacity: 0.55;
 }
 
 .scene-document {

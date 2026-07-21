@@ -165,8 +165,8 @@
           <aside class="session-panel" id="sessionPanel" aria-label="Claros voice guide">
             <div class="session-head">
               <div>
-                <p class="workspace-label">Voice guide</p>
-                <h2 class="session-title">Claros</h2>
+                <p class="workspace-label">Task guidance</p>
+                <h2 class="session-title">Answer workspace</h2>
               </div>
               <div class="session-head-actions">
                 <span class="status-badge" id="voiceBadge">Offline</span>
@@ -205,6 +205,7 @@
             <section class="answer-confirmation" id="answerConfirmation" hidden aria-labelledby="confirmationTitle">
               <p class="confirmation-label">Proposed final answer</p>
               <h3 id="confirmationTitle">Confirm answer for Question 1</h3>
+              <p class="confirmation-note">You can edit or reject this before anything is written.</p>
               <div id="proposedAnswer" class="proposed-answer"></div>
               <div class="confirmation-actions">
                 <button type="button" class="btn secondary-action" id="editAnswerBtn">Edit</button>
@@ -217,7 +218,7 @@
             <p id="keyboardFallback" class="keyboard-fallback" hidden>Voice is unavailable. You can still type answers, confirm them, and export.</p>
 
             <div class="session-actions">
-              <button class="btn session-btn" id="micBtn" type="button">Start voice session</button>
+              <button class="btn session-btn" id="micBtn" type="button">Use voice guidance</button>
               <button class="btn interrupt" id="interruptBtn" type="button" aria-label="Interrupt Claros">Interrupt Claros</button>
               <p class="session-privacy-note">Your microphone turns on only after you start a voice session.</p>
             </div>

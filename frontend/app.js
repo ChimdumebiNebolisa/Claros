@@ -235,6 +235,7 @@
     elements.questionsContainer.innerHTML = '';
     state.questions.forEach(function (question) {
       const row = document.createElement('div');
+      row.className = 'question-choice';
       if (state.reviewMode === 'teacher') {
         const choice = document.createElement('label');
         choice.className = 'teacher-task-choice';
@@ -252,13 +253,27 @@
       const button = document.createElement('button');
       button.type = 'button';
       button.dataset.questionId = question.id;
-      button.textContent = 'Question ' + (question.label || question.id) + (question.needs_layout_review ? ' (layout review)' : '');
+      button.textContent = 'Question ' + (question.label || question.id);
+      const placementText = question.answer_region_status === 'side_panel'
+        ? 'Side-panel answer'
+        : (question.needs_layout_review || question.answer_region_status === 'detected')
+          ? 'Placement needs review'
+          : 'Safe answer line';
+      button.setAttribute('aria-label', 'Question ' + (question.label || question.id) + '. ' + placementText);
       button.setAttribute('aria-current', String(Number(question.id) === Number(state.activeQuestionId)));
       button.addEventListener('click', function () {
         selectQuestion(question.id);
         elements.questionsContainer.hidden = true;
       });
       row.appendChild(button);
+      const placement = document.createElement('span');
+      placement.className = 'question-placement ' + (question.answer_region_status || 'missing');
+      placement.textContent = question.answer_region_status === 'side_panel'
+        ? 'Side panel'
+        : (question.needs_layout_review || question.answer_region_status === 'detected')
+          ? 'Needs review'
+          : 'Answer line';
+      row.appendChild(placement);
       elements.questionsContainer.appendChild(row);
     });
   }
