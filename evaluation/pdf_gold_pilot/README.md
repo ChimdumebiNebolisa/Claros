@@ -10,6 +10,10 @@ The selected corpus has no human task-level gold export. The existing benchmark 
 
 From the repository root:
 
+The default corpus is the repository-local
+`evaluation/corpora/pdf_acceptance/corpus`. To use another corpus, pass
+`--corpus PATH` explicitly.
+
 ```powershell
 .\.venv\Scripts\python.exe -m evaluation.pdf_gold_pilot.build_annotation_project
 ```
