@@ -23,9 +23,7 @@ from document_pipeline import _native_blocks, _physical_response_blocks
 from parser import parse_pdf_with_diagnostics
 
 HERE = Path(__file__).resolve().parent
-DEFAULT_CORPUS = Path(
-    r"C:\Users\Chimdumebi\Downloads\claros-pdf-acceptance-corpus\claros-pdf-corpus"
-)
+DEFAULT_CORPUS = ROOT / "evaluation" / "corpora" / "pdf_acceptance"
 DEFAULT_OUTPUT = ROOT / "output" / "pdf-gold-pilot"
 RESPONSE_LABELS = {"answer_line", "form_field", "horizontal_rule_candidate"}
 

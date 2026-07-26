@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from evaluation.pdf_gold_pilot.build_annotation_project import _validate_selection
+from evaluation.pdf_gold_pilot.build_annotation_project import DEFAULT_CORPUS, _validate_selection
 from evaluation.pdf_gold_pilot.closed_world import (
     ClosedWorldPageResult,
     PilotPageInput,
@@ -101,6 +101,11 @@ def test_selection_has_required_size_and_diverse_cases():
     assert len(pages) == 17
     assert {"image_only_scan", "teacher_guide", "answer_key", "compound_labels"} <= tags
     assert {"unnumbered_prompt", "table_or_form", "visual_activity", "multi_column"} <= tags
+
+
+def test_default_corpus_is_repo_relative():
+    assert DEFAULT_CORPUS == ROOT / "evaluation" / "corpora" / "pdf_acceptance"
+    assert (DEFAULT_CORPUS / "corpus").is_dir()
 
 
 def test_closed_world_derives_text_and_geometry_only_from_known_ids():
