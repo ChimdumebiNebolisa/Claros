@@ -7,6 +7,7 @@ import sys
 def test_production_startup_rejects_missing_session_hmac_secret():
     env = os.environ.copy()
     env["APP_ENV"] = "production"
+    env["GCS_BUCKET_NAME"] = "claros-test-bucket"
     env.pop("SESSION_HMAC_SECRET", None)
     result = subprocess.run(
         [sys.executable, "-c", "import config"],
