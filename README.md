@@ -1,5 +1,7 @@
 # Claros
 
+> Claros is currently undergoing a focused product revamp. See the [canonical revamp roadmap](docs/CLAROS_REVAMP_ROADMAP.md).
+
 **An AI agent primarily for students with typing difficulties - it reads assignments, guides reasoning through real-time voice conversation, and writes the final answer into the correct question field only after the student has worked it out or stated it.**
 
 ## Demo
