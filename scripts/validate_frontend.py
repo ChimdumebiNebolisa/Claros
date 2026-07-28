@@ -41,10 +41,18 @@ def validate_landing_html() -> None:
         "Typed works throughout",
         "/app?sample=canonical-short-answer-ecosystems",
         "Short Answer · Choice · Math",
+        'class="hero-brand"',
+        ">Claros</p>",
+        "/samples/canonical-short-answer-ecosystems/preview.png",
+        "evidence-caption",
     )
     for needle in checks:
         if needle not in html:
             raise AssertionError(f"landing.html missing expected content: {needle!r}")
+    if "evidence-note" in html:
+        raise AssertionError("landing hero must not use floating evidence-note overlays")
+    if 'src="/sample-workspace.png"' in html:
+        raise AssertionError("landing hero must use an official sample preview, not the synthetic workspace asset")
 
 
 def validate_app_html() -> None:
