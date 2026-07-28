@@ -43,6 +43,8 @@ def write_client(monkeypatch):
 
     monkeypatch.setattr(session_service.storage, "upload_session_to_gcs", upload)
     monkeypatch.setattr(session_service.storage, "download_session_from_gcs", download)
+    monkeypatch.setattr(session_service.storage, "register_assignment_session", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(session_service.storage, "delete_session_from_gcs", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(assignment_service, "load_assignment_manifest", _fake_manifest)
     monkeypatch.setattr(main_module, "_require_assignment_capability", lambda *_args: None)
     return TestClient(main_module.app)

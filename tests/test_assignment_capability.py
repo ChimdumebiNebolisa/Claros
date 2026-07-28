@@ -52,6 +52,7 @@ def test_capability_authorizes_session_but_export_uses_only_written_server_answe
     )
     monkeypatch.setattr(session_service.storage, "upload_session_to_gcs", lambda sid, payload, **_kwargs: stored.setdefault(sid, payload))
     monkeypatch.setattr(session_service.storage, "download_session_from_gcs", lambda sid, **_kwargs: stored[sid])
+    monkeypatch.setattr(session_service.storage, "register_assignment_session", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         session_service,
         "written_answers_for_export",
@@ -117,6 +118,7 @@ def test_written_answer_is_persisted_in_session_state(monkeypatch):
 
     monkeypatch.setattr(session_service.storage, "upload_session_to_gcs", upload)
     monkeypatch.setattr(session_service.storage, "download_session_from_gcs", lambda sid, **_kwargs: stored[sid])
+    monkeypatch.setattr(session_service.storage, "register_assignment_session", lambda *_args, **_kwargs: None)
 
     question = _manifest("session-capability").to_questions_dict()[0]
     created = session_service.create_session(TEST_ASSIGNMENT_ID, [question])
@@ -146,6 +148,7 @@ def test_export_rejects_a_task_that_changed_since_the_confirmed_write(monkeypatc
 
     monkeypatch.setattr(session_service.storage, "upload_session_to_gcs", upload)
     monkeypatch.setattr(session_service.storage, "download_session_from_gcs", lambda sid, **_kwargs: stored[sid])
+    monkeypatch.setattr(session_service.storage, "register_assignment_session", lambda *_args, **_kwargs: None)
 
     question = build_manifest(
         TEST_ASSIGNMENT_ID,

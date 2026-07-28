@@ -47,3 +47,20 @@ def test_local_session_generation_conflict_is_detected(local_storage):
     _, generation = storage.upload_session_to_gcs(session_id, b"one", return_generation=True)
     with pytest.raises(storage.StorageConflict):
         storage.upload_session_to_gcs(session_id, b"two", if_generation_match=generation + 1)
+
+
+def test_delete_assignment_removes_registered_sessions(local_storage):
+    assignment_id = "550e8400-e29b-41d4-a716-446655440000"
+    session_id = "550e8400-e29b-41d4-a716-446655440099"
+    storage.upload_pdf_to_gcs(assignment_id, b"%PDF-1.4\nfixture")
+    storage.upload_session_to_gcs(session_id, b'{"session_id":"fixture"}')
+    storage.register_assignment_session(assignment_id, session_id)
+    assert session_id in storage.list_assignment_session_ids(assignment_id)
+
+    storage.delete_assignment_and_sessions(assignment_id)
+
+    assert storage.list_assignment_session_ids(assignment_id) == []
+    with pytest.raises(ValueError):
+        storage.download_session_from_gcs(session_id)
+    with pytest.raises(ValueError):
+        storage.download_pdf_bytes(assignment_id)

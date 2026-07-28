@@ -741,6 +741,7 @@ def test_session_state_is_independent_for_multiple_response_regions(monkeypatch)
 
     monkeypatch.setattr(session_service.storage, "upload_session_to_gcs", upload)
     monkeypatch.setattr(session_service.storage, "download_session_from_gcs", download)
+    monkeypatch.setattr(session_service.storage, "register_assignment_session", lambda *_args, **_kwargs: None)
     created = session_service.create_session("assignment-1", tasks)
     task = tasks[0]
     answer_target = "r-a"
