@@ -21,6 +21,26 @@
 - Evidence and remaining deployment uncertainty: see
   `docs/BUILD_WEEK_STAGE_1_VERIFICATION.md`.
 
+## Revamp Stage 2 record
+
+- Base/current committed SHA before Stage 2: `607636b`
+  (`feat(runtime): consolidate Gemini safety boundary`).
+- Working branch: `codex/stage2-canonical-model`, stacked locally on the Stage
+  1 checkpoint pending intentional review and remote publication.
+- Scope: replace the persisted flat `questions[]` source of truth with the
+  versioned canonical document contract; preserve task/region/choice relations
+  through extraction, session confirmation, writes, exports, and the client
+  projection; retain only a quarantined migration adapter for older manifests.
+  The contract now binds physical evidence to the source PDF, rejects
+  overlapping/reused or out-of-frame writable evidence, and routes transformed
+  coordinate frames to the side panel until a deterministic display transform
+  is available.
+- Contributor evidence: current Codex task plus repository diff and staged
+  verification output. No unavailable session ID or exclusive authorship is
+  claimed.
+- Evidence and remaining deployment uncertainty: see
+  `docs/BUILD_WEEK_STAGE_2_VERIFICATION.md`.
+
 ## Provenance baseline
 
 - Owner-confirmed contest start: `2026-07-13T09:00:00-07:00`

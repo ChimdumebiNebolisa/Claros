@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Literal
 
 from fastapi import HTTPException
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 import config
 from manifest import normalize_bbox
@@ -25,7 +25,14 @@ class ConversationItem(BaseModel):
 
 
 class WriteRequest(BaseModel):
-    question_id: int
+    """Student write authority contains IDs only; geometry stays server-owned."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    task_id: str = Field(default="", max_length=160)
+    response_region_id: str = Field(default="", max_length=180)
+    # Migration-only alias for existing v3 sessions. New clients must send IDs.
+    question_id: int | None = None
     conversation: list[ConversationItem] = Field(
         default_factory=list,
         max_length=config.MAX_CONVERSATION_TURNS,
@@ -34,8 +41,12 @@ class WriteRequest(BaseModel):
     write_token: str = Field(default="", max_length=2048)
     session_id: str = Field(default="", max_length=64)
     session_secret: str = Field(default="", max_length=128)
-    layout_confirmed: bool = False
-    answer_region: dict[str, float] | None = None
+
+    @model_validator(mode="after")
+    def require_task_reference(self):
+        if not self.task_id and self.question_id is None:
+            raise ValueError("task_id is required")
+        return self
 
 
 class SessionStartRequest(BaseModel):
@@ -43,9 +54,20 @@ class SessionStartRequest(BaseModel):
 
 
 class SessionConfirmRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     session_secret: str = Field(min_length=8, max_length=128)
-    question_id: int
+    task_id: str = Field(default="", max_length=160)
+    response_region_id: str = Field(default="", max_length=180)
+    # Migration-only numeric alias for older clients.
+    question_id: int | None = None
     answer_text: str = Field(min_length=1, max_length=MAX_ANSWER_CANDIDATE_CHARS)
+
+    @model_validator(mode="after")
+    def require_task_reference(self):
+        if not self.task_id and self.question_id is None:
+            raise ValueError("task_id is required")
+        return self
 
 
 class SessionRestoreRequest(BaseModel):

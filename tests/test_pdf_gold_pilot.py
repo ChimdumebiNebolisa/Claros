@@ -1,12 +1,20 @@
 import json
 from pathlib import Path
 
+import fitz
 import pytest
 
-from evaluation.pdf_gold_pilot.build_annotation_project import _validate_selection
+from document_model import DocumentBlock, ResponseSafety, SourceKind
+from evaluation.pdf_gold_pilot.build_annotation_project import (
+    _pilot_page_geometry,
+    _response_candidate,
+    _validate_selection,
+)
 from evaluation.pdf_gold_pilot.closed_world import (
     ClosedWorldPageResult,
     PilotPageInput,
+    derive_canonical_document,
+    derive_canonical_document_for_pages,
     derive_tasks,
     validate_closed_world_result,
 )
@@ -92,6 +100,46 @@ def _result(**overrides) -> ClosedWorldPageResult:
     return ClosedWorldPageResult.model_validate(payload)
 
 
+def _second_page() -> PilotPageInput:
+    payload = _page().model_dump(mode="json")
+    payload.update(
+        {
+            "pilot_id": "fixture-p02",
+            "page_number": 2,
+            "page_index": 1,
+            "image": "rendered/fixture-p02.png",
+        }
+    )
+    payload["blocks"][0].update(
+        {
+            "id": "block-1-p02",
+            "page_index": 1,
+            "text": "4. State the conclusion.",
+        }
+    )
+    payload["blocks"][1].update(
+        {
+            "id": "block-2-p02",
+            "page_index": 1,
+            "text": "Cite one observation.",
+        }
+    )
+    payload["response_candidates"][0].update(
+        {"id": "line-1-p02", "page_index": 1}
+    )
+    return PilotPageInput.model_validate(payload)
+
+
+def _second_result() -> ClosedWorldPageResult:
+    payload = _result().model_dump(mode="json")
+    payload["page_index"] = 1
+    payload["selected_block_ids"] = ["block-1-p02", "block-2-p02"]
+    payload["groupings"][0]["prompt_block_ids"] = ["block-1-p02", "block-2-p02"]
+    payload["groupings"][0]["response_candidate_ids"] = ["line-1-p02"]
+    payload["selected_response_candidate_ids"] = ["line-1-p02"]
+    return ClosedWorldPageResult.model_validate(payload)
+
+
 def test_selection_has_required_size_and_diverse_cases():
     payload = json.loads(
         (ROOT / "evaluation" / "pdf_gold_pilot" / "selection.json").read_text(encoding="utf-8")
@@ -155,3 +203,110 @@ def test_side_panel_task_selects_no_response_candidate():
     tasks = derive_tasks(page, result)
     assert tasks[0]["response_bbox"] is None
     assert tasks[0]["write_authorized"] is False
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        ("blocks", 0, "bbox"),
+        ("response_candidates", 0, "bbox"),
+    ],
+)
+def test_pilot_input_rejects_geometry_outside_its_extraction_frame(path):
+    payload = _page().model_dump(mode="json")
+    payload[path[0]][path[1]][path[2]] = [20, 30, 601, 60]
+
+    with pytest.raises(ValueError, match="stay within the extraction frame"):
+        PilotPageInput.model_validate(payload)
+
+
+def test_canonical_document_assembles_actual_contiguous_pages_in_global_order():
+    first_page = _page()
+    second_page = _second_page()
+    single_page_document = derive_canonical_document(first_page, _result())
+
+    document = derive_canonical_document_for_pages(
+        [second_page, first_page],
+        [_second_result(), _result()],
+    )
+
+    assert document.title == "fixture.pdf"
+    assert document.document_id == "fixture.pdf"
+    assert single_page_document.title == "fixture-p01"
+    assert single_page_document.document_id == "fixture-p01"
+    assert [page.page_index for page in document.pages] == [0, 1]
+    assert len(document.pages) == 2
+    assert [task.anchor_page_index for task in document.tasks] == [0, 1]
+    assert [task.order for task in document.tasks] == [0, 1]
+    assert [task.legacy_question_id for task in document.tasks] == [1, 2]
+    assert document.tasks[1].prompt_text == "4. State the conclusion.\nCite one observation."
+    assert document.tasks[1].response_links[0].response_region_id == "cw-region-line-1-p02"
+    assert document.response_region("cw-region-line-1-p02").source_block_ids == ["line-1-p02"]
+    assert document.page(1).block_ids == ["block-1-p02", "block-2-p02", "line-1-p02"]
+
+
+def test_canonical_document_rejects_nonzero_standalone_page_without_placeholder_pages():
+    with pytest.raises(ValueError, match="standalone canonical document derivation requires page_index 0"):
+        derive_canonical_document(_second_page(), _second_result())
+
+
+def test_transformed_pilot_geometry_uses_extraction_bounds_and_disables_physical_candidates():
+    pdf = fitz.open()
+    page = pdf.new_page(width=200, height=100)
+    page.set_cropbox(fitz.Rect(10, 10, 190, 90))
+    page.set_rotation(90)
+    try:
+        width, height, rotation, display_transform_required = _pilot_page_geometry(page)
+    finally:
+        pdf.close()
+
+    response_block = DocumentBlock(
+        id="candidate-1",
+        page_index=0,
+        reading_order=0,
+        block_label="answer_line",
+        bbox=[20, 30, 160, 50],
+        confidence=0.95,
+        source=SourceKind.pdf_geometry,
+    )
+    candidate = _response_candidate(
+        response_block,
+        display_transform_required=display_transform_required,
+    )
+
+    assert (width, height, rotation) == (180.0, 80.0, 90)
+    assert display_transform_required is True
+    assert candidate["safe_for_writing"] is False
+    assert candidate["safety_suggestion"] == "ambiguous"
+
+
+@pytest.mark.parametrize(
+    ("mutate", "transform_expected"),
+    [
+        (
+            lambda payload: payload.update(
+                {"rotation": 90, "display_transform_required": True}
+            ),
+            True,
+        ),
+        (
+            lambda payload: payload["response_candidates"][0].update(
+                {"layout_label": "unrecognized_response_area"}
+            ),
+            False,
+        ),
+    ],
+)
+def test_canonical_adapter_routes_ineligible_physical_candidates_to_side_panel(
+    mutate,
+    transform_expected,
+):
+    page_payload = _page().model_dump(mode="json")
+    mutate(page_payload)
+    document = derive_canonical_document(PilotPageInput.model_validate(page_payload), _result())
+
+    region = document.response_region(document.tasks[0].response_links[0].response_region_id)
+    assert region.safety == ResponseSafety.needs_review
+    assert document.tasks[0].side_panel_fallback is True
+    assert document.tasks[0].review_status.value == "needs_review"
+    assert document.pages[0].display_transform_required is transform_expected

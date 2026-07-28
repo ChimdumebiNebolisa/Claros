@@ -6,9 +6,38 @@ from fastapi.testclient import TestClient
 import assignment_service
 import main as main_module
 import session_service
+from manifest import build_manifest
 from tests.conftest import TEST_ASSIGNMENT_ID
 
 _STORE: dict[str, bytes] = {}
+_TASK_ONE_ID = "task-q1"
+_TASK_ONE_REGION_ID = f"{_TASK_ONE_ID}:side-panel"
+_TASK_TWO_ID = "task-q2"
+
+
+def _mock_manifest():
+    return build_manifest(
+        TEST_ASSIGNMENT_ID,
+        "Mock",
+        questions=[
+            {
+                "id": 1,
+                "task_id": _TASK_ONE_ID,
+                "text": "Q1",
+                "answer_region": {"x": 0.1, "y": 0.2, "width": 0.4, "height": 0.1},
+                "approved": True,
+                "needs_layout_review": False,
+            },
+            {
+                "id": 2,
+                "task_id": _TASK_TWO_ID,
+                "text": "Q2",
+                "answer_region": {"x": 0.1, "y": 0.4, "width": 0.4, "height": 0.1},
+                "approved": True,
+                "needs_layout_review": False,
+            },
+        ],
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -28,24 +57,8 @@ def mock_session_storage(monkeypatch):
     monkeypatch.setattr(session_service.storage, "download_session_from_gcs", download)
     monkeypatch.setattr(
         assignment_service,
-        "load_assignment_from_gcs",
-        lambda _id: (
-            "Mock",
-            [
-                {
-                    "id": 1,
-                    "text": "Q1",
-                    "answer_region": {"x": 0.1, "y": 0.2, "width": 0.4, "height": 0.1},
-                    "needs_layout_review": False,
-                },
-                {
-                    "id": 2,
-                    "text": "Q2",
-                    "answer_region": {"x": 0.1, "y": 0.4, "width": 0.4, "height": 0.1},
-                    "needs_layout_review": False,
-                },
-            ],
-        ),
+        "load_assignment_manifest",
+        lambda _id: _mock_manifest(),
     )
     monkeypatch.setattr(main_module, "_require_assignment_capability", lambda *_args: None)
 
@@ -64,7 +77,7 @@ def test_session_start_returns_credentials(client):
     body = response.json()
     assert body["session_id"]
     assert body["session_secret"]
-    assert len(body["questions"]) == 2
+    assert [task["id"] for task in body["document"]["tasks"]] == [_TASK_ONE_ID, _TASK_TWO_ID]
 
 
 def test_session_secret_is_keyed_hash_at_rest(client):
@@ -73,6 +86,7 @@ def test_session_secret_is_keyed_hash_at_rest(client):
     assert stored["session_secret_hash"]
     assert stored["session_secret_hash"] != start["session_secret"]
     assert "session_secret" not in stored
+    assert _TASK_ONE_ID in stored["tasks"]
 
 
 def test_legacy_plaintext_session_secret_cannot_authenticate():
@@ -126,7 +140,8 @@ def test_confirm_requires_nonempty_answer(client):
         f"/api/session/{start['session_id']}/confirm",
         json={
             "session_secret": start["session_secret"],
-            "question_id": 1,
+            "task_id": _TASK_ONE_ID,
+            "response_region_id": _TASK_ONE_REGION_ID,
             "answer_text": "   ",
         },
     )
@@ -139,7 +154,8 @@ def test_confirm_and_restore_round_trip(client):
         f"/api/session/{start['session_id']}/confirm",
         json={
             "session_secret": start["session_secret"],
-            "question_id": 1,
+            "task_id": _TASK_ONE_ID,
+            "response_region_id": _TASK_ONE_REGION_ID,
             "answer_text": "Photosynthesis",
         },
     )
@@ -151,7 +167,7 @@ def test_confirm_and_restore_round_trip(client):
         json={"session_secret": start["session_secret"]},
     )
     assert restore.status_code == 200
-    assert restore.json()["questions"]["1"]["confirmed"] is True
+    assert restore.json()["responses"][_TASK_ONE_REGION_ID]["confirmed"] is True
     assert token
 
 
@@ -162,12 +178,14 @@ def test_write_token_single_use(client):
         f"/api/session/{start['session_id']}/confirm",
         json={
             "session_secret": start["session_secret"],
-            "question_id": 1,
+            "task_id": _TASK_ONE_ID,
+            "response_region_id": _TASK_ONE_REGION_ID,
             "answer_text": "42",
         },
     ).json()
     payload = {
-        "question_id": 1,
+        "task_id": _TASK_ONE_ID,
+        "response_region_id": _TASK_ONE_REGION_ID,
         "conversation": [{"speaker": "user", "text": "forty two"}],
         "answer_candidate": "42",
         "write_token": confirm["write_token"],

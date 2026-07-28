@@ -1,43 +1,57 @@
 """Hybrid document model, OCR normalization, semantics, and review safety tests."""
 from __future__ import annotations
 
+import hashlib
 from types import SimpleNamespace
 
 import fitz
 import pytest
 
 from document_model import (
-    AnswerRegionStatus,
     BlockSemanticRole,
     DocumentBlock,
     DocumentPage,
     PageRole,
     ParseStatus,
+    ResponseSafety,
     ReviewStatus,
     SourceKind,
 )
-from document_pipeline import _page_is_visually_structured, parse_document
+from document_pipeline import _build_tasks, _page_is_visually_structured, parse_document
 from exporter import build_original_export_pdf
 from manifest import build_manifest
 from ocr_adapter import NullOCRAdapter, PaddleOCRAdapter, get_ocr_adapter
 from review_service import apply_review_actions
 from semantic_classifier import (
     GeminiSemanticClassifier,
+    NullSemanticClassifier,
     SemanticBlockDecision,
     SemanticPageResult,
     SemanticTaskCandidate,
 )
 
 
-def _pdf_bytes(*, prompt: str = "Question 1: Explain the result?", answer_line: bool = True, rotation: int = 0):
+def _pdf_bytes(
+    *,
+    prompt: str = "Question 1: Explain the result?",
+    answer_line: bool = True,
+    answer_line_width: float = 1,
+    rotation: int = 0,
+    crop: bool = False,
+    user_unit: int | None = None,
+):
     document = fitz.open()
     page = document.new_page(width=200, height=100)
     page.insert_text((12, 22), "Student Worksheet", fontsize=10)
     page.insert_text((12, 45), prompt, fontsize=9)
     if answer_line:
-        page.draw_line((12, 70), (180, 70), width=1)
+        page.draw_line((12, 70), (180, 70), width=answer_line_width)
+    if crop:
+        page.set_cropbox(fitz.Rect(10, 10, 190, 90))
     if rotation:
         page.set_rotation(rotation)
+    if user_unit is not None:
+        document.xref_set_key(page.xref, "UserUnit", str(user_unit))
     result = document.tobytes()
     document.close()
     return result
@@ -183,20 +197,366 @@ class _WorksheetClassifier:
 
 
 def test_hybrid_document_has_provenance_and_auto_approves_only_physical_region(monkeypatch):
+    pdf_bytes = _pdf_bytes()
     monkeypatch.setattr("config.ENABLE_DOCUMENT_TASK_AUTO_APPROVE", True)
     document = parse_document(
-        _pdf_bytes(),
+        pdf_bytes,
         ocr_adapter=NullOCRAdapter(),
         semantic_classifier=_WorksheetClassifier(),
     )
     assert document.status == ParseStatus.parsed
+    assert document.source_sha256 == hashlib.sha256(pdf_bytes).hexdigest()
     assert len(document.tasks) == 1
     task = document.tasks[0]
-    assert task.id.startswith("q1-")
-    assert task.source_blocks
-    assert task.answer_bbox is not None
-    assert task.answer_region_status == AnswerRegionStatus.detected
+    assert task.id.startswith("q-")
+    assert task.prompt_block_ids
+    assert len(task.response_links) == 1
+    region = document.response_region(task.response_links[0].response_region_id)
+    assert region.bbox is not None
+    assert region.safety == ResponseSafety.approved
     assert task.review_status == ReviewStatus.auto_approved
+
+
+def test_rotated_pdf_uses_unrotated_evidence_bounds_and_routes_targets_to_the_side_panel(monkeypatch):
+    monkeypatch.setattr("config.ENABLE_DOCUMENT_TASK_AUTO_APPROVE", True)
+    parsed = parse_document(
+        _pdf_bytes(rotation=90),
+        ocr_adapter=NullOCRAdapter(),
+        semantic_classifier=_WorksheetClassifier(),
+    )
+
+    page = parsed.pages[0]
+    task = parsed.tasks[0]
+    region = parsed.response_region(task.response_links[0].response_region_id)
+    assert (page.width_points, page.height_points, page.rotation) == (200.0, 100.0, 90)
+    assert region.safety == ResponseSafety.unsafe
+    assert task.side_panel_fallback is True
+    assert task.review_status == ReviewStatus.needs_review
+    assert "page_0:transformed_physical_targets_side_panel_only" in parsed.warnings
+
+
+def test_cropped_pdf_routes_physical_targets_to_the_side_panel_until_transformed():
+    parsed = parse_document(
+        _pdf_bytes(crop=True),
+        ocr_adapter=NullOCRAdapter(),
+        semantic_classifier=_WorksheetClassifier(),
+    )
+
+    page = parsed.pages[0]
+    task = parsed.tasks[0]
+    region = parsed.response_region(task.response_links[0].response_region_id)
+    assert page.display_transform_required is True
+    assert region.safety == ResponseSafety.unsafe
+    assert task.side_panel_fallback is True
+
+
+def test_user_unit_pdf_uses_scaled_extraction_bounds_and_routes_targets_to_the_side_panel():
+    parsed = parse_document(
+        _pdf_bytes(user_unit=2, answer_line_width=0.5),
+        ocr_adapter=NullOCRAdapter(),
+        semantic_classifier=_WorksheetClassifier(),
+    )
+
+    page = parsed.pages[0]
+    task = parsed.tasks[0]
+    region = parsed.response_region(task.response_links[0].response_region_id)
+    assert (page.width_points, page.height_points) == (400.0, 200.0)
+    assert page.display_transform_required is True
+    assert region.safety == ResponseSafety.unsafe
+    assert task.side_panel_fallback is True
+    assert "page_0:transformed_physical_targets_side_panel_only" in parsed.warnings
+
+
+def test_transformed_paddle_geometry_is_retained_as_text_only(monkeypatch):
+    from ocr_adapter import OCRPageResult, OCRTextBlock
+
+    class _DisplayFrameOCR:
+        def extract_page(self, _pdf_bytes, page_index):
+            return OCRPageResult(
+                page_index=page_index,
+                blocks=[
+                    OCRTextBlock(
+                        text="OCR-only prompt",
+                        bbox=(10, 150, 80, 180),
+                        confidence=0.95,
+                        label="form_field",
+                        source_id="outside-unrotated-height",
+                    )
+                ],
+                engine="test",
+                warnings=[],
+                width_points=100,
+                height_points=200,
+                rotation=90,
+            )
+
+    parsed = parse_document(
+        _pdf_bytes(rotation=90),
+        ocr_adapter=_DisplayFrameOCR(),
+        semantic_classifier=NullSemanticClassifier(),
+        paddle_all_pages=True,
+    )
+
+    paddle = next(block for block in parsed.blocks if block.source == SourceKind.paddleocr)
+    assert paddle.bbox is None
+    assert paddle.polygon is None
+    assert "page_0:paddle_geometry_omitted_for_transformed_page" in parsed.warnings
+
+
+def test_clipped_crop_geometry_is_sanitized_before_canonical_validation():
+    source = fitz.open()
+    page = source.new_page(width=200, height=100)
+    page.insert_text((55, 30), "What is your answer?", fontsize=9)
+    page.draw_line((0, 70), (200, 70))
+    page.set_cropbox(fitz.Rect(50, 0, 150, 100))
+    pdf_bytes = source.tobytes()
+    source.close()
+
+    parsed = parse_document(
+        pdf_bytes,
+        ocr_adapter=NullOCRAdapter(),
+        semantic_classifier=NullSemanticClassifier(),
+    )
+
+    assert parsed.pages[0].display_transform_required is True
+    assert all(
+        block.bbox is None
+        or (0 <= block.bbox[0] < block.bbox[2] <= 100 and 0 <= block.bbox[1] < block.bbox[3] <= 100)
+        for block in parsed.blocks
+    )
+    assert "page_0:extraction_geometry_clipped_or_omitted" in parsed.warnings
+
+
+def test_clipped_vector_geometry_is_never_auto_approved_or_out_of_bounds():
+    source = fitz.open()
+    page = source.new_page(width=200, height=100)
+    page.insert_text((12, 45), "Question 1: Explain the result?", fontsize=9)
+    page.draw_line((-10, 70), (210, 70))
+    pdf_bytes = source.tobytes()
+    source.close()
+
+    parsed = parse_document(
+        pdf_bytes,
+        ocr_adapter=NullOCRAdapter(),
+        semantic_classifier=NullSemanticClassifier(),
+    )
+
+    clipped = next(block for block in parsed.blocks if block.block_label == "clipped_response_candidate")
+    assert clipped.bbox == [0.0, 65.0, 200.0, 89.0]
+    assert clipped.semantic_role == BlockSemanticRole.unknown
+
+
+def test_duplicate_semantic_response_selection_fails_closed_to_no_tasks():
+    class _DuplicateResponseClassifier:
+        def classify_page(self, page, blocks, **_kwargs):
+            response = next(block for block in blocks if block.block_label == "answer_line")
+            prompt_blocks = [block for block in blocks if block.text.strip()]
+            return SemanticPageResult(
+                page_index=page.page_index,
+                page_role=PageRole.student_worksheet,
+                confidence=0.96,
+                blocks=[
+                    SemanticBlockDecision(
+                        block_id=block.id,
+                        role=BlockSemanticRole.student_prompt,
+                        confidence=0.95,
+                    )
+                    for block in blocks
+                ],
+                tasks=[
+                    SemanticTaskCandidate(
+                        label="1",
+                        prompt_text="ignored",
+                        prompt_block_ids=[prompt_blocks[0].id],
+                        response_block_ids=[response.id],
+                        response_type="short_text",
+                        confidence=0.95,
+                    ),
+                    SemanticTaskCandidate(
+                        label="2",
+                        prompt_text="ignored",
+                        prompt_block_ids=[prompt_blocks[-1].id],
+                        response_block_ids=[response.id],
+                        response_type="short_text",
+                        confidence=0.95,
+                    ),
+                ],
+            )
+
+    parsed = parse_document(
+        _pdf_bytes(),
+        ocr_adapter=NullOCRAdapter(),
+        semantic_classifier=_DuplicateResponseClassifier(),
+    )
+    assert parsed.tasks == []
+    assert parsed.response_regions == []
+    assert parsed.status == ParseStatus.low_confidence
+    assert "semantic_task_materialization_rejected" in parsed.warnings
+
+
+def test_semantic_candidate_order_cannot_change_canonical_task_order_or_legacy_display_ids():
+    blocks = [
+        DocumentBlock(
+            id="prompt-first",
+            page_index=0,
+            reading_order=0,
+            text="First physical prompt.",
+            block_label="text",
+            bbox=[12, 20, 180, 36],
+            confidence=1,
+            source=SourceKind.native_pdf,
+            semantic_role=BlockSemanticRole.student_prompt,
+        ),
+        DocumentBlock(
+            id="response-first",
+            page_index=0,
+            reading_order=1,
+            text="",
+            block_label="answer_line",
+            bbox=[12, 42, 180, 56],
+            confidence=1,
+            source=SourceKind.pdf_geometry,
+            semantic_role=BlockSemanticRole.response_area,
+        ),
+        DocumentBlock(
+            id="prompt-second",
+            page_index=0,
+            reading_order=2,
+            text="Second physical prompt.",
+            block_label="text",
+            bbox=[12, 68, 180, 84],
+            confidence=1,
+            source=SourceKind.native_pdf,
+            semantic_role=BlockSemanticRole.student_prompt,
+        ),
+        DocumentBlock(
+            id="response-second",
+            page_index=0,
+            reading_order=3,
+            text="",
+            block_label="answer_line",
+            bbox=[12, 90, 180, 104],
+            confidence=1,
+            source=SourceKind.pdf_geometry,
+            semantic_role=BlockSemanticRole.response_area,
+        ),
+    ]
+
+    def materialize(reverse: bool):
+        candidates = [
+            SemanticTaskCandidate(
+                label="model-second",
+                prompt_text="ignored",
+                prompt_block_ids=["prompt-second"],
+                response_block_ids=["response-second"],
+                response_type="short_text",
+                confidence=0.99,
+            ),
+            SemanticTaskCandidate(
+                label="model-first",
+                prompt_text="ignored",
+                prompt_block_ids=["prompt-first"],
+                response_block_ids=["response-first"],
+                response_type="short_text",
+                confidence=0.99,
+            ),
+        ]
+        if reverse:
+            candidates.reverse()
+        result = SemanticPageResult(
+            page_index=0,
+            page_role=PageRole.student_worksheet,
+            confidence=0.99,
+            blocks=[],
+            tasks=candidates,
+        )
+        return _build_tasks(blocks, [result], review_mode="direct")[0]
+
+    first = materialize(reverse=False)
+    reversed_candidates = materialize(reverse=True)
+    first_identity = [(task.id, task.legacy_question_id, task.order) for task in first]
+    reversed_identity = [
+        (task.id, task.legacy_question_id, task.order) for task in reversed_candidates
+    ]
+    assert first_identity == reversed_identity
+    assert [task.prompt_text for task in first] == [
+        "First physical prompt.",
+        "Second physical prompt.",
+    ]
+
+
+def test_distinct_overlapping_semantic_response_blocks_fail_closed():
+    blocks = [
+        DocumentBlock(
+            id="prompt-one",
+            page_index=0,
+            reading_order=0,
+            text="First prompt.",
+            block_label="text",
+            bbox=[12, 20, 180, 36],
+            confidence=1,
+            source=SourceKind.native_pdf,
+            semantic_role=BlockSemanticRole.student_prompt,
+        ),
+        DocumentBlock(
+            id="response-one",
+            page_index=0,
+            reading_order=1,
+            text="",
+            block_label="answer_line",
+            bbox=[12, 42, 180, 62],
+            confidence=1,
+            source=SourceKind.pdf_geometry,
+            semantic_role=BlockSemanticRole.response_area,
+        ),
+        DocumentBlock(
+            id="prompt-two",
+            page_index=0,
+            reading_order=2,
+            text="Second prompt.",
+            block_label="text",
+            bbox=[12, 70, 180, 86],
+            confidence=1,
+            source=SourceKind.native_pdf,
+            semantic_role=BlockSemanticRole.student_prompt,
+        ),
+        DocumentBlock(
+            id="response-two",
+            page_index=0,
+            reading_order=3,
+            text="",
+            block_label="answer_line",
+            bbox=[30, 54, 180, 78],
+            confidence=1,
+            source=SourceKind.pdf_geometry,
+            semantic_role=BlockSemanticRole.response_area,
+        ),
+    ]
+    result = SemanticPageResult(
+        page_index=0,
+        page_role=PageRole.student_worksheet,
+        confidence=0.99,
+        blocks=[],
+        tasks=[
+            SemanticTaskCandidate(
+                prompt_text="ignored",
+                prompt_block_ids=["prompt-one"],
+                response_block_ids=["response-one"],
+                response_type="short_text",
+                confidence=0.99,
+            ),
+            SemanticTaskCandidate(
+                prompt_text="ignored",
+                prompt_block_ids=["prompt-two"],
+                response_block_ids=["response-two"],
+                response_type="short_text",
+                confidence=0.99,
+            ),
+        ],
+    )
+
+    with pytest.raises(ValueError, match="overlapping physical response blocks"):
+        _build_tasks(blocks, [result], review_mode="direct")
 
 
 def test_colon_label_with_same_row_vector_line_is_explicit_answer_evidence():
@@ -245,8 +605,9 @@ def test_colon_label_with_same_row_vector_line_is_explicit_answer_evidence():
         ocr_adapter=NullOCRAdapter(),
         semantic_classifier=_FieldClassifier(),
     )
-    assert parsed.tasks[0].answer_bbox is not None
-    assert parsed.tasks[0].answer_region_status == AnswerRegionStatus.detected
+    task = parsed.tasks[0]
+    assert len(task.response_links) == 1
+    assert parsed.response_region(task.response_links[0].response_region_id).safety == ResponseSafety.needs_review
     assert parsed.tasks[0].review_status == ReviewStatus.needs_review
 
 
@@ -257,8 +618,8 @@ def test_missing_response_region_uses_side_panel_and_needs_review():
         semantic_classifier=_WorksheetClassifier(response=False),
     )
     task = document.tasks[0]
-    assert task.answer_bbox is None
-    assert task.answer_region_status == AnswerRegionStatus.side_panel
+    assert task.response_links == []
+    assert task.side_panel_fallback is True
     assert task.review_status == ReviewStatus.needs_review
     assert document.status == ParseStatus.low_confidence
 
@@ -489,8 +850,7 @@ def test_semantic_schema_rejects_duplicate_tasks_before_id_generation():
         )
 
 
-def test_teacher_can_merge_then_split_with_block_provenance():
-    pdf_bytes = _pdf_bytes()
+def test_teacher_cannot_merge_quarantined_legacy_tasks_without_source_evidence():
     questions = [
         {
             "id": 1,
@@ -518,28 +878,8 @@ def test_teacher_can_merge_then_split_with_block_provenance():
         review_mode="teacher",
         review_status="draft",
     )
-    merged = apply_review_actions(
-        manifest,
-        [{"action": "merge", "task_ids": ["q1-a", "q2-b"]}],
-        pdf_bytes=pdf_bytes,
-    )
-    assert len(merged.questions) == 1
-    merged_task = merged.questions[0]
-    assert merged_task.source_blocks == ["block-a", "block-b"]
-    split = apply_review_actions(
-        merged,
-        [
-            {
-                "action": "split",
-                "task_id": merged_task.task_id,
-                "parts": [
-                    {"prompt_text": "First prompt", "source_blocks": ["block-a"]},
-                    {"prompt_text": "Second prompt", "source_blocks": ["block-b"]},
-                ],
-            }
-        ],
-        pdf_bytes=pdf_bytes,
-    )
-    assert [question.id for question in split.questions] == [1, 2]
-    assert len({question.task_id for question in split.questions}) == 2
-    assert all(question.answer_region_status == "side_panel" for question in split.questions)
+    with pytest.raises(ValueError, match="source-backed prompt evidence"):
+        apply_review_actions(
+            manifest,
+            [{"action": "merge", "task_ids": ["q1-a", "q2-b"]}],
+        )

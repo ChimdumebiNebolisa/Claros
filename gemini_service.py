@@ -15,7 +15,9 @@ logger = logging.getLogger(__name__)
 
 def create_session_config(assignment_id: str) -> dict:
     """Return ephemeral token + system prompt + model for browser-side Gemini Live."""
-    title, questions = assignment_service.load_assignment_from_gcs(assignment_id)
+    manifest = assignment_service.load_assignment_manifest_for_client(assignment_id)
+    title = manifest.title
+    questions = manifest.to_questions_dict(approved_only=manifest.review_mode == "teacher")
     assignment_text = assignment_service.format_assignment_text(title, questions)
     system_prompt = build_system_prompt(assignment_text)
     api_key = get_api_key()

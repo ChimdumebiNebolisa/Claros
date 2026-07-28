@@ -6,6 +6,8 @@ Legacy path: reconstruct a ReportLab PDF for manifests without layout metadata.
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
 from datetime import UTC, datetime
 from functools import lru_cache
 from io import BytesIO
@@ -19,6 +21,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, Preformatted
 
+from document_model import CoordinateSpace, IntermediateDocument, ResponseSafety
 from manifest import validate_bbox_within_page
 from parser import normalize_worksheet_text
 
@@ -46,9 +49,10 @@ class SidePanelOverflowError(ValueError):
 class UnsupportedAnswerTextError(ValueError):
     """Raised when a confirmed answer cannot be rendered without substitution."""
 
-    def __init__(self, affected_question_ids: list[int]):
+    def __init__(self, affected_question_ids: list[int | str]):
         super().__init__("Confirmed answer contains text the PDF renderer cannot preserve")
         self.affected_question_ids = affected_question_ids
+        self.affected_response_ids = affected_question_ids
 
 
 @lru_cache(maxsize=1)
@@ -80,6 +84,54 @@ def _validated_answer_by_id(answers: list[dict]) -> dict[int, str]:
     if unsupported_question_ids:
         raise UnsupportedAnswerTextError(sorted(set(unsupported_question_ids)))
     return result
+
+
+def _validated_answers_by_target(answers: list[dict]) -> dict[tuple[str, str], str]:
+    """Validate canonical answers without accepting client-owned geometry."""
+    result: dict[tuple[str, str], str] = {}
+    unsupported_ids: list[str] = []
+    font = _answer_font()
+    for item in answers:
+        task_id = item.get("task_id")
+        response_region_id = item.get("response_region_id")
+        answer_text = item.get("answer_text", "")
+        if not isinstance(task_id, str) or not task_id:
+            raise ValueError("task_id is required for canonical export")
+        if not isinstance(response_region_id, str) or not response_region_id:
+            raise ValueError("response_region_id is required for canonical export")
+        if not isinstance(answer_text, str):
+            raise TypeError("answer_text must be a string")
+        target = (task_id, response_region_id)
+        if target in result:
+            raise ValueError("duplicate answer response target")
+        if any(
+            character in {"\r", "\t"} or (character != "\n" and font.has_glyph(ord(character)) == 0)
+            for character in answer_text
+        ):
+            unsupported_ids.append(response_region_id)
+        result[target] = answer_text
+    if unsupported_ids:
+        raise UnsupportedAnswerTextError(sorted(set(unsupported_ids)))
+    return result
+
+
+def _canonical_target_label(task, response_region_id: str) -> str:
+    """Preserve the task-to-response relation when a target uses the side panel."""
+    link = next(
+        (item for item in task.response_links if item.response_region_id == response_region_id),
+        None,
+    )
+    if link is None:
+        return "Side-panel response"
+    if link.role.value == "choice":
+        choice = next((item for item in task.choices if item.id == link.choice_id), None)
+        choice_text = choice.text if choice is not None else None
+        return f"Choice {choice_text}" if choice_text else "Choice"
+    return {
+        "answer": "Answer",
+        "explanation": "Explanation",
+        "show_work": "Show work",
+    }.get(link.role.value, "Response")
 
 
 def _register_reportlab_answer_font() -> str:
@@ -182,6 +234,115 @@ def build_original_export_pdf(
                         answer,
                     )
                 )
+        if side_panel_items:
+            _append_side_panel_pages(document, side_panel_items)
+        return document.tobytes(garbage=4, deflate=True)
+    finally:
+        document.close()
+
+
+def build_canonical_export_pdf(
+    pdf_bytes: bytes,
+    document_model: IntermediateDocument,
+    answers: list[dict],
+) -> bytes:
+    """Export canonical responses using only server-owned task/region evidence."""
+    try:
+        # Pydantic model mutation does not re-run cross-document provenance
+        # checks. Revalidate immediately before any irreversible PDF drawing.
+        document_model = IntermediateDocument.model_validate(document_model.model_dump(mode="json"))
+    except ValueError as exc:
+        raise ValueError("canonical document validation failed") from exc
+    answer_by_target = _validated_answers_by_target(answers)
+    document = fitz.open(stream=pdf_bytes, filetype="pdf")
+    side_panel_items: list[tuple[str, str, str]] = []
+    try:
+        document_layout_matches = len(document_model.pages) == document.page_count
+        document_source_matches = bool(document_model.source_sha256) and hmac.compare_digest(
+            document_model.source_sha256 or "",
+            hashlib.sha256(pdf_bytes).hexdigest(),
+        )
+        for (task_id, response_region_id), answer in answer_by_target.items():
+            if not answer:
+                continue
+            try:
+                task = document_model.task(task_id)
+            except KeyError as exc:
+                raise ValueError("answer references unknown task") from exc
+            response_ids = {link.response_region_id for link in task.response_links}
+            region = None
+            if response_region_id in response_ids:
+                region = document_model.response_region(response_region_id)
+            elif response_region_id != f"{task.id}:side-panel":
+                raise ValueError("answer references a response target outside its task")
+            task_label = str(task.legacy_question_id)
+            side_panel_label = f"{task_label} - {_canonical_target_label(task, response_region_id)}"
+            if (
+                region is None
+                or region.safety != ResponseSafety.approved
+                or region.page_index < 0
+                or region.page_index >= document.page_count
+            ):
+                side_panel_items.append((side_panel_label, normalize_worksheet_text(task.prompt_text), answer))
+                continue
+            page = document[region.page_index]
+            page_metadata = document_model.page(region.page_index)
+            if (
+                not document_layout_matches
+                or not document_source_matches
+                or (
+                    page_metadata.coordinate_space != CoordinateSpace.normalized_legacy
+                    and (
+                        abs(page_metadata.width_points - page.rect.width) > 0.5
+                        or abs(page_metadata.height_points - page.rect.height) > 0.5
+                    )
+                )
+            ):
+                side_panel_items.append((side_panel_label, normalize_worksheet_text(task.prompt_text), answer))
+                continue
+            if page_metadata.coordinate_space == CoordinateSpace.normalized_legacy:
+                rect = fitz.Rect(
+                    region.bbox[0] * page.rect.width,
+                    region.bbox[1] * page.rect.height,
+                    region.bbox[2] * page.rect.width,
+                    region.bbox[3] * page.rect.height,
+                )
+            else:
+                rect = fitz.Rect(*region.bbox)
+            if (
+                rect.width <= 0
+                or rect.height <= 0
+                or rect.x0 < page.rect.x0
+                or rect.y0 < page.rect.y0
+                or rect.x1 > page.rect.x1
+                or rect.y1 > page.rect.y1
+            ):
+                side_panel_items.append((side_panel_label, normalize_worksheet_text(task.prompt_text), answer))
+                continue
+            answer_font_name = _install_answer_font(page)
+            font_size = max(8.0, min(12.0, rect.height * 0.36))
+            inset = rect + (3, 2, -3, -2)
+            if not _textbox_fits(
+                page.rect.width,
+                page.rect.height,
+                inset,
+                answer,
+                font_size,
+                answer_font_name,
+            ):
+                side_panel_items.append((side_panel_label, normalize_worksheet_text(task.prompt_text), answer))
+                continue
+            page.draw_rect(rect, color=None, fill=(1, 1, 1), fill_opacity=0.94, overlay=True)
+            if page.insert_textbox(
+                inset,
+                answer,
+                fontname=answer_font_name,
+                fontsize=font_size,
+                color=(0.09, 0.07, 0.05),
+                lineheight=1.2,
+                overlay=True,
+            ) < 0:
+                side_panel_items.append((side_panel_label, normalize_worksheet_text(task.prompt_text), answer))
         if side_panel_items:
             _append_side_panel_pages(document, side_panel_items)
         return document.tobytes(garbage=4, deflate=True)

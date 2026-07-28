@@ -57,22 +57,25 @@ def test_parser_unsupported_layout_has_no_fallback_question(tmp_pdf_no_questions
 
 
 def test_session_confirm_issues_write_token(monkeypatch, write_client):
+    task_id = "task-q1"
+    response_region_id = "task-q1:side-panel"
     created = {
         "blob": {
             "session_id": "550e8400-e29b-41d4-a716-446655440001",
             "assignment_id": TEST_ASSIGNMENT_ID,
+            "document_contract_version": session_service.SESSION_CONTRACT_VERSION,
             "session_secret_hash": session_service._secret_digest("secret-abc"),
             "expires_at": "2099-01-01T00:00:00+00:00",
-            "questions": {"1": {}},
+            "tasks": {
+                task_id: {
+                    "legacy_question_id": 1,
+                    "default_response_region_id": response_region_id,
+                    "responses": {response_region_id: {"response_snapshot": "fixture-response"}},
+                }
+            },
+            "legacy_question_ids": {"1": task_id},
         }
     }
-
-    def fake_create(assignment_id, question_ids):
-        return {
-            "session_id": created["blob"]["session_id"],
-            "session_secret": "secret-abc",
-            "expires_at": created["blob"]["expires_at"],
-        }
 
     def fake_load(session_id):
         from session_service import SessionState
@@ -82,7 +85,6 @@ def test_session_confirm_issues_write_token(monkeypatch, write_client):
     def fake_save(state):
         created["blob"] = state.data
 
-    monkeypatch.setattr(session_service, "create_session", fake_create)
     monkeypatch.setattr(session_service, "load_session", fake_load)
     monkeypatch.setattr(session_service, "save_session", fake_save)
 
@@ -90,11 +92,14 @@ def test_session_confirm_issues_write_token(monkeypatch, write_client):
         "/api/session/550e8400-e29b-41d4-a716-446655440001/confirm",
         json={
             "session_secret": "secret-abc",
-            "question_id": 1,
+            "task_id": task_id,
+            "response_region_id": response_region_id,
             "answer_text": "My final answer is 7",
         },
     )
     assert confirm.status_code == 200
     body = confirm.json()
+    assert body["task_id"] == task_id
+    assert body["response_region_id"] == response_region_id
     assert body["confirmed"] is True
     assert body["write_token"]

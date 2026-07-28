@@ -65,6 +65,8 @@ def validate_app_html() -> None:
         'id="interruptBtn"',
         'id="voiceBadge"',
         'id="typedAnswer"',
+        'id="responseTargets"',
+        'id="currentResponseLabel"',
         'id="workspaceStatus"',
         'id="pageImage"',
         "/app.js",
@@ -107,6 +109,9 @@ def validate_app_js_contract() -> None:
         "setSessionPanelExpanded",
         "clearAssignmentSessionState",
         "X-Assignment-Capability",
+        "task_id",
+        "response_region_id",
+        "defaultResponseTarget",
     )
     for needle in checks:
         if needle not in js:
@@ -115,6 +120,10 @@ def validate_app_js_contract() -> None:
         raise AssertionError("answer confirmation must not automatically trigger a write")
     if "teacherReviewMode" in js or "teacherReviewPanel" in js:
         raise AssertionError("student app must not include teacher review branches")
+    if "layout_confirmed" in js or "answer_region: question.answer_region" in js:
+        raise AssertionError("student writes must not submit browser-supplied geometry")
+    if "responseTargetIds[0]" in js:
+        raise AssertionError("app defaults must resolve the server-selected response target")
 
 
 def validate_session_rules() -> None:
@@ -133,8 +142,14 @@ def validate_worksheet_view() -> None:
         raise AssertionError("worksheet-view.js must fetch protected page PNGs with assignment capability")
     if "setCorrectionMode" in js or "confirmSelected" in js or "function adjust" in js:
         raise AssertionError("worksheet-view.js must not let students alter answer geometry")
-    if "if (Number(state.activeQuestionId) !== Number(question.id)) return;" not in js:
-        raise AssertionError("worksheet-view.js must render only the active answer region")
+    if "normalizeDocument" not in js or "response_region_id" not in js:
+        raise AssertionError("worksheet-view.js must normalize canonical task and response-region data")
+    if "onSelectTarget" not in js or "dataset.responseRegionId" not in js:
+        raise AssertionError("worksheet-view.js must select response targets by stable IDs")
+    if "defaultResponseTargetId" not in js or "choiceById" not in js:
+        raise AssertionError("worksheet-view.js must preserve canonical defaults and explicit choice mappings")
+    if "Number(state.activeQuestionId)" in js:
+        raise AssertionError("worksheet-view.js must not use numeric question identity")
     if "location needs review; writing is unavailable" not in js:
         raise AssertionError("worksheet regions must announce unsafe placement")
 

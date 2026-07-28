@@ -63,7 +63,7 @@ view.load({
 
 assert.equal(overlayLayer.children.length, 1);
 const [number, answer] = overlayLayer.children[0].children;
-assert.equal(number.textContent, `Q${maliciousLabel}`);
+assert.equal(number.textContent, 'Q1');
 assert.equal(answer.textContent, '');
 assert.equal(globalThis.__xss, undefined);
 

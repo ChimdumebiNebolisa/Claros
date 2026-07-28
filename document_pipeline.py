@@ -1,24 +1,30 @@
 """Hybrid native-PDF, PaddleOCR, and semantic document-understanding pipeline."""
 from __future__ import annotations
 
+import hashlib
+import math
 import re
 import time
-from typing import Iterable
 
 import fitz
 
 import config
 from document_model import (
-    AnswerRegionStatus,
     BlockSemanticRole,
     DocumentBlock,
     DocumentPage,
+    DocumentResponseRegion,
     DocumentTask,
     IntermediateDocument,
     PageRole,
     ParseStatus,
+    ResponseRegionType,
+    ResponseSafety,
     ReviewStatus,
     SourceKind,
+    TaskResponseLink,
+    source_prompt_text,
+    stable_response_region_id,
     stable_task_id,
 )
 from ocr_adapter import OCRAdapter, NullOCRAdapter, get_ocr_adapter
@@ -28,16 +34,83 @@ _NATIVE_TEXT_MIN_CHARS = 12
 _SAFE_RESPONSE_LABELS = {"answer_line", "form_field"}
 
 
-def _union_bbox(blocks: Iterable[DocumentBlock]) -> list[float] | None:
-    items = list(blocks)
-    if not items:
+def _page_extraction_dimensions(page: fitz.Page) -> tuple[float, float]:
+    """Return the unrotated coordinate extent used by PyMuPDF extraction.
+
+    ``Page.rect`` includes crop and ``/UserUnit`` scaling, while a rotated
+    page swaps its display width and height. Text, drawings, and widgets are
+    exposed in the unrotated extraction frame, so use the de-rotated rect
+    dimensions as the canonical bounds.
+    """
+    rotation = int(page.rotation) % 360
+    width = float(page.rect.width)
+    height = float(page.rect.height)
+    if rotation in {90, 270}:
+        return height, width
+    return width, height
+
+
+def _page_requires_display_transform(page: fitz.Page) -> bool:
+    """Whether extraction coordinates need a transform before browser display."""
+    media = page.mediabox
+    crop = page.cropbox
+    extraction_width, extraction_height = _page_extraction_dimensions(page)
+    return page.rotation != 0 or any(
+        abs(left - right) > 0.01
+        for left, right in zip((media.x0, media.y0, media.x1, media.y1), (crop.x0, crop.y0, crop.x1, crop.y1))
+    ) or abs(extraction_width - float(media.width)) > 0.01 or abs(
+        extraction_height - float(media.height)
+    ) > 0.01
+
+
+def _clip_bbox_to_page(
+    bbox: list[float],
+    width: float,
+    height: float,
+) -> list[float] | None:
+    """Clip observed geometry to its active extraction frame, or omit it."""
+    if len(bbox) != 4 or not all(math.isfinite(float(value)) for value in bbox):
         return None
-    return [
-        min(item.bbox[0] for item in items),
-        min(item.bbox[1] for item in items),
-        max(item.bbox[2] for item in items),
-        max(item.bbox[3] for item in items),
-    ]
+    x0, y0, x1, y1 = (float(value) for value in bbox)
+    clipped = [max(0.0, x0), max(0.0, y0), min(width, x1), min(height, y1)]
+    if clipped[2] <= clipped[0] or clipped[3] <= clipped[1]:
+        return None
+    return clipped
+
+
+def _sanitize_blocks_to_page(
+    blocks: list[DocumentBlock],
+    *,
+    width: float,
+    height: float,
+) -> tuple[list[DocumentBlock], bool]:
+    """Keep only geometry that is valid in the page extraction frame.
+
+    PDF drawing and OCR APIs can return content clipped by the active page
+    frame. The text and stable ID remain useful evidence, but a clipped
+    response source must never become an auto-approved physical destination.
+    """
+    sanitized: list[DocumentBlock] = []
+    changed_any = False
+    for block in blocks:
+        clipped_bbox = _clip_bbox_to_page(block.bbox, width, height) if block.bbox else None
+        geometry_changed = block.bbox is not None and clipped_bbox != block.bbox
+        polygon_outside = block.polygon is not None and any(
+            x < 0 or y < 0 or x > width or y > height for x, y in block.polygon
+        )
+        updates = {}
+        if geometry_changed:
+            updates["bbox"] = clipped_bbox
+        if polygon_outside or clipped_bbox is None and block.bbox is not None:
+            updates["polygon"] = None
+        if geometry_changed and block.block_label in _SAFE_RESPONSE_LABELS:
+            updates["block_label"] = "clipped_response_candidate"
+            updates["semantic_role"] = BlockSemanticRole.unknown
+        if updates:
+            block = block.model_copy(update=updates)
+            changed_any = True
+        sanitized.append(block)
+    return sanitized, changed_any
 
 
 def _native_blocks(page: fitz.Page, page_index: int) -> list[DocumentBlock]:
@@ -86,6 +159,7 @@ def _physical_response_blocks(
 ) -> list[DocumentBlock]:
     blocks: list[DocumentBlock] = []
     order = start_order
+    page_width, page_height = _page_extraction_dimensions(page)
     widgets = page.widgets()
     if widgets is not None:
         for widget in widgets:
@@ -147,14 +221,14 @@ def _physical_response_blocks(
             p0, p1 = item[1], item[2]
             if abs(p0.y - p1.y) > 2 or abs(p1.x - p0.x) < 80:
                 continue
-            x0, x1 = sorted((float(p0.x), float(p1.x)))
+            raw_x0, raw_x1 = sorted((float(p0.x), float(p1.x)))
             y = float((p0.y + p1.y) / 2)
-            signature = (round(x0), round(x1), round(y))
+            signature = (round(raw_x0), round(raw_x1), round(y))
             if signature in seen:
                 continue
             seen.add(signature)
             intersections = sum(
-                x0 - 2 <= x <= x1 + 2 and vertical_y0 - 2 <= y <= vertical_y1 + 2
+                raw_x0 - 2 <= x <= raw_x1 + 2 and vertical_y0 - 2 <= y <= vertical_y1 + 2
                 for x, vertical_y0, vertical_y1 in verticals
             )
             nearby_blocks = [
@@ -162,8 +236,8 @@ def _physical_response_blocks(
                 for block in native_blocks
                 if block.bbox[1] <= y
                 and y - block.bbox[3] <= 50
-                and block.bbox[2] >= x0 - 12
-                and block.bbox[0] <= x1 + 12
+                and block.bbox[2] >= raw_x0 - 12
+                and block.bbox[0] <= raw_x1 + 12
             ]
             nearby_text = " ".join(block.text for block in nearby_blocks)
             explicit_prompt_evidence = bool(
@@ -175,7 +249,7 @@ def _physical_response_blocks(
             )
             explicit_field_label = any(
                 block.text.rstrip().endswith(":")
-                and x0 >= block.bbox[2] - 15
+                and raw_x0 >= block.bbox[2] - 15
                 and abs(y - block.bbox[3]) <= 16
                 for block in nearby_blocks
             )
@@ -184,18 +258,34 @@ def _physical_response_blocks(
                 and (explicit_prompt_evidence or explicit_field_label)
                 and float(drawing.get("width") or 1) <= 1.5
             )
+            bbox = _clip_bbox_to_page(
+                [raw_x0, max(0.0, y - 5), raw_x1, min(page_height, y + 19)],
+                page_width,
+                page_height,
+            )
+            if bbox is None:
+                continue
+            geometry_clipped = bbox != [raw_x0, max(0.0, y - 5), raw_x1, min(page_height, y + 19)]
             blocks.append(
                 DocumentBlock(
                     id=f"page-{page_index}-line-{order}",
                     page_index=page_index,
                     reading_order=order,
                     text="",
-                    block_label="answer_line" if safe_line else "horizontal_rule_candidate",
-                    bbox=[x0, max(0.0, y - 5), x1, min(float(page.rect.height), y + 19)],
+                    block_label=(
+                        "clipped_response_candidate"
+                        if geometry_clipped
+                        else "answer_line"
+                        if safe_line
+                        else "horizontal_rule_candidate"
+                    ),
+                    bbox=bbox,
                     confidence=0.92 if safe_line else 0.55,
                     source=SourceKind.pdf_geometry,
                     semantic_role=(
-                        BlockSemanticRole.response_area if safe_line else BlockSemanticRole.unknown
+                        BlockSemanticRole.response_area
+                        if safe_line and not geometry_clipped
+                        else BlockSemanticRole.unknown
                     ),
                 )
             )
@@ -203,7 +293,12 @@ def _physical_response_blocks(
     return blocks
 
 
-def _paddle_blocks(result, start_order: int = 0) -> list[DocumentBlock]:
+def _paddle_blocks(
+    result,
+    start_order: int = 0,
+    *,
+    include_geometry: bool = True,
+) -> list[DocumentBlock]:
     blocks = []
     for index, item in enumerate(result.blocks):
         source_id = item.source_id or str(index)
@@ -214,8 +309,10 @@ def _paddle_blocks(result, start_order: int = 0) -> list[DocumentBlock]:
                 reading_order=start_order + item.reading_order,
                 text=item.text,
                 block_label=item.label,
-                bbox=list(item.bbox),
-                polygon=[list(point) for point in item.polygon] if item.polygon else None,
+                bbox=list(item.bbox) if include_geometry else None,
+                polygon=([list(point) for point in item.polygon] if item.polygon else None)
+                if include_geometry
+                else None,
                 confidence=item.confidence,
                 source=SourceKind.paddleocr,
             )
@@ -269,70 +366,160 @@ def _page_context(pages_blocks: list[list[DocumentBlock]], page_index: int) -> s
 
 
 def _build_tasks(
-    pages: list[DocumentPage],
     blocks: list[DocumentBlock],
     semantic_results,
     *,
     review_mode: str,
-) -> list[DocumentTask]:
+) -> tuple[list[DocumentTask], list[DocumentResponseRegion]]:
+    """Materialize semantic selections without merging physical response areas."""
     block_by_id = {block.id: block for block in blocks}
+
+    def physical_order(block: DocumentBlock) -> tuple[int, int, float, float, str]:
+        bbox = block.bbox or [float("inf"), float("inf"), float("inf"), float("inf")]
+        return (block.page_index, block.reading_order, bbox[1], bbox[0], block.id)
+
+    def ordered_blocks(block_ids: list[str], label: str) -> list[DocumentBlock]:
+        if len(block_ids) != len(set(block_ids)):
+            raise ValueError(f"semantic task has duplicate {label} block IDs")
+        return sorted((block_by_id[block_id] for block_id in block_ids), key=physical_order)
+
     tasks: list[DocumentTask] = []
-    for result in semantic_results:
-        if result.page_role not in {PageRole.student_worksheet, PageRole.mixed}:
-            continue
-        for candidate in result.tasks:
-            prompt_blocks = [block_by_id[block_id] for block_id in candidate.prompt_block_ids]
-            response_blocks = [block_by_id[block_id] for block_id in candidate.response_block_ids]
-            safe_response_blocks = [
-                block
-                for block in response_blocks
-                if block.block_label in _SAFE_RESPONSE_LABELS and block.confidence >= 0.85
-            ]
-            answer_bbox = _union_bbox(safe_response_blocks)
-            if answer_bbox is not None:
-                answer_status = AnswerRegionStatus.detected
-            elif response_blocks:
-                answer_status = AnswerRegionStatus.low_confidence
-            else:
-                answer_status = AnswerRegionStatus.side_panel
-            confidence = min(candidate.confidence, result.confidence)
-            can_auto_approve = (
-                config.ENABLE_DOCUMENT_TASK_AUTO_APPROVE
-                and review_mode == "direct"
-                and result.page_role == PageRole.student_worksheet
-                and confidence >= config.TASK_AUTO_APPROVE_CONFIDENCE
-                and answer_bbox is not None
-                and all(
-                    block.confidence >= config.ANSWER_REGION_AUTO_APPROVE_CONFIDENCE
-                    for block in safe_response_blocks
+    response_regions: list[DocumentResponseRegion] = []
+    claimed_response_block_ids: set[str] = set()
+    claimed_response_blocks: list[DocumentBlock] = []
+    task_ids: set[str] = set()
+
+    def candidate_sort_key(item) -> tuple[int, int, float, float, str, str]:
+        result, candidate = item
+        prompt_blocks = ordered_blocks(candidate.prompt_block_ids, "prompt")
+        prompt_text = source_prompt_text(prompt_blocks)
+        if not prompt_text:
+            raise ValueError("semantic task selected no source prompt text")
+        first_prompt = prompt_blocks[0]
+        return (*physical_order(first_prompt), stable_task_id(result.page_index, [block.id for block in prompt_blocks], prompt_text))
+
+    semantic_candidates = [
+        (result, candidate)
+        for result in semantic_results
+        if result.page_role in {PageRole.student_worksheet, PageRole.mixed}
+        for candidate in result.tasks
+    ]
+    for result, candidate in sorted(semantic_candidates, key=candidate_sort_key):
+        prompt_blocks = ordered_blocks(candidate.prompt_block_ids, "prompt")
+        response_blocks = ordered_blocks(candidate.response_block_ids, "response")
+        duplicate_response_sources = [
+            block.id for block in response_blocks if block.id in claimed_response_block_ids
+        ]
+        if duplicate_response_sources:
+            raise ValueError("semantic tasks selected the same physical response block")
+        candidate_response_blocks: list[DocumentBlock] = []
+        for block in response_blocks:
+            if block.bbox is None:
+                continue
+            if any(
+                block.page_index == claimed.page_index
+                and claimed.bbox is not None
+                and max(block.bbox[0], claimed.bbox[0]) < min(block.bbox[2], claimed.bbox[2])
+                and max(block.bbox[1], claimed.bbox[1]) < min(block.bbox[3], claimed.bbox[3])
+                for claimed in [*claimed_response_blocks, *candidate_response_blocks]
+            ):
+                raise ValueError("semantic tasks selected overlapping physical response blocks")
+            candidate_response_blocks.append(block)
+        eligible_response_blocks = [
+            block
+            for block in response_blocks
+            if block.bbox is not None
+            and block.block_label in _SAFE_RESPONSE_LABELS
+            and block.confidence >= 0.85
+        ]
+        confidence = min(candidate.confidence, result.confidence)
+        can_auto_approve = (
+            config.ENABLE_DOCUMENT_TASK_AUTO_APPROVE
+            and review_mode == "direct"
+            and result.page_role == PageRole.student_worksheet
+            and confidence >= config.TASK_AUTO_APPROVE_CONFIDENCE
+            and bool(eligible_response_blocks)
+            and len(eligible_response_blocks) == len(response_blocks)
+            and all(
+                block.confidence >= config.ANSWER_REGION_AUTO_APPROVE_CONFIDENCE
+                for block in eligible_response_blocks
+            )
+        )
+        review_status = ReviewStatus.auto_approved if can_auto_approve else ReviewStatus.needs_review
+        prompt_block_ids = [block.id for block in prompt_blocks]
+        prompt_text = source_prompt_text(prompt_blocks)
+        if not prompt_text:
+            raise ValueError("semantic task selected no source prompt text")
+        task_id = stable_task_id(
+            result.page_index,
+            prompt_block_ids,
+            prompt_text,
+        )
+        if task_id in task_ids:
+            raise ValueError("semantic tasks resolved to the same canonical task identity")
+        task_ids.add(task_id)
+        claimed_response_block_ids.update(block.id for block in response_blocks)
+        claimed_response_blocks.extend(candidate_response_blocks)
+        response_links: list[TaskResponseLink] = []
+        for response_order, block in enumerate(response_blocks):
+            if block.bbox is None:
+                continue
+            region_type = {
+                "answer_line": ResponseRegionType.answer_line,
+                "form_field": ResponseRegionType.form_field,
+                "checkbox": ResponseRegionType.checkbox,
+                "bounded_box": ResponseRegionType.bounded_box,
+            }.get(block.block_label, ResponseRegionType.unknown)
+            safety = (
+                ResponseSafety.approved
+                if can_auto_approve and block in eligible_response_blocks
+                else (
+                    ResponseSafety.needs_review
+                    if block.block_label in _SAFE_RESPONSE_LABELS
+                    else ResponseSafety.unsafe
                 )
             )
-            review_status = ReviewStatus.auto_approved if can_auto_approve else ReviewStatus.needs_review
-            source_blocks = list(dict.fromkeys(candidate.prompt_block_ids + candidate.response_block_ids))
-            task_id = stable_task_id(
-                result.page_index,
-                candidate.label,
-                source_blocks,
-                candidate.prompt_text,
-            )
-            tasks.append(
-                DocumentTask(
-                    id=task_id,
-                    legacy_question_id=len(tasks) + 1,
-                    label=candidate.label,
-                    prompt_text=candidate.prompt_text.strip(),
-                    page_index=result.page_index,
-                    page_role=result.page_role,
-                    prompt_bbox=_union_bbox(prompt_blocks),
-                    answer_bbox=answer_bbox,
+            region_id = stable_response_region_id(task_id, [block.id])
+            response_regions.append(
+                DocumentResponseRegion(
+                    id=region_id,
+                    page_index=block.page_index,
+                    bbox=block.bbox,
+                    region_type=region_type,
                     response_type=candidate.response_type,
-                    confidence=confidence,
-                    review_status=review_status,
-                    answer_region_status=answer_status,
-                    source_blocks=source_blocks,
+                    safety=safety,
+                    confidence=min(confidence, block.confidence),
+                    source_block_ids=[block.id],
                 )
             )
-    return tasks
+            response_links.append(
+                TaskResponseLink(
+                    response_region_id=region_id,
+                    order=response_order,
+                )
+            )
+        tasks.append(
+            DocumentTask(
+                id=task_id,
+                legacy_question_id=len(tasks) + 1,
+                order=len(tasks),
+                label=candidate.label,
+                prompt_text=prompt_text,
+                anchor_page_index=result.page_index,
+                page_role=result.page_role,
+                prompt_block_ids=prompt_block_ids,
+                response_links=response_links,
+                side_panel_fallback=not response_links
+                or any(
+                    region.safety != ResponseSafety.approved
+                    for region in response_regions[-len(response_links) :]
+                ),
+                response_type=candidate.response_type,
+                confidence=confidence,
+                review_status=review_status,
+            )
+        )
+    return tasks, response_regions
 
 
 def parse_document(
@@ -358,6 +545,8 @@ def parse_document(
         warnings: list[str] = []
 
         for page_index, page in enumerate(document):
+            display_transform_required = _page_requires_display_transform(page)
+            page_width, page_height = _page_extraction_dimensions(page)
             native = _native_blocks(page, page_index)
             native_char_count = sum(len(block.text.strip()) for block in native)
             native_reliable = native_char_count >= _NATIVE_TEXT_MIN_CHARS
@@ -372,8 +561,20 @@ def parse_document(
             if should_run_paddle:
                 result = ocr_adapter.extract_page(pdf_bytes, page_index)
                 page_warnings.extend(result.warnings)
-                paddle = _paddle_blocks(result, start_order=len(page_blocks))
+                # Paddle works from a rendered display page. When the source
+                # PDF needs a display transform, retaining its display-frame
+                # geometry alongside native extraction geometry would invent a
+                # relationship between two coordinate systems. Keep OCR text
+                # as semantic evidence but remove its geometry and force any
+                # response selection to the side panel.
+                paddle = _paddle_blocks(
+                    result,
+                    start_order=len(page_blocks),
+                    include_geometry=not display_transform_required,
+                )
                 paddle_block_count = len(paddle)
+                if display_transform_required and paddle:
+                    page_warnings.append("paddle_geometry_omitted_for_transformed_page")
                 if native_reliable:
                     # Native text remains the text source of truth. Paddle contributes
                     # non-text layout regions (tables/images/etc.) and provenance.
@@ -397,11 +598,25 @@ def parse_document(
 
             physical = _physical_response_blocks(page, page_index, len(page_blocks), native)
             page_blocks.extend(physical)
+            page_blocks, geometry_sanitized = _sanitize_blocks_to_page(
+                page_blocks,
+                width=page_width,
+                height=page_height,
+            )
+            if geometry_sanitized or any(
+                block.block_label == "clipped_response_candidate" for block in physical
+            ):
+                page_warnings.append("extraction_geometry_clipped_or_omitted")
             page_model = DocumentPage(
                 page_index=page_index,
-                width_points=float(page.rect.width),
-                height_points=float(page.rect.height),
+                # Preserve the unrotated extraction frame (including crop and
+                # /UserUnit scaling), rather than mixing it with rotated page
+                # display bounds. Any page requiring a display transform is
+                # deliberately side-panel-only until that transform exists.
+                width_points=page_width,
+                height_points=page_height,
                 rotation=int(page.rotation) % 360,
+                display_transform_required=display_transform_required,
                 native_text_exists=native_reliable,
                 ocr_required=ocr_required,
                 extraction_status=status,
@@ -438,12 +653,45 @@ def parse_document(
             semantic_results.append(result)
 
         all_blocks = [block for page_blocks in pages_blocks for block in page_blocks]
-        tasks = _build_tasks(
-            pages,
-            all_blocks,
-            semantic_results,
-            review_mode=review_mode,
-        )
+        try:
+            tasks, response_regions = _build_tasks(
+                all_blocks,
+                semantic_results,
+                review_mode=review_mode,
+            )
+        except ValueError:
+            # A model may only select supplied evidence, but a contradictory
+            # grouping must still fail closed instead of making the whole
+            # upload error or assigning one physical destination twice.
+            tasks, response_regions = [], []
+            for page in pages:
+                page.needs_review = True
+            warnings.append("semantic_task_materialization_rejected")
+        transformed_page_indexes = {
+            page.page_index for page in pages if page.display_transform_required
+        }
+        if transformed_page_indexes:
+            transformed_region_ids = {
+                region.id
+                for region in response_regions
+                if region.page_index in transformed_page_indexes
+            }
+            for region in response_regions:
+                if region.id in transformed_region_ids:
+                    region.safety = ResponseSafety.unsafe
+            for task in tasks:
+                if any(
+                    link.response_region_id in transformed_region_ids
+                    for link in task.response_links
+                ):
+                    task.side_panel_fallback = True
+                    task.review_status = ReviewStatus.needs_review
+            for page in pages:
+                if page.page_index in transformed_page_indexes:
+                    page.needs_review = True
+                    warnings.append(
+                        f"page_{page.page_index}:transformed_physical_targets_side_panel_only"
+                    )
         if any(page.extraction_status == ParseStatus.requires_ocr for page in pages):
             status = ParseStatus.requires_ocr
         elif any(page.extraction_status == ParseStatus.failed for page in pages):
@@ -470,8 +718,10 @@ def parse_document(
             title=title,
             parser=parser_name,
             status=status,
+            source_sha256=hashlib.sha256(pdf_bytes).hexdigest(),
             pages=pages,
             blocks=all_blocks,
+            response_regions=response_regions,
             tasks=tasks,
             warnings=list(dict.fromkeys(warnings)),
             processing_ms=(time.perf_counter() - started) * 1000,
@@ -480,47 +730,5 @@ def parse_document(
         document.close()
 
 
-def normalized_region(bbox: list[float] | None, page: DocumentPage) -> dict[str, float] | None:
-    if bbox is None:
-        return None
-    x0, y0, x1, y1 = bbox
-    return {
-        "x": round(x0 / page.width_points, 6),
-        "y": round(y0 / page.height_points, 6),
-        "width": round((x1 - x0) / page.width_points, 6),
-        "height": round((y1 - y0) / page.height_points, 6),
-    }
-
-
 def document_questions(document: IntermediateDocument, *, approved_only: bool = False) -> list[dict]:
-    pages = {page.page_index: page for page in document.pages}
-    questions = []
-    for task in document.tasks:
-        if approved_only and not task.approved:
-            continue
-        page = pages[task.page_index]
-        questions.append(
-            {
-                "id": task.legacy_question_id,
-                "task_id": task.id,
-                "label": task.label,
-                "text": task.prompt_text,
-                "page": task.page_index + 1,
-                "page_index": task.page_index,
-                "page_role": task.page_role.value,
-                "prompt_region": normalized_region(task.prompt_bbox, page),
-                "answer_region": normalized_region(task.answer_bbox, page),
-                "detected_answer_region": normalized_region(task.answer_bbox, page),
-                "prompt_bbox": task.prompt_bbox,
-                "answer_bbox": task.answer_bbox,
-                "response_type": task.response_type,
-                "confidence": task.confidence,
-                "layout_confidence": task.confidence if task.answer_bbox else 0.0,
-                "needs_layout_review": task.review_status == ReviewStatus.needs_review,
-                "review_status": task.review_status.value,
-                "answer_region_status": task.answer_region_status.value,
-                "source_blocks": task.source_blocks,
-                "approved": task.approved,
-            }
-        )
-    return questions
+    return document.task_views(include_unapproved=not approved_only, student_safe=True)

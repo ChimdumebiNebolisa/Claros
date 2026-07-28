@@ -49,12 +49,15 @@ class SemanticPageResult(BaseModel):
         block_ids = [item.block_id for item in self.blocks]
         if len(block_ids) != len(set(block_ids)):
             raise ValueError("semantic block decisions must be unique")
+        for item in self.tasks:
+            if len(item.prompt_block_ids) != len(set(item.prompt_block_ids)):
+                raise ValueError("semantic task prompt block IDs must be unique")
+            if len(item.response_block_ids) != len(set(item.response_block_ids)):
+                raise ValueError("semantic task response block IDs must be unique")
         task_signatures = [
             (
-                item.label,
-                item.prompt_text.strip(),
-                tuple(item.prompt_block_ids),
-                tuple(item.response_block_ids),
+                tuple(sorted(item.prompt_block_ids)),
+                tuple(sorted(item.response_block_ids)),
             )
             for item in self.tasks
         ]

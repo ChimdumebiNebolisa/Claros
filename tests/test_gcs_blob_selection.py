@@ -61,7 +61,8 @@ def test_load_assignment_prefers_canonical_assignment_pdf(monkeypatch):
     assert questions[0]["id"] == 1
     assert questions[0]["text"] == "Q?"
     assert questions[0]["needs_layout_review"] is True
-    assert questions[0]["answer_region_status"] == "side_panel"
+    assert questions[0]["side_panel_fallback"] is True
+    assert questions[0]["response_target_id"].endswith(":side-panel")
     bucket.blob.assert_called_with(assignment_pdf_path(TEST_ASSIGNMENT_ID))
 
 
@@ -91,7 +92,8 @@ def test_load_assignment_falls_back_to_sorted_pdf(monkeypatch):
     assert questions[0]["id"] == 1
     assert questions[0]["text"] == "Q?"
     assert questions[0]["needs_layout_review"] is True
-    assert questions[0]["answer_region_status"] == "side_panel"
+    assert questions[0]["side_panel_fallback"] is True
+    assert questions[0]["response_target_id"].endswith(":side-panel")
     bucket.list_blobs.assert_called_once_with(prefix=f"assignments/{TEST_ASSIGNMENT_ID}/")
 
 

@@ -90,7 +90,7 @@ def test_teacher_review_get_returns_uncertain_tasks(monkeypatch):
     )
     response = client.get(f"/api/teacher/assignments/{TEST_ASSIGNMENT_ID}")
     assert response.status_code == 200
-    assert response.json()["questions"][0]["task_id"] == "q1-test"
+    assert response.json()["document"]["tasks"][0]["id"] == "q1-test"
 
 
 def test_teacher_review_post_validates_and_forwards_actions(monkeypatch):

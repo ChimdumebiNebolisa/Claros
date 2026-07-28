@@ -1,14 +1,94 @@
 """Assignment service unit tests."""
+import hashlib
+
 import fitz
 import pytest
 from fastapi import HTTPException
 
 import assignment_service
 import config
-from document_model import DocumentPage, IntermediateDocument, ParseStatus
+from document_model import (
+    BlockSemanticRole,
+    DocumentBlock,
+    DocumentPage,
+    DocumentResponseRegion,
+    DocumentTask,
+    IntermediateDocument,
+    ParseStatus,
+    ResponseSafety,
+    ReviewStatus,
+    SourceKind,
+    TaskResponseLink,
+)
 from manifest import build_manifest, parse_manifest_json
 from semantic_classifier import NullSemanticClassifier
 from tests.conftest import TEST_ASSIGNMENT_ID
+
+
+def _physical_manifest(pdf_bytes: bytes, *, include_hash: bool = True):
+    document = IntermediateDocument(
+        title="Bound worksheet",
+        parser="test",
+        status=ParseStatus.parsed,
+        source_sha256=hashlib.sha256(pdf_bytes).hexdigest() if include_hash else None,
+        pages=[
+            DocumentPage(
+                page_index=0,
+                width_points=612,
+                height_points=792,
+                block_ids=["prompt", "response"],
+            )
+        ],
+        blocks=[
+            DocumentBlock(
+                id="prompt",
+                page_index=0,
+                reading_order=0,
+                text="State the answer.",
+                block_label="text",
+                bbox=[72, 72, 300, 96],
+                confidence=1,
+                source=SourceKind.native_pdf,
+                semantic_role=BlockSemanticRole.student_prompt,
+            ),
+            DocumentBlock(
+                id="response",
+                page_index=0,
+                reading_order=1,
+                text="",
+                block_label="answer_line",
+                bbox=[72, 120, 360, 150],
+                confidence=1,
+                source=SourceKind.pdf_geometry,
+                semantic_role=BlockSemanticRole.response_area,
+            ),
+        ],
+        response_regions=[
+            DocumentResponseRegion(
+                id="response-region",
+                page_index=0,
+                bbox=[72, 120, 360, 150],
+                safety=ResponseSafety.approved,
+                confidence=1,
+                source_block_ids=["response"],
+            )
+        ],
+        tasks=[
+            DocumentTask(
+                id="task-bound",
+                legacy_question_id=1,
+                order=0,
+                prompt_text="State the answer.",
+                anchor_page_index=0,
+                prompt_block_ids=["prompt"],
+                response_links=[TaskResponseLink(response_region_id="response-region", order=0)],
+                side_panel_fallback=False,
+                confidence=1,
+                review_status=ReviewStatus.approved,
+            )
+        ],
+    )
+    return build_manifest(TEST_ASSIGNMENT_ID, "Bound worksheet", document=document)
 
 
 def test_export_filename_strips_unsafe_characters():
@@ -72,6 +152,113 @@ def test_build_export_response_rejects_unrenderable_confirmed_text_without_subst
 
     assert exc.value.status_code == 422
     assert exc.value.detail["code"] == "UNSUPPORTED_ANSWER_TEXT"
+
+
+def test_client_manifest_source_binding_rejects_changed_or_unhashed_physical_documents(monkeypatch):
+    trusted = fitz.open()
+    trusted.new_page(width=612, height=792)
+    trusted_bytes = trusted.tobytes()
+    trusted.close()
+    replacement = fitz.open()
+    replacement.new_page(width=612, height=792)
+    replacement_bytes = replacement.tobytes()
+    replacement.close()
+
+    manifest = _physical_manifest(trusted_bytes)
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest", lambda _id: manifest)
+    monkeypatch.setattr(assignment_service, "_download_pdf_bytes", lambda _id: trusted_bytes)
+    assert assignment_service.load_assignment_manifest_for_client(TEST_ASSIGNMENT_ID) is manifest
+    assert assignment_service.load_assignment_pdf_bytes(TEST_ASSIGNMENT_ID) == trusted_bytes
+
+    monkeypatch.setattr(assignment_service, "_download_pdf_bytes", lambda _id: replacement_bytes)
+    with pytest.raises(assignment_service.AssignmentSourceMismatchError):
+        assignment_service.load_assignment_manifest_for_client(TEST_ASSIGNMENT_ID)
+    with pytest.raises(assignment_service.AssignmentSourceMismatchError):
+        assignment_service.load_assignment_pdf_bytes(TEST_ASSIGNMENT_ID)
+
+    unbound_manifest = _physical_manifest(trusted_bytes, include_hash=False)
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest", lambda _id: unbound_manifest)
+    monkeypatch.setattr(assignment_service, "_download_pdf_bytes", lambda _id: trusted_bytes)
+    with pytest.raises(assignment_service.AssignmentSourceMismatchError):
+        assignment_service.load_assignment_manifest_for_client(TEST_ASSIGNMENT_ID)
+
+
+def test_client_manifest_binding_rejects_unrecorded_pdf_display_transforms(monkeypatch):
+    source = fitz.open()
+    page = source.new_page(width=612, height=792)
+    page.set_rotation(90)
+    pdf_bytes = source.tobytes()
+    source.close()
+    manifest = _physical_manifest(pdf_bytes)
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest", lambda _id: manifest)
+    monkeypatch.setattr(assignment_service, "_download_pdf_bytes", lambda _id: pdf_bytes)
+
+    with pytest.raises(assignment_service.AssignmentSourceMismatchError):
+        assignment_service.load_assignment_manifest_for_client(TEST_ASSIGNMENT_ID)
+    with pytest.raises(assignment_service.AssignmentSourceMismatchError):
+        assignment_service.load_assignment_pdf_bytes(TEST_ASSIGNMENT_ID)
+
+
+def test_client_manifest_binding_uses_user_unit_scaled_extraction_bounds(monkeypatch):
+    source = fitz.open()
+    page = source.new_page(width=612, height=792)
+    source.xref_set_key(page.xref, "UserUnit", "2")
+    pdf_bytes = source.tobytes()
+    source.close()
+    payload = _physical_manifest(pdf_bytes).document.model_dump(mode="json")
+    payload["pages"][0].update(
+        {
+            "width_points": 1224,
+            "height_points": 1584,
+            "display_transform_required": True,
+        }
+    )
+    payload["response_regions"][0]["safety"] = "unsafe"
+    payload["tasks"][0].update(
+        {"side_panel_fallback": True, "review_status": "needs_review"}
+    )
+    manifest = build_manifest(
+        TEST_ASSIGNMENT_ID,
+        "Bound worksheet",
+        document=IntermediateDocument.model_validate(payload),
+    )
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest", lambda _id: manifest)
+    monkeypatch.setattr(assignment_service, "_download_pdf_bytes", lambda _id: pdf_bytes)
+
+    assert assignment_service.load_assignment_manifest_for_client(TEST_ASSIGNMENT_ID) is manifest
+
+
+def test_client_manifest_source_binding_leaves_legacy_side_panel_documents_download_free(monkeypatch):
+    legacy = build_manifest(
+        TEST_ASSIGNMENT_ID,
+        "Legacy",
+        questions=[{"id": 1, "text": "State the answer."}],
+    )
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest", lambda _id: legacy)
+    monkeypatch.setattr(
+        assignment_service,
+        "_download_pdf_bytes",
+        lambda _id: (_ for _ in ()).throw(AssertionError("legacy document should not fetch a PDF")),
+    )
+
+    assert assignment_service.load_assignment_manifest_for_client(TEST_ASSIGNMENT_ID) is legacy
+
+
+def test_teacher_review_cannot_approve_a_response_target_against_a_changed_pdf(monkeypatch):
+    trusted = fitz.open()
+    trusted.new_page(width=612, height=792)
+    trusted_bytes = trusted.tobytes()
+    trusted.close()
+    replacement = fitz.open()
+    replacement.new_page(width=612, height=792)
+    replacement_bytes = replacement.tobytes()
+    replacement.close()
+    manifest = _physical_manifest(trusted_bytes).model_copy(update={"review_mode": "teacher"})
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest", lambda _id: manifest)
+    monkeypatch.setattr(assignment_service, "_download_pdf_bytes", lambda _id: replacement_bytes)
+
+    with pytest.raises(assignment_service.AssignmentSourceMismatchError):
+        assignment_service.review_assignment(TEST_ASSIGNMENT_ID, [])
 
 
 def test_build_export_response_original_pdf_path(monkeypatch, tmp_path):

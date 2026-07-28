@@ -41,7 +41,7 @@ def test_direct_manifest_routes_uncertain_region_to_side_panel():
     assert question["answer_region_status"] == "side_panel"
 
 
-def test_teacher_manifest_preserves_review_region_for_authorized_workflow():
+def test_teacher_manifest_quarantines_legacy_geometry_without_synthetic_evidence():
     manifest = build_manifest(
         assignment_id="teacher-route",
         title="Quiz",
@@ -57,8 +57,9 @@ def test_teacher_manifest_preserves_review_region_for_authorized_workflow():
         ],
     )
     question = manifest.to_questions_dict()[0]
-    assert question["answer_region"] is not None
-    assert question["answer_region_status"] == "detected"
+    assert question["answer_region"] is None
+    assert question["answer_region_status"] == "side_panel"
+    assert question["evidence_status"] == "legacy_unverified"
 
 
 def test_manifest_to_questions_dict():
@@ -72,7 +73,7 @@ def test_manifest_to_questions_dict():
     assert question["text"] == "Body"
     assert question["page_index"] == 0
     assert question["review_status"] == "needs_review"
-    assert question["answer_region_status"] == "missing"
+    assert question["answer_region_status"] == "side_panel"
     assert question["approved"] is False
 
 

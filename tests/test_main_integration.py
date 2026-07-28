@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 import assignment_service
 import main as main_module
 import session_service
+from manifest import build_manifest
 from rate_limit import SlidingWindowRateLimiter
 from tests.conftest import TEST_ASSIGNMENT_ID
 
@@ -18,11 +19,15 @@ def bypass_assignment_capability(monkeypatch):
 client = TestClient(main_module.app)
 
 
-def _fake_load_assignment(_assignment_id: str):
-    return "Mock Assignment", [
-        {"id": 1, "text": "First question?"},
-        {"id": 2, "text": "Second question?"},
-    ]
+def _fake_manifest(_assignment_id: str = TEST_ASSIGNMENT_ID):
+    return build_manifest(
+        _assignment_id,
+        "Mock Assignment",
+        questions=[
+            {"id": 1, "task_id": "task-first", "text": "First question?"},
+            {"id": 2, "task_id": "task-second", "text": "Second question?"},
+        ],
+    )
 
 
 def _fake_pdf_bytes():
@@ -35,8 +40,13 @@ def _fake_pdf_bytes():
 
 
 def _mock_export_source(monkeypatch):
-    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", _fake_load_assignment)
-    monkeypatch.setattr(assignment_service, "_download_pdf_bytes", lambda _id: _fake_pdf_bytes())
+    manifest = _fake_manifest()
+    monkeypatch.setattr(
+        main_module,
+        "load_canonical_export_source",
+        lambda _id: (manifest, _fake_pdf_bytes()),
+    )
+    return manifest
 
 
 def test_index_returns_html():
@@ -57,16 +67,39 @@ def test_session_start_maps_expired_assignment(monkeypatch):
     def raise_expired(_assignment_id):
         raise assignment_service.AssignmentExpiredError("expired")
 
-    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", raise_expired)
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest", raise_expired)
     response = client.post("/api/session/start", json={"assignment_id": TEST_ASSIGNMENT_ID})
     assert response.status_code == 410
     assert response.json()["detail"] == "Assignment expired"
 
 
+def test_session_start_rejects_a_changed_source_before_allocating_state(monkeypatch):
+    created = []
+
+    def raise_source_mismatch(_assignment_id):
+        raise assignment_service.AssignmentSourceMismatchError("changed")
+
+    monkeypatch.setattr(
+        assignment_service,
+        "load_assignment_manifest_for_client",
+        raise_source_mismatch,
+    )
+    monkeypatch.setattr(
+        session_service,
+        "create_session",
+        lambda *_args: created.append(_args),
+    )
+
+    response = client.post("/api/session/start", json={"assignment_id": TEST_ASSIGNMENT_ID})
+
+    assert response.status_code == 409
+    assert created == []
+
+
 def test_session_start_is_rate_limited_before_allocating_another_durable_session(monkeypatch):
     monkeypatch.setattr(main_module, "rate_limiter", SlidingWindowRateLimiter())
     monkeypatch.setattr(main_module.config, "MAX_SESSION_STARTS_PER_MINUTE", 1)
-    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", _fake_load_assignment)
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest", _fake_manifest)
     created = []
 
     def create_session(assignment_id, questions):
@@ -192,7 +225,7 @@ def test_sample_workspace_preview_served():
 
 
 def test_assignment_page_preview_served(monkeypatch):
-    monkeypatch.setattr(assignment_service, "load_assignment_manifest", lambda _id: object())
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest", _fake_manifest)
     monkeypatch.setattr(assignment_service, "_download_pdf_bytes", lambda _id: _fake_pdf_bytes())
 
     response = client.get(f"/api/assignments/{TEST_ASSIGNMENT_ID}/pages/1.png")
@@ -203,7 +236,7 @@ def test_assignment_page_preview_served(monkeypatch):
 
 
 def test_assignment_page_preview_rejects_missing_page(monkeypatch):
-    monkeypatch.setattr(assignment_service, "load_assignment_manifest", lambda _id: object())
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest", _fake_manifest)
     monkeypatch.setattr(assignment_service, "_download_pdf_bytes", lambda _id: _fake_pdf_bytes())
 
     response = client.get(f"/api/assignments/{TEST_ASSIGNMENT_ID}/pages/99.png")
@@ -211,13 +244,31 @@ def test_assignment_page_preview_rejects_missing_page(monkeypatch):
     assert response.status_code == 404
 
 
+def test_assignment_page_preview_rejects_a_changed_source(monkeypatch):
+    def raise_source_mismatch(*_args):
+        raise assignment_service.AssignmentSourceMismatchError("changed")
+
+    monkeypatch.setattr(main_module, "render_assignment_page", raise_source_mismatch)
+
+    response = client.get(f"/api/assignments/{TEST_ASSIGNMENT_ID}/pages/1.png")
+
+    assert response.status_code == 409
+
+
 def test_export_post_returns_pdf_attachment(monkeypatch):
     """POST /export renders only answers supplied by the server-side session."""
-    _mock_export_source(monkeypatch)
+    manifest = _mock_export_source(monkeypatch)
+    task = manifest.to_questions_dict()[0]
     monkeypatch.setattr(
         session_service,
         "written_answers_for_export",
-        lambda *_args: [{"question_id": 1, "answer_text": "First answer"}],
+        lambda *_args: [
+            {
+                "task_id": task["task_id"],
+                "response_region_id": task["response_target_id"],
+                "answer_text": "First answer",
+            }
+        ],
     )
 
     response = client.post(
@@ -232,22 +283,36 @@ def test_export_post_returns_pdf_attachment(monkeypatch):
 
 
 def test_export_uses_the_exact_manifest_snapshot_that_was_validated(monkeypatch):
-    original_questions = [{"id": 1, "text": "Original task evidence", "page": 1, "answer_region": None}]
-    changed_questions = [{"id": 1, "text": "Changed task evidence", "page": 1, "answer_region": None}]
+    original_manifest = build_manifest(
+        TEST_ASSIGNMENT_ID,
+        "Mock Assignment",
+        questions=[{"id": 1, "task_id": "task-original", "text": "Original task evidence"}],
+    )
+    changed_manifest = build_manifest(
+        TEST_ASSIGNMENT_ID,
+        "Mock Assignment",
+        questions=[{"id": 1, "task_id": "task-original", "text": "Changed task evidence"}],
+    )
     calls = []
 
-    def load_assignment(_assignment_id):
+    def load_export_source(_assignment_id):
         calls.append(_assignment_id)
-        return "Mock Assignment", original_questions if len(calls) == 1 else changed_questions
+        return (original_manifest if len(calls) == 1 else changed_manifest), _fake_pdf_bytes()
 
-    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", load_assignment)
-    monkeypatch.setattr(assignment_service, "_download_pdf_bytes", lambda _id: _fake_pdf_bytes())
+    monkeypatch.setattr(main_module, "load_canonical_export_source", load_export_source)
+    original_task = original_manifest.to_questions_dict()[0]
     monkeypatch.setattr(
         session_service,
         "written_answers_for_export",
         lambda _sid, _secret, _aid, questions: (
-            [{"question_id": 1, "answer_text": "Confirmed answer"}]
-            if questions == original_questions
+            [
+                {
+                    "task_id": original_task["task_id"],
+                    "response_region_id": original_task["response_target_id"],
+                    "answer_text": "Confirmed answer",
+                }
+            ]
+            if questions == original_manifest.to_questions_dict()
             else pytest.fail("export validated a changed task snapshot")
         ),
     )
@@ -270,12 +335,19 @@ def test_export_uses_the_exact_manifest_snapshot_that_was_validated(monkeypatch)
 
 def test_export_post_accepts_long_answer_body(monkeypatch):
     """Long confirmed answers are loaded from server-side session state."""
-    _mock_export_source(monkeypatch)
+    manifest = _mock_export_source(monkeypatch)
+    task = manifest.to_questions_dict()[0]
     long_answer = "This sentence makes the answer long enough to avoid query-string export. " * 40
     monkeypatch.setattr(
         session_service,
         "written_answers_for_export",
-        lambda *_args: [{"question_id": 1, "answer_text": long_answer}],
+        lambda *_args: [
+            {
+                "task_id": task["task_id"],
+                "response_region_id": task["response_target_id"],
+                "answer_text": long_answer,
+            }
+        ],
     )
 
     response = client.post(

@@ -4,7 +4,6 @@ from __future__ import annotations
 import fitz
 from fastapi.testclient import TestClient
 
-import assignment_service
 import main as main_module
 from parser import parse_pdf_with_diagnostics
 from tests.conftest import TEST_ASSIGNMENT_ID
@@ -137,38 +136,15 @@ def test_low_confidence_answer_region_is_suppressed_and_requires_review(tmp_path
     assert "layout_review_required" in warnings
 
 
-def test_write_rejects_client_confirmed_layout(monkeypatch):
-    monkeypatch.setattr(main_module, "_require_assignment_capability", lambda *_args: None)
-    monkeypatch.setattr(
-        assignment_service,
-        "load_assignment_from_gcs",
-        lambda _id: (
-            "Worksheet",
-            [
-                {
-                    "id": 1,
-                    "label": "1",
-                    "text": "Explain resonance?",
-                    "page": 1,
-                    "answer_region": None,
-                    "needs_layout_review": True,
-                }
-            ],
-        ),
-    )
-    state = type(
-        "State",
-        (),
-        {"assignment_id": TEST_ASSIGNMENT_ID, "verify_session_secret": lambda _self, _secret: True},
-    )()
-    monkeypatch.setattr(main_module.session_service, "load_session", lambda _session_id: state)
-    monkeypatch.setattr(main_module.session_service, "validate_task_snapshot", lambda *_args: None)
+def test_write_rejects_client_supplied_layout_geometry():
+    """Canonical write targets are stable IDs; client geometry is never accepted."""
     client = TestClient(main_module.app)
 
     response = client.post(
         f"/api/write/{TEST_ASSIGNMENT_ID}",
         json={
-            "question_id": 1,
+            "task_id": "task-layout-review",
+            "response_region_id": "task-layout-review:side-panel",
             "answer_candidate": "A response",
             "write_token": "unused-for-layout-rejection",
             "session_id": "session",
@@ -178,5 +154,6 @@ def test_write_rejects_client_confirmed_layout(monkeypatch):
         },
     )
 
-    assert response.status_code == 409
-    assert "layout" in response.json()["detail"].lower()
+    assert response.status_code == 422
+    rejected_fields = {item["loc"][-1] for item in response.json()["detail"]}
+    assert {"layout_confirmed", "answer_region"} <= rejected_fields

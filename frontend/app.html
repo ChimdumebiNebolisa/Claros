@@ -137,13 +137,15 @@
 
             <section class="question-context" aria-labelledby="currentQuestionLabel">
               <div class="question-context-head">
-                <h3 id="currentQuestionLabel">Working on Question 1</h3>
-                <button type="button" class="text-action" id="questionListToggle">All tasks</button>
-              </div>
-              <p id="currentQuestionExcerpt"></p>
-              <p class="placement-summary" id="placementSummary" role="status"></p>
-              <div id="questionsContainer" class="question-picker" hidden></div>
-              <label class="answer-label" for="typedAnswer">Draft answer</label>
+               <h3 id="currentQuestionLabel">Working on Question 1</h3>
+               <button type="button" class="text-action" id="questionListToggle">All tasks</button>
+             </div>
+             <p id="currentQuestionExcerpt"></p>
+             <p class="placement-summary" id="placementSummary" role="status"></p>
+             <div id="questionsContainer" class="question-picker" hidden></div>
+             <div id="responseTargets" class="response-targets" role="group" aria-label="Response destinations"></div>
+             <p id="currentResponseLabel" class="response-target-label">Answer destination</p>
+             <label class="answer-label" for="typedAnswer">Draft answer</label>
               <div id="typedAnswer" class="answer-field" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Draft answer for the current question" data-placeholder="Type an answer, or use voice guidance"></div>
               <button type="button" class="text-action confirm-typed" id="confirmTypedBtn" disabled>Review this answer</button>
             </section>

@@ -11,7 +11,22 @@ from google.genai import types
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from config import get_api_key, get_text_model
-from document_model import PageRole
+from document_model import (
+    BlockSemanticRole,
+    DocumentBlock,
+    DocumentPage,
+    DocumentResponseRegion,
+    DocumentTask,
+    IntermediateDocument,
+    PageRole,
+    ParseStatus,
+    ResponseRegionType,
+    ResponseSafety,
+    ResponseType,
+    ReviewStatus,
+    SourceKind,
+    TaskResponseLink,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +70,7 @@ class PilotPageInput(BaseModel):
     page_width_points: float = Field(gt=0)
     page_height_points: float = Field(gt=0)
     rotation: Literal[0, 90, 180, 270]
+    display_transform_required: bool = False
     image: str
     blocks: list[PilotPhysicalBlock]
     response_candidates: list[PilotResponseCandidate]
@@ -74,6 +90,14 @@ class PilotPageInput(BaseModel):
             raise ValueError("all blocks must belong to the input page")
         if any(candidate.page_index != self.page_index for candidate in self.response_candidates):
             raise ValueError("all response candidates must belong to the input page")
+        for block in self.blocks:
+            x0, y0, x1, y1 = block.bbox
+            if x0 < 0 or y0 < 0 or x1 <= x0 or y1 <= y0 or x1 > self.page_width_points or y1 > self.page_height_points:
+                raise ValueError("physical block geometry must stay within the extraction frame")
+        for candidate in self.response_candidates:
+            x0, y0, x1, y1 = candidate.bbox
+            if x0 < 0 or y0 < 0 or x1 <= x0 or y1 <= y0 or x1 > self.page_width_points or y1 > self.page_height_points:
+                raise ValueError("response candidate geometry must stay within the extraction frame")
         return self
 
 
@@ -159,6 +183,7 @@ def _prompt(page: PilotPageInput) -> str:
             "page_width_points": page.page_width_points,
             "page_height_points": page.page_height_points,
             "rotation": page.rotation,
+            "display_transform_required": page.display_transform_required,
             "blocks": [
                 {
                     "id": block.id,
@@ -191,6 +216,7 @@ def validate_closed_world_result(page: PilotPageInput, result: ClosedWorldPageRe
     grouped_selected: set[str] = set()
     prompt_memberships: list[str] = []
     selected_responses: set[str] = set()
+    response_memberships: list[str] = []
     response_by_id = {candidate.id: candidate for candidate in page.response_candidates}
     for group in result.groupings:
         referenced = set(group.prompt_block_ids + group.visual_anchor_block_ids)
@@ -205,6 +231,7 @@ def validate_closed_world_result(page: PilotPageInput, result: ClosedWorldPageRe
         if not candidate_ids <= set(response_by_id):
             raise ValueError("task grouping referenced an unknown response candidate")
         selected_responses.update(candidate_ids)
+        response_memberships.extend(group.response_candidate_ids)
         if group.response_disposition == "side_panel_only" and candidate_ids:
             raise ValueError("side_panel_only tasks cannot select a response candidate")
         if group.response_disposition != "side_panel_only" and not candidate_ids:
@@ -220,6 +247,8 @@ def validate_closed_world_result(page: PilotPageInput, result: ClosedWorldPageRe
         raise ValueError("every selected block must appear in a task grouping")
     if selected_responses != set(result.selected_response_candidate_ids):
         raise ValueError("selected response IDs must equal grouped response IDs")
+    if len(response_memberships) != len(set(response_memberships)):
+        raise ValueError("a response candidate cannot belong to multiple task groups")
     if result.page_role not in {PageRole.student_worksheet, PageRole.mixed} and result.groupings:
         raise ValueError("non-student page roles cannot contain student task groupings")
 
@@ -270,6 +299,269 @@ def derive_tasks(page: PilotPageInput, result: ClosedWorldPageResult) -> list[di
             }
         )
     return derived
+
+
+def _source_kind(value: str) -> SourceKind:
+    try:
+        return SourceKind(value)
+    except ValueError:
+        return SourceKind.pdf_geometry
+
+
+def _region_type(layout_label: str) -> ResponseRegionType:
+    return {
+        "answer_line": ResponseRegionType.answer_line,
+        "form_field": ResponseRegionType.form_field,
+        "checkbox": ResponseRegionType.checkbox,
+        "bounded_box": ResponseRegionType.bounded_box,
+    }.get(layout_label, ResponseRegionType.unknown)
+
+
+_APPROVABLE_RESPONSE_LAYOUT_LABELS = {
+    "answer_line",
+    "bounded_box",
+    "checkbox",
+    "form_field",
+    "writable_area",
+}
+
+
+def _candidate_can_be_physically_approved(
+    page: PilotPageInput,
+    candidate: PilotResponseCandidate,
+    grouping: ClosedWorldTaskGrouping,
+) -> bool:
+    """Apply the production physical-write eligibility boundary to pilot data."""
+    return (
+        grouping.response_disposition == "safe_physical"
+        and candidate.safe_for_writing
+        and candidate.layout_label in _APPROVABLE_RESPONSE_LAYOUT_LABELS
+        and page.rotation == 0
+        and not page.display_transform_required
+    )
+
+
+def _derive_canonical_page_components(
+    page: PilotPageInput,
+    result: ClosedWorldPageResult,
+) -> tuple[
+    DocumentPage,
+    list[DocumentBlock],
+    list[DocumentResponseRegion],
+    list[DocumentTask],
+]:
+    """Project one validated page without making it a standalone document."""
+    validate_closed_world_result(page, result)
+    source_blocks = [
+        DocumentBlock(
+            id=block.id,
+            page_index=block.page_index,
+            reading_order=block.reading_order,
+            text=block.text,
+            block_label=block.block_label,
+            bbox=block.bbox,
+            polygon=block.polygon,
+            confidence=block.confidence,
+            source=_source_kind(block.source),
+            semantic_role=BlockSemanticRole.student_prompt,
+        )
+        for block in page.blocks
+    ]
+    candidate_blocks = [
+        DocumentBlock(
+            id=candidate.id,
+            page_index=candidate.page_index,
+            reading_order=candidate.reading_order,
+            text="",
+            block_label=candidate.layout_label,
+            bbox=candidate.bbox,
+            confidence=candidate.confidence,
+            source=_source_kind(candidate.source),
+            semantic_role=BlockSemanticRole.response_area,
+        )
+        for candidate in page.response_candidates
+    ]
+    candidate_by_id = {candidate.id: candidate for candidate in page.response_candidates}
+    derived = derive_tasks(page, result)
+    grouping_by_index = {group.group_index: group for group in result.groupings}
+    task_id_by_group = {item["group_index"]: item["id"] for item in derived}
+    regions: list[DocumentResponseRegion] = []
+    tasks: list[DocumentTask] = []
+    for order, item in enumerate(derived):
+        grouping = grouping_by_index[item["group_index"]]
+        links: list[TaskResponseLink] = []
+        has_unapproved_region = False
+        for link_order, candidate_id in enumerate(grouping.response_candidate_ids):
+            candidate = candidate_by_id[candidate_id]
+            region_id = f"cw-region-{candidate_id}"
+            if _candidate_can_be_physically_approved(page, candidate, grouping):
+                safety = ResponseSafety.approved
+            elif grouping.response_disposition == "unsafe":
+                safety = ResponseSafety.unsafe
+            else:
+                safety = ResponseSafety.needs_review
+            has_unapproved_region = has_unapproved_region or safety != ResponseSafety.approved
+            regions.append(
+                DocumentResponseRegion(
+                    id=region_id,
+                    page_index=candidate.page_index,
+                    bbox=candidate.bbox,
+                    region_type=_region_type(candidate.layout_label),
+                    response_type=ResponseType.checkbox
+                    if candidate.layout_label == "checkbox"
+                    else ResponseType.short_text,
+                    safety=safety,
+                    confidence=candidate.confidence,
+                    source_block_ids=[candidate.id],
+                )
+            )
+            links.append(TaskResponseLink(response_region_id=region_id, order=link_order))
+        side_panel_fallback = (
+            grouping.response_disposition != "safe_physical" or has_unapproved_region
+        )
+        review_status = (
+            ReviewStatus.needs_review
+            if grouping.needs_review or side_panel_fallback
+            else ReviewStatus.auto_approved
+        )
+        tasks.append(
+            DocumentTask(
+                id=item["id"],
+                legacy_question_id=order + 1,
+                order=order,
+                label=str(grouping.group_index),
+                prompt_text=item["prompt_text"],
+                anchor_page_index=page.page_index,
+                page_role=result.page_role,
+                prompt_block_ids=item["prompt_block_ids"],
+                parent_task_id=(
+                    task_id_by_group.get(grouping.parent_group_index)
+                    if grouping.parent_group_index is not None
+                    else None
+                ),
+                subpart=grouping.subpart,
+                response_links=links,
+                side_panel_fallback=side_panel_fallback,
+                response_type=ResponseType.short_text,
+                confidence=1.0,
+                review_status=review_status,
+            )
+        )
+    return (
+        DocumentPage(
+            page_index=page.page_index,
+            width_points=page.page_width_points,
+            height_points=page.page_height_points,
+            rotation=page.rotation,
+            display_transform_required=page.display_transform_required,
+            page_role=result.page_role,
+            needs_review=result.needs_review
+            or page.rotation != 0
+            or page.display_transform_required,
+            block_ids=[block.id for block in source_blocks + candidate_blocks],
+            warnings=(
+                [*page.warnings, "transformed_physical_targets_side_panel_only"]
+                if (page.rotation != 0 or page.display_transform_required)
+                and "transformed_physical_targets_side_panel_only" not in page.warnings
+                else list(page.warnings)
+            ),
+        ),
+        source_blocks + candidate_blocks,
+        regions,
+        tasks,
+    )
+
+
+def derive_canonical_document_for_pages(
+    pages: list[PilotPageInput],
+    results: list[ClosedWorldPageResult],
+) -> IntermediateDocument:
+    """Assemble a production document from actual, contiguous source pages.
+
+    Inputs may arrive in any order, but must cover page indexes ``0..N-1``
+    from one source PDF. This deliberately rejects a standalone nonzero page:
+    inserting blank page records would invent physical document evidence.
+    """
+    if not pages:
+        raise ValueError("canonical document assembly requires at least one page")
+    if len(pages) != len(results):
+        raise ValueError("canonical document assembly requires one result per page")
+
+    page_results = list(zip(pages, results, strict=True))
+    page_indexes = [page.page_index for page, _ in page_results]
+    if len(page_indexes) != len(set(page_indexes)):
+        raise ValueError("canonical document page indexes must be unique")
+    if set(page_indexes) != set(range(len(page_results))):
+        raise ValueError("canonical document page indexes must be contiguous from zero")
+    if len({page.source_pdf for page, _ in page_results}) != 1:
+        raise ValueError("canonical document pages must share one source PDF")
+
+    for page, result in page_results:
+        validate_closed_world_result(page, result)
+
+    ordered_page_results = sorted(page_results, key=lambda item: item[0].page_index)
+    physical_ids = [
+        item.id
+        for page, _ in ordered_page_results
+        for item in [*page.blocks, *page.response_candidates]
+    ]
+    if len(physical_ids) != len(set(physical_ids)):
+        raise ValueError("canonical document physical block IDs must be globally unique")
+
+    document_pages: list[DocumentPage] = []
+    blocks: list[DocumentBlock] = []
+    response_regions: list[DocumentResponseRegion] = []
+    task_entries: list[tuple[int, int, DocumentTask]] = []
+    for page, result in ordered_page_results:
+        document_page, page_blocks, page_regions, page_tasks = _derive_canonical_page_components(
+            page,
+            result,
+        )
+        document_pages.append(document_page)
+        blocks.extend(page_blocks)
+        response_regions.extend(page_regions)
+        task_entries.extend(
+            (page.page_index, task.order, task)
+            for task in page_tasks
+        )
+
+    ordered_tasks = sorted(task_entries, key=lambda item: (item[0], item[1], item[2].id))
+    tasks = [
+        task.model_copy(update={"order": order, "legacy_question_id": order + 1})
+        for order, (_, _, task) in enumerate(ordered_tasks)
+    ]
+    source_pdf = ordered_page_results[0][0].source_pdf
+    return IntermediateDocument(
+        title=source_pdf,
+        parser="closed-world-evaluation-adapter",
+        status=(
+            ParseStatus.low_confidence
+            if any(page.needs_review for page in document_pages)
+            else ParseStatus.parsed
+        ),
+        document_id=source_pdf,
+        pages=document_pages,
+        blocks=blocks,
+        response_regions=response_regions,
+        tasks=tasks,
+        warnings=[warning for page in document_pages for warning in page.warnings],
+    )
+
+
+def derive_canonical_document(page: PilotPageInput, result: ClosedWorldPageResult) -> IntermediateDocument:
+    """Project a page-zero evaluation proposal into the production contract.
+
+    The compatibility entry point cannot safely assemble page one or later by
+    itself. Call :func:`derive_canonical_document_for_pages` with every actual
+    contiguous page instead.
+    """
+    if page.page_index != 0:
+        raise ValueError(
+            "standalone canonical document derivation requires page_index 0; "
+            "use derive_canonical_document_for_pages for contiguous pages"
+        )
+    document = derive_canonical_document_for_pages([page], [result])
+    return document.model_copy(update={"title": page.pilot_id, "document_id": page.pilot_id})
 
 
 class ClosedWorldGeminiClassifier:

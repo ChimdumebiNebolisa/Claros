@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from document_model import ReviewStatus, SourceKind
+from document_model import ResponseSafety, ReviewStatus, SourceKind
 from document_pipeline import parse_document
 from ocr_adapter import NullOCRAdapter, PaddleOCRAdapter
 from parser import parse_pdf_with_diagnostics
@@ -53,9 +53,13 @@ def _render_overlays(path: Path, output_dir: Path, current_questions, parsed) ->
         blocks_by_page = {}
         for block in parsed.blocks:
             blocks_by_page.setdefault(block.page_index, []).append(block)
+        block_by_id = {block.id: block for block in parsed.blocks}
         tasks_by_page = {}
         for task in parsed.tasks:
-            tasks_by_page.setdefault(task.page_index, []).append(task)
+            tasks_by_page.setdefault(task.anchor_page_index, []).append(task)
+        regions_by_page = {}
+        for region in parsed.response_regions:
+            regions_by_page.setdefault(region.page_index, []).append(region)
         current_by_page = {}
         for question in current_questions:
             current_by_page.setdefault(question.page - 1, []).append(question)
@@ -67,16 +71,29 @@ def _render_overlays(path: Path, output_dir: Path, current_questions, parsed) ->
                     color = (0.45, 0.15, 0.75)
                 elif block.block_label in {"answer_line", "form_field"}:
                     color = (0.0, 0.55, 0.2)
-                page.draw_rect(fitz.Rect(block.bbox), color=color, width=0.55, overlay=True)
+                if block.bbox:
+                    page.draw_rect(fitz.Rect(block.bbox), color=color, width=0.55, overlay=True)
             for question in current_by_page.get(page_index, []):
                 _draw_normalized(page, question.prompt_region, (0.85, 0.0, 0.65))
             for task in tasks_by_page.get(page_index, []):
-                if task.prompt_bbox:
-                    page.draw_rect(fitz.Rect(task.prompt_bbox), color=(0.9, 0.05, 0.05), width=1.8, overlay=True)
-                if task.answer_bbox:
-                    page.draw_rect(fitz.Rect(task.answer_bbox), color=(0.0, 0.25, 0.95), width=1.8, overlay=True)
-                if task.review_status == ReviewStatus.needs_review and task.prompt_bbox:
-                    page.draw_rect(fitz.Rect(task.prompt_bbox), color=(1.0, 0.55, 0.0), width=3.0, overlay=True)
+                prompt_boxes = [
+                    block_by_id[block_id].bbox
+                    for block_id in task.prompt_block_ids
+                    if block_by_id[block_id].bbox is not None
+                    and block_by_id[block_id].page_index == page_index
+                ]
+                if prompt_boxes:
+                    prompt_bbox = [
+                        min(box[0] for box in prompt_boxes),
+                        min(box[1] for box in prompt_boxes),
+                        max(box[2] for box in prompt_boxes),
+                        max(box[3] for box in prompt_boxes),
+                    ]
+                    color = (1.0, 0.55, 0.0) if task.review_status == ReviewStatus.needs_review else (0.9, 0.05, 0.05)
+                    page.draw_rect(fitz.Rect(prompt_bbox), color=color, width=1.8, overlay=True)
+            for region in regions_by_page.get(page_index, []):
+                color = (0.0, 0.25, 0.95) if region.safety == ResponseSafety.approved else (1.0, 0.55, 0.0)
+                page.draw_rect(fitz.Rect(region.bbox), color=color, width=1.8, overlay=True)
             role = parsed.pages[page_index].page_role.value
             page.draw_rect(fitz.Rect(0, 0, min(290, page.rect.width), 22), fill=(1, 1, 1), color=None, overlay=True)
             page.insert_text((5, 15), f"role={role}", fontsize=9, color=(0.1, 0.1, 0.1), overlay=True)
@@ -139,7 +156,7 @@ def benchmark(args) -> dict:
         tracemalloc.stop()
         rss_after = _process_rss_mb()
         expected = expectations.get(path.name, {}).get("expected_question_count")
-        answer_status = Counter(task.answer_region_status.value for task in parsed.tasks)
+        answer_status = Counter(region.safety.value for region in parsed.response_regions)
         roles = [page.page_role.value for page in parsed.pages]
         overlay_paths = _render_overlays(path, output_dir / path.stem, current_questions, parsed)
         row = {
@@ -162,11 +179,11 @@ def benchmark(args) -> dict:
                 {
                     "id": task.id,
                     "label": task.label,
-                    "page_index": task.page_index,
+                    "page_index": task.anchor_page_index,
                     "confidence": round(task.confidence, 3),
                     "review_status": task.review_status.value,
-                    "answer_region_status": task.answer_region_status.value,
-                    "source_blocks": task.source_blocks,
+                    "response_region_ids": [link.response_region_id for link in task.response_links],
+                    "prompt_block_ids": task.prompt_block_ids,
                 }
                 for task in parsed.tasks
             ],

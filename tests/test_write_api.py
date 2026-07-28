@@ -5,20 +5,27 @@ from fastapi.testclient import TestClient
 import assignment_service
 import main as main_module
 import session_service
+from manifest import build_manifest
 from tests.conftest import TEST_ASSIGNMENT_ID
 
 _FIXED_TITLE = "Mock Assignment"
 _FIXED_QUESTIONS = [
-    {"id": 1, "text": "First?", "answer_region": {"x": 0.1, "y": 0.2, "width": 0.4, "height": 0.1}, "needs_layout_review": False},
-    {"id": 3, "text": "Second?", "answer_region": {"x": 0.1, "y": 0.4, "width": 0.4, "height": 0.1}, "needs_layout_review": False},
-    {"id": 7, "text": "Third?", "answer_region": {"x": 0.1, "y": 0.6, "width": 0.4, "height": 0.1}, "needs_layout_review": False},
+    {"id": 1, "task_id": "task-first", "text": "First?", "answer_region": {"x": 0.1, "y": 0.2, "width": 0.4, "height": 0.1}, "approved": True, "needs_layout_review": False},
+    {"id": 3, "task_id": "task-second", "text": "Second?", "answer_region": {"x": 0.1, "y": 0.4, "width": 0.4, "height": 0.1}, "approved": True, "needs_layout_review": False},
+    {"id": 7, "task_id": "task-third", "text": "Third?", "answer_region": {"x": 0.1, "y": 0.6, "width": 0.4, "height": 0.1}, "approved": True, "needs_layout_review": False},
 ]
+_TASK_ID = "task-third"
+_RESPONSE_REGION_ID = f"{_TASK_ID}:side-panel"
 
 _STORE: dict[str, bytes] = {}
 
 
-def _fake_load_assignment(_assignment_id: str):
-    return _FIXED_TITLE, list(_FIXED_QUESTIONS)
+def _fake_manifest(_assignment_id: str, questions: list[dict] | None = None):
+    return build_manifest(
+        TEST_ASSIGNMENT_ID,
+        _FIXED_TITLE,
+        questions=list(_FIXED_QUESTIONS if questions is None else questions),
+    )
 
 
 @pytest.fixture
@@ -36,7 +43,7 @@ def write_client(monkeypatch):
 
     monkeypatch.setattr(session_service.storage, "upload_session_to_gcs", upload)
     monkeypatch.setattr(session_service.storage, "download_session_from_gcs", download)
-    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", _fake_load_assignment)
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest", _fake_manifest)
     monkeypatch.setattr(main_module, "_require_assignment_capability", lambda *_args: None)
     return TestClient(main_module.app)
 
@@ -47,12 +54,14 @@ def _confirmed_write_payload(client: TestClient) -> dict:
         f"/api/session/{start['session_id']}/confirm",
         json={
             "session_secret": start["session_secret"],
-            "question_id": 7,
+            "task_id": _TASK_ID,
+            "response_region_id": _RESPONSE_REGION_ID,
             "answer_text": "7",
         },
     ).json()
     return {
-        "question_id": 7,
+        "task_id": _TASK_ID,
+        "response_region_id": _RESPONSE_REGION_ID,
         "conversation": [{"speaker": "user", "text": "My answer is seven."}],
         "answer_candidate": "7",
         "write_token": confirm["write_token"],
@@ -61,9 +70,9 @@ def _confirmed_write_payload(client: TestClient) -> dict:
     }
 
 
-def test_write_unknown_question_id_returns_400(write_client: TestClient):
+def test_write_unknown_task_id_returns_400(write_client: TestClient):
     payload = _confirmed_write_payload(write_client)
-    payload["question_id"] = 99
+    payload["task_id"] = "task-missing"
     response = write_client.post(
         f"/api/write/{TEST_ASSIGNMENT_ID}",
         json=payload,
@@ -71,10 +80,10 @@ def test_write_unknown_question_id_returns_400(write_client: TestClient):
     assert response.status_code == 400
     body = response.json()
     assert "detail" in body
-    assert "Unknown question id" in body["detail"]
+    assert "Unknown task_id" in body["detail"]
 
 
-def test_write_valid_question_id_streams_stub_text(write_client: TestClient):
+def test_write_valid_task_id_streams_stub_text(write_client: TestClient):
     payload = _confirmed_write_payload(write_client)
     response = write_client.post(f"/api/write/{TEST_ASSIGNMENT_ID}", json=payload)
     assert response.status_code == 200
@@ -91,7 +100,8 @@ def test_write_rejects_any_change_to_the_confirmed_answer_without_consuming_its_
         f"/api/session/{start['session_id']}/confirm",
         json={
             "session_secret": start["session_secret"],
-            "question_id": 7,
+            "task_id": _TASK_ID,
+            "response_region_id": _RESPONSE_REGION_ID,
             "answer_text": "Case Sensitive",
         },
     ).json()
@@ -119,7 +129,8 @@ def test_write_preserves_the_full_confirmed_string_including_outer_whitespace(wr
         f"/api/session/{start['session_id']}/confirm",
         json={
             "session_secret": start["session_secret"],
-            "question_id": 7,
+            "task_id": _TASK_ID,
+            "response_region_id": _RESPONSE_REGION_ID,
             "answer_text": answer,
         },
     ).json()
@@ -127,7 +138,8 @@ def test_write_preserves_the_full_confirmed_string_including_outer_whitespace(wr
     response = write_client.post(
         f"/api/write/{TEST_ASSIGNMENT_ID}",
         json={
-            "question_id": 7,
+            "task_id": _TASK_ID,
+            "response_region_id": _RESPONSE_REGION_ID,
             "answer_candidate": answer,
             "write_token": confirmation["write_token"],
             "session_id": start["session_id"],
@@ -143,7 +155,11 @@ def test_write_rejects_a_task_that_changed_after_confirmation(write_client: Test
     payload = _confirmed_write_payload(write_client)
     changed_questions = [dict(question) for question in _FIXED_QUESTIONS]
     changed_questions[2]["text"] = "A different task now has this numeric id."
-    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", lambda _id: (_FIXED_TITLE, changed_questions))
+    monkeypatch.setattr(
+        assignment_service,
+        "load_assignment_manifest",
+        lambda _id: _fake_manifest(_id, changed_questions),
+    )
 
     response = write_client.post(f"/api/write/{TEST_ASSIGNMENT_ID}", json=payload)
     assert response.status_code == 409

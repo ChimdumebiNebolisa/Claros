@@ -23,8 +23,18 @@ from storage import (
     upload_pdf_to_gcs,
 )
 from config import get_gcs_bucket
-from exporter import SidePanelOverflowError, UnsupportedAnswerTextError, build_original_export_pdf
-from document_pipeline import document_questions, parse_document
+from exporter import (
+    SidePanelOverflowError,
+    UnsupportedAnswerTextError,
+    build_canonical_export_pdf,
+    build_original_export_pdf,
+)
+from document_pipeline import (
+    _page_extraction_dimensions,
+    _page_requires_display_transform,
+    document_questions,
+    parse_document,
+)
 from parser import PDFProcessingError, parse_pdf_with_diagnostics
 from semantic_classifier import GeminiSemanticClassifier, NullSemanticClassifier
 from review_service import apply_review_actions
@@ -35,6 +45,10 @@ logger = logging.getLogger(__name__)
 
 class AssignmentExpiredError(RuntimeError):
     """Raised when a persisted assignment is past its configured retention window."""
+
+
+class AssignmentSourceMismatchError(ValueError):
+    """Raised when canonical physical evidence no longer matches its PDF."""
 
 
 def _ensure_manifest_active(manifest: AssignmentManifest) -> AssignmentManifest:
@@ -88,6 +102,58 @@ def _download_pdf_bytes(assignment_id: str) -> bytes:
         raise ValueError(f"No PDF found for assignment {assignment_id}")
     pdf_blobs.sort(key=lambda b: b.name)
     return pdf_blobs[0].download_as_bytes()
+
+
+def _has_physical_response_targets(manifest: AssignmentManifest) -> bool:
+    """Detect canonical response evidence that can be shown or approved later."""
+    return any(task.response_links for task in manifest.document.tasks)
+
+
+def ensure_manifest_source_matches_pdf(
+    manifest: AssignmentManifest,
+    pdf_bytes: bytes,
+) -> None:
+    """Reject a changed worksheet before exposing canonical physical geometry."""
+    if not _has_physical_response_targets(manifest):
+        return
+    expected = manifest.document.source_sha256
+    actual = hashlib.sha256(pdf_bytes).hexdigest()
+    if not expected or not hmac.compare_digest(expected, actual):
+        raise AssignmentSourceMismatchError(
+            "Worksheet source does not match its canonical physical evidence"
+        )
+    try:
+        pdf = fitz.open(stream=pdf_bytes, filetype="pdf")
+    except fitz.FileDataError as exc:
+        raise AssignmentSourceMismatchError("Worksheet source is not a readable PDF") from exc
+    try:
+        if pdf.page_count != len(manifest.document.pages):
+            raise AssignmentSourceMismatchError(
+                "Worksheet source does not match its canonical physical evidence"
+            )
+        for canonical_page in manifest.document.pages:
+            page = pdf[canonical_page.page_index]
+            width_points, height_points = _page_extraction_dimensions(page)
+            if (
+                abs(canonical_page.width_points - width_points) > 0.5
+                or abs(canonical_page.height_points - height_points) > 0.5
+                or canonical_page.rotation != page.rotation
+                or canonical_page.display_transform_required
+                != _page_requires_display_transform(page)
+            ):
+                raise AssignmentSourceMismatchError(
+                    "Worksheet source does not match its canonical physical evidence"
+                )
+    finally:
+        pdf.close()
+
+
+def load_assignment_manifest_for_client(assignment_id: str) -> AssignmentManifest:
+    """Load a manifest only after binding any physical targets to its PDF."""
+    manifest = load_assignment_manifest(assignment_id)
+    if _has_physical_response_targets(manifest):
+        ensure_manifest_source_matches_pdf(manifest, _download_pdf_bytes(assignment_id))
+    return manifest
 
 
 def _parse_and_build_manifest(
@@ -253,8 +319,10 @@ def load_assignment_from_gcs(assignment_id: str) -> tuple[str, list]:
 
 def load_assignment_pdf_bytes(assignment_id: str) -> bytes:
     """Return the original worksheet PDF after validating its manifest lifecycle."""
-    load_assignment_manifest(assignment_id)
-    return _download_pdf_bytes(assignment_id)
+    manifest = load_assignment_manifest(assignment_id)
+    pdf_bytes = _download_pdf_bytes(assignment_id)
+    ensure_manifest_source_matches_pdf(manifest, pdf_bytes)
+    return pdf_bytes
 
 
 def render_assignment_page(assignment_id: str, page_number: int, scale: float = 1.5) -> bytes:
@@ -297,6 +365,7 @@ def review_assignment(
 ) -> AssignmentManifest:
     manifest = load_assignment_manifest(assignment_id)
     pdf_bytes = _download_pdf_bytes(assignment_id)
+    ensure_manifest_source_matches_pdf(manifest, pdf_bytes)
     updated = apply_review_actions(
         manifest,
         actions,
@@ -325,16 +394,26 @@ def load_export_source(assignment_id: str) -> tuple[list[dict], bytes]:
     return questions, _download_pdf_bytes(assignment_id)
 
 
+def load_canonical_export_source(assignment_id: str) -> tuple[AssignmentManifest, bytes]:
+    """Load one manifest/PDF snapshot for canonical target-based export."""
+    manifest = load_assignment_manifest(assignment_id)
+    return manifest, _download_pdf_bytes(assignment_id)
+
+
 def build_export_response(
     assignment_id: str,
     answers_list: list[dict],
     *,
     questions: list[dict] | None = None,
     pdf_bytes: bytes | None = None,
+    manifest: AssignmentManifest | None = None,
 ) -> Response:
     """Build an export from either a supplied validated snapshot or a fresh source load."""
     try:
-        if questions is None and pdf_bytes is None:
+        if manifest is not None:
+            if pdf_bytes is None:
+                raise ValueError("manifest and pdf_bytes must be supplied together")
+        elif questions is None and pdf_bytes is None:
             questions, pdf_bytes = load_export_source(assignment_id)
         elif questions is None or pdf_bytes is None:
             raise ValueError("questions and pdf_bytes must be supplied together")
@@ -346,7 +425,10 @@ def build_export_response(
         logger.exception("Failed to load assignment %s for export", assignment_id)
         raise HTTPException(status_code=500, detail="Could not load assignment for export.")
     try:
-        pdf_bytes = build_original_export_pdf(pdf_bytes, questions, answers_list)
+        if manifest is not None:
+            pdf_bytes = build_canonical_export_pdf(pdf_bytes, manifest.document, answers_list)
+        else:
+            pdf_bytes = build_original_export_pdf(pdf_bytes, questions or [], answers_list)
     except SidePanelOverflowError as exc:
         raise HTTPException(
             status_code=422,
@@ -357,6 +439,8 @@ def build_export_response(
             status_code=422,
             detail={"code": "UNSUPPORTED_ANSWER_TEXT", "affected_question_ids": exc.affected_question_ids},
         )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail="Export target changed. Reload and confirm again.") from exc
     record_metric("export", status="ok")
     return Response(
         content=pdf_bytes,

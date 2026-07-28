@@ -26,7 +26,7 @@ flowchart LR
   U[Browser] -->|PDF upload| A[Assignment service]
   A --> P[Deterministic physical IR]
   P --> C[Gemini closed-world classifier]
-  C --> M[Validated manifest v3 / GCS]
+  C --> M[Canonical document v2 + lifecycle manifest / GCS]
   U -->|start/confirm/write| S[Session service]
   U <-->|audio/transcript| G[Gemini Live]
   S --> W[Deterministic write contract]
@@ -53,9 +53,53 @@ flowchart LR
   TOK --> OUT[Deterministic PDF export]
 ```
 
-The physical IR uses PDF points, top-left origin, and `[x0, y0, x1, y1]`
-boxes. The compiler may select existing IDs only; code reconstructs prompt text
-from ordered source blocks and derives geometry only from validated candidates.
+The physical IR uses PyMuPDF's unrotated extraction coordinate frame, a
+top-left origin, and `[x0, y0, x1, y1]` boxes. For ordinary pages that is the
+PDF point frame; crop and `/UserUnit` behavior is retained in the page's
+extraction dimensions instead of being silently mixed with display bounds. The
+compiler may select existing IDs only; code reconstructs prompt text from
+ordered source blocks and derives geometry only from validated candidates.
+
+## Canonical document contract
+
+One versioned `IntermediateDocument` is the persisted source of truth for a
+worksheet. It contains document identity, pages and roles, source blocks,
+stable tasks with explicit order and parent/subpart relations, structured
+choices, and independently identified response regions. A task links to zero,
+one, or many regions; each link has a role such as answer, explanation, show
+work, or choice. A task with no safe physical target carries an explicit
+side-panel fallback.
+
+An approved response region is fully contained in one eligible physical
+`response_area` source block. Response sources cannot be reused, approved
+regions cannot overlap in their interiors, and visible prompts and choices are
+reconstructed from source blocks rather than model-authored labels. Extraction
+clips or omits evidence outside its page frame; a clipped response candidate is
+not writable.
+
+`rotation`, non-default crop, or `/UserUnit` scale marks a page as requiring a
+display transform. Until an explicit deterministic transform exists, native
+physical targets on such pages are unsafe and route to the side panel. Paddle
+OCR geometry on those pages is omitted; any retained OCR text is semantic
+evidence only, never a physical target.
+
+The browser receives a safe projection of that document. Normalized browser
+rectangles are derived only at this API boundary; unsafe region geometry is not
+sent to student clients. Historical flat `questions[]` manifests are migrated
+in memory to the canonical contract as quarantined legacy evidence. They do
+not become a second persisted production model.
+
+Session state is separate and mutable. It is keyed by canonical task and
+response-target IDs, records drafts/confirmation/tokens/writes, and binds every
+write token and export check to a snapshot of the specific target. The legacy
+numeric question ID is only a temporary request-boundary alias and is never
+used as document identity.
+
+Before any client projection, page preview, session configuration, or review
+can expose canonical physical evidence, the stored PDF is bound to the
+canonical document by SHA-256, page count, extraction-frame dimensions,
+rotation, and transform requirement. A mismatch returns an intentional source
+mismatch error rather than showing or approving stale geometry.
 
 ## Safety and data controls
 
