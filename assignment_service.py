@@ -14,7 +14,13 @@ from fastapi.responses import Response
 
 import config
 import storage
-from manifest import AssignmentManifest, build_manifest, parse_manifest_json
+from manifest import (
+    AssignmentManifest,
+    build_manifest,
+    parse_manifest_json,
+    sign_assignment_manifest,
+    verify_assignment_manifest,
+)
 from storage import (
     assignment_pdf_path,
     delete_assignment_prefix,
@@ -23,11 +29,20 @@ from storage import (
     upload_pdf_to_gcs,
 )
 from config import get_gcs_bucket
-from exporter import SidePanelOverflowError, build_original_export_pdf
-from document_pipeline import document_questions, parse_document
+from exporter import (
+    SidePanelOverflowError,
+    UnsupportedAnswerTextError,
+    build_canonical_export_pdf,
+    build_original_export_pdf,
+)
+from document_pipeline import (
+    _page_extraction_dimensions,
+    _page_requires_display_transform,
+    document_questions,
+    parse_document,
+)
 from parser import PDFProcessingError, parse_pdf_with_diagnostics
 from semantic_classifier import GeminiSemanticClassifier, NullSemanticClassifier
-from providers.openai_semantic_classifier import OpenAIClosedWorldSemanticClassifier
 from review_service import apply_review_actions
 from observability import record_metric
 
@@ -36,6 +51,14 @@ logger = logging.getLogger(__name__)
 
 class AssignmentExpiredError(RuntimeError):
     """Raised when a persisted assignment is past its configured retention window."""
+
+
+class AssignmentSourceMismatchError(ValueError):
+    """Raised when canonical physical evidence no longer matches its PDF."""
+
+
+class AssignmentManifestIntegrityError(ValueError):
+    """Raised when a persisted canonical manifest fails its server MAC."""
 
 
 def _ensure_manifest_active(manifest: AssignmentManifest) -> AssignmentManifest:
@@ -89,6 +112,107 @@ def _download_pdf_bytes(assignment_id: str) -> bytes:
         raise ValueError(f"No PDF found for assignment {assignment_id}")
     pdf_blobs.sort(key=lambda b: b.name)
     return pdf_blobs[0].download_as_bytes()
+
+
+def _has_physical_response_targets(manifest: AssignmentManifest) -> bool:
+    """Detect canonical response evidence that can be shown or approved later."""
+    return any(task.response_links for task in manifest.document.tasks)
+
+
+def _is_unsigned_legacy_quarantine(
+    assignment_id: str,
+    manifest: AssignmentManifest,
+) -> bool:
+    """Accept only the no-authority historical manifest shape without a MAC."""
+    document = manifest.document
+    return (
+        manifest.assignment_id == assignment_id
+        and manifest.assignment_capability_hash is None
+        and not document.blocks
+        and not document.response_regions
+        and all(page.coordinate_space.value == "normalized_legacy" and page.needs_review for page in document.pages)
+        and all(
+            task.evidence_status.value == "legacy_unverified"
+            and not task.prompt_block_ids
+            and not task.response_links
+            and task.side_panel_fallback
+            for task in document.tasks
+        )
+    )
+
+
+def _signed_manifest(assignment_id: str, manifest: AssignmentManifest) -> AssignmentManifest:
+    """Authenticate the exact persisted canonical record for its storage key."""
+    return sign_assignment_manifest(
+        manifest,
+        expected_assignment_id=assignment_id,
+        key=config.get_assignment_manifest_hmac_key(),
+    )
+
+
+def _verify_loaded_manifest(assignment_id: str, manifest: AssignmentManifest) -> AssignmentManifest:
+    """Reject altered canonical targets while retaining old side-panel records."""
+    if manifest.integrity_hmac is not None:
+        if not verify_assignment_manifest(
+            manifest,
+            expected_assignment_id=assignment_id,
+            key=config.get_assignment_manifest_hmac_key(),
+        ):
+            raise AssignmentManifestIntegrityError("Assignment manifest integrity check failed")
+    elif not _is_unsigned_legacy_quarantine(assignment_id, manifest):
+        # An unsigned record is permitted only for a fully quarantined legacy
+        # document with no capability binding, source blocks, regions, or
+        # response links. Anything else can influence a live assignment and
+        # therefore requires a server integrity tag.
+        raise AssignmentManifestIntegrityError("Unsigned manifest is not a quarantined legacy record")
+    return manifest
+
+
+def ensure_manifest_source_matches_pdf(
+    manifest: AssignmentManifest,
+    pdf_bytes: bytes,
+) -> None:
+    """Reject a changed worksheet before exposing canonical physical geometry."""
+    if not _has_physical_response_targets(manifest):
+        return
+    expected = manifest.document.source_sha256
+    actual = hashlib.sha256(pdf_bytes).hexdigest()
+    if not expected or not hmac.compare_digest(expected, actual):
+        raise AssignmentSourceMismatchError(
+            "Worksheet source does not match its canonical physical evidence"
+        )
+    try:
+        pdf = fitz.open(stream=pdf_bytes, filetype="pdf")
+    except fitz.FileDataError as exc:
+        raise AssignmentSourceMismatchError("Worksheet source is not a readable PDF") from exc
+    try:
+        if pdf.page_count != len(manifest.document.pages):
+            raise AssignmentSourceMismatchError(
+                "Worksheet source does not match its canonical physical evidence"
+            )
+        for canonical_page in manifest.document.pages:
+            page = pdf[canonical_page.page_index]
+            width_points, height_points = _page_extraction_dimensions(page)
+            if (
+                abs(canonical_page.width_points - width_points) > 0.5
+                or abs(canonical_page.height_points - height_points) > 0.5
+                or canonical_page.rotation != page.rotation
+                or canonical_page.display_transform_required
+                != _page_requires_display_transform(page)
+            ):
+                raise AssignmentSourceMismatchError(
+                    "Worksheet source does not match its canonical physical evidence"
+                )
+    finally:
+        pdf.close()
+
+
+def load_assignment_manifest_for_client(assignment_id: str) -> AssignmentManifest:
+    """Load a manifest only after binding any physical targets to its PDF."""
+    manifest = load_assignment_manifest(assignment_id)
+    if _has_physical_response_targets(manifest):
+        ensure_manifest_source_matches_pdf(manifest, _download_pdf_bytes(assignment_id))
+    return manifest
 
 
 def _parse_and_build_manifest(
@@ -148,9 +272,7 @@ def _parse_and_build_manifest(
             logger.warning("Synchronous document semantics are disabled; run classification in a parser worker/service")
         classifier = NullSemanticClassifier()
         if config.ENABLE_DOCUMENT_SEMANTICS and config.ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS:
-            if config.DOCUMENT_SEMANTIC_PROVIDER == "openai":
-                classifier = OpenAIClosedWorldSemanticClassifier()
-            elif config.DOCUMENT_SEMANTIC_PROVIDER == "gemini":
+            if config.DOCUMENT_SEMANTIC_PROVIDER == "gemini":
                 classifier = GeminiSemanticClassifier()
         try:
             document_model = parse_document(
@@ -207,6 +329,7 @@ def persist_assignment_from_pdf_bytes(
             review_mode=review_mode,
             assignment_capability_hash=assignment_capability_hash,
         )
+        manifest = _signed_manifest(assignment_id, manifest)
         upload_pdf_to_gcs(assignment_id, pdf_bytes)
         upload_manifest_to_gcs(assignment_id, manifest.model_dump_json())
         return manifest
@@ -228,14 +351,19 @@ def load_assignment_manifest(assignment_id: str) -> AssignmentManifest:
     if config.USE_MANIFEST:
         raw = download_manifest_from_gcs(assignment_id)
         if raw:
-            return _ensure_manifest_active(parse_manifest_json(raw))
+            return _ensure_manifest_active(
+                _verify_loaded_manifest(assignment_id, parse_manifest_json(raw))
+            )
 
     pdf_bytes = _download_pdf_bytes(assignment_id)
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
         tmp.write(pdf_bytes)
         tmp_path = tmp.name
     try:
-        manifest = _parse_and_build_manifest(assignment_id, tmp_path)
+        manifest = _signed_manifest(
+            assignment_id,
+            _parse_and_build_manifest(assignment_id, tmp_path),
+        )
         try:
             upload_manifest_to_gcs(assignment_id, manifest.model_dump_json())
         except Exception:
@@ -256,8 +384,10 @@ def load_assignment_from_gcs(assignment_id: str) -> tuple[str, list]:
 
 def load_assignment_pdf_bytes(assignment_id: str) -> bytes:
     """Return the original worksheet PDF after validating its manifest lifecycle."""
-    load_assignment_manifest(assignment_id)
-    return _download_pdf_bytes(assignment_id)
+    manifest = load_assignment_manifest(assignment_id)
+    pdf_bytes = _download_pdf_bytes(assignment_id)
+    ensure_manifest_source_matches_pdf(manifest, pdf_bytes)
+    return pdf_bytes
 
 
 def render_assignment_page(assignment_id: str, page_number: int, scale: float = 1.5) -> bytes:
@@ -300,12 +430,14 @@ def review_assignment(
 ) -> AssignmentManifest:
     manifest = load_assignment_manifest(assignment_id)
     pdf_bytes = _download_pdf_bytes(assignment_id)
+    ensure_manifest_source_matches_pdf(manifest, pdf_bytes)
     updated = apply_review_actions(
         manifest,
         actions,
         pdf_bytes=pdf_bytes,
         finalize=finalize,
     )
+    updated = _signed_manifest(assignment_id, updated)
     upload_manifest_to_gcs(assignment_id, updated.model_dump_json())
     return updated
 
@@ -322,10 +454,35 @@ def load_assignment_text_from_gcs(assignment_id: str) -> str:
     return format_assignment_text(title, questions)
 
 
-def build_export_response(assignment_id: str, answers_list: list[dict]) -> Response:
+def load_export_source(assignment_id: str) -> tuple[list[dict], bytes]:
+    """Load one immutable-in-process export snapshot for validation and rendering."""
+    _title, questions = load_assignment_from_gcs(assignment_id)
+    return questions, _download_pdf_bytes(assignment_id)
+
+
+def load_canonical_export_source(assignment_id: str) -> tuple[AssignmentManifest, bytes]:
+    """Load one manifest/PDF snapshot for canonical target-based export."""
+    manifest = load_assignment_manifest(assignment_id)
+    return manifest, _download_pdf_bytes(assignment_id)
+
+
+def build_export_response(
+    assignment_id: str,
+    answers_list: list[dict],
+    *,
+    questions: list[dict] | None = None,
+    pdf_bytes: bytes | None = None,
+    manifest: AssignmentManifest | None = None,
+) -> Response:
+    """Build an export from either a supplied validated snapshot or a fresh source load."""
     try:
-        _title, questions = load_assignment_from_gcs(assignment_id)
-        pdf_bytes = _download_pdf_bytes(assignment_id)
+        if manifest is not None:
+            if pdf_bytes is None:
+                raise ValueError("manifest and pdf_bytes must be supplied together")
+        elif questions is None and pdf_bytes is None:
+            questions, pdf_bytes = load_export_source(assignment_id)
+        elif questions is None or pdf_bytes is None:
+            raise ValueError("questions and pdf_bytes must be supplied together")
     except AssignmentExpiredError:
         raise HTTPException(status_code=410, detail="Assignment expired")
     except ValueError:
@@ -334,12 +491,22 @@ def build_export_response(assignment_id: str, answers_list: list[dict]) -> Respo
         logger.exception("Failed to load assignment %s for export", assignment_id)
         raise HTTPException(status_code=500, detail="Could not load assignment for export.")
     try:
-        pdf_bytes = build_original_export_pdf(pdf_bytes, questions, answers_list)
+        if manifest is not None:
+            pdf_bytes = build_canonical_export_pdf(pdf_bytes, manifest.document, answers_list)
+        else:
+            pdf_bytes = build_original_export_pdf(pdf_bytes, questions or [], answers_list)
     except SidePanelOverflowError as exc:
         raise HTTPException(
             status_code=422,
             detail={"code": "SIDE_PANEL_OVERFLOW", "affected_task_ids": exc.affected_task_ids},
         )
+    except UnsupportedAnswerTextError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "UNSUPPORTED_ANSWER_TEXT", "affected_question_ids": exc.affected_question_ids},
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail="Export target changed. Reload and confirm again.") from exc
     record_metric("export", status="ok")
     return Response(
         content=pdf_bytes,

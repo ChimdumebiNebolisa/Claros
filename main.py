@@ -17,12 +17,13 @@ from assignment_service import (
     build_export_response,
     delete_assignment,
     get_parse_diagnostics,
+    load_canonical_export_source,
     persist_assignment_from_pdf_bytes,
     render_assignment_page,
     review_assignment,
 )
 import config
-from gemini_service import create_session_config, debug_gemini_text_call, stamp_confirmed_answer, stream_write_answer
+from gemini_service import create_session_config, debug_gemini_text_call, stamp_confirmed_answer
 from schemas import (
     ExportRequest,
     SessionConfirmRequest,
@@ -30,7 +31,6 @@ from schemas import (
     SessionStartRequest,
     TeacherReviewRequest,
     WriteRequest,
-    trim_conversation,
 )
 import session_service
 import storage
@@ -40,9 +40,28 @@ from rate_limit import SlidingWindowRateLimiter
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+app = FastAPI(
+    docs_url=None if config.is_production() else "/docs",
+    redoc_url=None if config.is_production() else "/redoc",
+    openapi_url=None if config.is_production() else "/openapi.json",
+)
 rate_limiter = SlidingWindowRateLimiter()
 upload_semaphore = asyncio.Semaphore(config.MAX_CONCURRENT_UPLOADS)
+
+# Worksheet response overlays set their physical geometry through element.style.
+# Keep this narrow temporary style allowance until geometry moves to CSS classes.
+_CONTENT_SECURITY_POLICY = (
+    "default-src 'self'; "
+    "base-uri 'self'; "
+    "object-src 'none'; "
+    "frame-ancestors 'none'; "
+    "form-action 'self'; "
+    "script-src 'self'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' blob:; "
+    "font-src 'self'; "
+    "connect-src 'self' https://generativelanguage.googleapis.com wss://generativelanguage.googleapis.com"
+)
 
 
 @app.middleware("http")
@@ -60,6 +79,17 @@ async def limit_upload_concurrency(request: Request, call_next):
         return await call_next(request)
     finally:
         upload_semaphore.release()
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("Content-Security-Policy", _CONTENT_SECURITY_POLICY)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "camera=(), geolocation=(), payment=(), usb=(), microphone=(self)")
+    return response
 
 
 @app.exception_handler(storage.StorageConflict)
@@ -138,6 +168,8 @@ def get_session_config(
         return create_session_config(aid)
     except assignment_service.AssignmentExpiredError:
         raise HTTPException(status_code=410, detail="Assignment expired")
+    except assignment_service.AssignmentSourceMismatchError:
+        raise HTTPException(status_code=409, detail="Worksheet source changed. Reload or re-upload it.")
     except ValueError:
         raise _assignment_not_found()
     except RuntimeError as e:
@@ -150,7 +182,11 @@ def get_session_config(
 
 
 @app.post("/api/session/start")
-def start_tutoring_session(body: SessionStartRequest, x_assignment_capability: str | None = Header(default=None)):
+def start_tutoring_session(
+    body: SessionStartRequest,
+    request: Request,
+    x_assignment_capability: str | None = Header(default=None),
+):
     """Create a durable server-side session for an assignment."""
     aid = body.assignment_id.strip()
     try:
@@ -158,20 +194,32 @@ def start_tutoring_session(body: SessionStartRequest, x_assignment_capability: s
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid assignment_id")
     _require_assignment_capability(aid, x_assignment_capability)
+    _enforce_rate_limit(
+        request,
+        "session_start",
+        config.MAX_SESSION_STARTS_PER_MINUTE,
+        x_assignment_capability,
+    )
     try:
-        title, questions = assignment_service.load_assignment_from_gcs(aid)
+        manifest = assignment_service.load_assignment_manifest_for_client(aid)
     except assignment_service.AssignmentExpiredError:
         raise HTTPException(status_code=410, detail="Assignment expired")
+    except assignment_service.AssignmentSourceMismatchError:
+        raise HTTPException(status_code=409, detail="Worksheet source changed. Reload or re-upload it.")
     except ValueError:
         raise _assignment_not_found()
     except Exception:
         logger.exception("session start load failed for assignment %s", aid)
         raise HTTPException(status_code=500, detail="Could not load assignment. Please try again.")
-    qids = [q["id"] for q in questions]
-    payload = session_service.create_session(aid, qids)
+    tasks = manifest.to_questions_dict(approved_only=manifest.review_mode == "teacher")
+    payload = session_service.create_session(aid, tasks)
     record_metric("session_created", status="ok")
-    payload["title"] = title
-    payload["questions"] = questions
+    payload["title"] = manifest.title
+    # ``document`` is the versioned client-facing canonical contract.  The
+    # questions projection is retained briefly for migration-only clients.
+    payload["document"] = manifest.to_client_document(approved_only=manifest.review_mode == "teacher")
+    payload["tasks"] = tasks
+    payload["questions"] = tasks
     return payload
 
 
@@ -187,8 +235,10 @@ def confirm_answer_for_question(
     result = session_service.confirm_answer(
         str(session_id),
         body.session_secret,
-        body.question_id,
-        body.answer_text,
+        task_id=body.task_id,
+        response_region_id=body.response_region_id,
+        question_id=body.question_id,
+        answer_text=body.answer_text,
     )
     record_metric("confirmation", status="ok")
     return result
@@ -207,29 +257,27 @@ def restore_session(
 
 
 @app.post("/api/write/{assignment_id}")
-async def stream_write(
+async def write_confirmed_answer(
     assignment_id: UUID,
     body: WriteRequest,
     request: Request,
     x_assignment_capability: str | None = Header(default=None),
 ):
-    """Stream generated answer text for a question. Frontend calls this when write is triggered."""
+    """Write only the exact answer already confirmed for this assignment task."""
     aid = str(assignment_id)
     _require_assignment_capability(aid, x_assignment_capability)
     _enforce_rate_limit(request, "write", config.MAX_WRITES_PER_MINUTE, x_assignment_capability)
-    if config.ENFORCE_WRITE_CONTRACT:
-        if not body.answer_candidate.strip():
-            raise HTTPException(status_code=400, detail="answer_candidate must be non-empty")
-        if not body.write_token or not body.session_id or not body.session_secret:
-            raise HTTPException(status_code=403, detail="Confirmed write_token and session credentials are required")
-        state = session_service.load_session(body.session_id)
-        if state.assignment_id != aid:
-            raise HTTPException(status_code=403, detail="Session does not match assignment")
-        if not state.verify_session_secret(body.session_secret):
-            raise HTTPException(status_code=403, detail="Invalid session credentials")
-        session_service.validate_write_token(state, body.question_id, body.answer_candidate, body.write_token)
+    if not body.answer_candidate.strip():
+        raise HTTPException(status_code=400, detail="answer_candidate must be non-empty")
+    if not body.write_token or not body.session_id or not body.session_secret:
+        raise HTTPException(status_code=403, detail="Confirmed write_token and session credentials are required")
+    state = session_service.load_session(body.session_id)
+    if state.assignment_id != aid:
+        raise HTTPException(status_code=403, detail="Session does not match assignment")
+    if not state.verify_session_secret(body.session_secret):
+        raise HTTPException(status_code=403, detail="Invalid session credentials")
     try:
-        title, questions = assignment_service.load_assignment_from_gcs(aid)
+        manifest = assignment_service.load_assignment_manifest(aid)
     except assignment_service.AssignmentExpiredError:
         raise HTTPException(status_code=410, detail="Assignment expired")
     except ValueError:
@@ -237,41 +285,23 @@ async def stream_write(
     except Exception:
         logger.exception("write load failed for assignment %s", aid)
         raise HTTPException(status_code=500, detail="Could not load assignment. Please try again.")
-    qids = [q["id"] for q in questions]
-    if body.question_id not in qids:
-        raise HTTPException(status_code=400, detail=f"Unknown question id: {body.question_id}")
-    question = next(q for q in questions if q["id"] == body.question_id)
-    if question.get("needs_layout_review"):
-        if question.get("answer_region_status") != "side_panel":
-            raise HTTPException(
-                status_code=409,
-                detail="Layout review is unavailable in student sessions; uncertain placement must use the safe side panel",
-            )
-    elif not question.get("answer_region") and question.get("answer_region_status") != "side_panel":
-        raise HTTPException(status_code=409, detail="A usable answer region is required before writing")
-    trimmed = trim_conversation(body.conversation)
-    if len(trimmed) < len(body.conversation):
-        logger.info(
-            "Trimmed write conversation from %s to %s turns for assignment %s",
-            len(body.conversation),
-            len(trimmed),
-            aid,
-        )
-    # Confirmed writes already passed the single-use token/fingerprint gate.
-    # Stamp the approved text instead of waiting on Gemini reformatting.
-    if config.ENFORCE_WRITE_CONTRACT:
-        session_service.mark_answer_written(state, body.question_id, body.answer_candidate)
-        return StreamingResponse(
-            stamp_confirmed_answer(body.answer_candidate or ""),
-            media_type="text/plain; charset=utf-8",
-        )
+    tasks = manifest.to_questions_dict(approved_only=manifest.review_mode == "teacher")
+    task_id = state.resolve_task_id(body.task_id, body.question_id)
+    response_region_id = body.response_region_id or state.default_response_region_id(task_id)
+    question = next((task for task in tasks if task.get("task_id") == task_id), None)
+    if question is None:
+        raise HTTPException(status_code=409, detail="Task changed since confirmation. Reload and confirm again.")
+    # The canonical target determines physical placement or side-panel fallback.
+    # Client geometry is rejected at schema validation and never reaches this route.
+    session_service.validate_task_snapshot(state, task_id, response_region_id, question)
+    session_service.validate_write_token(
+        state, task_id, response_region_id, body.answer_candidate, body.write_token
+    )
+    session_service.mark_answer_written(
+        state, task_id, response_region_id, body.answer_candidate, question
+    )
     return StreamingResponse(
-        stream_write_answer(
-            aid,
-            body.question_id,
-            [item.model_dump() for item in trimmed],
-            body.answer_candidate or "",
-        ),
+        stamp_confirmed_answer(body.answer_candidate),
         media_type="text/plain; charset=utf-8",
     )
 
@@ -291,10 +321,20 @@ async def export_assignment_post(
     """Export only answers written through the confirmed server-side flow."""
     aid = str(assignment_id)
     _require_assignment_capability(aid, x_assignment_capability)
-    answers = session_service.written_answers_for_export(body.session_id, body.session_secret, aid)
+    try:
+        manifest, pdf_bytes = load_canonical_export_source(aid)
+    except assignment_service.AssignmentExpiredError:
+        raise HTTPException(status_code=410, detail="Assignment expired")
+    except ValueError:
+        raise _assignment_not_found()
+    except Exception:
+        logger.exception("export load failed for assignment %s", aid)
+        raise HTTPException(status_code=500, detail="Could not load assignment. Please try again.")
+    tasks = manifest.to_questions_dict(approved_only=manifest.review_mode == "teacher")
+    answers = session_service.written_answers_for_export(body.session_id, body.session_secret, aid, tasks)
     if not answers:
         raise HTTPException(status_code=409, detail="No confirmed written answers are available for export")
-    return build_export_response(aid, answers)
+    return build_export_response(aid, answers, manifest=manifest, pdf_bytes=pdf_bytes)
 
 
 @app.get("/api/assignments/{assignment_id}/parse-diagnostics")
@@ -317,9 +357,11 @@ def teacher_assignment_review(assignment_id: UUID, x_assignment_capability: str 
     """Return the complete review manifest, including uncertain and rejected tasks."""
     try:
         _require_assignment_capability(str(assignment_id), x_assignment_capability)
-        manifest = assignment_service.load_assignment_manifest(str(assignment_id))
+        manifest = assignment_service.load_assignment_manifest_for_client(str(assignment_id))
     except assignment_service.AssignmentExpiredError:
         raise HTTPException(status_code=410, detail="Assignment expired")
+    except assignment_service.AssignmentSourceMismatchError:
+        raise HTTPException(status_code=409, detail="Worksheet source changed. Reload or re-upload it.")
     except ValueError:
         raise _assignment_not_found()
     if manifest.review_mode != "teacher":
@@ -366,6 +408,8 @@ def assignment_page_preview(
         raise
     except assignment_service.AssignmentExpiredError:
         raise HTTPException(status_code=410, detail="Assignment expired")
+    except assignment_service.AssignmentSourceMismatchError:
+        raise HTTPException(status_code=409, detail="Worksheet source changed. Reload or re-upload it.")
     except ValueError:
         raise HTTPException(status_code=404, detail="Page not found")
     except Exception:
@@ -393,7 +437,7 @@ async def upload_assignment(
     file: UploadFile = File(...),
     review_mode: str = Query("direct", pattern="^(direct|teacher)$"),
 ):
-    """Accept PDF, parse once, persist manifest + PDF. Returns assignment_id, title, questions."""
+    """Accept PDF, parse once, persist manifest + PDF, and return its safe canonical view."""
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted")
     _enforce_rate_limit(request, "upload", config.MAX_UPLOADS_PER_MINUTE)
@@ -428,6 +472,9 @@ async def upload_assignment(
             "assignment_id": assignment_id,
             "assignment_capability": assignment_capability,
             "title": manifest.title,
+            "document": manifest.to_client_document(),
+            # Temporary compatibility projection for external clients. The
+            # shipped browser consumes ``document`` as its source of truth.
             "questions": payload,
             "page_count": manifest.page_count,
             "parse_status": manifest.parse_status,
@@ -462,16 +509,21 @@ async def debug_gemini(request: Request):
         return {"status": "error", "error": "Gemini text call failed. Check server logs."}
 
 
-@app.get("/test-assignment.pdf")
-async def serve_test_assignment():
-    """Serve the test assignment PDF from the project root."""
+@app.get("/sample-assignment.pdf")
+async def serve_sample_assignment():
+    """Serve the current built-in worksheet sample through the normal upload flow."""
     path = config.ROOT / "test_assignment.pdf"
     if not path.exists():
-        raise HTTPException(
-            status_code=404,
-            detail="test_assignment.pdf not found. Run test_assignment.py to generate it.",
-        )
+        raise HTTPException(status_code=404, detail="Sample worksheet not found")
     return FileResponse(path, media_type="application/pdf")
+
+
+@app.get("/test-assignment.pdf")
+async def serve_test_assignment():
+    """Keep the legacy test fixture route available only for explicit local diagnostics."""
+    if not config.is_debug_routes_enabled():
+        raise HTTPException(status_code=404, detail="Not found")
+    return await serve_sample_assignment()
 
 
 @app.get("/sample-page.png")
@@ -602,6 +654,8 @@ async def app_page():
 @app.get("/test", response_class=HTMLResponse)
 async def test_voice_page():
     """Serve the voice debug test page."""
+    if not config.is_debug_routes_enabled():
+        raise HTTPException(status_code=404, detail="Not found")
     path = config.ROOT / "test_voice.html"
     if not path.exists():
         return HTMLResponse("<h1>Not found</h1><p>test_voice.html missing</p>", status_code=404)

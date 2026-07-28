@@ -27,8 +27,10 @@ def test_offline_hero_upload_confirm_write_export_and_second_upload(monkeypatch,
         first = _upload_hero(client)
         assert first["parser"] == "offline-synthetic-fixture-v1"
         assert len(first["questions"]) == 4
-        assert first["questions"][1]["answer_region_status"] == "approved"
-        assert first["questions"][3]["answer_region_status"] == "side_panel"
+        assert first["questions"][1]["answer_region_status"] == "side_panel"
+        assert first["questions"][3]["side_panel_fallback"] is True
+        assert first["questions"][3]["response_target_id"].endswith(":side-panel")
+        first_task = first["questions"][1]
 
         headers = {"X-Assignment-Capability": first["assignment_capability"]}
         started = client.post("/api/session/start", json={"assignment_id": first["assignment_id"]}, headers=headers)
@@ -38,7 +40,12 @@ def test_offline_hero_upload_confirm_write_export_and_second_upload(monkeypatch,
         answer = "The river water was clearer after the litter was removed."
         confirmed = client.post(
             f"/api/session/{session['session_id']}/confirm",
-            json={"session_secret": session["session_secret"], "question_id": 2, "answer_text": answer},
+            json={
+                "session_secret": session["session_secret"],
+                "task_id": first_task["task_id"],
+                "response_region_id": first_task["response_target_id"],
+                "answer_text": answer,
+            },
             headers=headers,
         )
         assert confirmed.status_code == 200, confirmed.text
@@ -46,7 +53,8 @@ def test_offline_hero_upload_confirm_write_export_and_second_upload(monkeypatch,
         written = client.post(
             f"/api/write/{first['assignment_id']}",
             json={
-                "question_id": 2,
+                "task_id": first_task["task_id"],
+                "response_region_id": first_task["response_target_id"],
                 "conversation": [],
                 "answer_candidate": answer,
                 "write_token": confirmed.json()["write_token"],
@@ -66,14 +74,16 @@ def test_offline_hero_upload_confirm_write_export_and_second_upload(monkeypatch,
         assert exported.status_code == 200, exported.text
         document = fitz.open(stream=exported.content, filetype="pdf")
         try:
-            assert document.page_count == 1
-            assert answer in document[0].get_text()
+            assert document.page_count == 2
+            assert answer not in document[0].get_text()
+            assert answer in document[1].get_text()
         finally:
             document.close()
 
         second = _upload_hero(client)
         assert second["assignment_id"] != first["assignment_id"]
         second_headers = {"X-Assignment-Capability": second["assignment_capability"]}
+        second_task = second["questions"][1]
         second_session = client.post(
             "/api/session/start", json={"assignment_id": second["assignment_id"]}, headers=second_headers
         )
@@ -84,4 +94,4 @@ def test_offline_hero_upload_confirm_write_export_and_second_upload(monkeypatch,
             headers=second_headers,
         )
         assert restored.status_code == 200, restored.text
-        assert restored.json()["questions"]["2"]["confirmed"] is False
+        assert restored.json()["responses"][second_task["response_target_id"]]["confirmed"] is False

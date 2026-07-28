@@ -1,0 +1,218 @@
+{
+  "version": 1,
+  "documents": [
+    {
+      "canonical_id": "canonical-short-answer-ecosystems",
+      "sample_name": "Short Answer",
+      "title": "Introduction to Ecosystems",
+      "topic_label": "LIFE SCIENCE • SHORT ANSWER",
+      "instructions": "Read the overview, then answer all five questions in complete sentences when requested.",
+      "context_title": "Ecosystem overview",
+      "context": [
+        "An ecosystem includes living organisms and the nonliving parts of their environment.",
+        "Producers, such as green plants, make their own food. Consumers obtain energy by eating plants or other animals.",
+        "Decomposers break down dead material and return nutrients to the environment. Sunlight, water, soil, and temperature are nonliving factors."
+      ],
+      "tasks": [
+        {
+          "task_id": "ecosystems-task-1",
+          "order": 1,
+          "prompt": "Identify one living part of an ecosystem.",
+          "task_type": "short_text",
+          "responses": [{"response_id": "ecosystems-task-1-answer", "response_type": "line"}]
+        },
+        {
+          "task_id": "ecosystems-task-2",
+          "order": 2,
+          "prompt": "Define a producer in your own words.",
+          "task_type": "short_text",
+          "responses": [{"response_id": "ecosystems-task-2-answer", "response_type": "line"}]
+        },
+        {
+          "task_id": "ecosystems-task-3",
+          "order": 3,
+          "prompt": "Briefly explain how consumers get energy.",
+          "task_type": "long_text",
+          "responses": [{"response_id": "ecosystems-task-3-answer", "response_type": "box", "height": 46}]
+        },
+        {
+          "task_id": "ecosystems-task-4",
+          "order": 4,
+          "prompt": "Explain why decomposers are important to an ecosystem.",
+          "task_type": "long_text",
+          "responses": [{"response_id": "ecosystems-task-4-answer", "response_type": "box", "height": 46}]
+        },
+        {
+          "task_id": "ecosystems-task-5",
+          "order": 5,
+          "prompt": "Name two nonliving factors found in an ecosystem.",
+          "task_type": "short_text",
+          "responses": [{"response_id": "ecosystems-task-5-answer", "response_type": "line"}]
+        }
+      ]
+    },
+    {
+      "canonical_id": "canonical-choice-digital-safety",
+      "sample_name": "Multiple Choice",
+      "title": "Digital Safety Basics",
+      "topic_label": "DIGITAL LITERACY • MULTIPLE CHOICE",
+      "instructions": "Choose the best answer for each question. For questions 2, 4, and 5, briefly explain your choice.",
+      "context_title": "Safety reminders",
+      "context": [
+        "Use a unique passphrase and keep it private.",
+        "Ask a trusted adult before sharing personal information or responding to an unfamiliar message.",
+        "Check a message carefully before opening a link or attachment."
+      ],
+      "tasks": [
+        {
+          "task_id": "digital-safety-task-1",
+          "order": 1,
+          "prompt": "Which password practice is safest?",
+          "task_type": "choice",
+          "choices": [
+            {"value": "A", "text": "Use the same short password everywhere."},
+            {"value": "B", "text": "Use a unique passphrase and keep it private."},
+            {"value": "C", "text": "Share your password with friends."},
+            {"value": "D", "text": "Write your password in a public place."}
+          ],
+          "responses": [
+            {"response_id": "digital-safety-task-1-choice-a", "response_type": "checkbox"},
+            {"response_id": "digital-safety-task-1-choice-b", "response_type": "checkbox"},
+            {"response_id": "digital-safety-task-1-choice-c", "response_type": "checkbox"},
+            {"response_id": "digital-safety-task-1-choice-d", "response_type": "checkbox"}
+          ]
+        },
+        {
+          "task_id": "digital-safety-task-2",
+          "order": 2,
+          "prompt": "What should you do if an unfamiliar person asks for your home address online?",
+          "task_type": "choice",
+          "choices": [
+            {"value": "A", "text": "Send it right away."},
+            {"value": "B", "text": "Post it where everyone can see it."},
+            {"value": "C", "text": "Do not share it and tell a trusted adult."},
+            {"value": "D", "text": "Trade it for a game code."}
+          ],
+          "responses": [
+            {"response_id": "digital-safety-task-2-choice-a", "response_type": "checkbox"},
+            {"response_id": "digital-safety-task-2-choice-b", "response_type": "checkbox"},
+            {"response_id": "digital-safety-task-2-choice-c", "response_type": "checkbox"},
+            {"response_id": "digital-safety-task-2-choice-d", "response_type": "checkbox"},
+            {"response_id": "digital-safety-task-2-explanation", "response_type": "line", "label": "Briefly explain your choice:"}
+          ]
+        },
+        {
+          "task_id": "digital-safety-task-3",
+          "order": 3,
+          "prompt": "Which message is most likely a warning sign?",
+          "task_type": "choice",
+          "page_break_before": true,
+          "choices": [
+            {"value": "A", "text": "A teacher posts tomorrow's homework."},
+            {"value": "B", "text": "A friend says hello using their usual account."},
+            {"value": "C", "text": "A parent shares a family calendar."},
+            {"value": "D", "text": "A stranger demands an immediate click to claim a prize."}
+          ],
+          "responses": [
+            {"response_id": "digital-safety-task-3-choice-a", "response_type": "checkbox"},
+            {"response_id": "digital-safety-task-3-choice-b", "response_type": "checkbox"},
+            {"response_id": "digital-safety-task-3-choice-c", "response_type": "checkbox"},
+            {"response_id": "digital-safety-task-3-choice-d", "response_type": "checkbox"}
+          ]
+        },
+        {
+          "task_id": "digital-safety-task-4",
+          "order": 4,
+          "prompt": "What is the safest response to an unexpected attachment?",
+          "task_type": "choice",
+          "choices": [
+            {"value": "A", "text": "Open it before reading the message."},
+            {"value": "B", "text": "Forward it to everyone."},
+            {"value": "C", "text": "Verify the sender and ask a trusted adult if unsure."},
+            {"value": "D", "text": "Disable security tools first."}
+          ],
+          "responses": [
+            {"response_id": "digital-safety-task-4-choice-a", "response_type": "checkbox"},
+            {"response_id": "digital-safety-task-4-choice-b", "response_type": "checkbox"},
+            {"response_id": "digital-safety-task-4-choice-c", "response_type": "checkbox"},
+            {"response_id": "digital-safety-task-4-choice-d", "response_type": "checkbox"},
+            {"response_id": "digital-safety-task-4-explanation", "response_type": "box", "label": "Briefly explain your choice:", "height": 34}
+          ]
+        },
+        {
+          "task_id": "digital-safety-task-5",
+          "order": 5,
+          "prompt": "Which action helps protect your privacy on a shared computer?",
+          "task_type": "choice",
+          "choices": [
+            {"value": "A", "text": "Stay signed in after leaving."},
+            {"value": "B", "text": "Save private files to the desktop."},
+            {"value": "C", "text": "Tell others your passphrase."},
+            {"value": "D", "text": "Sign out when you finish."}
+          ],
+          "responses": [
+            {"response_id": "digital-safety-task-5-choice-a", "response_type": "checkbox"},
+            {"response_id": "digital-safety-task-5-choice-b", "response_type": "checkbox"},
+            {"response_id": "digital-safety-task-5-choice-c", "response_type": "checkbox"},
+            {"response_id": "digital-safety-task-5-choice-d", "response_type": "checkbox"},
+            {"response_id": "digital-safety-task-5-explanation", "response_type": "line", "label": "Briefly explain your choice:"}
+          ]
+        }
+      ]
+    },
+    {
+      "canonical_id": "canonical-numeric-everyday-math",
+      "sample_name": "Math Practice",
+      "title": "Everyday Math",
+      "topic_label": "MATHEMATICS • WORD PROBLEMS",
+      "instructions": "Solve each problem. Write a number and unit in every Answer field. Show your work where a work box is provided.",
+      "tasks": [
+        {
+          "task_id": "everyday-math-task-1",
+          "order": 1,
+          "prompt": "Maya has 18 library books to place equally on 3 shelves. How many books go on each shelf?",
+          "task_type": "numeric",
+          "responses": [{"response_id": "everyday-math-task-1-answer", "response_type": "line"}]
+        },
+        {
+          "task_id": "everyday-math-task-2",
+          "order": 2,
+          "prompt": "A class collects 27 cans on Monday and 16 cans on Tuesday. How many cans do they collect in all?",
+          "task_type": "numeric",
+          "responses": [
+            {"response_id": "everyday-math-task-2-answer", "response_type": "line"},
+            {"response_id": "everyday-math-task-2-work", "response_type": "box", "label": "Show your work:", "height": 52}
+          ]
+        },
+        {
+          "task_id": "everyday-math-task-3",
+          "order": 3,
+          "prompt": "A notebook costs $4. Lena buys 5 notebooks. What is the total cost?",
+          "task_type": "numeric",
+          "responses": [{"response_id": "everyday-math-task-3-answer", "response_type": "box", "height": 30}]
+        },
+        {
+          "task_id": "everyday-math-task-4",
+          "order": 4,
+          "prompt": "A 48-minute practice is divided into 6 equal activities. How many minutes does each activity last?",
+          "task_type": "numeric",
+          "page_break_before": true,
+          "responses": [
+            {"response_id": "everyday-math-task-4-answer", "response_type": "line"},
+            {"response_id": "everyday-math-task-4-work", "response_type": "box", "label": "Show your work:", "height": 76}
+          ]
+        },
+        {
+          "task_id": "everyday-math-task-5",
+          "order": 5,
+          "prompt": "Jordan has $30 and spends $12 on a museum ticket. How much money remains?",
+          "task_type": "numeric",
+          "responses": [
+            {"response_id": "everyday-math-task-5-answer", "response_type": "box", "height": 30},
+            {"response_id": "everyday-math-task-5-work", "response_type": "box", "label": "Show your work:", "height": 76}
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -7,21 +7,54 @@
     var card = document.createElement('div');
     card.className = 'question-card';
     card.dataset.questionId = id;
-    card.innerHTML = '<div class="question-header"><div style="display:flex;align-items:center"><span class="question-index"></span><div class="question-label">Question <span class="ready-badge">Answer confirmed</span></div></div><div class="question-meta">&nbsp;</div></div><div class="question-text"></div><div class="answer-field" data-placeholder="Say your answer in a session, or type it here" contenteditable="true" spellcheck="true"></div><button type="button" class="btn-confirm-answer" disabled>Confirm answer</button>';
 
-    card.querySelector('.question-index').textContent = id;
-    card.querySelector('.question-label').firstChild.textContent = 'Question ' + id;
-    card.querySelector('.question-text').textContent = question.text == null ? '' : String(question.text);
+    var header = document.createElement('div');
+    header.className = 'question-header';
+    var headerMain = document.createElement('div');
+    headerMain.className = 'question-header-main';
+    var index = document.createElement('span');
+    index.className = 'question-index';
+    index.textContent = id;
+    var label = document.createElement('div');
+    label.className = 'question-label';
+    label.appendChild(document.createTextNode('Question ' + id));
+    var ready = document.createElement('span');
+    ready.className = 'ready-badge';
+    ready.textContent = 'Answer confirmed';
+    label.appendChild(ready);
+    headerMain.appendChild(index);
+    headerMain.appendChild(label);
+    var meta = document.createElement('div');
+    meta.className = 'question-meta';
+    meta.textContent = '\u00a0';
+    header.appendChild(headerMain);
+    header.appendChild(meta);
 
-    var answer = card.querySelector('.answer-field');
+    var questionText = document.createElement('div');
+    questionText.className = 'question-text';
+    questionText.textContent = question.text == null ? '' : String(question.text);
+
+    var answer = document.createElement('div');
+    answer.className = 'answer-field';
+    answer.dataset.placeholder = 'Say your answer in a session, or type it here';
+    answer.contentEditable = 'true';
+    answer.spellcheck = true;
     answer.dataset.questionId = id;
     answer.setAttribute('role', 'textbox');
     answer.setAttribute('aria-label', 'Answer for question ' + id);
     answer.setAttribute('aria-multiline', 'true');
 
-    var confirm = card.querySelector('.btn-confirm-answer');
+    var confirm = document.createElement('button');
+    confirm.type = 'button';
+    confirm.className = 'btn-confirm-answer';
+    confirm.disabled = true;
+    confirm.textContent = 'Confirm answer';
     confirm.dataset.questionId = id;
     confirm.setAttribute('aria-label', 'Confirm answer for question ' + id);
+    card.appendChild(header);
+    card.appendChild(questionText);
+    card.appendChild(answer);
+    card.appendChild(confirm);
     return card;
   }
 

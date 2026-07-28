@@ -1,5 +1,12 @@
 # Claros closed-world PDF gold pilot
 
+## Historical stress-pilot status
+
+This preserved 17-page package is a broad later-stage stress pilot, not the
+initial parser milestone or its critical path. Its historical directory name
+does not imply that human or otherwise validated gold labels exist. The
+controlled first-party milestone is `evaluation/canonical_v1`.
+
 This directory is an offline evaluation package. Nothing here is imported by the Claros upload, assignment, answer-confirmation, PDF-writing, or export paths. The legacy parser remains the production default.
 
 ## Current stopping point

@@ -114,6 +114,13 @@
 .question-placement { padding: 0.18rem 0.35rem; border: 1px solid var(--border); border-radius: 4px; color: var(--muted); background: var(--surface); font-size: 0.62rem; font-weight: 800; white-space: nowrap; }
 .question-placement.side_panel { color: var(--warn); border-color: var(--warn-line); background: var(--warn-soft); }
 .question-placement.approved { color: var(--success); border-color: var(--success-line); background: var(--success-soft); }
+.response-targets { display: grid; gap: 0.35rem; margin-top: 0.65rem; }
+.response-targets:empty { display: none; }
+.response-target { min-height: 2.25rem; padding: 0.42rem 0.55rem; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--ink-soft); background: var(--surface); font-size: 0.76rem; font-weight: 720; text-align: left; }
+.response-target:hover, .response-target[aria-current="true"] { color: var(--iris-deep); border-color: var(--iris-line); background: var(--iris-soft); }
+.response-target.is-side-panel { color: var(--warn); border-color: var(--warn-line); background: var(--warn-soft); }
+.response-target.is-unavailable { color: var(--muted); }
+.response-target-label { margin-top: 0.72rem; color: var(--ink-soft); font-size: 0.73rem; font-weight: 760; }
 .answer-label { display: block; margin-top: 0.85rem; color: var(--ink-soft); font-size: 0.74rem; font-weight: 760; }
 .answer-field { min-height: 5.1rem; margin-top: 0.35rem; padding: 0.68rem; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); color: var(--ink); background: var(--surface); line-height: 1.5; }
 .answer-field:empty::before { content: attr(data-placeholder); color: var(--muted-light); pointer-events: none; }

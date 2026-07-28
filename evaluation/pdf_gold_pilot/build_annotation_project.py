@@ -19,7 +19,13 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from document_model import DocumentBlock, SourceKind
-from document_pipeline import _native_blocks, _physical_response_blocks
+from document_pipeline import (
+    _native_blocks,
+    _page_extraction_dimensions,
+    _page_requires_display_transform,
+    _physical_response_blocks,
+    _sanitize_blocks_to_page,
+)
 from parser import parse_pdf_with_diagnostics
 
 HERE = Path(__file__).resolve().parent
@@ -161,8 +167,16 @@ def _prediction_results(
     return results
 
 
-def _response_candidate(block: DocumentBlock) -> dict:
-    safe = block.block_label in {"answer_line", "form_field"} and block.confidence >= 0.85
+def _response_candidate(
+    block: DocumentBlock,
+    *,
+    display_transform_required: bool = False,
+) -> dict:
+    safe = (
+        not display_transform_required
+        and block.block_label in {"answer_line", "form_field"}
+        and block.confidence >= 0.85
+    )
     return {
         "id": block.id,
         "page_index": block.page_index,
@@ -176,6 +190,17 @@ def _response_candidate(block: DocumentBlock) -> dict:
     }
 
 
+def _pilot_page_geometry(page: fitz.Page) -> tuple[float, float, int, bool]:
+    """Return the production-compatible extraction frame for a pilot page."""
+    width, height = _page_extraction_dimensions(page)
+    return (
+        width,
+        height,
+        int(page.rotation) % 360,
+        _page_requires_display_transform(page),
+    )
+
+
 def _render_original(page: fitz.Page, path: Path, dpi: int) -> None:
     scale = dpi / 72.0
     page.get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False).save(path)
@@ -187,6 +212,8 @@ def _render_physical_overlay(
     blocks: list[DocumentBlock],
     responses: list[dict],
     dpi: int,
+    *,
+    display_transform_required: bool = False,
 ) -> None:
     for block in blocks:
         color = (0.45, 0.45, 0.45) if block.source == SourceKind.native_pdf else (0.45, 0.15, 0.75)
@@ -198,7 +225,11 @@ def _render_physical_overlay(
     page.draw_rect(banner, fill=(1, 1, 1), color=None, overlay=True)
     page.insert_text(
         (4, 13),
-        "suggestions only: gray=native, purple=Paddle, green=safe candidate, yellow=ambiguous",
+        (
+            "suggestions only: transformed page; physical targets are side-panel-only"
+            if display_transform_required
+            else "suggestions only: gray=native, purple=Paddle, green=safe candidate, yellow=ambiguous"
+        ),
         fontsize=7,
         color=(0.1, 0.1, 0.1),
         overlay=True,
@@ -270,9 +301,16 @@ def build(args: argparse.Namespace) -> dict:
             if page_index >= document.page_count:
                 raise IndexError(f"{source_pdf} does not contain page {page_number}")
             page = document[page_index]
-            page_width = float(page.rect.width)
-            page_height = float(page.rect.height)
-            page_rotation = int(page.rotation) % 360
+            # Keep pilot geometry in the same unrotated extraction coordinate
+            # frame as the production document model. A page that needs a
+            # display transform can still be annotated semantically, but its
+            # physical response candidates must remain side-panel-only.
+            (
+                page_width,
+                page_height,
+                page_rotation,
+                display_transform_required,
+            ) = _pilot_page_geometry(page)
             rendered_name = f"{selection['pilot_id']}.png"
             rendered_path = rendered_dir / rendered_name
             overlay_path = overlay_dir / rendered_name
@@ -280,15 +318,68 @@ def build(args: argparse.Namespace) -> dict:
 
             native = _native_blocks(page, page_index)
             physical = _physical_response_blocks(page, page_index, len(native), native)
+            extracted_blocks, extracted_geometry_sanitized = _sanitize_blocks_to_page(
+                native + physical,
+                width=page_width,
+                height=page_height,
+            )
+            native = [
+                block
+                for block in extracted_blocks
+                if block.source == SourceKind.native_pdf and block.bbox is not None
+            ]
+            physical = [
+                block
+                for block in extracted_blocks
+                if block.source != SourceKind.native_pdf and block.bbox is not None
+            ]
             cached_paddle = paddle_cache.get((source_pdf, page_number), [])
-            prompt_blocks = native + [block for block in cached_paddle if block.block_label not in RESPONSE_LABELS]
-            response_blocks = physical + [block for block in cached_paddle if block.block_label in RESPONSE_LABELS]
-            responses = [_response_candidate(block) for block in response_blocks]
-            _render_physical_overlay(page, overlay_path, prompt_blocks, responses, args.dpi)
+            if display_transform_required:
+                # Cached Paddle blocks are in the rendered display frame, not
+                # the source extraction frame. Do not fabricate a mapping.
+                cached_paddle = []
+            else:
+                cached_paddle, cached_geometry_sanitized = _sanitize_blocks_to_page(
+                    cached_paddle,
+                    width=page_width,
+                    height=page_height,
+                )
+                if cached_geometry_sanitized:
+                    extracted_geometry_sanitized = True
+                cached_paddle = [block for block in cached_paddle if block.bbox is not None]
+            prompt_blocks = native + [
+                block for block in cached_paddle if block.block_label not in RESPONSE_LABELS
+            ]
+            response_blocks = physical + [
+                block for block in cached_paddle if block.block_label in RESPONSE_LABELS
+            ]
+            responses = [
+                _response_candidate(
+                    block,
+                    display_transform_required=display_transform_required,
+                )
+                for block in response_blocks
+            ]
+            _render_physical_overlay(
+                page,
+                overlay_path,
+                prompt_blocks,
+                responses,
+                args.dpi,
+                display_transform_required=display_transform_required,
+            )
         finally:
             document.close()
 
         page_warnings = []
+        if display_transform_required:
+            page_warnings.append("transformed_physical_targets_side_panel_only")
+            if paddle_cache.get((source_pdf, page_number), []):
+                page_warnings.append("paddle_geometry_omitted_for_transformed_page")
+        if extracted_geometry_sanitized or any(
+            block.block_label == "clipped_response_candidate" for block in physical
+        ):
+            page_warnings.append("extraction_geometry_clipped_or_omitted")
         if not cached_paddle:
             page_warnings.append("structured_paddle_cache_unavailable")
         if not prompt_blocks:
@@ -301,6 +392,7 @@ def build(args: argparse.Namespace) -> dict:
             "page_width_points": page_width,
             "page_height_points": page_height,
             "rotation": page_rotation,
+            "display_transform_required": display_transform_required,
             "image": f"rendered/{rendered_name}",
             "blocks": [block.model_dump(mode="json") for block in prompt_blocks],
             "response_candidates": responses,

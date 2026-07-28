@@ -1,5 +1,92 @@
 # Build Week delta
 
+> Historical-record notice: the legacy Build Week entries below describe
+> candidate work from that period. In particular, OpenAI/GPT statements below
+> are not claims about the current Claros runtime. Current runtime boundaries
+> are maintained in `docs/ARCHITECTURE.md` and Stage 1 verification evidence
+> is recorded in `docs/BUILD_WEEK_STAGE_1_VERIFICATION.md`.
+
+## Revamp Stage 1 record
+
+- Base/current committed SHA before Stage 1: `5c13307afe7488348ac1b25ffcd522de260333f3`
+  (`Merge pull request #21 from ChimdumebiNebolisa/codex/claros-revamp-roadmap`).
+- Working branch: `codex/stage1-runtime-safety`; Stage 1 changes are reviewed
+  locally before any remote publication.
+- Contributor evidence: current Codex task plus repository diff and test
+  output. No unavailable session ID or exclusive authorship is claimed.
+- Scope: Gemini-only production runtime consolidation; deterministic exact
+  confirmed-answer stamping and export; provider/config and rate-limit
+  failure handling; removal or gating of legacy debug/provider paths; browser
+  injection regression coverage and baseline security headers.
+- Evidence and remaining deployment uncertainty: see
+  `docs/BUILD_WEEK_STAGE_1_VERIFICATION.md`.
+
+## Revamp Stage 2 record
+
+- Base/current committed SHA before Stage 2: `607636b`
+  (`feat(runtime): consolidate Gemini safety boundary`).
+- Working branch: `codex/stage2-canonical-model`, stacked locally on the Stage
+  1 checkpoint pending intentional review and remote publication.
+- Scope: replace the persisted flat `questions[]` source of truth with the
+  versioned canonical document contract; preserve task/region/choice relations
+  through extraction, session confirmation, writes, exports, and the client
+  projection; retain only a quarantined migration adapter for older manifests.
+  The contract now binds physical evidence to the source PDF, rejects
+  overlapping/reused or out-of-frame writable evidence, and routes transformed
+  coordinate frames to the side panel until a deterministic display transform
+  is available.
+- Contributor evidence: current Codex task plus repository diff and staged
+  verification output. No unavailable session ID or exclusive authorship is
+  claimed.
+- Evidence and remaining deployment uncertainty: see
+  `docs/BUILD_WEEK_STAGE_2_VERIFICATION.md`.
+
+## Revamp Stage 3 record
+
+- Base/current committed SHA before Stage 3: `fa1b175`
+  (`feat(document): establish canonical worksheet model`).
+- Working branch: `codex/stage3-deterministic-extraction`, stacked locally on
+  the Stage 2 checkpoint pending intentional review and remote publication.
+- Scope: deterministic canonical response-candidate extraction and
+  conservative task-to-region validation for native PDF evidence. This adds
+  stable physical IDs, glyph-bounded underscore blanks, typed widgets,
+  vector boxes, checkbox/choice relations, multi-region answer/show-work
+  links, and explicit side-panel routing for ambiguous, OCR-only, grid, and
+  checkbox-write cases. Native prompt authority now requires an opaque,
+  rendered, non-graphic-obscured source span; persistable physical targets are
+  bound by a domain-separated server HMAC so unauthenticated page/task/region
+  edits and cross-assignment swaps cannot be trusted. It does not claim live
+  provider or production PDF verification.
+- Contributor evidence: current Codex task, repository diff, generated local
+  regression PDFs, and independent red-team findings. No unavailable session
+  ID or exclusive authorship is claimed.
+- Evidence and remaining deployment uncertainty: see
+  `docs/BUILD_WEEK_STAGE_3_VERIFICATION.md`.
+- Canonical acceptance: `python -m evaluation.canonical_v1.evaluate` now meets
+  the Stage 3 gate (15/15 tasks, 36/36 response associations, 0 false-positive
+  writable regions, stable across repeated parses) without changing
+  `source.json`, `manifest.json`, expected labels, or baseline provenance for
+  score improvement. Independent review found no valid P0/P1 issues; Stage 3
+  lands as one reviewable commit on this branch. Stage 4 has not started.
+
+## First-party canonical parser fixtures
+
+`evaluation/canonical_v1/` establishes the initial parser milestone with three
+first-party classroom worksheets: short-answer comprehension, multiple choice
+with explanations, and numeric word problems. A single strict source
+specification drives deterministic PDF rendering and the expected-label
+manifest; prompt and response coordinates are recorded during rendering rather
+than copied into a second fixture definition. The suite has stable IDs,
+selectable text, typed physical response regions, page roles, relations,
+rendered previews, focused consistency tests, and a Stage 3
+`parse_document` baseline. The legacy-parser baseline is preserved separately
+as provenance and is not Stage 3 acceptance evidence.
+
+The external acceptance corpus and historical 17-page pilot are preserved as
+later real-world/stress evaluation. Results on `canonical_v1` do not establish
+support for arbitrary scans, mixed packets, tables, visual tasks, or
+outside-context worksheets.
+
 ## Provenance baseline
 
 - Owner-confirmed contest start: `2026-07-13T09:00:00-07:00`

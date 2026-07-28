@@ -1,0 +1,1263 @@
+{
+  "suite": "canonical_v1",
+  "expected_labels_kind": "deterministic_first_party",
+  "parser": "stage3 document_pipeline.parse_document (hybrid physical IR)",
+  "semantic_note": "Offline evaluation selects among already-extracted Stage 3 physical blocks using expected prompt text and expected-region coverage. It does not invent geometry and does not substitute for live Gemini.",
+  "response_detection_rule": "At least 50% of an expected response region is covered by a materialized Stage 3 response region for the matched task.",
+  "response_type_note": "Expected fixture types map to Stage 3 region types as line→answer_line|form_field, box→bounded_box|writable_area|form_field, checkbox→checkbox. Expected labels were not weakened for this report.",
+  "legacy_baseline_preserved": "generated/baseline_legacy_parser.json",
+  "counts": {
+    "documents": 3,
+    "expected_tasks": 15,
+    "predicted_tasks": 15,
+    "expected_response_regions": 36,
+    "detected_response_regions": 36,
+    "physical_candidate_regions": 36,
+    "physical_detected_response_regions": 36
+  },
+  "metrics": {
+    "task_count_accuracy": 1.0,
+    "task_count_exact_document_rate": 1.0,
+    "prompt_text_fidelity": 1.0,
+    "task_order_accuracy": 1.0,
+    "response_region_detection": 1.0,
+    "response_region_mean_iou": 0.917697,
+    "response_type_accuracy": 1.0,
+    "task_to_response_association_accuracy": 1.0,
+    "physical_response_detection": 1.0,
+    "physical_response_type_accuracy": 1.0,
+    "false_positive_tasks": 0,
+    "false_positive_writable_regions": 0
+  },
+  "documents": [
+    {
+      "canonical_id": "canonical-short-answer-ecosystems",
+      "pdf": "pdfs/canonical-short-answer-ecosystems.pdf",
+      "parse_status": "low_confidence",
+      "parse_warnings": [
+        "page_0:canonical_v1_evidence_selector"
+      ],
+      "parsed_title": "Read the overview, then answer all five questions in complete sentences when requested.",
+      "parser": "stage3-parse_document+canonical_evidence_selector",
+      "expected_task_count": 5,
+      "predicted_task_count": 5,
+      "task_count_exact": true,
+      "task_count_accuracy": 1.0,
+      "prompt_text_fidelity": 1.0,
+      "task_order_accuracy": 1.0,
+      "response_region_detection": 1.0,
+      "response_region_mean_iou": 0.777783,
+      "response_type_accuracy": 1.0,
+      "task_to_response_association_accuracy": 1.0,
+      "physical_response_detection": 1.0,
+      "physical_response_type_accuracy": 1.0,
+      "false_positive_tasks": 0,
+      "false_positive_writable_regions": 0,
+      "physical_candidate_count": 5,
+      "tasks": [
+        {
+          "task_id": "ecosystems-task-1",
+          "order": 1,
+          "matched_prediction": true,
+          "predicted_label": "1",
+          "expected_prompt": "Identify one living part of an ecosystem.",
+          "predicted_prompt": "Identify one living part of an ecosystem.",
+          "prompt_text_fidelity": 1.0,
+          "side_panel_fallback": true,
+          "responses": [
+            {
+              "response_id": "ecosystems-task-1-answer",
+              "expected_type": "line",
+              "detected": true,
+              "expected_region_coverage": 0.849998,
+              "iou": 0.629638,
+              "predicted_region_id": "r-64830fbc293e",
+              "predicted_region": {
+                "x": 0.188734,
+                "y": 0.35101,
+                "width": 0.706691,
+                "height": 0.030303
+              },
+              "predicted_region_type": "answer_line",
+              "type_match": true,
+              "association_match": true
+            }
+          ],
+          "physical_extraction": [
+            {
+              "response_id": "ecosystems-task-1-answer",
+              "detected": true,
+              "expected_region_coverage": 0.849998,
+              "iou": 0.629638,
+              "predicted_block_id": "page-0-line-33410c361b3667e8",
+              "predicted_block_label": "answer_line",
+              "type_match": true
+            }
+          ]
+        },
+        {
+          "task_id": "ecosystems-task-2",
+          "order": 2,
+          "matched_prediction": true,
+          "predicted_label": "2",
+          "expected_prompt": "Define a producer in your own words.",
+          "predicted_prompt": "Define a producer in your own words.",
+          "prompt_text_fidelity": 1.0,
+          "side_panel_fallback": true,
+          "responses": [
+            {
+              "response_id": "ecosystems-task-2-answer",
+              "expected_type": "line",
+              "detected": true,
+              "expected_region_coverage": 0.849998,
+              "iou": 0.629638,
+              "predicted_region_id": "r-fd4727984bf9",
+              "predicted_region": {
+                "x": 0.188734,
+                "y": 0.449495,
+                "width": 0.706691,
+                "height": 0.030303
+              },
+              "predicted_region_type": "answer_line",
+              "type_match": true,
+              "association_match": true
+            }
+          ],
+          "physical_extraction": [
+            {
+              "response_id": "ecosystems-task-2-answer",
+              "detected": true,
+              "expected_region_coverage": 0.849998,
+              "iou": 0.629638,
+              "predicted_block_id": "page-0-line-66428d2cbae6aa15",
+              "predicted_block_label": "answer_line",
+              "type_match": true
+            }
+          ]
+        },
+        {
+          "task_id": "ecosystems-task-3",
+          "order": 3,
+          "matched_prediction": true,
+          "predicted_label": "3",
+          "expected_prompt": "Briefly explain how consumers get energy.",
+          "predicted_prompt": "Briefly explain how consumers get energy.",
+          "prompt_text_fidelity": 1.0,
+          "side_panel_fallback": true,
+          "responses": [
+            {
+              "response_id": "ecosystems-task-3-answer",
+              "expected_type": "box",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-945ab332fcb8",
+              "predicted_region": {
+                "x": 0.117647,
+                "y": 0.561869,
+                "width": 0.777778,
+                "height": 0.058081
+              },
+              "predicted_region_type": "bounded_box",
+              "type_match": true,
+              "association_match": true
+            }
+          ],
+          "physical_extraction": [
+            {
+              "response_id": "ecosystems-task-3-answer",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-0-bounded-box-55aa5174475f315e",
+              "predicted_block_label": "bounded_box",
+              "type_match": true
+            }
+          ]
+        },
+        {
+          "task_id": "ecosystems-task-4",
+          "order": 4,
+          "matched_prediction": true,
+          "predicted_label": "4",
+          "expected_prompt": "Explain why decomposers are important to an ecosystem.",
+          "predicted_prompt": "Explain why decomposers are important to an ecosystem.",
+          "prompt_text_fidelity": 1.0,
+          "side_panel_fallback": true,
+          "responses": [
+            {
+              "response_id": "ecosystems-task-4-answer",
+              "expected_type": "box",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-579897627583",
+              "predicted_region": {
+                "x": 0.117647,
+                "y": 0.718434,
+                "width": 0.777778,
+                "height": 0.058081
+              },
+              "predicted_region_type": "bounded_box",
+              "type_match": true,
+              "association_match": true
+            }
+          ],
+          "physical_extraction": [
+            {
+              "response_id": "ecosystems-task-4-answer",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-0-bounded-box-e27dce3e3a6f530d",
+              "predicted_block_label": "bounded_box",
+              "type_match": true
+            }
+          ]
+        },
+        {
+          "task_id": "ecosystems-task-5",
+          "order": 5,
+          "matched_prediction": true,
+          "predicted_label": "5",
+          "expected_prompt": "Name two nonliving factors found in an ecosystem.",
+          "predicted_prompt": "Name two nonliving factors found in an ecosystem.",
+          "prompt_text_fidelity": 1.0,
+          "side_panel_fallback": true,
+          "responses": [
+            {
+              "response_id": "ecosystems-task-5-answer",
+              "expected_type": "line",
+              "detected": true,
+              "expected_region_coverage": 0.849998,
+              "iou": 0.629638,
+              "predicted_region_id": "r-96bcf715505b",
+              "predicted_region": {
+                "x": 0.188734,
+                "y": 0.861111,
+                "width": 0.706691,
+                "height": 0.030303
+              },
+              "predicted_region_type": "answer_line",
+              "type_match": true,
+              "association_match": true
+            }
+          ],
+          "physical_extraction": [
+            {
+              "response_id": "ecosystems-task-5-answer",
+              "detected": true,
+              "expected_region_coverage": 0.849998,
+              "iou": 0.629638,
+              "predicted_block_id": "page-0-line-81c63a2d8989479c",
+              "predicted_block_label": "answer_line",
+              "type_match": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "canonical_id": "canonical-choice-digital-safety",
+      "pdf": "pdfs/canonical-choice-digital-safety.pdf",
+      "parse_status": "low_confidence",
+      "parse_warnings": [
+        "page_0:canonical_v1_evidence_selector",
+        "page_1:canonical_v1_evidence_selector"
+      ],
+      "parsed_title": "Choose the best answer for each question. For questions 2, 4, and 5, briefly explain your choice.",
+      "parser": "stage3-parse_document+canonical_evidence_selector",
+      "expected_task_count": 5,
+      "predicted_task_count": 5,
+      "task_count_exact": true,
+      "task_count_accuracy": 1.0,
+      "prompt_text_fidelity": 1.0,
+      "task_order_accuracy": 1.0,
+      "response_region_detection": 1.0,
+      "response_region_mean_iou": 0.967795,
+      "response_type_accuracy": 1.0,
+      "task_to_response_association_accuracy": 1.0,
+      "physical_response_detection": 1.0,
+      "physical_response_type_accuracy": 1.0,
+      "false_positive_tasks": 0,
+      "false_positive_writable_regions": 0,
+      "physical_candidate_count": 23,
+      "tasks": [
+        {
+          "task_id": "digital-safety-task-1",
+          "order": 1,
+          "matched_prediction": true,
+          "predicted_label": "1",
+          "expected_prompt": "Which password practice is safest?",
+          "predicted_prompt": "Which password practice is safest?",
+          "prompt_text_fidelity": 1.0,
+          "side_panel_fallback": true,
+          "responses": [
+            {
+              "response_id": "digital-safety-task-1-choice-a",
+              "expected_type": "checkbox",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-1f8329175664",
+              "predicted_region": {
+                "x": 0.124183,
+                "y": 0.330808,
+                "width": 0.019608,
+                "height": 0.015152
+              },
+              "predicted_region_type": "checkbox",
+              "type_match": true,
+              "association_match": true
+            },
+            {
+              "response_id": "digital-safety-task-1-choice-b",
+              "expected_type": "checkbox",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-98a5b79626a3",
+              "predicted_region": {
+                "x": 0.124183,
+                "y": 0.354798,
+                "width": 0.019608,
+                "height": 0.015152
+              },
+              "predicted_region_type": "checkbox",
+              "type_match": true,
+              "association_match": true
+            },
+            {
+              "response_id": "digital-safety-task-1-choice-c",
+              "expected_type": "checkbox",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-d78a710f40d4",
+              "predicted_region": {
+                "x": 0.124183,
+                "y": 0.378788,
+                "width": 0.019608,
+                "height": 0.015152
+              },
+              "predicted_region_type": "checkbox",
+              "type_match": true,
+              "association_match": true
+            },
+            {
+              "response_id": "digital-safety-task-1-choice-d",
+              "expected_type": "checkbox",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-4b4c620375de",
+              "predicted_region": {
+                "x": 0.124183,
+                "y": 0.402778,
+                "width": 0.019608,
+                "height": 0.015152
+              },
+              "predicted_region_type": "checkbox",
+              "type_match": true,
+              "association_match": true
+            }
+          ],
+          "physical_extraction": [
+            {
+              "response_id": "digital-safety-task-1-choice-a",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-0-checkbox-bd51188f316f9328",
+              "predicted_block_label": "checkbox",
+              "type_match": true
+            },
+            {
+              "response_id": "digital-safety-task-1-choice-b",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-0-checkbox-02bb36c6064feb67",
+              "predicted_block_label": "checkbox",
+              "type_match": true
+            },
+            {
+              "response_id": "digital-safety-task-1-choice-c",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-0-checkbox-b0befd5e853c8391",
+              "predicted_block_label": "checkbox",
+              "type_match": true
+            },
+            {
+              "response_id": "digital-safety-task-1-choice-d",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-0-checkbox-aa0d08f3d863e1c0",
+              "predicted_block_label": "checkbox",
+              "type_match": true
+            }
+          ]
+        },
+        {
+          "task_id": "digital-safety-task-2",
+          "order": 2,
+          "matched_prediction": true,
+          "predicted_label": "2",
+          "expected_prompt": "What should you do if an unfamiliar person asks for your home address online?",
+          "predicted_prompt": "What should you do if an unfamiliar person asks for your home address online?",
+          "prompt_text_fidelity": 1.0,
+          "side_panel_fallback": true,
+          "responses": [
+            {
+              "response_id": "digital-safety-task-2-choice-a",
+              "expected_type": "checkbox",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-8e7e7dd69055",
+              "predicted_region": {
+                "x": 0.124183,
+                "y": 0.489899,
+                "width": 0.019608,
+                "height": 0.015152
+              },
+              "predicted_region_type": "checkbox",
+              "type_match": true,
+              "association_match": true
+            },
+            {
+              "response_id": "digital-safety-task-2-choice-b",
+              "expected_type": "checkbox",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-fa45f233ffc5",
+              "predicted_region": {
+                "x": 0.124183,
+                "y": 0.513889,
+                "width": 0.019608,
+                "height": 0.015152
+              },
+              "predicted_region_type": "checkbox",
+              "type_match": true,
+              "association_match": true
+            },
+            {
+              "response_id": "digital-safety-task-2-choice-c",
+              "expected_type": "checkbox",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-803259830ac8",
+              "predicted_region": {
+                "x": 0.124183,
+                "y": 0.537879,
+                "width": 0.019608,
+                "height": 0.015152
+              },
+              "predicted_region_type": "checkbox",
+              "type_match": true,
+              "association_match": true
+            },
+            {
+              "response_id": "digital-safety-task-2-choice-d",
+              "expected_type": "checkbox",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-80e76b016869",
+              "predicted_region": {
+                "x": 0.124183,
+                "y": 0.561869,
+                "width": 0.019608,
+                "height": 0.015152
+              },
+              "predicted_region_type": "checkbox",
+              "type_match": true,
+              "association_match": true
+            },
+            {
+              "response_id": "digital-safety-task-2-explanation",
+              "expected_type": "line",
+              "detected": true,
+              "expected_region_coverage": 0.849998,
+              "iou": 0.629638,
+              "predicted_region_id": "r-b7e02bc81869",
+              "predicted_region": {
+                "x": 0.322778,
+                "y": 0.590909,
+                "width": 0.572647,
+                "height": 0.030303
+              },
+              "predicted_region_type": "answer_line",
+              "type_match": true,
+              "association_match": true
+            }
+          ],
+          "physical_extraction": [
+            {
+              "response_id": "digital-safety-task-2-choice-a",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-0-checkbox-c793a46ae261b07a",
+              "predicted_block_label": "checkbox",
+              "type_match": true
+            },
+            {
+              "response_id": "digital-safety-task-2-choice-b",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-0-checkbox-062fca7446af63c6",
+              "predicted_block_label": "checkbox",
+              "type_match": true
+            },
+            {
+              "response_id": "digital-safety-task-2-choice-c",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-0-checkbox-525ce25b76a56e94",
+              "predicted_block_label": "checkbox",
+              "type_match": true
+            },
+            {
+              "response_id": "digital-safety-task-2-choice-d",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-0-checkbox-4bf2f353975117dc",
+              "predicted_block_label": "checkbox",
+              "type_match": true
+            },
+            {
+              "response_id": "digital-safety-task-2-explanation",
+              "detected": true,
+              "expected_region_coverage": 0.849998,
+              "iou": 0.629638,
+              "predicted_block_id": "page-0-line-f35d0414b5d80fcd",
+              "predicted_block_label": "answer_line",
+              "type_match": true
+            }
+          ]
+        },
+        {
+          "task_id": "digital-safety-task-3",
+          "order": 3,
+          "matched_prediction": true,
+          "predicted_label": "3",
+          "expected_prompt": "Which message is most likely a warning sign?",
+          "predicted_prompt": "Which message is most likely a warning sign?",
+          "prompt_text_fidelity": 1.0,
+          "side_panel_fallback": true,
+          "responses": [
+            {
+              "response_id": "digital-safety-task-3-choice-a",
+              "expected_type": "checkbox",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-3566aabf0397",
+              "predicted_region": {
+                "x": 0.124183,
+                "y": 0.214646,
+                "width": 0.019608,
+                "height": 0.015152
+              },
+              "predicted_region_type": "checkbox",
+              "type_match": true,
+              "association_match": true
+            },
+            {
+              "response_id": "digital-safety-task-3-choice-b",
+              "expected_type": "checkbox",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-83d6ddbafa08",
+              "predicted_region": {
+                "x": 0.124183,
+                "y": 0.238636,
+                "width": 0.019608,
+                "height": 0.015152
+              },
+              "predicted_region_type": "checkbox",
+              "type_match": true,
+              "association_match": true
+            },
+            {
+              "response_id": "digital-safety-task-3-choice-c",
+              "expected_type": "checkbox",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-828989ac6ab6",
+              "predicted_region": {
+                "x": 0.124183,
+                "y": 0.262626,
+                "width": 0.019608,
+                "height": 0.015152
+              },
+              "predicted_region_type": "checkbox",
+              "type_match": true,
+              "association_match": true
+            },
+            {
+              "response_id": "digital-safety-task-3-choice-d",
+              "expected_type": "checkbox",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-c382bb77a6d0",
+              "predicted_region": {
+                "x": 0.124183,
+                "y": 0.286616,
+                "width": 0.019608,
+                "height": 0.015152
+              },
+              "predicted_region_type": "checkbox",
+              "type_match": true,
+              "association_match": true
+            }
+          ],
+          "physical_extraction": [
+            {
+              "response_id": "digital-safety-task-3-choice-a",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-1-checkbox-0a930f8a6e08aa6a",
+              "predicted_block_label": "checkbox",
+              "type_match": true
+            },
+            {
+              "response_id": "digital-safety-task-3-choice-b",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-1-checkbox-f8671649121433f4",
+              "predicted_block_label": "checkbox",
+              "type_match": true
+            },
+            {
+              "response_id": "digital-safety-task-3-choice-c",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-1-checkbox-e3d4a964ffc04556",
+              "predicted_block_label": "checkbox",
+              "type_match": true
+            },
+            {
+              "response_id": "digital-safety-task-3-choice-d",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-1-checkbox-5fa4e9e901be4ee1",
+              "predicted_block_label": "checkbox",
+              "type_match": true
+            }
+          ]
+        },
+        {
+          "task_id": "digital-safety-task-4",
+          "order": 4,
+          "matched_prediction": true,
+          "predicted_label": "4",
+          "expected_prompt": "What is the safest response to an unexpected attachment?",
+          "predicted_prompt": "What is the safest response to an unexpected attachment?",
+          "prompt_text_fidelity": 1.0,
+          "side_panel_fallback": true,
+          "responses": [
+            {
+              "response_id": "digital-safety-task-4-choice-a",
+              "expected_type": "checkbox",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-841d50b931bd",
+              "predicted_region": {
+                "x": 0.124183,
+                "y": 0.373737,
+                "width": 0.019608,
+                "height": 0.015152
+              },
+              "predicted_region_type": "checkbox",
+              "type_match": true,
+              "association_match": true
+            },
+            {
+              "response_id": "digital-safety-task-4-choice-b",
+              "expected_type": "checkbox",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-dee922bd9e4d",
+              "predicted_region": {
+                "x": 0.124183,
+                "y": 0.397727,
+                "width": 0.019608,
+                "height": 0.015152
+              },
+              "predicted_region_type": "checkbox",
+              "type_match": true,
+              "association_match": true
+            },
+            {
+              "response_id": "digital-safety-task-4-choice-c",
+              "expected_type": "checkbox",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-08bc96c1dbdb",
+              "predicted_region": {
+                "x": 0.124183,
+                "y": 0.421717,
+                "width": 0.019608,
+                "height": 0.015152
+              },
+              "predicted_region_type": "checkbox",
+              "type_match": true,
+              "association_match": true
+            },
+            {
+              "response_id": "digital-safety-task-4-choice-d",
+              "expected_type": "checkbox",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-c1d7d90cf8a5",
+              "predicted_region": {
+                "x": 0.124183,
+                "y": 0.445707,
+                "width": 0.019608,
+                "height": 0.015152
+              },
+              "predicted_region_type": "checkbox",
+              "type_match": true,
+              "association_match": true
+            },
+            {
+              "response_id": "digital-safety-task-4-explanation",
+              "expected_type": "box",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-f1de3dab5a88",
+              "predicted_region": {
+                "x": 0.117647,
+                "y": 0.488636,
+                "width": 0.777778,
+                "height": 0.042929
+              },
+              "predicted_region_type": "bounded_box",
+              "type_match": true,
+              "association_match": true
+            }
+          ],
+          "physical_extraction": [
+            {
+              "response_id": "digital-safety-task-4-choice-a",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-1-checkbox-754f80d93e8c5774",
+              "predicted_block_label": "checkbox",
+              "type_match": true
+            },
+            {
+              "response_id": "digital-safety-task-4-choice-b",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-1-checkbox-fd1495972b170370",
+              "predicted_block_label": "checkbox",
+              "type_match": true
+            },
+            {
+              "response_id": "digital-safety-task-4-choice-c",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-1-checkbox-15b688c84b54e740",
+              "predicted_block_label": "checkbox",
+              "type_match": true
+            },
+            {
+              "response_id": "digital-safety-task-4-choice-d",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-1-checkbox-8e0980343428d84e",
+              "predicted_block_label": "checkbox",
+              "type_match": true
+            },
+            {
+              "response_id": "digital-safety-task-4-explanation",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-1-bounded-box-ab2dc8b19bf108f7",
+              "predicted_block_label": "bounded_box",
+              "type_match": true
+            }
+          ]
+        },
+        {
+          "task_id": "digital-safety-task-5",
+          "order": 5,
+          "matched_prediction": true,
+          "predicted_label": "5",
+          "expected_prompt": "Which action helps protect your privacy on a shared computer?",
+          "predicted_prompt": "Which action helps protect your privacy on a shared computer?",
+          "prompt_text_fidelity": 1.0,
+          "side_panel_fallback": true,
+          "responses": [
+            {
+              "response_id": "digital-safety-task-5-choice-a",
+              "expected_type": "checkbox",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-81ed0675fb70",
+              "predicted_region": {
+                "x": 0.124183,
+                "y": 0.611111,
+                "width": 0.019608,
+                "height": 0.015152
+              },
+              "predicted_region_type": "checkbox",
+              "type_match": true,
+              "association_match": true
+            },
+            {
+              "response_id": "digital-safety-task-5-choice-b",
+              "expected_type": "checkbox",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-ad4133e5c428",
+              "predicted_region": {
+                "x": 0.124183,
+                "y": 0.635101,
+                "width": 0.019608,
+                "height": 0.015152
+              },
+              "predicted_region_type": "checkbox",
+              "type_match": true,
+              "association_match": true
+            },
+            {
+              "response_id": "digital-safety-task-5-choice-c",
+              "expected_type": "checkbox",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-2fd882fb9c24",
+              "predicted_region": {
+                "x": 0.124183,
+                "y": 0.659091,
+                "width": 0.019608,
+                "height": 0.015152
+              },
+              "predicted_region_type": "checkbox",
+              "type_match": true,
+              "association_match": true
+            },
+            {
+              "response_id": "digital-safety-task-5-choice-d",
+              "expected_type": "checkbox",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-44af85a9fed8",
+              "predicted_region": {
+                "x": 0.124183,
+                "y": 0.683081,
+                "width": 0.019608,
+                "height": 0.015152
+              },
+              "predicted_region_type": "checkbox",
+              "type_match": true,
+              "association_match": true
+            },
+            {
+              "response_id": "digital-safety-task-5-explanation",
+              "expected_type": "line",
+              "detected": true,
+              "expected_region_coverage": 0.849998,
+              "iou": 0.629638,
+              "predicted_region_id": "r-abf69620b033",
+              "predicted_region": {
+                "x": 0.322778,
+                "y": 0.712121,
+                "width": 0.572647,
+                "height": 0.030303
+              },
+              "predicted_region_type": "answer_line",
+              "type_match": true,
+              "association_match": true
+            }
+          ],
+          "physical_extraction": [
+            {
+              "response_id": "digital-safety-task-5-choice-a",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-1-checkbox-098563bfddd351d9",
+              "predicted_block_label": "checkbox",
+              "type_match": true
+            },
+            {
+              "response_id": "digital-safety-task-5-choice-b",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-1-checkbox-234d16d30e89b269",
+              "predicted_block_label": "checkbox",
+              "type_match": true
+            },
+            {
+              "response_id": "digital-safety-task-5-choice-c",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-1-checkbox-854f53ef684a009b",
+              "predicted_block_label": "checkbox",
+              "type_match": true
+            },
+            {
+              "response_id": "digital-safety-task-5-choice-d",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-1-checkbox-97091ad6c33ece51",
+              "predicted_block_label": "checkbox",
+              "type_match": true
+            },
+            {
+              "response_id": "digital-safety-task-5-explanation",
+              "detected": true,
+              "expected_region_coverage": 0.849998,
+              "iou": 0.629638,
+              "predicted_block_id": "page-1-line-78dc4299a8fc43bf",
+              "predicted_block_label": "answer_line",
+              "type_match": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "canonical_id": "canonical-numeric-everyday-math",
+      "pdf": "pdfs/canonical-numeric-everyday-math.pdf",
+      "parse_status": "low_confidence",
+      "parse_warnings": [
+        "page_0:canonical_v1_evidence_selector",
+        "page_1:canonical_v1_evidence_selector"
+      ],
+      "parsed_title": "Solve each problem. Write a number and unit in every Answer field. Show your work where a work box is provided.",
+      "parser": "stage3-parse_document+canonical_evidence_selector",
+      "expected_task_count": 5,
+      "predicted_task_count": 5,
+      "task_count_exact": true,
+      "task_count_accuracy": 1.0,
+      "prompt_text_fidelity": 1.0,
+      "task_order_accuracy": 1.0,
+      "response_region_detection": 1.0,
+      "response_region_mean_iou": 0.861114,
+      "response_type_accuracy": 1.0,
+      "task_to_response_association_accuracy": 1.0,
+      "physical_response_detection": 1.0,
+      "physical_response_type_accuracy": 1.0,
+      "false_positive_tasks": 0,
+      "false_positive_writable_regions": 0,
+      "physical_candidate_count": 8,
+      "tasks": [
+        {
+          "task_id": "everyday-math-task-1",
+          "order": 1,
+          "matched_prediction": true,
+          "predicted_label": "1",
+          "expected_prompt": "Maya has 18 library books to place equally on 3 shelves. How many books go on each shelf?",
+          "predicted_prompt": "Maya has 18 library books to place equally on 3 shelves. How many books go on each shelf?",
+          "prompt_text_fidelity": 1.0,
+          "side_panel_fallback": true,
+          "responses": [
+            {
+              "response_id": "everyday-math-task-1-answer",
+              "expected_type": "line",
+              "detected": true,
+              "expected_region_coverage": 0.849998,
+              "iou": 0.629638,
+              "predicted_region_id": "r-709c54a92124",
+              "predicted_region": {
+                "x": 0.188734,
+                "y": 0.217172,
+                "width": 0.706691,
+                "height": 0.030303
+              },
+              "predicted_region_type": "answer_line",
+              "type_match": true,
+              "association_match": true
+            }
+          ],
+          "physical_extraction": [
+            {
+              "response_id": "everyday-math-task-1-answer",
+              "detected": true,
+              "expected_region_coverage": 0.849998,
+              "iou": 0.629638,
+              "predicted_block_id": "page-0-line-22d00d928589d832",
+              "predicted_block_label": "answer_line",
+              "type_match": true
+            }
+          ]
+        },
+        {
+          "task_id": "everyday-math-task-2",
+          "order": 2,
+          "matched_prediction": true,
+          "predicted_label": "2",
+          "expected_prompt": "A class collects 27 cans on Monday and 16 cans on Tuesday. How many cans do they collect in all?",
+          "predicted_prompt": "A class collects 27 cans on Monday and 16 cans on Tuesday. How many cans do they collect in\nall?",
+          "prompt_text_fidelity": 1.0,
+          "side_panel_fallback": true,
+          "responses": [
+            {
+              "response_id": "everyday-math-task-2-answer",
+              "expected_type": "line",
+              "detected": true,
+              "expected_region_coverage": 0.849998,
+              "iou": 0.629638,
+              "predicted_region_id": "r-d5357c00ba79",
+              "predicted_region": {
+                "x": 0.188734,
+                "y": 0.325758,
+                "width": 0.706691,
+                "height": 0.030303
+              },
+              "predicted_region_type": "answer_line",
+              "type_match": true,
+              "association_match": true
+            },
+            {
+              "response_id": "everyday-math-task-2-work",
+              "expected_type": "box",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-7c1021b5cdcc",
+              "predicted_region": {
+                "x": 0.117647,
+                "y": 0.375,
+                "width": 0.777778,
+                "height": 0.065657
+              },
+              "predicted_region_type": "bounded_box",
+              "type_match": true,
+              "association_match": true
+            }
+          ],
+          "physical_extraction": [
+            {
+              "response_id": "everyday-math-task-2-answer",
+              "detected": true,
+              "expected_region_coverage": 0.849998,
+              "iou": 0.629638,
+              "predicted_block_id": "page-0-line-01e685aa293a239e",
+              "predicted_block_label": "answer_line",
+              "type_match": true
+            },
+            {
+              "response_id": "everyday-math-task-2-work",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-0-bounded-box-bed3a9a7b5a94fa4",
+              "predicted_block_label": "bounded_box",
+              "type_match": true
+            }
+          ]
+        },
+        {
+          "task_id": "everyday-math-task-3",
+          "order": 3,
+          "matched_prediction": true,
+          "predicted_label": "3",
+          "expected_prompt": "A notebook costs $4. Lena buys 5 notebooks. What is the total cost?",
+          "predicted_prompt": "A notebook costs $4. Lena buys 5 notebooks. What is the total cost?",
+          "prompt_text_fidelity": 1.0,
+          "side_panel_fallback": true,
+          "responses": [
+            {
+              "response_id": "everyday-math-task-3-answer",
+              "expected_type": "box",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-5a0dff2737b2",
+              "predicted_region": {
+                "x": 0.117647,
+                "y": 0.539141,
+                "width": 0.777778,
+                "height": 0.037879
+              },
+              "predicted_region_type": "bounded_box",
+              "type_match": true,
+              "association_match": true
+            }
+          ],
+          "physical_extraction": [
+            {
+              "response_id": "everyday-math-task-3-answer",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-0-bounded-box-d9e03d957336f06c",
+              "predicted_block_label": "bounded_box",
+              "type_match": true
+            }
+          ]
+        },
+        {
+          "task_id": "everyday-math-task-4",
+          "order": 4,
+          "matched_prediction": true,
+          "predicted_label": "4",
+          "expected_prompt": "A 48-minute practice is divided into 6 equal activities. How many minutes does each activity last?",
+          "predicted_prompt": "A 48-minute practice is divided into 6 equal activities. How many minutes does each activity\nlast?",
+          "prompt_text_fidelity": 1.0,
+          "side_panel_fallback": true,
+          "responses": [
+            {
+              "response_id": "everyday-math-task-4-answer",
+              "expected_type": "line",
+              "detected": true,
+              "expected_region_coverage": 0.849998,
+              "iou": 0.629638,
+              "predicted_region_id": "r-7f4a98f72e14",
+              "predicted_region": {
+                "x": 0.188734,
+                "y": 0.229798,
+                "width": 0.706691,
+                "height": 0.030303
+              },
+              "predicted_region_type": "answer_line",
+              "type_match": true,
+              "association_match": true
+            },
+            {
+              "response_id": "everyday-math-task-4-work",
+              "expected_type": "box",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-0daeddb28612",
+              "predicted_region": {
+                "x": 0.117647,
+                "y": 0.27904,
+                "width": 0.777778,
+                "height": 0.09596
+              },
+              "predicted_region_type": "writable_area",
+              "type_match": true,
+              "association_match": true
+            }
+          ],
+          "physical_extraction": [
+            {
+              "response_id": "everyday-math-task-4-answer",
+              "detected": true,
+              "expected_region_coverage": 0.849998,
+              "iou": 0.629638,
+              "predicted_block_id": "page-1-line-74ab5f6159bebbca",
+              "predicted_block_label": "answer_line",
+              "type_match": true
+            },
+            {
+              "response_id": "everyday-math-task-4-work",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-1-writable-area-5102602ff0ac3c4f",
+              "predicted_block_label": "writable_area",
+              "type_match": true
+            }
+          ]
+        },
+        {
+          "task_id": "everyday-math-task-5",
+          "order": 5,
+          "matched_prediction": true,
+          "predicted_label": "5",
+          "expected_prompt": "Jordan has $30 and spends $12 on a museum ticket. How much money remains?",
+          "predicted_prompt": "Jordan has $30 and spends $12 on a museum ticket. How much money remains?",
+          "prompt_text_fidelity": 1.0,
+          "side_panel_fallback": true,
+          "responses": [
+            {
+              "response_id": "everyday-math-task-5-answer",
+              "expected_type": "box",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-9983b009e6a9",
+              "predicted_region": {
+                "x": 0.117647,
+                "y": 0.473485,
+                "width": 0.777778,
+                "height": 0.037879
+              },
+              "predicted_region_type": "bounded_box",
+              "type_match": true,
+              "association_match": true
+            },
+            {
+              "response_id": "everyday-math-task-5-work",
+              "expected_type": "box",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_region_id": "r-6bb59ef7ab5d",
+              "predicted_region": {
+                "x": 0.117647,
+                "y": 0.546717,
+                "width": 0.777778,
+                "height": 0.09596
+              },
+              "predicted_region_type": "writable_area",
+              "type_match": true,
+              "association_match": true
+            }
+          ],
+          "physical_extraction": [
+            {
+              "response_id": "everyday-math-task-5-answer",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-1-bounded-box-a04e7d833d68b748",
+              "predicted_block_label": "bounded_box",
+              "type_match": true
+            },
+            {
+              "response_id": "everyday-math-task-5-work",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 1.0,
+              "predicted_block_id": "page-1-writable-area-b0cab03a56d5d601",
+              "predicted_block_label": "writable_area",
+              "type_match": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

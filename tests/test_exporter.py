@@ -1,7 +1,13 @@
 """Tests for exporter module: PDF export with questions and answers."""
 import fitz
+import pytest
 
-from exporter import build_export_pdf, build_original_export_pdf
+from exporter import (
+    UnsupportedAnswerTextError,
+    build_export_pdf,
+    build_layout_export_pdf,
+    build_original_export_pdf,
+)
 
 
 def _pdf_text(pdf_bytes: bytes) -> str:
@@ -45,13 +51,13 @@ def test_build_export_pdf_no_answer_shows_placeholder():
     assert "No answer" in text
 
 
-def test_build_export_pdf_strips_latex_dollars():
-    """LaTeX $...$ in answer_text is stripped to plain text in PDF."""
+def test_build_export_pdf_preserves_literal_latex_dollars():
+    """Confirmed answer text is not reformatted during legacy PDF export."""
     questions = [{"id": 1, "text": "Solve for x."}]
     answers = [{"question_id": 1, "answer_text": "$x = 5$"}]
     pdf_bytes = build_export_pdf("Math", questions, answers)
     text = _pdf_text(pdf_bytes)
-    assert "x = 5" in text
+    assert "$x = 5$" in text
 
 
 def test_build_export_pdf_unicode_minus_in_body():
@@ -159,3 +165,50 @@ def test_original_export_paginates_long_side_panel_answers_without_truncation():
     finally:
         document.close()
     assert extracted.count("lorem") == 350
+
+
+def test_original_export_preserves_literal_math_and_unicode_in_a_physical_region():
+    source = fitz.open()
+    source.new_page(width=612, height=792)
+    original_bytes = source.tobytes()
+    source.close()
+    answer = "Case $x$  \u03c0"
+
+    exported = build_original_export_pdf(
+        original_bytes,
+        [{"id": 1, "text": "Explain", "page": 1, "answer_region": {"x": 0.1, "y": 0.2, "width": 0.6, "height": 0.1}}],
+        [{"question_id": 1, "answer_text": answer}],
+    )
+
+    assert answer in _pdf_text(exported)
+
+
+def test_layout_export_preserves_literal_math_and_unicode():
+    source = fitz.open()
+    source.new_page(width=612, height=792)
+    original_bytes = source.tobytes()
+    source.close()
+    answer = "Case $x$  \u03c0"
+
+    exported = build_layout_export_pdf(
+        original_bytes,
+        [{"id": 1, "page_index": 0, "answer_bbox": [72, 144, 396, 216]}],
+        [{"question_id": 1, "answer_text": answer}],
+        pages=[{"page_index": 0, "width_points": 612, "height_points": 792}],
+    )
+
+    assert answer in _pdf_text(exported)
+
+
+def test_export_rejects_unsupported_confirmed_text_instead_of_substituting_glyphs():
+    source = fitz.open()
+    source.new_page(width=612, height=792)
+    original_bytes = source.tobytes()
+    source.close()
+
+    with pytest.raises(UnsupportedAnswerTextError):
+        build_original_export_pdf(
+            original_bytes,
+            [{"id": 1, "text": "Explain", "page": 1, "answer_region": None}],
+            [{"question_id": 1, "answer_text": "Unsupported \U0001f642"}],
+        )

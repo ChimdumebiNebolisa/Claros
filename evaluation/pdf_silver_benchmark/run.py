@@ -10,6 +10,7 @@ import argparse
 import base64
 import hashlib
 import json
+import os
 import sys
 import time
 from datetime import datetime, timezone
@@ -22,7 +23,6 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import config
 from evaluation.pdf_gold_pilot.closed_world import (
     ClosedWorldPageResult,
     PilotPageInput,
@@ -123,10 +123,14 @@ def _call_structured(
     max_output_tokens: int = 4096,
     reasoning_effort: str | None = None,
 ) -> tuple[BaseModel, dict[str, Any]]:
+    """Run the preserved historical OpenAI evaluator outside the product runtime."""
     from openai import OpenAI
 
     started = time.perf_counter()
-    selected_model = model or config.get_openai_reasoning_model()
+    selected_model = model or os.environ.get("SILVER_BENCHMARK_OPENAI_MODEL", "gpt-5.6").strip()
+    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is required only for the historical silver benchmark runner")
     _enforce_cost_ceiling(model=selected_model, text=text, max_output_tokens=max_output_tokens)
     request: dict[str, Any] = {
         "model": selected_model,
@@ -146,7 +150,7 @@ def _call_structured(
     }
     if reasoning_effort:
         request["reasoning"] = {"effort": reasoning_effort}
-    response = OpenAI(api_key=config.get_openai_api_key()).responses.parse(**request)
+    response = OpenAI(api_key=api_key).responses.parse(**request)
     parsed = getattr(response, "output_parsed", None)
     if parsed is None:
         raise RuntimeError("provider returned no structured output")

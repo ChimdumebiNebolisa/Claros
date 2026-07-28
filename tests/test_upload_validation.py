@@ -90,6 +90,8 @@ def test_upload_accepts_valid_pdf(upload_mocks):
     body = response.json()
     assert "assignment_id" in body
     assert body["title"] == "Test Title"
+    assert body["document"]["schema_version"] == 2
+    assert body["document"]["tasks"][0]["id"] == body["questions"][0]["task_id"]
     assert body["questions"][0]["id"] == 1
     assert body["questions"][0]["text"] == "Question one?"
     assert body["questions"][0]["needs_layout_review"] is True

@@ -6,6 +6,7 @@ import os
 import re
 import tempfile
 from pathlib import Path
+from threading import Lock
 
 from google.api_core.exceptions import PreconditionFailed
 
@@ -20,6 +21,9 @@ _SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,127}$")
 
 class StorageConflict(RuntimeError):
     """Raised when a conditional object write loses a concurrent update race."""
+
+
+_LOCAL_SESSION_WRITE_LOCK = Lock()
 
 
 def _check_id(value: str) -> str:
@@ -173,16 +177,17 @@ def upload_session_to_gcs(session_id: str, payload: bytes, if_generation_match: 
     path = session_blob_path(session_id)
     if is_local_backend():
         local = _local_path(path)
-        if local.exists():
-            existing = local.read_bytes()
-            if if_generation_match is not None and _generation(existing) != if_generation_match:
-                record_metric("write_conflict", status="conflict", reason="storage")
+        with _LOCAL_SESSION_WRITE_LOCK:
+            if local.exists():
+                existing = local.read_bytes()
+                if if_generation_match is not None and _generation(existing) != if_generation_match:
+                    record_metric("write_conflict", status="conflict", reason="storage")
+                    raise StorageConflict(f"Session changed concurrently: {session_id}")
+            elif if_generation_match not in (None, 0):
                 raise StorageConflict(f"Session changed concurrently: {session_id}")
-        elif if_generation_match not in (None, 0):
-            raise StorageConflict(f"Session changed concurrently: {session_id}")
-        _atomic_write(local, payload)
-        result = (f"file://{local}", _generation(payload))
-        return result if return_generation else result[0]
+            _atomic_write(local, payload)
+            result = (f"file://{local}", _generation(payload))
+            return result if return_generation else result[0]
     blob = get_gcs_bucket().blob(path)
     try:
         kwargs = {"content_type": "application/json"}

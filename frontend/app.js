@@ -56,6 +56,8 @@
     currentQuestionExcerpt: document.getElementById('currentQuestionExcerpt'),
     questionListToggle: document.getElementById('questionListToggle'),
     questionsContainer: document.getElementById('questionsContainer'),
+    responseTargets: document.getElementById('responseTargets'),
+    currentResponseLabel: document.getElementById('currentResponseLabel'),
     typedAnswer: document.getElementById('typedAnswer'),
     confirmTypedBtn: document.getElementById('confirmTypedBtn'),
     answerConfirmation: document.getElementById('answerConfirmation'),
@@ -86,14 +88,13 @@
     parseStatus: '',
     filename: '',
     pageCount: 1,
-    questions: [],
-    answers: {},
-    drafts: {},
-    confirmed: {},
-    writeTokens: {},
-    activeQuestionId: null,
-    proposedQuestionId: null,
-    proposedText: '',
+    document: null,
+    tasks: [],
+    responseTargetsById: Object.create(null),
+    responseStates: Object.create(null),
+    activeTaskId: null,
+    activeResponseRegionId: null,
+    proposedResponseRegionId: null,
     lastFile: null,
     assignmentCapability: null,
     sessionId: null,
@@ -210,101 +211,195 @@
     });
   }
 
-  function getQuestion(questionId) {
-    return state.questions.find(function (question) {
-      return Number(question.id) === Number(questionId);
+  function sameId(left, right) {
+    return left != null && right != null && String(left) === String(right);
+  }
+
+  function getTask(taskId) {
+    return WorksheetView.findTask(state.document, taskId);
+  }
+
+  function getResponseTarget(responseRegionId) {
+    return WorksheetView.findResponseTarget(state.document, responseRegionId);
+  }
+
+  function taskTargets(task) {
+    return WorksheetView.taskTargets(state.document, task);
+  }
+
+  function defaultResponseTarget(task) {
+    return WorksheetView.defaultResponseTarget(state.document, task);
+  }
+
+  function taskLabel(task) {
+    return WorksheetView.displayTaskLabel(task);
+  }
+
+  function targetLabel(target, task) {
+    return WorksheetView.displayTargetLabel(target, task);
+  }
+
+  function responseStateFor(responseRegionId) {
+    const key = String(responseRegionId);
+    if (!state.responseStates[key]) {
+      state.responseStates[key] = {
+        draft: '',
+        confirmed: false,
+        writeToken: '',
+        written: ''
+      };
+    }
+    return state.responseStates[key];
+  }
+
+  function syncWorksheetResponseState(responseRegionId) {
+    if (worksheet) worksheet.updateResponseState(responseRegionId, responseStateFor(responseRegionId));
+  }
+
+  function unresolvedTasks() {
+    return state.tasks.filter(function (task) {
+      return taskTargets(task).some(function (target) { return !target.canWrite; });
     });
   }
 
-  function unresolvedQuestions() {
-    return state.questions.filter(function (question) {
-      return question.needs_layout_review && question.answer_region_status !== 'side_panel';
-    });
+  function targetPlacementText(target) {
+    if (!target) return 'No response destination is available';
+    if (target.safeForWrite) return 'Safe answer area';
+    if (target.useSidePanel) return 'Side-panel answer';
+    return 'Placement needs review';
   }
 
   function renderQuestionPicker() {
-    elements.questionsContainer.innerHTML = '';
-    state.questions.forEach(function (question) {
+    elements.questionsContainer.replaceChildren();
+    state.tasks.forEach(function (task) {
       const row = document.createElement('div');
       row.className = 'question-choice';
       const button = document.createElement('button');
       button.type = 'button';
-      button.dataset.questionId = question.id;
-      button.textContent = 'Question ' + (question.label || question.id);
-      const placementText = question.answer_region_status === 'side_panel'
-        ? 'Side-panel answer'
-        : (question.needs_layout_review || question.answer_region_status === 'detected')
-          ? 'Placement needs review'
-          : 'Safe answer line';
-      button.setAttribute('aria-label', 'Question ' + (question.label || question.id) + '. ' + placementText);
-      button.setAttribute('aria-current', String(Number(question.id) === Number(state.activeQuestionId)));
+      button.dataset.taskId = task.id;
+      button.textContent = 'Question ' + taskLabel(task);
+      const targets = taskTargets(task);
+      const placementText = targets.some(function (target) { return !target.canWrite; })
+        ? 'One or more response locations need review'
+        : (targets.some(function (target) { return target.useSidePanel; })
+          ? 'Includes a side-panel answer'
+          : 'Response destinations ready');
+      button.setAttribute('aria-label', 'Question ' + taskLabel(task) + '. ' + placementText);
+      button.setAttribute('aria-current', String(sameId(task.id, state.activeTaskId)));
       button.addEventListener('click', function () {
-        selectQuestion(question.id);
+        selectTask(task.id);
         elements.questionsContainer.hidden = true;
       });
       row.appendChild(button);
       const placement = document.createElement('span');
-      placement.className = 'question-placement ' + (question.answer_region_status || 'missing');
-      placement.textContent = question.answer_region_status === 'side_panel'
-        ? 'Side panel'
-        : (question.needs_layout_review || question.answer_region_status === 'detected')
-          ? 'Needs review'
-          : 'Answer line';
+      placement.className = 'question-placement ' + (
+        targets.some(function (target) { return !target.canWrite; })
+          ? 'missing'
+          : (targets.some(function (target) { return target.useSidePanel; }) ? 'side_panel' : 'approved')
+      );
+      placement.textContent = targets.some(function (target) { return !target.canWrite; })
+        ? 'Needs review'
+        : (targets.some(function (target) { return target.useSidePanel; }) ? 'Side panel' : 'Ready');
       row.appendChild(placement);
       elements.questionsContainer.appendChild(row);
     });
   }
 
-  function selectQuestion(questionId) {
-    const question = getQuestion(questionId);
-    if (!question) return;
-    if (state.proposedQuestionId != null && Number(question.id) !== Number(state.proposedQuestionId) && state.writeTokens[state.proposedQuestionId]) {
-      delete state.writeTokens[state.proposedQuestionId];
-      state.confirmed[state.proposedQuestionId] = false;
-      state.proposedQuestionId = null;
-      state.proposedText = '';
-      setVoiceState(state.liveSession ? 'listening' : 'idle');
-      setNotice('The pending write was cleared when you changed tasks. Nothing was written.');
-    }
-    state.activeQuestionId = question.id;
-    elements.currentQuestionLabel.textContent = 'Working on Question ' + (question.label || question.id);
-    elements.currentQuestionExcerpt.textContent = question.text || '';
-    elements.typedAnswer.textContent = state.answers[question.id] || state.drafts[question.id] || '';
-    elements.confirmTypedBtn.disabled = !elements.typedAnswer.textContent.trim();
-    renderPlacementSummary(question);
-    if (worksheet) worksheet.setActiveQuestion(question.id);
-    renderQuestionPicker();
+  function renderResponseTargetPicker(task) {
+    elements.responseTargets.replaceChildren();
+    const targets = taskTargets(task);
+    if (targets.length <= 1) return;
+    targets.forEach(function (target) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'response-target';
+      if (target.useSidePanel) button.classList.add('is-side-panel');
+      if (!target.canWrite) button.classList.add('is-unavailable');
+      const label = targetLabel(target, task);
+      button.textContent = label + ' — ' + targetPlacementText(target);
+      button.dataset.taskId = task.id;
+      button.dataset.responseRegionId = target.id;
+      button.setAttribute('aria-current', String(sameId(target.id, state.activeResponseRegionId)));
+      button.setAttribute('aria-label', label + '. ' + targetPlacementText(target));
+      button.addEventListener('click', function () {
+        selectResponseTarget(task.id, target.id);
+      });
+      elements.responseTargets.appendChild(button);
+    });
   }
 
-  function renderPlacementSummary(question) {
-    if (question.answer_region_status === 'side_panel') {
+  function selectTask(taskId) {
+    const task = getTask(taskId);
+    if (!task) return;
+    const selected = getResponseTarget(state.activeResponseRegionId);
+    const defaultTarget = defaultResponseTarget(task);
+    const targetId = selected && sameId(selected.taskId, task.id)
+      ? selected.id
+      : (defaultTarget && defaultTarget.id);
+    if (targetId) selectResponseTarget(task.id, targetId);
+  }
+
+  function selectResponseTarget(taskId, responseRegionId, options) {
+    const task = getTask(taskId);
+    const target = getResponseTarget(responseRegionId);
+    if (!task || !target || !sameId(target.taskId, task.id)) return;
+    const responseState = responseStateFor(target.id);
+    state.activeTaskId = task.id;
+    state.activeResponseRegionId = target.id;
+    if (!options || !options.preserveConfirmation) {
+      state.proposedResponseRegionId = responseState.confirmed && responseState.writeToken ? target.id : null;
+    }
+    elements.currentQuestionLabel.textContent = 'Working on Question ' + taskLabel(task);
+    elements.currentQuestionExcerpt.textContent = task.promptText || '';
+    elements.currentResponseLabel.textContent = targetLabel(target, task) + ': ' + targetPlacementText(target);
+    elements.typedAnswer.setAttribute('aria-label', 'Draft ' + targetLabel(target, task) + ' for Question ' + taskLabel(task));
+    elements.typedAnswer.textContent = responseState.draft || responseState.written || '';
+    elements.confirmTypedBtn.disabled = !elements.typedAnswer.textContent.trim();
+    renderPlacementSummary(task, target);
+    setWriteDestination(task, target);
+    renderResponseTargetPicker(task);
+    if (worksheet) worksheet.setActiveTarget(task.id, target.id);
+    renderQuestionPicker();
+    if (!options || !options.preserveVoice) {
+      if (responseState.confirmed && responseState.writeToken) {
+        setVoiceState('confirmed');
+      } else if (state.voice === 'answer_detected' || state.voice === 'confirming' || state.voice === 'confirmed') {
+        setVoiceState(state.liveSession ? 'listening' : 'idle');
+      }
+    }
+  }
+
+  function renderPlacementSummary(task, target) {
+    if (!target || target.useSidePanel) {
       elements.placementSummary.className = 'placement-summary side-panel';
-      elements.placementSummary.textContent = 'Side panel: Claros adds this answer to the export side panel. The original page stays unchanged.';
+      elements.placementSummary.textContent = 'Side panel: Claros adds this response to the export side panel. The original page stays unchanged.';
       return;
     }
-    if (question.needs_layout_review || question.answer_region_status === 'detected') {
+    if (!target.safeForWrite) {
       elements.placementSummary.className = 'placement-summary needs-review';
-      elements.placementSummary.textContent = 'Needs layout review: writing stays disabled until the worksheet is processed safely.';
+      elements.placementSummary.textContent = 'Needs layout review: writing stays disabled until this response destination is processed safely.';
       return;
     }
     elements.placementSummary.className = 'placement-summary answer-line';
-    elements.placementSummary.textContent = 'Answer line: Claros can write a confirmed answer to the selected answer line.';
+    elements.placementSummary.textContent = 'Answer area: Claros can write a confirmed response to this selected destination.';
   }
 
-  function setWriteDestination(question) {
-    const needsReview = !question || ((question.needs_layout_review || question.answer_region_status === 'detected') && question.answer_region_status !== 'side_panel');
-    elements.writeConfirmedAnswerBtn.disabled = needsReview;
-    if (question && question.answer_region_status === 'side_panel') {
+  function setWriteDestination(task, target) {
+    const unavailable = !task || !target || !target.canWrite;
+    elements.writeConfirmedAnswerBtn.disabled = unavailable;
+    if (target && target.useSidePanel) {
       elements.writeDestination.textContent = 'This will be added to the clearly labeled export side panel. The original worksheet page will not change.';
-    } else if (needsReview) {
-      elements.writeDestination.textContent = 'This task needs layout review before it can be written. Your confirmed answer remains a draft.';
+    } else if (unavailable) {
+      elements.writeDestination.textContent = 'This response destination needs layout review before it can be written. Your confirmed answer remains a draft.';
     } else {
-      elements.writeDestination.textContent = 'This will be written to the selected answer line on the worksheet.';
+      elements.writeDestination.textContent = 'This will be written to the selected response area on the worksheet.';
     }
   }
 
   function renderLayoutState() {
     renderQuestionPicker();
+    const task = getTask(state.activeTaskId);
+    if (task) renderResponseTargetPicker(task);
   }
 
   function initializeWorksheet() {
@@ -314,14 +409,60 @@
       overlayLayer: elements.answerOverlayLayer,
       pageLabel: elements.pageLabel,
       zoomLabel: elements.zoomLabel,
-      onSelectQuestion: function (question) { selectQuestion(question.id); },
+      onSelectTarget: function (taskId, responseRegionId) {
+        selectResponseTarget(taskId, responseRegionId);
+      },
     });
     worksheet.load({
       assignmentId: state.assignmentId,
       assignmentCapability: state.assignmentCapability,
-      questions: state.questions,
+      document: state.document,
       pageCount: state.pageCount,
-      answers: state.answers
+      responseStates: state.responseStates,
+      activeTaskId: state.activeTaskId,
+      activeResponseRegionId: state.activeResponseRegionId
+    });
+  }
+
+  function applyDocumentPayload(data, preserveResponseStates) {
+    const previousStates = state.responseStates;
+    state.document = WorksheetView.normalizeDocument({
+      document: data.document,
+      questions: data.questions,
+      pages: data.pages,
+      pageCount: data.page_count || data.pageCount
+    });
+    state.tasks = state.document.tasks;
+    state.responseTargetsById = state.document.responseTargetsById;
+    state.pageCount = Number(data.page_count || data.pageCount || state.document.pageCount || 1);
+    const nextStates = Object.create(null);
+    if (preserveResponseStates) {
+      state.document.responseTargets.forEach(function (target) {
+        const previous = previousStates[String(target.id)];
+        if (previous) nextStates[String(target.id)] = previous;
+      });
+    }
+    state.responseStates = nextStates;
+    const firstTask = state.tasks[0] || null;
+    const activeTask = getTask(state.activeTaskId) || firstTask;
+    const activeTarget = getResponseTarget(state.activeResponseRegionId);
+    const selectedTarget = activeTarget && activeTask && sameId(activeTarget.taskId, activeTask.id)
+      ? activeTarget
+      : defaultResponseTarget(activeTask);
+    state.activeTaskId = activeTask ? activeTask.id : null;
+    state.activeResponseRegionId = selectedTarget ? selectedTarget.id : null;
+  }
+
+  function reloadWorksheetFromState() {
+    if (!worksheet) return;
+    worksheet.load({
+      assignmentId: state.assignmentId,
+      assignmentCapability: state.assignmentCapability,
+      document: state.document,
+      pageCount: state.pageCount,
+      responseStates: state.responseStates,
+      activeTaskId: state.activeTaskId,
+      activeResponseRegionId: state.activeResponseRegionId
     });
   }
 
@@ -331,13 +472,7 @@
     state.assignmentCapability = data.assignment_capability || null;
     state.title = data.title || state.filename || 'Worksheet';
     state.parseStatus = data.parse_status || 'ok';
-    state.questions = data.questions || [];
-    state.pageCount = Number(data.page_count || 1);
-    state.answers = {};
-    state.drafts = {};
-    state.confirmed = {};
-    state.writeTokens = {};
-    state.activeQuestionId = state.questions.length ? state.questions[0].id : null;
+    applyDocumentPayload(data, false);
     persistSessionLocally();
     elements.assignmentTitle.textContent = state.filename || state.title;
     elements.demoReplayIndicator.hidden = data.parser !== 'offline-synthetic-fixture-v1';
@@ -345,9 +480,11 @@
     elements.nextPageBtn.disabled = state.pageCount <= 1;
     initializeWorksheet();
     renderQuestionPicker();
-    if (state.activeQuestionId != null) selectQuestion(state.activeQuestionId);
+    if (state.activeTaskId != null && state.activeResponseRegionId != null) {
+      selectResponseTarget(state.activeTaskId, state.activeResponseRegionId, { preserveVoice: true });
+    }
     const rejected = state.parseStatus === 'requires_ocr' || state.parseStatus === 'unsupported_layout';
-    setWorkspaceState(rejected || unresolvedQuestions().length ? 'needs_layout_review' : 'ready');
+    setWorkspaceState(rejected || unresolvedTasks().length ? 'needs_layout_review' : 'ready');
     setVoiceState(rejected ? 'unavailable' : 'idle');
     if (state.parseStatus === 'requires_ocr') {
       setError('This PDF needs OCR before Claros can identify questions.');
@@ -398,7 +535,7 @@
   async function loadSamplePdf() {
     setError('');
     try {
-      const response = await fetch('/test-assignment.pdf');
+      const response = await fetch('/sample-assignment.pdf');
       if (!response.ok) throw new Error('The sample worksheet is unavailable.');
       const blob = await response.blob();
       await doUpload(new File([blob], 'Claros sample algebra worksheet.pdf', { type: 'application/pdf' }));
@@ -411,9 +548,12 @@
   function resetWorkspace() {
     clearAssignmentSessionState();
     state.assignmentId = null;
-    state.questions = [];
-    state.answers = {};
-    state.activeQuestionId = null;
+    state.document = null;
+    state.tasks = [];
+    state.responseTargetsById = Object.create(null);
+    state.responseStates = Object.create(null);
+    state.activeTaskId = null;
+    state.activeResponseRegionId = null;
     worksheet = null;
     elements.fileInput.value = '';
     elements.uploadLabel.textContent = 'Choose a worksheet PDF';
@@ -430,12 +570,8 @@
     state.assignmentCapability = null;
     state.liveSession = null;
     state.conversation = [];
-    state.confirmed = {};
-    state.writeTokens = {};
-    state.drafts = {};
-    state.answers = {};
-    state.proposedQuestionId = null;
-    state.proposedText = '';
+    state.responseStates = Object.create(null);
+    state.proposedResponseRegionId = null;
     state.lastExportVoiceNorm = '';
     try { sessionStorage.removeItem(SESSION_STORAGE_KEY); } catch (_) {}
   }
@@ -467,7 +603,30 @@
     const data = await response.json();
     state.sessionId = data.session_id;
     state.sessionSecret = data.session_secret;
+    if (data.document) {
+      applyDocumentPayload(data, true);
+      reloadWorksheetFromState();
+    }
     persistSessionLocally();
+  }
+
+  function restoreResponseState(responseRegionId, restored) {
+    const target = getResponseTarget(responseRegionId);
+    if (!target || !restored || typeof restored !== 'object') return false;
+    const responseState = responseStateFor(target.id);
+    const confirmedAnswer = typeof restored.confirmed_answer === 'string'
+      ? restored.confirmed_answer
+      : (typeof restored.draft_answer === 'string' ? restored.draft_answer : null);
+    if (restored.confirmed && confirmedAnswer != null) {
+      responseState.confirmed = true;
+      responseState.draft = confirmedAnswer;
+    }
+    if (typeof restored.written_answer === 'string') {
+      responseState.written = restored.written_answer;
+      if (!responseState.draft) responseState.draft = restored.written_answer;
+    }
+    syncWorksheetResponseState(target.id);
+    return true;
   }
 
   async function restoreSessionFromStorage() {
@@ -492,52 +651,70 @@
         return;
       }
       const data = await response.json();
-      Object.keys(data.questions || {}).forEach(function (questionId) {
-        const restored = data.questions[questionId];
-        if (restored.confirmed && restored.confirmed_answer) {
-          state.confirmed[questionId] = true;
-          state.drafts[questionId] = restored.confirmed_answer;
-        }
+      if (data.document) {
+        applyDocumentPayload(data, true);
+        reloadWorksheetFromState();
+      }
+      let restoredAny = false;
+      const responseStates = data.response_states || data.responses || data.response_targets || {};
+      Object.keys(responseStates).forEach(function (responseRegionId) {
+        restoredAny = restoreResponseState(responseRegionId, responseStates[responseRegionId]) || restoredAny;
       });
-      setNotice('Confirmed answers from this session were restored.');
+      Object.keys(data.questions || {}).forEach(function (legacyQuestionId) {
+        const task = state.tasks.find(function (item) {
+          return sameId(item.legacyQuestionId, legacyQuestionId);
+        });
+        const target = defaultResponseTarget(task);
+        if (target) restoredAny = restoreResponseState(target.id, data.questions[legacyQuestionId]) || restoredAny;
+      });
+      if (restoredAny) {
+        const task = getTask(state.activeTaskId);
+        if (task && state.activeResponseRegionId) {
+          selectResponseTarget(task.id, state.activeResponseRegionId, { preserveVoice: true });
+        }
+        setNotice('Confirmed answers from this session were restored.');
+      }
     } catch (_) {}
   }
 
-  function presentAnswer(questionId, text) {
-    const cleaned = (text || '').trim();
-    const question = getQuestion(questionId);
-    if (!question || !cleaned) return;
-    state.activeQuestionId = question.id;
-    state.proposedQuestionId = question.id;
-    state.proposedText = cleaned;
-    delete state.writeTokens[question.id];
-    state.confirmed[question.id] = false;
-    state.drafts[question.id] = cleaned;
-    selectQuestion(question.id);
+  function presentAnswer(responseRegionId, text) {
+    const cleaned = text || '';
+    const target = getResponseTarget(responseRegionId);
+    const task = target && getTask(target.taskId);
+    if (!task || !target || !cleaned.trim()) return;
+    const responseState = responseStateFor(target.id);
+    responseState.writeToken = '';
+    responseState.confirmed = false;
+    responseState.draft = cleaned;
+    state.proposedResponseRegionId = target.id;
+    selectResponseTarget(task.id, target.id, { preserveConfirmation: true, preserveVoice: true });
     elements.typedAnswer.textContent = cleaned;
     elements.proposedAnswer.textContent = cleaned;
-    elements.confirmationTitle.textContent = 'Confirm answer for Question ' + question.id;
+    elements.confirmationTitle.textContent = 'Confirm ' + targetLabel(target, task) + ' for Question ' + taskLabel(task);
     setVoiceState('answer_detected');
     setNotice('Review the proposed answer. Nothing has been written yet.');
   }
 
   function dismissAnswer(clearText) {
-    if (clearText && state.proposedQuestionId != null) {
-      delete state.drafts[state.proposedQuestionId];
-      delete state.writeTokens[state.proposedQuestionId];
-      state.confirmed[state.proposedQuestionId] = false;
-      state.proposedText = '';
+    if (clearText && state.proposedResponseRegionId != null) {
+      const responseState = responseStateFor(state.proposedResponseRegionId);
+      responseState.draft = '';
+      responseState.writeToken = '';
+      responseState.confirmed = false;
+      syncWorksheetResponseState(state.proposedResponseRegionId);
       elements.typedAnswer.textContent = '';
     }
-    state.proposedQuestionId = null;
-    state.proposedText = '';
+    state.proposedResponseRegionId = null;
     setVoiceState(state.liveSession ? 'listening' : 'idle');
   }
 
   async function confirmProposedAnswer() {
-    const questionId = state.proposedQuestionId;
-    const text = (state.proposedText || elements.typedAnswer.textContent || '').trim();
-    if (questionId == null || !text) {
+    const responseRegionId = state.proposedResponseRegionId;
+    const target = getResponseTarget(responseRegionId);
+    const task = target && getTask(target.taskId);
+    const responseState = target && responseStateFor(target.id);
+    const text = responseState && responseState.draft !== '' ? responseState.draft : (elements.typedAnswer.textContent || '');
+    if (!task || !target || !text.trim()) {
       setError('Add an answer before confirming it.');
       return;
     }
@@ -545,25 +722,30 @@
     elements.confirmAnswerBtn.disabled = true;
     try {
       await ensureServerSession();
+      const payload = {
+        session_secret: state.sessionSecret,
+        task_id: task.id,
+        response_region_id: target.id,
+        answer_text: text
+      };
+      if (task.legacyQuestionId != null) payload.question_id = task.legacyQuestionId;
       const response = await fetch(API_BASE + '/api/session/' + state.sessionId + '/confirm', {
         method: 'POST',
         headers: Object.assign({ 'Content-Type': 'application/json' }, assignmentHeaders()),
-        body: JSON.stringify({
-          session_secret: state.sessionSecret,
-          question_id: questionId,
-          answer_text: text
-        })
+        body: JSON.stringify(payload)
       });
       if (!response.ok) {
         const detail = await response.json().catch(function () { return {}; });
         throw new Error(detail.detail || 'The answer could not be confirmed.');
       }
       const data = await response.json();
-      state.confirmed[questionId] = true;
-      state.drafts[questionId] = text;
-      state.writeTokens[questionId] = data.write_token;
+      responseState.confirmed = true;
+      responseState.draft = text;
+      responseState.writeToken = data.write_token;
+      state.proposedResponseRegionId = target.id;
+      syncWorksheetResponseState(target.id);
       setError('');
-      setWriteDestination(getQuestion(questionId));
+      setWriteDestination(task, target);
       setVoiceState('confirmed');
       setNotice('Answer confirmed. Choose Write confirmed answer when you are ready.');
     } catch (error) {
@@ -574,44 +756,42 @@
     }
   }
 
-  async function triggerWrite(questionId) {
+  async function triggerWrite(responseRegionId) {
     if (state.writeInProgress) return;
-    const question = getQuestion(questionId);
-    if (!question || (question.needs_layout_review && question.answer_region_status !== 'side_panel')) {
+    const target = getResponseTarget(responseRegionId);
+    const task = target && getTask(target.taskId);
+    if (!task || !target || !target.canWrite) {
       setWorkspaceState('needs_layout_review');
       setError('This task does not have a safe answer destination yet.');
       return;
     }
-    if (!state.confirmed[questionId] || !state.writeTokens[questionId]) {
-      presentAnswer(questionId, state.drafts[questionId] || '');
+    const responseState = responseStateFor(target.id);
+    if (!responseState.confirmed || !responseState.writeToken) {
+      presentAnswer(target.id, responseState.draft || '');
       setNotice('Confirm this answer before choosing to write it.');
       return;
     }
-    if (!question.answer_region) {
-      if (question.answer_region_status !== 'side_panel') {
-        setWorkspaceState('needs_layout_review');
-        setError('Review and confirm this question\'s answer region before writing.');
-        return;
-      }
-    }
     state.writeInProgress = true;
     setVoiceState('writing');
-    setNotice('Writing the confirmed answer into Question ' + questionId + '.');
+    setNotice('Writing the confirmed ' + targetLabel(target, task).toLowerCase() + ' into Question ' + taskLabel(task) + '.');
     let written = '';
     try {
+      const payload = {
+        task_id: task.id,
+        response_region_id: target.id,
+        conversation: state.conversation,
+        answer_candidate: responseState.draft || '',
+        write_token: responseState.writeToken,
+        session_id: state.sessionId,
+        session_secret: state.sessionSecret
+      };
+      // The numeric question ID is a transitional transport field only. Client
+      // state and authorization always use the canonical task/response IDs.
+      if (task.legacyQuestionId != null) payload.question_id = task.legacyQuestionId;
       const response = await fetch(API_BASE + '/api/write/' + state.assignmentId, {
         method: 'POST',
         headers: Object.assign({ 'Content-Type': 'application/json' }, assignmentHeaders()),
-        body: JSON.stringify({
-          question_id: questionId,
-          conversation: state.conversation,
-          answer_candidate: state.drafts[questionId] || '',
-          write_token: state.writeTokens[questionId],
-          session_id: state.sessionId,
-          session_secret: state.sessionSecret,
-          layout_confirmed: true,
-          answer_region: question.answer_region
-        })
+        body: JSON.stringify(payload)
       });
       if (!response.ok) {
         const detail = await response.json().catch(function () { return {}; });
@@ -623,19 +803,20 @@
         const result = await reader.read();
         if (result.done) break;
         written += decoder.decode(result.value, { stream: true });
-        written = written.replace(/\$([^$]+)\$/g, '$1');
-        state.answers[questionId] = written;
+        responseState.written = written;
+        responseState.draft = written;
         elements.typedAnswer.textContent = written;
-        worksheet.updateAnswer(questionId, written);
+        syncWorksheetResponseState(target.id);
       }
-      delete state.writeTokens[questionId];
-      state.proposedQuestionId = null;
-      state.proposedText = '';
-      setNotice('Answer written into Question ' + questionId + '.');
+      responseState.writeToken = '';
+      state.proposedResponseRegionId = null;
+      syncWorksheetResponseState(target.id);
+      setNotice('Answer written into Question ' + taskLabel(task) + '.');
       elements.typedAnswer.focus();
     } catch (error) {
-      delete state.writeTokens[questionId];
-      state.confirmed[questionId] = false;
+      responseState.writeToken = '';
+      responseState.confirmed = false;
+      syncWorksheetResponseState(target.id);
       setError(error.message || 'The confirmed answer could not be written.');
     } finally {
       state.writeInProgress = false;
@@ -658,7 +839,10 @@
       if (!activeClarosMessage) {
         activeClarosMessage = document.createElement('div');
         activeClarosMessage.className = 'msg claros';
-        activeClarosMessage.innerHTML = '<span class="msg-label">Claros</span>';
+        const label = document.createElement('span');
+        label.className = 'msg-label';
+        label.textContent = 'Claros';
+        activeClarosMessage.appendChild(label);
         elements.transcript.appendChild(activeClarosMessage);
       }
       activeClarosMessage.appendChild(document.createTextNode(text));
@@ -666,7 +850,10 @@
       activeClarosMessage = null;
       const item = document.createElement('div');
       item.className = 'msg user';
-      item.innerHTML = '<span class="msg-label">You</span>';
+      const label = document.createElement('span');
+      label.className = 'msg-label';
+      label.textContent = 'You';
+      item.appendChild(label);
       item.appendChild(document.createTextNode(text));
       elements.transcript.appendChild(item);
     }
@@ -678,7 +865,10 @@
     if (!userPartialElement) {
       userPartialElement = document.createElement('div');
       userPartialElement.className = 'msg user partial';
-      userPartialElement.innerHTML = '<span class="msg-label">You, live</span>';
+      const label = document.createElement('span');
+      label.className = 'msg-label';
+      label.textContent = 'You, live';
+      userPartialElement.appendChild(label);
       userPartialElement._text = document.createTextNode('');
       userPartialElement.appendChild(userPartialElement._text);
       elements.transcript.appendChild(userPartialElement);
@@ -894,16 +1084,20 @@
       state.conversation.push({ speaker: 'user', text: full });
       addTranscript('user', full);
       const parsedQuestion = SessionRules.parseQuestionNum(normalized);
-      if (parsedQuestion != null && getQuestion(parsedQuestion)) selectQuestion(parsedQuestion);
-      const targetQuestion = parsedQuestion != null ? parsedQuestion : state.activeQuestionId;
-      if (SessionRules.ANSWER_STATED_RE.test(normalized) && targetQuestion != null) {
-        presentAnswer(targetQuestion, SessionRules.extractDraftAnswer(normalized) || full);
+      const requestedTask = parsedQuestion == null ? null : state.tasks.find(function (task) {
+        return String(task.legacyQuestionId || '') === String(parsedQuestion);
+      });
+      if (requestedTask) selectTask(requestedTask.id);
+      const target = getResponseTarget(state.activeResponseRegionId);
+      if (SessionRules.ANSWER_STATED_RE.test(normalized) && target) {
+        presentAnswer(target.id, SessionRules.extractDraftAnswer(normalized) || full);
       }
-      if (SessionRules.WRITE_INTENT_RE.test(normalized) && targetQuestion != null) {
-        if (state.confirmed[targetQuestion]) {
+      if (SessionRules.WRITE_INTENT_RE.test(normalized) && target) {
+        const responseState = responseStateFor(target.id);
+        if (responseState.confirmed && responseState.writeToken) {
           setNotice('Your answer is confirmed. Choose Write confirmed answer to place it on the worksheet.');
           setSessionPanelExpanded(true);
-        } else presentAnswer(targetQuestion, state.drafts[targetQuestion] || full);
+        } else presentAnswer(target.id, responseState.draft || full);
       }
       if (SessionRules.hasExportIntent(normalized) && normalized !== state.lastExportVoiceNorm) {
         state.lastExportVoiceNorm = normalized;
@@ -948,11 +1142,12 @@
     if (!state.assignmentId || state.workspace === 'exporting') return;
     setWorkspaceState('exporting');
     setError('');
-    const hasWrittenAnswer = state.questions.some(function (question) {
-      return !!(state.confirmed[question.id] && (state.answers[question.id] || '').trim());
+    const hasWrittenAnswer = state.document && state.document.responseTargets.some(function (target) {
+      const responseState = state.responseStates[String(target.id)];
+      return !!(responseState && responseState.confirmed && (responseState.written || '').trim());
     });
     if (!hasWrittenAnswer || !state.sessionId || !state.sessionSecret) {
-      setWorkspaceState(unresolvedQuestions().length ? 'needs_layout_review' : 'ready');
+      setWorkspaceState(unresolvedTasks().length ? 'needs_layout_review' : 'ready');
       setError('Confirm and write at least one answer before exporting.');
       return;
     }
@@ -975,7 +1170,7 @@
       setWorkspaceState('complete');
       setNotice('Export ready. Your browser downloaded the completed worksheet.');
     } catch (error) {
-      setWorkspaceState(unresolvedQuestions().length ? 'needs_layout_review' : 'ready');
+      setWorkspaceState(unresolvedTasks().length ? 'needs_layout_review' : 'ready');
       setError(error.message || 'The completed PDF could not be prepared.');
     }
   }
@@ -1021,23 +1216,25 @@
     elements.questionsContainer.hidden = !elements.questionsContainer.hidden;
   });
   elements.typedAnswer.addEventListener('input', function () {
-    const text = elements.typedAnswer.textContent.trim();
-    const questionId = state.activeQuestionId;
-    state.drafts[questionId] = text;
-    elements.confirmTypedBtn.disabled = !text;
-    if (state.confirmed[questionId]) {
-      delete state.writeTokens[questionId];
-      state.confirmed[questionId] = false;
-      state.proposedQuestionId = questionId;
-      state.proposedText = text;
+    const text = elements.typedAnswer.textContent;
+    const target = getResponseTarget(state.activeResponseRegionId);
+    if (!target) return;
+    const responseState = responseStateFor(target.id);
+    responseState.draft = text;
+    elements.confirmTypedBtn.disabled = !text.trim();
+    if (responseState.confirmed) {
+      responseState.writeToken = '';
+      responseState.confirmed = false;
+      state.proposedResponseRegionId = target.id;
       elements.proposedAnswer.textContent = text;
       setVoiceState('answer_detected');
       setNotice('Draft changed. Review it again before writing.');
     }
-    // Unconfirmed drafts stay in the editor only; overlays and export use written answers.
+    syncWorksheetResponseState(target.id);
+    // Unconfirmed drafts stay in the editor only; overlays and export use written responses.
   });
   elements.confirmTypedBtn.addEventListener('click', function () {
-    presentAnswer(state.activeQuestionId, elements.typedAnswer.textContent);
+    presentAnswer(state.activeResponseRegionId, elements.typedAnswer.textContent);
   });
   elements.editAnswerBtn.addEventListener('click', function () {
     setVoiceState(state.liveSession ? 'listening' : 'idle');
@@ -1049,19 +1246,21 @@
   });
   elements.confirmAnswerBtn.addEventListener('click', confirmProposedAnswer);
   elements.changeConfirmedAnswerBtn.addEventListener('click', function () {
-    const questionId = state.proposedQuestionId;
-    if (questionId != null) {
-      delete state.writeTokens[questionId];
-      state.confirmed[questionId] = false;
-      state.proposedText = state.drafts[questionId] || elements.typedAnswer.textContent || '';
-      elements.proposedAnswer.textContent = state.proposedText;
+    const responseRegionId = state.proposedResponseRegionId;
+    if (responseRegionId != null) {
+      const responseState = responseStateFor(responseRegionId);
+      responseState.writeToken = '';
+      responseState.confirmed = false;
+      responseState.draft = responseState.draft || elements.typedAnswer.textContent || '';
+      elements.proposedAnswer.textContent = responseState.draft;
+      syncWorksheetResponseState(responseRegionId);
       setVoiceState('answer_detected');
       setNotice('Update the draft, then review it again. Nothing was written.');
       elements.typedAnswer.focus();
     }
   });
   elements.writeConfirmedAnswerBtn.addEventListener('click', function () {
-    triggerWrite(state.proposedQuestionId);
+    triggerWrite(state.proposedResponseRegionId || state.activeResponseRegionId);
   });
   elements.returnToWorksheetBtn.addEventListener('click', function () {
     setSessionPanelExpanded(false);
