@@ -30,6 +30,8 @@ assert.strictEqual(ui.getVoiceModel('confirmed', { hasAssignment: true }).showCo
 assert.strictEqual(ui.getVoiceModel('confirmed', { hasAssignment: true }).showWriteConfirmation, true);
 assert.strictEqual(ui.getVoiceModel('confirmed', { hasAssignment: true }).primaryDisabled, true);
 assert.strictEqual(ui.getVoiceModel('writing', { hasAssignment: true }).primaryDisabled, true);
+assert.strictEqual(ui.getVoiceModel('confirmed', { hasAssignment: true, liveSession: true }).primaryDisabled, false);
+assert.strictEqual(ui.getVoiceModel('confirmed', { hasAssignment: true, liveSession: true }).primaryLabel, 'End session');
 assert.strictEqual(ui.getVoiceModel('listening', { hasAssignment: true, liveSession: true }).primaryLabel, 'End session');
 assert.match(ui.getVoiceModel('idle', { hasAssignment: false }).disabledReason, /worksheet/i);
 assert.strictEqual(ui.getVoiceModel('error', { hasAssignment: true }).primaryLabel, 'Try voice again');

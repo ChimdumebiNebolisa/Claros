@@ -121,6 +121,15 @@
   beside the worksheet image. No Stage 9 Gemini transport rewrite.
 - Evidence: see `docs/BUILD_WEEK_STAGE_8_VERIFICATION.md`.
 
+## Revamp Stage 9 record
+
+- Base SHA: `2c98193` (Stage 8 merged to `main`).
+- Working branch: `codex/stage9-gemini-voice`.
+- Scope: isolate Gemini Live transport from product state, structured transcript
+  → product events, reconnect with typed fallback, provider interrupt signal,
+  and safer mic capture wiring. Confirmation/write remain server-gated.
+- Evidence: see `docs/BUILD_WEEK_STAGE_9_VERIFICATION.md`.
+
 ## First-party canonical parser fixtures
 
 `evaluation/canonical_v1/` establishes the initial parser milestone with three

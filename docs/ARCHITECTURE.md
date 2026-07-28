@@ -36,7 +36,10 @@ flowchart LR
 
 The checked-in default builds a deterministic physical IR, then uses Gemini
 for closed-world document semantics. Gemini Live provides the optional voice
-path. No OpenAI provider is part of this runtime.
+path. Browser voice code isolates provider transport
+(`frontend/voice-live-transport.js`) from transcript-to-product events
+(`frontend/voice-product-bridge.js`); confirmation and write remain
+server-gated. No OpenAI provider is part of this runtime.
 
 ## Target document path
 

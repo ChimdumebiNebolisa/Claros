@@ -630,6 +630,22 @@ async def serve_session_rules():
     return FileResponse(path, media_type="application/javascript; charset=utf-8")
 
 
+@app.get("/voice-product-bridge.js", response_class=Response)
+async def serve_voice_product_bridge():
+    path = config.ROOT / "frontend" / "voice-product-bridge.js"
+    if not path.exists():
+        raise HTTPException(status_code=503, detail="voice-product-bridge.js missing from frontend/")
+    return FileResponse(path, media_type="application/javascript; charset=utf-8")
+
+
+@app.get("/voice-live-transport.js", response_class=Response)
+async def serve_voice_live_transport():
+    path = config.ROOT / "frontend" / "voice-live-transport.js"
+    if not path.exists():
+        raise HTTPException(status_code=503, detail="voice-live-transport.js missing from frontend/")
+    return FileResponse(path, media_type="application/javascript; charset=utf-8")
+
+
 @app.get("/question-view.js", response_class=Response)
 async def serve_question_view_js():
     """Serve the isolated worksheet question-card renderer."""

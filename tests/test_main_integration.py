@@ -206,6 +206,8 @@ def test_question_view_js_served():
     [
         ("/ui-state.js", b"ClarosUiState"),
         ("/worksheet-view.js", b"ClarosWorksheetView"),
+        ("/voice-product-bridge.js", b"ClarosVoiceProductBridge"),
+        ("/voice-live-transport.js", b"ClarosVoiceLiveTransport"),
     ],
 )
 def test_workspace_modules_served(path, marker):
