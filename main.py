@@ -343,6 +343,8 @@ def parse_diagnostics(assignment_id: UUID, x_assignment_capability: str | None =
     try:
         _require_assignment_capability(str(assignment_id), x_assignment_capability)
         return get_parse_diagnostics(str(assignment_id))
+    except HTTPException:
+        raise
     except assignment_service.AssignmentExpiredError:
         raise HTTPException(status_code=410, detail="Assignment expired")
     except ValueError:
@@ -509,40 +511,77 @@ async def debug_gemini(request: Request):
         return {"status": "error", "error": "Gemini text call failed. Check server logs."}
 
 
+@app.get("/api/samples")
+async def list_official_samples():
+    """Return the official canonical worksheet sample catalog."""
+    from sample_catalog import list_product_samples
+
+    return {
+        "default_sample_id": "canonical-short-answer-ecosystems",
+        "samples": [sample.to_public_dict() for sample in list_product_samples()],
+    }
+
+
+@app.get("/samples/{sample_id}.pdf")
+async def serve_official_sample_pdf(sample_id: str):
+    """Serve one official sample PDF for the normal upload flow."""
+    from sample_catalog import get_product_sample
+
+    try:
+        sample = get_product_sample(sample_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Sample worksheet not found") from None
+    return FileResponse(sample.pdf_path, media_type="application/pdf")
+
+
+@app.get("/samples/{sample_id}/preview.png")
+async def serve_official_sample_preview(sample_id: str):
+    """Serve a checked-in page preview for an official sample."""
+    from sample_catalog import get_product_sample
+
+    try:
+        sample = get_product_sample(sample_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Sample worksheet not found") from None
+    if sample.preview_png_path is None or not sample.preview_png_path.exists():
+        document = fitz.open(sample.pdf_path)
+        try:
+            pixmap = document[0].get_pixmap(matrix=fitz.Matrix(1.25, 1.25), alpha=False)
+            return Response(content=pixmap.tobytes("png"), media_type="image/png")
+        finally:
+            document.close()
+    return FileResponse(sample.preview_png_path, media_type="image/png")
+
+
 @app.get("/sample-assignment.pdf")
 async def serve_sample_assignment():
-    """Serve the current built-in worksheet sample through the normal upload flow."""
-    path = config.ROOT / "test_assignment.pdf"
-    if not path.exists():
-        raise HTTPException(status_code=404, detail="Sample worksheet not found")
-    return FileResponse(path, media_type="application/pdf")
+    """Backward-compatible alias for the default official sample PDF."""
+    from sample_catalog import get_product_sample
+
+    sample = get_product_sample(None)
+    return FileResponse(sample.pdf_path, media_type="application/pdf")
 
 
 @app.get("/test-assignment.pdf")
 async def serve_test_assignment():
-    """Keep the legacy test fixture route available only for explicit local diagnostics."""
+    """Legacy algebra fixture for explicit local diagnostics only."""
     if not config.is_debug_routes_enabled():
         raise HTTPException(status_code=404, detail="Not found")
-    return await serve_sample_assignment()
+    path = config.ROOT / "test_assignment.pdf"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(path, media_type="application/pdf")
 
 
 @app.get("/sample-page.png")
 async def serve_sample_page_preview():
-    """Render the first page of the shipped sample for the real landing preview."""
-    path = config.ROOT / "test_assignment.pdf"
-    if not path.exists():
-        raise HTTPException(status_code=404, detail="Sample worksheet not found")
-    document = fitz.open(path)
-    try:
-        pixmap = document[0].get_pixmap(matrix=fitz.Matrix(1.25, 1.25), alpha=False)
-        return Response(content=pixmap.tobytes("png"), media_type="image/png")
-    finally:
-        document.close()
+    """Render the first page of the default official sample for landing previews."""
+    return await serve_official_sample_preview("canonical-short-answer-ecosystems")
 
 
 @app.get("/sample-workspace.png")
 async def serve_sample_workspace_preview():
-    """Serve the checked-in synthetic sample workspace image used on the landing page."""
+    """Serve the checked-in sample workspace image used on the landing page."""
     path = config.ROOT / "frontend" / "sample-workspace.png"
     if not path.exists():
         raise HTTPException(status_code=404, detail="sample-workspace.png not found")

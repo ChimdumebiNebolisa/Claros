@@ -39,6 +39,8 @@ def validate_landing_html() -> None:
         'href="/app"',
         "Keep the page in view",
         "Typed works throughout",
+        "/app?sample=canonical-short-answer-ecosystems",
+        "Short Answer · Choice · Math",
     )
     for needle in checks:
         if needle not in html:
@@ -52,6 +54,11 @@ def validate_app_html() -> None:
         'href="/styles/app.css"',
         'id="uploadBtn"',
         'id="uploadZone"',
+        'id="sampleChooser"',
+        'id="sampleChooserActions"',
+        'data-sample-id="canonical-short-answer-ecosystems"',
+        'data-sample-id="canonical-choice-digital-safety"',
+        'data-sample-id="canonical-numeric-everyday-math"',
         'id="sessionPanel"',
         'id="fileInput"',
         'id="keyboardFallback"',
@@ -108,6 +115,8 @@ def validate_app_js_contract() -> None:
         "showVoiceFallback",
         "setSessionPanelExpanded",
         "clearAssignmentSessionState",
+        "loadSamplePdf",
+        "/api/samples",
         "X-Assignment-Capability",
         "task_id",
         "response_region_id",

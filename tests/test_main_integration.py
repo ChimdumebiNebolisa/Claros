@@ -138,6 +138,7 @@ def test_app_js_served():
     assert response.status_code == 200
     assert "javascript" in response.headers.get("content-type", "").lower()
     assert b"loadSamplePdf" in response.content
+    assert b"/api/samples" in response.content
     assert b"sample" in response.content
     assert b"showVoiceFallback" in response.content
     assert b"ClarosWorksheetView" in response.content
@@ -175,11 +176,14 @@ def test_genai_bundle_served_and_non_empty():
 
 
 def test_test_assignment_pdf_served():
-    """Built-in sample PDF uses a product-facing route."""
+    """Default sample alias serves the official short-answer PDF."""
     response = client.get("/sample-assignment.pdf")
     assert response.status_code == 200
     assert response.headers.get("content-type", "").lower().startswith("application/pdf")
     assert response.content[:4] == b"%PDF"
+    from sample_catalog import get_product_sample
+
+    assert response.content == get_product_sample(None).pdf_path.read_bytes()
 
 
 def test_session_rules_js_served():

@@ -35,9 +35,13 @@
 .upload-copy { display: grid; gap: 0.18rem; }
 .upload-main { color: var(--ink); font-size: 1rem; font-weight: 760; }
 .upload-sub { max-width: 42ch; color: var(--muted); font-size: 0.84rem; }
-.setup-secondary { margin-top: 0.85rem; display: flex; flex-wrap: wrap; gap: 0.45rem; color: var(--muted); font-size: 0.85rem; }
+.setup-secondary { margin-top: 0.85rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; color: var(--muted); font-size: 0.85rem; }
+.sample-chooser { display: grid; gap: 0.35rem; min-width: min(100%, 22rem); }
+.sample-chooser-label { margin: 0; color: var(--ink); font-size: 0.8rem; font-weight: 700; }
+.sample-chooser-actions { display: flex; flex-wrap: wrap; gap: 0.55rem 0.85rem; }
 .text-action { min-height: 2rem; padding: 0; border: 0; color: var(--iris-deep); background: transparent; font-size: 0.84rem; font-weight: 760; text-decoration: underline; text-underline-offset: 0.2em; }
 .text-action:hover { color: var(--ink); }
+.text-action:disabled { opacity: 0.55; cursor: wait; }
 
 .setup-facts { margin-top: 1rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
 .setup-facts p { padding: 0.85rem 0.95rem; border-left: 2px solid var(--border-strong); color: var(--muted); font-size: 0.82rem; line-height: 1.45; }

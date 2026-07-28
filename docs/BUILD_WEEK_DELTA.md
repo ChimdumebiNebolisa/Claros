@@ -67,7 +67,18 @@
   writable regions, stable across repeated parses) without changing
   `source.json`, `manifest.json`, expected labels, or baseline provenance for
   score improvement. Independent review found no valid P0/P1 issues; Stage 3
-  lands as one reviewable commit on this branch. Stage 4 has not started.
+  lands as one reviewable commit on this branch.
+
+## Revamp Stage 4 record
+
+- Base SHA: `3cc8144` (Stage 1–3 merged to `main`).
+- Working branch: `codex/stage4-canonical-sample-flow`.
+- Scope: official product samples are the three `canonical_v1` worksheets
+  (Short Answer, Multiple Choice, Math Practice) on the normal assignment
+  path. Sample catalog/API routes, app chooser, landing deep links, focused
+  product-flow tests, and deletion diagnostics fix. No Stage 3 parser or
+  expected-label changes; Stage 5 not started.
+- Evidence: see `docs/BUILD_WEEK_STAGE_4_VERIFICATION.md`.
 
 ## First-party canonical parser fixtures
 

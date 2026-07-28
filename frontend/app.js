@@ -22,7 +22,7 @@
     fileInput: document.getElementById('fileInput'),
     uploadBtn: document.getElementById('uploadBtn'),
     uploadLabel: document.getElementById('uploadLabel'),
-    testPdfBtn: document.getElementById('testPdfBtn'),
+    sampleChooserActions: document.getElementById('sampleChooserActions'),
     processingPanel: document.getElementById('processingPanel'),
     processingTitle: document.getElementById('processingTitle'),
     selectedFilename: document.getElementById('selectedFilename'),
@@ -502,7 +502,7 @@
     state.filename = file.name;
     elements.selectedFilename.textContent = file.name;
     elements.uploadLabel.textContent = file.name;
-    elements.testPdfBtn.disabled = true;
+    setSampleButtonsDisabled(true);
     elements.uploadBtn.disabled = true;
     setError('');
     setNotice('');
@@ -527,18 +527,34 @@
       setWorkspaceState('error');
       setError(error.message || 'We could not read this PDF. Retry or choose a different file.');
     } finally {
-      elements.testPdfBtn.disabled = false;
+      setSampleButtonsDisabled(false);
       elements.uploadBtn.disabled = false;
     }
   }
 
-  async function loadSamplePdf() {
+  function setSampleButtonsDisabled(disabled) {
+    const buttons = elements.sampleChooserActions
+      ? elements.sampleChooserActions.querySelectorAll('.sample-choice')
+      : [];
+    buttons.forEach(function (button) { button.disabled = disabled; });
+  }
+
+  async function loadSamplePdf(sampleId) {
     setError('');
+    const requestedId = sampleId || 'canonical-short-answer-ecosystems';
     try {
-      const response = await fetch('/sample-assignment.pdf');
+      const catalogResponse = await fetch(API_BASE + '/api/samples');
+      if (!catalogResponse.ok) throw new Error('The sample catalog is unavailable.');
+      const catalog = await catalogResponse.json();
+      const sample = (catalog.samples || []).find(function (entry) {
+        return entry.id === requestedId;
+      }) || (catalog.samples || [])[0];
+      if (!sample) throw new Error('No official sample worksheets are configured.');
+      const response = await fetch(sample.pdf_url);
       if (!response.ok) throw new Error('The sample worksheet is unavailable.');
       const blob = await response.blob();
-      await doUpload(new File([blob], 'Claros sample algebra worksheet.pdf', { type: 'application/pdf' }));
+      const filename = 'Claros sample — ' + sample.sample_name + '.pdf';
+      await doUpload(new File([blob], filename, { type: 'application/pdf' }));
     } catch (error) {
       setWorkspaceState('error');
       setError(error.message || 'The sample worksheet could not be loaded.');
@@ -1194,7 +1210,13 @@
     else setError('Choose a PDF file.');
   });
   elements.fileInput.addEventListener('change', function () { doUpload(elements.fileInput.files[0]); });
-  elements.testPdfBtn.addEventListener('click', loadSamplePdf);
+  if (elements.sampleChooserActions) {
+    elements.sampleChooserActions.addEventListener('click', function (event) {
+      const button = event.target.closest('.sample-choice');
+      if (!button) return;
+      loadSamplePdf(button.getAttribute('data-sample-id'));
+    });
+  }
   elements.retryBtn.addEventListener('click', function () { doUpload(state.lastFile); });
   elements.replaceBtn.addEventListener('click', function () { elements.fileInput.click(); });
   elements.replaceWorksheetBtn.addEventListener('click', resetWorkspace);
@@ -1281,5 +1303,7 @@
   setWorkspaceState('empty');
   setVoiceState('unavailable');
 
-  if (new URLSearchParams(location.search).get('sample') === '1') loadSamplePdf();
+  if (new URLSearchParams(location.search).get('sample')) {
+    loadSamplePdf(new URLSearchParams(location.search).get('sample'));
+  }
 })();

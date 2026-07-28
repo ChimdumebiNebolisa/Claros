@@ -213,7 +213,9 @@ python test_assignment.py
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Open `http://localhost:8000` in a browser. Upload a PDF or click "Use Test PDF" to load the test assignment, then click "Start Session" to begin a voice conversation.
+Open `http://localhost:8000` in a browser. Upload a PDF, or from `/app` choose
+one of the official samples (Short Answer, Multiple Choice, or Math Practice).
+Samples use the same upload and session path as a student worksheet.
 
 **Gemini SDK bundle:** The frontend loads the Gemini SDK from `/genai.bundle.js` (same origin). That file is produced by `npm run build:genai` and checked in under `frontend/genai.bundle.js`. There is no runtime dependency on esm.sh or any other CDN.
 

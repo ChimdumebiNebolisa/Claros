@@ -50,7 +50,14 @@
             <button type="button" class="btn primary-action" id="uploadBtn">Choose PDF</button>
           </div>
           <div class="setup-secondary">
-            <button type="button" class="text-action" id="testPdfBtn">Try the sample</button>
+            <div class="sample-chooser" id="sampleChooser" role="group" aria-label="Official Claros sample worksheets">
+              <p class="sample-chooser-label">Try an official sample</p>
+              <div class="sample-chooser-actions" id="sampleChooserActions">
+                <button type="button" class="text-action sample-choice" data-sample-id="canonical-short-answer-ecosystems">Short Answer</button>
+                <button type="button" class="text-action sample-choice" data-sample-id="canonical-choice-digital-safety">Multiple Choice</button>
+                <button type="button" class="text-action sample-choice" data-sample-id="canonical-numeric-everyday-math">Math Practice</button>
+              </div>
+            </div>
             <span aria-hidden="true">or</span>
             <span>drop a PDF anywhere in this panel</span>
           </div>
