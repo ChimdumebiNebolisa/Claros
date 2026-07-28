@@ -1448,10 +1448,12 @@
       responseState.confirmed = false;
       state.proposedResponseRegionId = target.id;
       elements.proposedAnswer.textContent = text;
+      if (elements.confirmedAnswerPreview) elements.confirmedAnswerPreview.textContent = '';
       setVoiceState('answer_detected');
       setNotice('Draft changed. Review it again before writing.');
     }
     syncWorksheetResponseState(target.id);
+    refreshActiveProgress();
     // Unconfirmed drafts stay in the editor only; overlays and export use written responses.
   });
   elements.confirmTypedBtn.addEventListener('click', function () {
@@ -1474,10 +1476,12 @@
       responseState.confirmed = false;
       responseState.draft = responseState.draft || elements.typedAnswer.textContent || '';
       elements.proposedAnswer.textContent = responseState.draft;
+      if (elements.confirmedAnswerPreview) elements.confirmedAnswerPreview.textContent = '';
       syncWorksheetResponseState(responseRegionId);
       setVoiceState('answer_detected');
       setNotice('Update the draft, then review it again. Nothing was written.');
       elements.typedAnswer.focus();
+      refreshActiveProgress();
     }
   });
   elements.writeConfirmedAnswerBtn.addEventListener('click', function () {
