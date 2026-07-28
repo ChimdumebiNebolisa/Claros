@@ -91,6 +91,16 @@
   server-aligned confirmation. Zero-answer export remains an intentional 409.
 - Evidence: see `docs/BUILD_WEEK_STAGE_5_VERIFICATION.md`.
 
+## Revamp Stage 6 record
+
+- Base SHA: `4d1bd1d` (Stage 5 merged to `main`).
+- Working branch: `codex/stage6-frontend-product-ui`.
+- Scope: product UI representation of the canonical document model — choices,
+  confirmed-answer preview on write step, task/response progress, layout-review
+  notice, sample deep-link alias parity, and clearer next-step copy. No Stage 7
+  visual redesign and no Stage 8 accessibility overhaul.
+- Evidence: see `docs/BUILD_WEEK_STAGE_6_VERIFICATION.md`.
+
 ## First-party canonical parser fixtures
 
 `evaluation/canonical_v1/` establishes the initial parser milestone with three

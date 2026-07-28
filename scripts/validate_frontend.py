@@ -67,6 +67,10 @@ def validate_app_html() -> None:
         'id="writeConfirmation"',
         'id="writeConfirmedAnswerBtn"',
         'id="placementSummary"',
+        'id="taskChoices"',
+        'id="answerProgress"',
+        'id="layoutReviewNotice"',
+        'id="confirmedAnswerPreview"',
         'id="returnToWorksheetBtn"',
         'id="micBtn"',
         'id="interruptBtn"',
@@ -127,6 +131,11 @@ def validate_app_js_contract() -> None:
         "write_token",
         "activeTaskId",
         "activeResponseRegionId",
+        "renderTaskChoices",
+        "renderAnswerProgress",
+        "confirmedAnswerPreview",
+        "layoutReviewNotice",
+        "canonical-short-answer-ecosystems",
     )
     for needle in checks:
         if needle not in js:

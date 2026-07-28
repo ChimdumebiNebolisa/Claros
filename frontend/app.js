@@ -54,6 +54,9 @@
     meterBar: document.getElementById('meterBar'),
     currentQuestionLabel: document.getElementById('currentQuestionLabel'),
     currentQuestionExcerpt: document.getElementById('currentQuestionExcerpt'),
+    taskChoices: document.getElementById('taskChoices'),
+    answerProgress: document.getElementById('answerProgress'),
+    layoutReviewNotice: document.getElementById('layoutReviewNotice'),
     questionListToggle: document.getElementById('questionListToggle'),
     questionsContainer: document.getElementById('questionsContainer'),
     responseTargets: document.getElementById('responseTargets'),
@@ -69,6 +72,7 @@
     writeConfirmation: document.getElementById('writeConfirmation'),
     writeTitle: document.getElementById('writeTitle'),
     writeDestination: document.getElementById('writeDestination'),
+    confirmedAnswerPreview: document.getElementById('confirmedAnswerPreview'),
     changeConfirmedAnswerBtn: document.getElementById('changeConfirmedAnswerBtn'),
     writeConfirmedAnswerBtn: document.getElementById('writeConfirmedAnswerBtn'),
     placementSummary: document.getElementById('placementSummary'),
@@ -135,6 +139,9 @@
     elements.workspaceStatus.textContent = model.title + '. ' + model.description;
     elements.exportBtn.disabled = !model.canExport;
     elements.exportBtn.textContent = model.exportLabel;
+    if (elements.layoutReviewNotice) {
+      elements.layoutReviewNotice.hidden = !model.showLayoutReview;
+    }
     if (next === 'error') elements.processingPanel.focus?.();
   }
 
@@ -269,6 +276,72 @@
     return 'Placement needs review';
   }
 
+  function responseProgressLabel(responseState) {
+    if (!responseState) return 'Not started';
+    if ((responseState.written || '').trim()) return 'Written';
+    if (responseState.confirmed) return 'Confirmed';
+    if ((responseState.draft || '').trim()) return 'Draft';
+    return 'Not started';
+  }
+
+  function taskProgressLabel(task) {
+    const targets = taskTargets(task);
+    if (!targets.length) return 'No destination';
+    if (targets.some(function (target) { return !target.canWrite; })) return 'Needs review';
+    if (targets.every(function (target) {
+      return !!((responseStateFor(target.id).written || '').trim());
+    })) return 'Written';
+    if (targets.some(function (target) {
+      return responseStateFor(target.id).confirmed || !!(responseStateFor(target.id).written || '').trim() || !!(responseStateFor(target.id).draft || '').trim();
+    })) return 'In progress';
+    if (targets.some(function (target) { return target.useSidePanel; })) return 'Side panel';
+    return 'Ready';
+  }
+
+  function renderTaskChoices(task) {
+    if (!elements.taskChoices) return;
+    elements.taskChoices.replaceChildren();
+    const choices = task && Array.isArray(task.choices) ? task.choices : [];
+    if (!choices.length) {
+      elements.taskChoices.hidden = true;
+      return;
+    }
+    choices.forEach(function (choice) {
+      const item = document.createElement('li');
+      const label = choice && (choice.label || choice.id) ? String(choice.label || choice.id) : '';
+      const text = choice && choice.text != null ? String(choice.text) : '';
+      item.textContent = label ? (label + '. ' + text) : text;
+      elements.taskChoices.appendChild(item);
+    });
+    elements.taskChoices.hidden = false;
+  }
+
+  function renderAnswerProgress(task, target) {
+    if (!elements.answerProgress) return;
+    if (!task || !target) {
+      elements.answerProgress.textContent = 'Select a task to begin.';
+      return;
+    }
+    const responseState = responseStateFor(target.id);
+    const progress = responseProgressLabel(responseState);
+    let nextStep = 'Type or use voice, then review the exact answer.';
+    if (progress === 'Draft') nextStep = 'Review and confirm this exact draft before writing.';
+    else if (progress === 'Confirmed') {
+      nextStep = target.canWrite
+        ? 'Choose Write confirmed answer, or change the answer first.'
+        : 'This destination is not safe to write. Claros will keep the confirmed answer for the export side panel path, or you can change the answer.';
+    } else if (progress === 'Written') nextStep = 'This response is authorized. Continue another task or export when ready.';
+    elements.answerProgress.textContent = targetLabel(target, task) + ': ' + progress + '. ' + nextStep;
+  }
+
+  function refreshActiveProgress() {
+    const task = getTask(state.activeTaskId);
+    const target = getResponseTarget(state.activeResponseRegionId);
+    renderAnswerProgress(task, target);
+    renderQuestionPicker();
+    if (task) renderResponseTargetPicker(task);
+  }
+
   function renderQuestionPicker() {
     elements.questionsContainer.replaceChildren();
     state.tasks.forEach(function (task) {
@@ -278,13 +351,14 @@
       button.type = 'button';
       button.dataset.taskId = task.id;
       button.textContent = 'Question ' + taskLabel(task);
+      const progress = taskProgressLabel(task);
       const targets = taskTargets(task);
       const placementText = targets.some(function (target) { return !target.canWrite; })
         ? 'One or more response locations need review'
         : (targets.some(function (target) { return target.useSidePanel; })
           ? 'Includes a side-panel answer'
           : 'Response destinations ready');
-      button.setAttribute('aria-label', 'Question ' + taskLabel(task) + '. ' + placementText);
+      button.setAttribute('aria-label', 'Question ' + taskLabel(task) + '. ' + progress + '. ' + placementText);
       button.setAttribute('aria-current', String(sameId(task.id, state.activeTaskId)));
       button.addEventListener('click', function () {
         selectTask(task.id);
@@ -292,14 +366,13 @@
       });
       row.appendChild(button);
       const placement = document.createElement('span');
-      placement.className = 'question-placement ' + (
-        targets.some(function (target) { return !target.canWrite; })
-          ? 'missing'
-          : (targets.some(function (target) { return target.useSidePanel; }) ? 'side_panel' : 'approved')
-      );
-      placement.textContent = targets.some(function (target) { return !target.canWrite; })
-        ? 'Needs review'
-        : (targets.some(function (target) { return target.useSidePanel; }) ? 'Side panel' : 'Ready');
+      const progressClass = progress === 'Written'
+        ? 'written'
+        : (progress === 'In progress' || progress === 'Confirmed' || progress === 'Draft'
+          ? 'in_progress'
+          : (progress === 'Needs review' ? 'missing' : (progress === 'Side panel' ? 'side_panel' : 'approved')));
+      placement.className = 'question-placement ' + progressClass;
+      placement.textContent = progress;
       row.appendChild(placement);
       elements.questionsContainer.appendChild(row);
     });
@@ -316,11 +389,12 @@
       if (target.useSidePanel) button.classList.add('is-side-panel');
       if (!target.canWrite) button.classList.add('is-unavailable');
       const label = targetLabel(target, task);
-      button.textContent = label + ' — ' + targetPlacementText(target);
+      const progress = responseProgressLabel(responseStateFor(target.id));
+      button.textContent = label + ' — ' + targetPlacementText(target) + ' (' + progress + ')';
       button.dataset.taskId = task.id;
       button.dataset.responseRegionId = target.id;
       button.setAttribute('aria-current', String(sameId(target.id, state.activeResponseRegionId)));
-      button.setAttribute('aria-label', label + '. ' + targetPlacementText(target));
+      button.setAttribute('aria-label', label + '. ' + targetPlacementText(target) + '. ' + progress);
       button.addEventListener('click', function () {
         selectResponseTarget(task.id, target.id);
       });
@@ -353,11 +427,18 @@
     }
     elements.currentQuestionLabel.textContent = 'Working on Question ' + taskLabel(task);
     elements.currentQuestionExcerpt.textContent = task.promptText || '';
+    renderTaskChoices(task);
     elements.currentResponseLabel.textContent = targetLabel(target, task) + ': ' + targetPlacementText(target);
     elements.typedAnswer.setAttribute('aria-label', 'Draft ' + targetLabel(target, task) + ' for Question ' + taskLabel(task));
     elements.typedAnswer.textContent = responseState.draft || responseState.written || '';
     elements.confirmTypedBtn.disabled = !elements.typedAnswer.textContent.trim();
+    if (elements.confirmedAnswerPreview && responseState.confirmed) {
+      elements.confirmedAnswerPreview.textContent = responseState.draft || responseState.written || '';
+    } else if (elements.confirmedAnswerPreview) {
+      elements.confirmedAnswerPreview.textContent = '';
+    }
     renderPlacementSummary(task, target);
+    renderAnswerProgress(task, target);
     setWriteDestination(task, target);
     renderResponseTargetPicker(task);
     if (worksheet) worksheet.setActiveTarget(task.id, target.id);
@@ -544,7 +625,12 @@
 
   async function loadSamplePdf(sampleId) {
     setError('');
-    const requestedId = sampleId || 'canonical-short-answer-ecosystems';
+    const aliases = {
+      '1': 'canonical-short-answer-ecosystems',
+      default: 'canonical-short-answer-ecosystems',
+      true: 'canonical-short-answer-ecosystems'
+    };
+    const requestedId = aliases[String(sampleId || '').trim()] || sampleId || 'canonical-short-answer-ecosystems';
     try {
       const catalogResponse = await fetch(API_BASE + '/api/samples');
       if (!catalogResponse.ok) throw new Error('The sample catalog is unavailable.');
@@ -775,6 +861,7 @@
     elements.confirmationTitle.textContent = 'Confirm ' + targetLabel(target, task) + ' for Question ' + taskLabel(task);
     setVoiceState('answer_detected');
     setNotice('Review the proposed answer. Nothing has been written yet.');
+    refreshActiveProgress();
   }
 
   function dismissAnswer(clearText) {
@@ -788,6 +875,7 @@
     }
     state.proposedResponseRegionId = null;
     setVoiceState(state.liveSession ? 'listening' : 'idle');
+    refreshActiveProgress();
   }
 
   async function confirmProposedAnswer() {
@@ -825,9 +913,12 @@
       responseState.draft = text;
       responseState.writeToken = data.write_token;
       state.proposedResponseRegionId = target.id;
+      if (elements.confirmedAnswerPreview) elements.confirmedAnswerPreview.textContent = text;
       syncWorksheetResponseState(target.id);
       setError('');
       setWriteDestination(task, target);
+      renderAnswerProgress(task, target);
+      renderQuestionPicker();
       setVoiceState('confirmed');
       setNotice('Answer confirmed. Choose Write confirmed answer when you are ready.');
     } catch (error) {
@@ -921,7 +1012,9 @@
       state.proposedResponseRegionId = null;
       syncWorksheetResponseState(target.id);
       persistSessionLocally();
-      setNotice('Answer authorized for Question ' + taskLabel(task) + '. Export places it on the worksheet.');
+      renderAnswerProgress(task, target);
+      renderQuestionPicker();
+      setNotice('Answer authorized for Question ' + taskLabel(task) + '. Export places it on the worksheet. Continue another task or export when ready.');
       elements.typedAnswer.focus();
     } catch (error) {
       // Keep server-aligned confirmation intact so retries remain possible.
