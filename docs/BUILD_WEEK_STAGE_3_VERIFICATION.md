@@ -80,7 +80,34 @@ Generated-PDF regressions exercise:
 | Repeated-parse stability | Three consecutive evaluate runs and three `parse_document` ID snapshots were identical (`metrics_stable`, `ids_stable`). |
 | Layout red-team regressions | In-repo: unnumbered wrap expansion, rounded-box edge demotion, parametric perturbations. Independent review added one controlled layout variation per canonical family (filled prompt cards + lines/boxes; enlarged checkboxes + explanation box; wrapped prompts + rounded show-work). Physical evidence recovered; no box-edge `answer_line` false positives; expected labels untouched. |
 | Expected-label integrity | Preserved. `source.json` / `manifest.json` / expected labels / baseline provenance were not edited to improve scores. Stage 3 baseline rewritten only as evaluation evidence output. |
-| Independent Stage 3 review | Diff + suites + red-team completed. No valid P0/P1 findings. Residual P2 notes: wrap/write-proof rule duplication is fail-closed for unnumbered multi-block prompts; closed-frame `"re"` operator check is permissive but gated by label/empty/contrast minting; Docker Linux engine unavailable so image smoke remains pending. |
+| Independent Stage 3 review | Completed after local acceptance. Diff review, focused suites, canonical evaluate, and controlled layout red-team found no valid P0/P1. Residual P2/P3 items and Docker gap are recorded below; none block Stage 3 acceptance. |
+
+## Independent review
+
+Independent Stage 3 review covered:
+
+- the Stage 3 diff against the Stage 2 checkpoint;
+- focused pipeline / contract / canonical_v1 suites;
+- `python -m evaluation.canonical_v1.evaluate` acceptance metrics;
+- one controlled layout variation per canonical family (filled prompt cards +
+  lines/boxes; enlarged checkboxes + explanation box; wrapped prompts +
+  rounded show-work);
+- fail-closed write gates for ambiguous associations and checkbox text writes.
+
+Outcome: no valid P0 or P1 findings. Stage 3 acceptance remains met. Residual
+non-blocking findings are deferred to later roadmap stages rather than patched
+into Stage 3 scope.
+
+## Residual findings (deferred)
+
+| ID | Severity | Finding | Why not Stage 3 | Intended later stage |
+| --- | --- | --- | --- | --- |
+| S3-P2-1 | P2 | Wrap-continuation expansion and intervening-text write-proof rules are duplicated / overlapping. Unnumbered multi-block prompts can still fail closed to the side panel even when physical regions are recovered. | Fail-closed is correct for Stage 3 extraction safety; tightening is product-flow polish, not a missed region gate. | Stage 4 (canonical sample product flow) and Stage 5 (confirmation / write integrity) |
+| S3-P2-2 | P2 | `_drawing_is_closed_frame` treats `"re"` operators permissively. Writable minting is still gated by explicit labels, empty interior, contrast, and paper-like fill checks. | No false-positive writable regions on the canonical gate; narrowing the frame predicate is hardening, not acceptance repair. | Stage 5 (write/export integrity) or Stage 10 (test / parser rationalization) |
+| S3-P2-3 | P2 | Offline `_CanonicalEvidenceSelector` selects among extracted blocks using expected prompt/geometry coverage. It is not a substitute for live Gemini semantic selection on production uploads. | Stage 3 acceptance intentionally measures deterministic physical IR plus offline evidence selection. Live sample UX is Stage 4. | Stage 4 (sample product flow) and Stage 9 (Gemini voice / semantic architecture) as applicable |
+| S3-P3-1 | P3 | Unnumbered sentence-case word problems recover associations but do not meet numbered task-shape auto-approval, so regions stay `needs_review` / side-panel for auto-write. | Deterministic extraction and association are accepted; auto-write policy is intentionally conservative. | Stage 4 / Stage 5 |
+| S3-P3-2 | P3 | Full-tree pytest coverage and frontend bundle CI were verified during recovery/review, but the Stage 3 gate itself is the canonical evaluate harness plus focused regressions. Broader suite rationalization remains open. | Not a Stage 3 product defect. | Stage 10 (test suite audit and rationalization) |
+| S3-P3-3 | P3 | Local Docker Linux engine was unavailable, so `docker build -t claros:final .` image smoke was not run and is not claimed. | Environment limitation; not evidence of a successful or failed container build. | Stage 12 (observability, performance, and deployment) |
 
 ## Canonical fixture reconciliation
 
@@ -121,6 +148,8 @@ Interrupted Stage 3 left 15 focused pipeline failures. Root causes and fixes:
 
 ## Deployment limitation
 
-`docker build -t claros:final .` remains pending a running local Docker Linux
-engine. A Docker Desktop named-pipe failure is not treated as successful
-container verification.
+`docker build -t claros:final .` could not run because the local Docker Desktop
+Linux-engine named pipe was unavailable. This is an environment limitation, not
+evidence of a successful container build; container runtime verification
+remains pending a running Docker daemon and is deferred to Stage 12. A Docker
+Desktop named-pipe failure is not treated as successful container verification.
