@@ -4,11 +4,17 @@ class FakeElement {
   constructor() {
     this.children = [];
     this.dataset = {};
-    this.style = { setProperty() {} };
+    this.styleProps = {};
+    this.style = {
+      setProperty: (name, value) => {
+        this.styleProps[name] = value;
+      },
+    };
     this.attributes = {};
     this.classList = { add() {}, toggle() {} };
     this.textContent = '';
     this.handlers = {};
+    this.clientWidth = 800;
   }
 
   appendChild(child) {
@@ -356,5 +362,33 @@ assert.equal(
   'show-work-target',
   'legacy task selection also resolves through the server default target',
 );
+
+const fitContainer = new FakeElement();
+fitContainer.clientWidth = 390;
+const fitZoomLabel = new FakeElement();
+const fitWidthBtn = new FakeElement();
+const fitView = WorksheetView.create({
+  container: fitContainer,
+  pageImage: new FakeElement(),
+  overlayLayer: new FakeElement(),
+  pageLabel: new FakeElement(),
+  zoomLabel: fitZoomLabel,
+  fitWidthBtn,
+});
+fitView.load({
+  assignmentId: 'fit-test',
+  document: canonicalDocument,
+  pageCount: 1,
+  activeTaskId: 'task-river-opaque',
+});
+fitView.setZoom(150);
+assert.equal(fitView.getState().zoom, 150);
+assert.equal(fitView.getState().fitWidthMode, false, 'manual zoom clears fit-width mode');
+assert.equal(fitWidthBtn.attributes['aria-pressed'], 'false');
+fitView.fitWidth();
+assert.equal(fitView.getState().zoom, 100, 'fit width scales to the container percent contract');
+assert.equal(fitView.getState().fitWidthMode, true);
+assert.equal(fitWidthBtn.attributes['aria-pressed'], 'true');
+assert.equal(fitContainer.styleProps['--document-zoom'], '100%');
 
 console.log('worksheet-view-targets.test.cjs: opaque task IDs, canonical defaults, and multiple response targets passed.');

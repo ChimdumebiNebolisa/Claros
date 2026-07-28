@@ -70,6 +70,8 @@ def validate_app_html() -> None:
         'id="sessionPanel"',
         'id="fileInput"',
         'id="keyboardFallback"',
+        'id="workspaceErrors"',
+        'id="semanticTaskBlock"',
         'id="documentViewport"',
         'id="answerConfirmation"',
         'id="writeConfirmation"',
@@ -88,6 +90,9 @@ def validate_app_html() -> None:
         'id="currentResponseLabel"',
         'id="workspaceStatus"',
         'id="pageImage"',
+        'aria-pressed="true"',
+        'class="sr-only"',
+        'document-page-surface',
         "/app.js",
         "/session-rules.js",
         "/ui-state.js",
@@ -100,6 +105,23 @@ def validate_app_html() -> None:
         raise AssertionError("student app must not expose teacher review controls")
     if "layoutReviewPanel" in html or "confirmRegionBtn" in html:
         raise AssertionError("student app must not expose client-side layout approval controls")
+    app_css = _read(FRONTEND / "styles" / "app.css")
+    if "min-width: 34rem" in app_css or "min-width: 30rem" in app_css:
+        raise AssertionError("document page must not force a desktop min-width that breaks mobile fit-width")
+    mobile_block_start = app_css.find("@media (max-width: 760px)")
+    mobile_block = app_css[mobile_block_start:] if mobile_block_start >= 0 else ""
+    required_tokens = (
+        ":not(.question-context)",
+        ":not(.notice)",
+        ":not(.keyboard-fallback)",
+        "padding-bottom: max(24rem, 52dvh",
+        "padding-bottom: 4.4rem",
+    )
+    if not all(token in mobile_block for token in required_tokens):
+        raise AssertionError(
+            "collapsed mobile dock must keep typed answer / notice / keyboard fallback visible "
+            "and reserve worksheet clearance under the fixed sheet"
+        )
 
 
 def validate_legacy_frontend_files() -> None:
@@ -129,6 +151,8 @@ def validate_app_js_contract() -> None:
         "setVoiceState",
         "showVoiceFallback",
         "setSessionPanelExpanded",
+        "applyTypedDraft",
+        "workspaceErrors",
         "clearAssignmentSessionState",
         "loadSamplePdf",
         "/api/samples",
@@ -140,6 +164,7 @@ def validate_app_js_contract() -> None:
         "activeTaskId",
         "activeResponseRegionId",
         "renderTaskChoices",
+        "task-choice-btn",
         "renderAnswerProgress",
         "confirmedAnswerPreview",
         "layoutReviewNotice",
@@ -184,6 +209,10 @@ def validate_worksheet_view() -> None:
         raise AssertionError("worksheet-view.js must not use numeric question identity")
     if "location needs review; writing is unavailable" not in js:
         raise AssertionError("worksheet regions must announce unsafe placement")
+    if "fitWidthMode" not in js or "preserveFit" not in js:
+        raise AssertionError("worksheet-view.js must implement true fit-width mode distinct from manual zoom")
+    if "function fitWidth() {\n      setZoom(100);\n    }" in js.replace("\r\n", "\n"):
+        raise AssertionError("fitWidth must not be a no-op alias that ignores container scaling contracts")
 
 
 def validate_ui_state() -> None:

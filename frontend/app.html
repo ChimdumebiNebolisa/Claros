@@ -96,6 +96,7 @@
             <p class="workspace-label">Current worksheet</p>
             <h1 class="assignment-title" id="assignmentTitle">Worksheet</h1>
             <p class="demo-replay-indicator" id="demoReplayIndicator" hidden role="status">Offline demo fixture: validated locally, no live provider request.</p>
+            <div id="workspaceErrors" class="workspace-error" role="alert" hidden></div>
           </div>
           <div class="workspace-header-actions">
             <button type="button" class="toolbar-button" id="replaceWorksheetBtn">Replace worksheet</button>
@@ -110,7 +111,7 @@
               <span class="toolbar-value" id="pageLabel">Page 1 of 1</span>
               <button type="button" class="toolbar-button" id="nextPageBtn" aria-label="Next page">Next</button>
               <span class="toolbar-divider" aria-hidden="true"></span>
-              <button type="button" class="toolbar-button" id="fitWidthBtn">Fit width</button>
+              <button type="button" class="toolbar-button" id="fitWidthBtn" aria-pressed="true">Fit width</button>
               <button type="button" class="icon-button" id="zoomOutBtn" aria-label="Zoom out">−</button>
               <span class="toolbar-value" id="zoomLabel">100%</span>
               <button type="button" class="icon-button" id="zoomInBtn" aria-label="Zoom in">+</button>
@@ -118,8 +119,11 @@
 
             <div class="document-scroll" id="documentViewport" tabindex="0" aria-label="Scrollable worksheet page">
               <figure class="document-page" id="documentPage">
-                <img id="pageImage" alt="">
-                <div class="answer-overlay-layer" id="answerOverlayLayer"></div>
+                <div class="document-page-surface">
+                  <img id="pageImage" alt="">
+                  <div class="answer-overlay-layer" id="answerOverlayLayer"></div>
+                </div>
+                <figcaption id="documentPageCaption" class="document-page-caption">Original worksheet page</figcaption>
               </figure>
             </div>
           </section>
@@ -145,13 +149,15 @@
             <section class="question-context" aria-labelledby="currentQuestionLabel">
               <div class="question-context-head">
                <h3 id="currentQuestionLabel">Working on Question 1</h3>
-               <button type="button" class="text-action" id="questionListToggle">All tasks</button>
+               <button type="button" class="text-action" id="questionListToggle" aria-expanded="false" aria-controls="questionsContainer">All tasks</button>
              </div>
-             <p id="currentQuestionExcerpt"></p>
-             <ul id="taskChoices" class="task-choices" hidden aria-label="Answer choices"></ul>
-             <p class="placement-summary" id="placementSummary" role="status"></p>
-             <p class="answer-progress" id="answerProgress" role="status">No draft yet for this response.</p>
-             <p class="layout-review-notice" id="layoutReviewNotice" hidden role="status">Some response destinations need layout review. Claros will not write to an unsafe area; those answers use the export side panel or stay as drafts.</p>
+             <div id="semanticTaskBlock" class="semantic-task-block">
+               <p id="currentQuestionExcerpt"></p>
+               <ul id="taskChoices" class="task-choices" hidden aria-label="Answer choices"></ul>
+             </div>
+             <p class="placement-summary" id="placementSummary"></p>
+             <p class="answer-progress" id="answerProgress">No draft yet for this response.</p>
+             <p class="layout-review-notice" id="layoutReviewNotice" hidden>Some response destinations need layout review. Claros will not write to an unsafe area; those answers use the export side panel or stay as drafts.</p>
              <div id="questionsContainer" class="question-picker" hidden></div>
              <div id="responseTargets" class="response-targets" role="group" aria-label="Response destinations"></div>
              <p id="currentResponseLabel" class="response-target-label">Answer destination</p>

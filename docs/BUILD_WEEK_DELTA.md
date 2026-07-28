@@ -111,6 +111,16 @@
   token sync. No worksheet behavior/accessibility contract changes.
 - Evidence: see `docs/BUILD_WEEK_STAGE_7_VERIFICATION.md`.
 
+## Revamp Stage 8 record
+
+- Base SHA: `a95c936` (Stage 7 merged to `main`).
+- Working branch: `codex/stage8-mobile-a11y`.
+- Scope: mobile and accessibility — typed fallback while the mobile dock is
+  collapsed, workspace-visible errors, true container fit-width, interactive
+  choice seeding, touch targets, focus restoration, and semantic task content
+  beside the worksheet image. No Stage 9 Gemini transport rewrite.
+- Evidence: see `docs/BUILD_WEEK_STAGE_8_VERIFICATION.md`.
+
 ## First-party canonical parser fixtures
 
 `evaluation/canonical_v1/` establishes the initial parser milestone with three

@@ -30,6 +30,7 @@
     retryBtn: document.getElementById('retryBtn'),
     replaceBtn: document.getElementById('replaceBtn'),
     errors: document.getElementById('errors'),
+    workspaceErrors: document.getElementById('workspaceErrors'),
     assignmentTitle: document.getElementById('assignmentTitle'),
     demoReplayIndicator: document.getElementById('demoReplayIndicator'),
     replaceWorksheetBtn: document.getElementById('replaceWorksheetBtn'),
@@ -43,6 +44,7 @@
     zoomLabel: document.getElementById('zoomLabel'),
     documentViewport: document.getElementById('documentViewport'),
     documentPage: document.getElementById('documentPage'),
+    documentPageCaption: document.getElementById('documentPageCaption'),
     pageImage: document.getElementById('pageImage'),
     answerOverlayLayer: document.getElementById('answerOverlayLayer'),
     sessionPanel: document.getElementById('sessionPanel'),
@@ -186,10 +188,46 @@
 
   function setNotice(message) {
     elements.notice.textContent = message || '';
+    elements.notice.classList.remove('is-error');
   }
 
   function setError(message) {
-    elements.errors.textContent = message || '';
+    const text = message || '';
+    elements.errors.textContent = text;
+    if (elements.workspaceErrors) {
+      elements.workspaceErrors.textContent = text;
+      elements.workspaceErrors.hidden = !text;
+    }
+    if (text && state.workspace === 'ready') {
+      elements.notice.textContent = text;
+      elements.notice.classList.add('is-error');
+    } else if (!text) {
+      elements.notice.classList.remove('is-error');
+    }
+  }
+
+  function applyTypedDraft(text) {
+    const cleaned = text == null ? '' : String(text);
+    elements.typedAnswer.textContent = cleaned;
+    const target = getResponseTarget(state.activeResponseRegionId);
+    if (!target) {
+      elements.confirmTypedBtn.disabled = !cleaned.trim();
+      return;
+    }
+    const responseState = responseStateFor(target.id);
+    responseState.draft = cleaned;
+    elements.confirmTypedBtn.disabled = !cleaned.trim();
+    if (responseState.confirmed) {
+      responseState.writeToken = '';
+      responseState.confirmed = false;
+      state.proposedResponseRegionId = target.id;
+      elements.proposedAnswer.textContent = cleaned;
+      if (elements.confirmedAnswerPreview) elements.confirmedAnswerPreview.textContent = '';
+      setVoiceState('answer_detected');
+      setNotice('Draft changed. Review it again before writing.');
+    }
+    syncWorksheetResponseState(target.id);
+    refreshActiveProgress();
   }
 
   function setProcessingStep(index) {
@@ -308,9 +346,21 @@
     }
     choices.forEach(function (choice) {
       const item = document.createElement('li');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'task-choice-btn';
       const label = choice && (choice.label || choice.id) ? String(choice.label || choice.id) : '';
       const text = choice && choice.text != null ? String(choice.text) : '';
-      item.textContent = label ? (label + '. ' + text) : text;
+      const display = label ? (label + '. ' + text) : text;
+      button.textContent = display;
+      button.setAttribute('aria-label', 'Use choice ' + (display || 'option'));
+      button.addEventListener('click', function () {
+        applyTypedDraft(text || display);
+        setSessionPanelExpanded(true);
+        elements.typedAnswer.focus();
+        setNotice('Choice placed in the draft. Review it before confirming.');
+      });
+      item.appendChild(button);
       elements.taskChoices.appendChild(item);
     });
     elements.taskChoices.hidden = false;
@@ -493,6 +543,7 @@
       overlayLayer: elements.answerOverlayLayer,
       pageLabel: elements.pageLabel,
       zoomLabel: elements.zoomLabel,
+      fitWidthBtn: elements.fitWidthBtn,
       onSelectTarget: function (taskId, responseRegionId) {
         selectResponseTarget(taskId, responseRegionId);
       },
@@ -876,6 +927,7 @@
     state.proposedResponseRegionId = null;
     setVoiceState(state.liveSession ? 'listening' : 'idle');
     refreshActiveProgress();
+    elements.typedAnswer.focus();
   }
 
   async function confirmProposedAnswer() {
@@ -1160,8 +1212,10 @@
 
   function showVoiceFallback(message) {
     elements.keyboardFallback.hidden = false;
+    setSessionPanelExpanded(true);
     setNotice(message || 'Voice is unavailable. Continue by typing an answer.');
     setVoiceState('error');
+    elements.typedAnswer.focus();
   }
 
   async function startSession() {
@@ -1434,26 +1488,13 @@
     worksheet.setZoom(worksheet.getState().zoom + 10);
   });
   elements.questionListToggle.addEventListener('click', function () {
-    elements.questionsContainer.hidden = !elements.questionsContainer.hidden;
+    const open = elements.questionsContainer.hidden;
+    elements.questionsContainer.hidden = !open;
+    elements.questionListToggle.setAttribute('aria-expanded', String(open));
+    if (open) setSessionPanelExpanded(true);
   });
   elements.typedAnswer.addEventListener('input', function () {
-    const text = elements.typedAnswer.textContent;
-    const target = getResponseTarget(state.activeResponseRegionId);
-    if (!target) return;
-    const responseState = responseStateFor(target.id);
-    responseState.draft = text;
-    elements.confirmTypedBtn.disabled = !text.trim();
-    if (responseState.confirmed) {
-      responseState.writeToken = '';
-      responseState.confirmed = false;
-      state.proposedResponseRegionId = target.id;
-      elements.proposedAnswer.textContent = text;
-      if (elements.confirmedAnswerPreview) elements.confirmedAnswerPreview.textContent = '';
-      setVoiceState('answer_detected');
-      setNotice('Draft changed. Review it again before writing.');
-    }
-    syncWorksheetResponseState(target.id);
-    refreshActiveProgress();
+    applyTypedDraft(elements.typedAnswer.textContent);
     // Unconfirmed drafts stay in the editor only; overlays and export use written responses.
   });
   elements.confirmTypedBtn.addEventListener('click', function () {
