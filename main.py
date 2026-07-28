@@ -27,6 +27,7 @@ from gemini_service import create_session_config, debug_gemini_text_call, stamp_
 from schemas import (
     ExportRequest,
     SessionConfirmRequest,
+    SessionReauthorizeRequest,
     SessionRestoreRequest,
     SessionStartRequest,
     TeacherReviewRequest,
@@ -256,6 +257,24 @@ def restore_session(
     return session_service.restore_session_for_client(str(session_id), body.session_secret)
 
 
+@app.post("/api/session/{session_id}/reauthorize-write")
+def reauthorize_write_for_response(
+    session_id: UUID,
+    body: SessionReauthorizeRequest,
+    x_assignment_capability: str | None = Header(default=None),
+):
+    """Re-issue a single-use write token for a confirmed, unwritten answer."""
+    state = session_service.load_session(str(session_id))
+    _require_assignment_capability(state.assignment_id, x_assignment_capability)
+    return session_service.reauthorize_write(
+        str(session_id),
+        body.session_secret,
+        task_id=body.task_id,
+        response_region_id=body.response_region_id,
+        question_id=body.question_id,
+    )
+
+
 @app.post("/api/write/{assignment_id}")
 async def write_confirmed_answer(
     assignment_id: UUID,
@@ -269,7 +288,7 @@ async def write_confirmed_answer(
     _enforce_rate_limit(request, "write", config.MAX_WRITES_PER_MINUTE, x_assignment_capability)
     if not body.answer_candidate.strip():
         raise HTTPException(status_code=400, detail="answer_candidate must be non-empty")
-    if not body.write_token or not body.session_id or not body.session_secret:
+    if not body.session_id or not body.session_secret:
         raise HTTPException(status_code=403, detail="Confirmed write_token and session credentials are required")
     state = session_service.load_session(body.session_id)
     if state.assignment_id != aid:
@@ -293,12 +312,14 @@ async def write_confirmed_answer(
         raise HTTPException(status_code=409, detail="Task changed since confirmation. Reload and confirm again.")
     # The canonical target determines physical placement or side-panel fallback.
     # Client geometry is rejected at schema validation and never reaches this route.
-    session_service.validate_task_snapshot(state, task_id, response_region_id, question)
-    session_service.validate_write_token(
-        state, task_id, response_region_id, body.answer_candidate, body.write_token
-    )
-    session_service.mark_answer_written(
-        state, task_id, response_region_id, body.answer_candidate, question
+    # Token consume + written mark happen in one persisted step so retries stay safe.
+    session_service.authorize_confirmed_write(
+        state,
+        task_id,
+        response_region_id,
+        body.answer_candidate,
+        body.write_token,
+        question,
     )
     return StreamingResponse(
         stamp_confirmed_answer(body.answer_candidate),

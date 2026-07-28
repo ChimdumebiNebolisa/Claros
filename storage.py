@@ -230,5 +230,42 @@ def delete_session_from_gcs(session_id: str) -> None:
         blob.delete()
 
 
+def register_assignment_session(assignment_id: str, session_id: str) -> None:
+    """Record a session pointer under the assignment prefix for lifecycle cleanup."""
+    path = f"{assignment_prefix(assignment_id)}session-{_check_id(session_id)}.ref"
+    marker = session_id.encode("utf-8")
+    if is_local_backend():
+        _atomic_write(_local_path(path), marker)
+        return
+    get_gcs_bucket().blob(path).upload_from_string(marker, content_type="text/plain")
+
+
+def list_assignment_session_ids(assignment_id: str) -> list[str]:
+    prefix = assignment_prefix(assignment_id)
+    marker_prefix = f"{prefix}session-"
+    if is_local_backend():
+        directory = _local_path(prefix)
+        if not directory.exists() or directory.is_symlink():
+            return []
+        session_ids = []
+        for item in directory.iterdir():
+            if item.is_symlink() or not item.is_file():
+                continue
+            if not item.name.startswith("session-") or not item.name.endswith(".ref"):
+                continue
+            session_ids.append(item.name[len("session-") : -len(".ref")])
+        return session_ids
+    return [
+        Path(blob.name).name[len("session-") : -len(".ref")]
+        for blob in get_gcs_bucket().list_blobs(prefix=marker_prefix)
+        if Path(blob.name).name.startswith("session-") and Path(blob.name).name.endswith(".ref")
+    ]
+
+
 def delete_assignment_and_sessions(assignment_id: str) -> None:
+    for session_id in list_assignment_session_ids(assignment_id):
+        try:
+            delete_session_from_gcs(session_id)
+        except Exception:
+            record_metric("session_cleanup", status="error", reason="assignment_delete")
     delete_assignment_prefix(assignment_id)

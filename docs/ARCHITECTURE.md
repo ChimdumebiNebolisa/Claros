@@ -162,6 +162,15 @@ approved answer characters.
   The confirmed answer is carried unchanged through its answer-bound write token
   and Unicode-capable PDF renderer; unsupported text fails explicitly rather
   than being silently substituted.
+- Refresh restoration reissues a single-use write token for each
+  confirmed-but-unwritten response target. `reauthorize-write` covers retry
+  paths without forcing the student to retype. Token consume and written-mark
+  persist in one step; a successful same-answer write retry is idempotent.
+  Re-confirming a different answer invalidates outstanding tokens and clears
+  any stale written text for that target.
+- Assignment deletion removes registered session blobs (`session-*.ref`
+  markers under the assignment prefix) so active-session credentials cannot
+  outlive the worksheet source.
 - Export validates task snapshots and renders from that same in-process manifest
   snapshot, so a concurrent review edit cannot redirect a previously confirmed
   answer to a different task or region.

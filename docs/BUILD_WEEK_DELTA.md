@@ -80,6 +80,17 @@
   expected-label changes; Stage 5 not started.
 - Evidence: see `docs/BUILD_WEEK_STAGE_4_VERIFICATION.md`.
 
+## Revamp Stage 5 record
+
+- Base SHA: `a383f8a` (Stage 4 merged to `main`).
+- Working branch: `codex/stage5-state-write-integrity`.
+- Scope: confirmation/write/export integrity — refresh restoration with
+  reissued write tokens, atomic consume+mark write authorization, idempotent
+  successful-write retries, re-confirm clearing stale written answers, session
+  cleanup on assignment delete, and frontend retry behavior that preserves
+  server-aligned confirmation. Zero-answer export remains an intentional 409.
+- Evidence: see `docs/BUILD_WEEK_STAGE_5_VERIFICATION.md`.
+
 ## First-party canonical parser fixtures
 
 `evaluation/canonical_v1/` establishes the initial parser milestone with three

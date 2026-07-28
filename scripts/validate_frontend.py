@@ -108,6 +108,9 @@ def validate_app_js_contract() -> None:
         "/api/write/",
         "/api/session-config/",
         "/api/session/start",
+        "/api/session/",
+        "reauthorize-write",
+        "reauthorizeWriteToken",
         "confirmProposedAnswer",
         "writeConfirmedAnswerBtn",
         "setWorkspaceState",
@@ -121,6 +124,9 @@ def validate_app_js_contract() -> None:
         "task_id",
         "response_region_id",
         "defaultResponseTarget",
+        "write_token",
+        "activeTaskId",
+        "activeResponseRegionId",
     )
     for needle in checks:
         if needle not in js:

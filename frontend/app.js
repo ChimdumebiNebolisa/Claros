@@ -347,7 +347,9 @@
     state.activeTaskId = task.id;
     state.activeResponseRegionId = target.id;
     if (!options || !options.preserveConfirmation) {
-      state.proposedResponseRegionId = responseState.confirmed && responseState.writeToken ? target.id : null;
+      state.proposedResponseRegionId = responseState.confirmed && !(responseState.written || '').trim()
+        ? target.id
+        : null;
     }
     elements.currentQuestionLabel.textContent = 'Working on Question ' + taskLabel(task);
     elements.currentQuestionExcerpt.textContent = task.promptText || '';
@@ -361,12 +363,13 @@
     if (worksheet) worksheet.setActiveTarget(task.id, target.id);
     renderQuestionPicker();
     if (!options || !options.preserveVoice) {
-      if (responseState.confirmed && responseState.writeToken) {
+      if (responseState.confirmed && !(responseState.written || '').trim()) {
         setVoiceState('confirmed');
       } else if (state.voice === 'answer_detected' || state.voice === 'confirming' || state.voice === 'confirmed') {
         setVoiceState(state.liveSession ? 'listening' : 'idle');
       }
     }
+    persistSessionLocally();
   }
 
   function renderPlacementSummary(task, target) {
@@ -603,7 +606,9 @@
         assignmentId: state.assignmentId,
         sessionId: state.sessionId || null,
         sessionSecret: state.sessionSecret || null,
-        assignmentCapability: state.assignmentCapability
+        assignmentCapability: state.assignmentCapability,
+        activeTaskId: state.activeTaskId || null,
+        activeResponseRegionId: state.activeResponseRegionId || null
       }));
     } catch (_) {}
   }
@@ -641,8 +646,46 @@
       responseState.written = restored.written_answer;
       if (!responseState.draft) responseState.draft = restored.written_answer;
     }
+    if (typeof restored.write_token === 'string' && restored.write_token) {
+      responseState.writeToken = restored.write_token;
+    } else if (responseState.confirmed && !(responseState.written || '').trim()) {
+      responseState.writeToken = responseState.writeToken || '';
+    }
     syncWorksheetResponseState(target.id);
     return true;
+  }
+
+  async function reauthorizeWriteToken(task, target) {
+    if (!state.sessionId || !state.sessionSecret || !task || !target) return '';
+    const payload = {
+      session_secret: state.sessionSecret,
+      task_id: task.id,
+      response_region_id: target.id
+    };
+    if (task.legacyQuestionId != null) payload.question_id = task.legacyQuestionId;
+    const response = await fetch(API_BASE + '/api/session/' + state.sessionId + '/reauthorize-write', {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, assignmentHeaders()),
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const detail = await response.json().catch(function () { return {}; });
+      throw new Error(detail.detail || 'Could not restore write authorization.');
+    }
+    const data = await response.json();
+    const responseState = responseStateFor(target.id);
+    responseState.confirmed = true;
+    if (typeof data.answer_text === 'string' && data.answer_text) {
+      responseState.draft = data.answer_text;
+    }
+    if (data.written) {
+      responseState.written = data.answer_text || responseState.written || responseState.draft;
+      responseState.writeToken = '';
+    } else {
+      responseState.writeToken = data.write_token || '';
+    }
+    syncWorksheetResponseState(target.id);
+    return responseState.writeToken || '';
   }
 
   async function restoreSessionFromStorage() {
@@ -657,13 +700,25 @@
       state.sessionId = saved.sessionId;
       state.sessionSecret = saved.sessionSecret;
       if (!state.sessionId || !state.sessionSecret) return;
-      const response = await fetch(API_BASE + '/api/session/' + saved.sessionId + '/restore', {
+      let response = await fetch(API_BASE + '/api/session/' + saved.sessionId + '/restore', {
         method: 'POST',
         headers: Object.assign({ 'Content-Type': 'application/json' }, assignmentHeaders()),
         body: JSON.stringify({ session_secret: saved.sessionSecret })
       });
+      if (response.status === 409) {
+        // Concurrent confirm/write can race restore persistence; retry once.
+        response = await fetch(API_BASE + '/api/session/' + saved.sessionId + '/restore', {
+          method: 'POST',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, assignmentHeaders()),
+          body: JSON.stringify({ session_secret: saved.sessionSecret })
+        });
+      }
       if (!response.ok) {
-        clearAssignmentSessionState();
+        if (response.status === 403 || response.status === 404 || response.status === 410) {
+          clearAssignmentSessionState();
+        } else {
+          setNotice('Could not restore confirmed answers yet. Refresh again if needed.');
+        }
         return;
       }
       const data = await response.json();
@@ -683,12 +738,23 @@
         const target = defaultResponseTarget(task);
         if (target) restoredAny = restoreResponseState(target.id, data.questions[legacyQuestionId]) || restoredAny;
       });
+      if (saved.activeTaskId) state.activeTaskId = saved.activeTaskId;
+      if (saved.activeResponseRegionId) state.activeResponseRegionId = saved.activeResponseRegionId;
       if (restoredAny) {
-        const task = getTask(state.activeTaskId);
-        if (task && state.activeResponseRegionId) {
-          selectResponseTarget(task.id, state.activeResponseRegionId, { preserveVoice: true });
+        const task = getTask(state.activeTaskId) || state.tasks[0];
+        const preferredTargetId = state.activeResponseRegionId
+          || (task && defaultResponseTarget(task) && defaultResponseTarget(task).id);
+        if (task && preferredTargetId) {
+          selectResponseTarget(task.id, preferredTargetId, { preserveVoice: true, preserveConfirmation: true });
         }
-        setNotice('Confirmed answers from this session were restored.');
+        const needsWrite = state.document && state.document.responseTargets.some(function (target) {
+          const responseState = state.responseStates[String(target.id)];
+          return !!(responseState && responseState.confirmed && !(responseState.written || '').trim());
+        });
+        setNotice(needsWrite
+          ? 'Confirmed answers from this session were restored. Choose Write confirmed answer when you are ready.'
+          : 'Confirmed answers from this session were restored.');
+        persistSessionLocally();
       }
     } catch (_) {}
   }
@@ -782,14 +848,28 @@
       return;
     }
     const responseState = responseStateFor(target.id);
-    if (!responseState.confirmed || !responseState.writeToken) {
+    if (!responseState.confirmed) {
+      presentAnswer(target.id, responseState.draft || '');
+      setNotice('Confirm this answer before choosing to write it.');
+      return;
+    }
+    if (!responseState.writeToken && !(responseState.written || '').trim()) {
+      try {
+        await reauthorizeWriteToken(task, target);
+      } catch (error) {
+        presentAnswer(target.id, responseState.draft || '');
+        setError(error.message || 'Confirm this answer before choosing to write it.');
+        return;
+      }
+    }
+    if (!responseState.writeToken && !(responseState.written || '').trim()) {
       presentAnswer(target.id, responseState.draft || '');
       setNotice('Confirm this answer before choosing to write it.');
       return;
     }
     state.writeInProgress = true;
     setVoiceState('writing');
-    setNotice('Writing the confirmed ' + targetLabel(target, task).toLowerCase() + ' into Question ' + taskLabel(task) + '.');
+    setNotice('Authorizing the confirmed ' + targetLabel(target, task).toLowerCase() + ' for Question ' + taskLabel(task) + '.');
     let written = '';
     try {
       const payload = {
@@ -797,7 +877,7 @@
         response_region_id: target.id,
         conversation: state.conversation,
         answer_candidate: responseState.draft || '',
-        write_token: responseState.writeToken,
+        write_token: responseState.writeToken || '',
         session_id: state.sessionId,
         session_secret: state.sessionSecret
       };
@@ -811,7 +891,20 @@
       });
       if (!response.ok) {
         const detail = await response.json().catch(function () { return {}; });
-        throw new Error(detail.detail || 'The confirmed answer could not be written.');
+        const code = detail.code || '';
+        const message = detail.detail || 'The confirmed answer could not be written.';
+        if (code === 'SESSION_WRITE_CONFLICT' || response.status === 409) {
+          throw Object.assign(new Error(typeof message === 'string' ? message : 'Session changed. Refresh and try again.'), {
+            retryable: true,
+            conflict: true
+          });
+        }
+        if (response.status === 403) {
+          throw Object.assign(new Error(typeof message === 'string' ? message : 'Write authorization expired.'), {
+            reauthorize: true
+          });
+        }
+        throw new Error(typeof message === 'string' ? message : 'The confirmed answer could not be written.');
       }
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -827,13 +920,26 @@
       responseState.writeToken = '';
       state.proposedResponseRegionId = null;
       syncWorksheetResponseState(target.id);
-      setNotice('Answer written into Question ' + taskLabel(task) + '.');
+      persistSessionLocally();
+      setNotice('Answer authorized for Question ' + taskLabel(task) + '. Export places it on the worksheet.');
       elements.typedAnswer.focus();
     } catch (error) {
-      responseState.writeToken = '';
-      responseState.confirmed = false;
+      // Keep server-aligned confirmation intact so retries remain possible.
+      if (error && error.reauthorize) {
+        responseState.writeToken = '';
+        try {
+          await reauthorizeWriteToken(task, target);
+          setError('Write authorization was refreshed. Choose Write confirmed answer again.');
+        } catch (reauthError) {
+          setError(reauthError.message || error.message || 'The confirmed answer could not be written.');
+        }
+      } else if (error && error.conflict) {
+        setError(error.message || 'Session changed. Refresh and try again.');
+      } else {
+        responseState.writeToken = '';
+        setError(error.message || 'The confirmed answer could not be written.');
+      }
       syncWorksheetResponseState(target.id);
-      setError(error.message || 'The confirmed answer could not be written.');
     } finally {
       state.writeInProgress = false;
       setVoiceState(state.liveSession ? 'listening' : 'idle');

@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 import assignment_service
 import main as main_module
 import session_service
+import storage
 from manifest import build_manifest
 from tests.conftest import TEST_ASSIGNMENT_ID
 
@@ -55,6 +56,8 @@ def mock_session_storage(monkeypatch):
 
     monkeypatch.setattr(session_service.storage, "upload_session_to_gcs", upload)
     monkeypatch.setattr(session_service.storage, "download_session_from_gcs", download)
+    monkeypatch.setattr(session_service.storage, "register_assignment_session", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(session_service.storage, "delete_session_from_gcs", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         assignment_service,
         "load_assignment_manifest",
@@ -167,12 +170,15 @@ def test_confirm_and_restore_round_trip(client):
         json={"session_secret": start["session_secret"]},
     )
     assert restore.status_code == 200
-    assert restore.json()["responses"][_TASK_ONE_REGION_ID]["confirmed"] is True
+    restored = restore.json()["responses"][_TASK_ONE_REGION_ID]
+    assert restored["confirmed"] is True
+    assert restored["confirmed_answer"] == "Photosynthesis"
+    assert restored["write_token"]
+    assert restored["write_token"] != token
     assert token
 
 
-def test_write_token_single_use(client):
-
+def test_write_token_replay_is_idempotent_after_success(client):
     start = client.post("/api/session/start", json={"assignment_id": TEST_ASSIGNMENT_ID}).json()
     confirm = client.post(
         f"/api/session/{start['session_id']}/confirm",
@@ -194,5 +200,191 @@ def test_write_token_single_use(client):
     }
     first = client.post(f"/api/write/{TEST_ASSIGNMENT_ID}", json=payload)
     assert first.status_code == 200
+    # Safe client retries after a successful write must not strand the student.
     second = client.post(f"/api/write/{TEST_ASSIGNMENT_ID}", json=payload)
-    assert second.status_code == 403
+    assert second.status_code == 200
+
+
+def test_restore_reissues_write_token_for_confirmed_unwritten_answer(client):
+    start = client.post("/api/session/start", json={"assignment_id": TEST_ASSIGNMENT_ID}).json()
+    confirm = client.post(
+        f"/api/session/{start['session_id']}/confirm",
+        json={
+            "session_secret": start["session_secret"],
+            "task_id": _TASK_ONE_ID,
+            "response_region_id": _TASK_ONE_REGION_ID,
+            "answer_text": "Leaf",
+        },
+    ).json()
+    original_token = confirm["write_token"]
+
+    restore = client.post(
+        f"/api/session/{start['session_id']}/restore",
+        json={"session_secret": start["session_secret"]},
+    ).json()
+    restored_token = restore["responses"][_TASK_ONE_REGION_ID]["write_token"]
+    assert restored_token
+    assert restored_token != original_token
+
+    stale = client.post(
+        f"/api/write/{TEST_ASSIGNMENT_ID}",
+        json={
+            "task_id": _TASK_ONE_ID,
+            "response_region_id": _TASK_ONE_REGION_ID,
+            "conversation": [],
+            "answer_candidate": "Leaf",
+            "write_token": original_token,
+            "session_id": start["session_id"],
+            "session_secret": start["session_secret"],
+        },
+    )
+    assert stale.status_code == 403
+
+    fresh = client.post(
+        f"/api/write/{TEST_ASSIGNMENT_ID}",
+        json={
+            "task_id": _TASK_ONE_ID,
+            "response_region_id": _TASK_ONE_REGION_ID,
+            "conversation": [],
+            "answer_candidate": "Leaf",
+            "write_token": restored_token,
+            "session_id": start["session_id"],
+            "session_secret": start["session_secret"],
+        },
+    )
+    assert fresh.status_code == 200
+
+
+def test_reauthorize_write_endpoint_issues_fresh_token(client):
+    start = client.post("/api/session/start", json={"assignment_id": TEST_ASSIGNMENT_ID}).json()
+    client.post(
+        f"/api/session/{start['session_id']}/confirm",
+        json={
+            "session_secret": start["session_secret"],
+            "task_id": _TASK_ONE_ID,
+            "response_region_id": _TASK_ONE_REGION_ID,
+            "answer_text": "Stem",
+        },
+    )
+    reauth = client.post(
+        f"/api/session/{start['session_id']}/reauthorize-write",
+        json={
+            "session_secret": start["session_secret"],
+            "task_id": _TASK_ONE_ID,
+            "response_region_id": _TASK_ONE_REGION_ID,
+        },
+    )
+    assert reauth.status_code == 200
+    body = reauth.json()
+    assert body["confirmed"] is True
+    assert body["written"] is False
+    assert body["write_token"]
+    assert body["answer_text"] == "Stem"
+
+
+def test_reconfirm_clears_previous_written_answer(client):
+    start = client.post("/api/session/start", json={"assignment_id": TEST_ASSIGNMENT_ID}).json()
+    first = client.post(
+        f"/api/session/{start['session_id']}/confirm",
+        json={
+            "session_secret": start["session_secret"],
+            "task_id": _TASK_ONE_ID,
+            "response_region_id": _TASK_ONE_REGION_ID,
+            "answer_text": "Old",
+        },
+    ).json()
+    assert (
+        client.post(
+            f"/api/write/{TEST_ASSIGNMENT_ID}",
+            json={
+                "task_id": _TASK_ONE_ID,
+                "response_region_id": _TASK_ONE_REGION_ID,
+                "conversation": [],
+                "answer_candidate": "Old",
+                "write_token": first["write_token"],
+                "session_id": start["session_id"],
+                "session_secret": start["session_secret"],
+            },
+        ).status_code
+        == 200
+    )
+
+    second = client.post(
+        f"/api/session/{start['session_id']}/confirm",
+        json={
+            "session_secret": start["session_secret"],
+            "task_id": _TASK_ONE_ID,
+            "response_region_id": _TASK_ONE_REGION_ID,
+            "answer_text": "New",
+        },
+    )
+    assert second.status_code == 200
+    assert second.json()["write_token"]
+
+    restore = client.post(
+        f"/api/session/{start['session_id']}/restore",
+        json={"session_secret": start["session_secret"]},
+    ).json()
+    restored = restore["responses"][_TASK_ONE_REGION_ID]
+    assert restored["confirmed_answer"] == "New"
+    assert restored["written_answer"] == ""
+    assert restored["written"] is False
+    assert restored["write_token"]
+
+    # Export must not resurrect the stale written answer.
+    export_answers = session_service.written_answers_for_export(
+        start["session_id"],
+        start["session_secret"],
+        TEST_ASSIGNMENT_ID,
+        [],
+    )
+    assert export_answers == []
+
+
+def test_create_session_fails_closed_when_registration_fails(monkeypatch, client):
+    monkeypatch.setattr(
+        session_service.storage,
+        "register_assignment_session",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("register failed")),
+    )
+    deleted = []
+
+    def delete_session(session_id):
+        deleted.append(session_id)
+        _STORE.pop(session_id, None)
+
+    monkeypatch.setattr(session_service.storage, "delete_session_from_gcs", delete_session)
+    response = client.post("/api/session/start", json={"assignment_id": TEST_ASSIGNMENT_ID})
+    assert response.status_code == 500
+    assert deleted
+    assert _STORE == {}
+
+
+def test_restore_retries_after_storage_conflict(monkeypatch, client):
+    start = client.post("/api/session/start", json={"assignment_id": TEST_ASSIGNMENT_ID}).json()
+    client.post(
+        f"/api/session/{start['session_id']}/confirm",
+        json={
+            "session_secret": start["session_secret"],
+            "task_id": _TASK_ONE_ID,
+            "response_region_id": _TASK_ONE_REGION_ID,
+            "answer_text": "Retry",
+        },
+    )
+    calls = {"count": 0}
+    original_save = session_service.save_session
+
+    def flaky_save(state):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise storage.StorageConflict("conflict")
+        return original_save(state)
+
+    monkeypatch.setattr(session_service, "save_session", flaky_save)
+    restore = client.post(
+        f"/api/session/{start['session_id']}/restore",
+        json={"session_secret": start["session_secret"]},
+    )
+    assert restore.status_code == 200
+    assert restore.json()["responses"][_TASK_ONE_REGION_ID]["write_token"]
+    assert calls["count"] >= 2

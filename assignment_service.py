@@ -23,6 +23,7 @@ from manifest import (
 )
 from storage import (
     assignment_pdf_path,
+    delete_assignment_and_sessions,
     delete_assignment_prefix,
     download_manifest_from_gcs,
     upload_manifest_to_gcs,
@@ -520,4 +521,4 @@ def delete_assignment(assignment_id: str) -> None:
         _download_pdf_bytes(assignment_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Assignment not found")
-    delete_assignment_prefix(assignment_id)
+    delete_assignment_and_sessions(assignment_id)

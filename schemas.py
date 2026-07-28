@@ -74,6 +74,21 @@ class SessionRestoreRequest(BaseModel):
     session_secret: str = Field(min_length=8, max_length=128)
 
 
+class SessionReauthorizeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    session_secret: str = Field(min_length=8, max_length=128)
+    task_id: str = Field(default="", max_length=160)
+    response_region_id: str = Field(default="", max_length=180)
+    question_id: int | None = None
+
+    @model_validator(mode="after")
+    def require_task_reference(self):
+        if not self.task_id and self.question_id is None:
+            raise ValueError("task_id is required")
+        return self
+
+
 class LayoutOverride(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

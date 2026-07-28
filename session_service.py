@@ -113,10 +113,23 @@ class SessionState:
 
     def set_confirmed(self, task_id: str, response_region_id: str, answer_text: str) -> None:
         response = self.get_response(task_id, response_region_id)
+        previous_confirmed = response.get("confirmed_answer", "")
+        previous_written = response.get("written_answer", "")
         response["draft_answer"] = answer_text
         response["confirmed_answer"] = answer_text
         response["confirmed_at"] = datetime.now(timezone.utc).isoformat()
+        # Re-confirm always invalidates outstanding write tokens for this target.
+        response["pending_write_tokens"] = []
         response["write_tokens_used"] = response.get("write_tokens_used", [])
+        # Written state must never outlive a different confirmed answer.
+        if previous_written and previous_written != answer_text:
+            response["written_answer"] = ""
+            response.pop("written_at", None)
+        elif previous_confirmed and previous_confirmed != answer_text:
+            # Defensive: clear any stale written field even if it matched neither.
+            if previous_written and previous_written == previous_confirmed:
+                response["written_answer"] = ""
+                response.pop("written_at", None)
 
     def is_confirmed(self, task_id: str, response_region_id: str) -> bool:
         return bool(self.get_response(task_id, response_region_id).get("confirmed_answer", "").strip())
@@ -236,6 +249,18 @@ def create_session(assignment_id: str, tasks: list[dict[str, Any]]) -> dict:
         "metrics": {"errors_recovered": 0},
     }
     storage.upload_session_to_gcs(session_id, json.dumps(blob).encode("utf-8"))
+    try:
+        storage.register_assignment_session(assignment_id, session_id)
+    except Exception as exc:
+        logger.exception("Failed to register session %s for assignment %s", session_id, assignment_id)
+        try:
+            storage.delete_session_from_gcs(session_id)
+        except Exception:
+            logger.exception("Failed to roll back unregistered session %s", session_id)
+        raise HTTPException(
+            status_code=500,
+            detail="Could not start worksheet session. Please try again.",
+        ) from exc
     return {"session_id": session_id, "session_secret": session_secret, "expires_at": blob["expires_at"]}
 
 
@@ -326,13 +351,22 @@ def _decode_write_token(write_token: str) -> dict[str, str]:
     return payload
 
 
-def issue_write_token(state: SessionState, task_id: str, response_region_id: str, answer_text: str) -> str:
+def _append_pending_write_token(
+    state: SessionState,
+    task_id: str,
+    response_region_id: str,
+    answer_text: str,
+) -> str:
+    """Create a pending write token in memory. Caller owns persistence."""
     if not answer_text.strip():
         raise HTTPException(status_code=400, detail="answer_text must be non-empty")
     if not state.is_confirmed(task_id, response_region_id):
         raise HTTPException(status_code=400, detail="Answer not confirmed for this response target")
     if state.confirmed_answer(task_id, response_region_id) != answer_text:
         raise HTTPException(status_code=400, detail="answer_text does not match confirmed answer")
+    written = state.get_response(task_id, response_region_id).get("written_answer", "")
+    if written and written == answer_text:
+        raise HTTPException(status_code=409, detail="Answer already written for this response target")
     nonce = secrets.token_urlsafe(16)
     payload = {
         "sid": state.session_id,
@@ -342,20 +376,27 @@ def issue_write_token(state: SessionState, task_id: str, response_region_id: str
         "nonce": nonce,
     }
     response = state.get_response(task_id, response_region_id)
-    response.setdefault("pending_write_tokens", []).append(
+    # Only one outstanding authorization per confirmed answer.
+    response["pending_write_tokens"] = [
         {"nonce": nonce, "issued_at": datetime.now(timezone.utc).isoformat()}
-    )
-    save_session(state)
+    ]
     return _encode_write_token(payload)
 
 
-def validate_write_token(
+def issue_write_token(state: SessionState, task_id: str, response_region_id: str, answer_text: str) -> str:
+    token = _append_pending_write_token(state, task_id, response_region_id, answer_text)
+    save_session(state)
+    return token
+
+
+def _require_pending_write_token(
     state: SessionState,
     task_id: str,
     response_region_id: str,
     answer_candidate: str,
     write_token: str,
-) -> None:
+) -> str:
+    """Validate a write token without mutating session state. Returns nonce."""
     if not write_token:
         raise HTTPException(status_code=403, detail="write_token is required")
     if not answer_candidate.strip():
@@ -372,11 +413,57 @@ def validate_write_token(
     pending = response.get("pending_write_tokens", [])
     if not any(item.get("nonce") == payload["nonce"] for item in pending):
         raise HTTPException(status_code=403, detail="write_token already used or unknown")
+    return payload["nonce"]
+
+
+def validate_write_token(
+    state: SessionState,
+    task_id: str,
+    response_region_id: str,
+    answer_candidate: str,
+    write_token: str,
+) -> None:
+    """Legacy consume-only helper. Prefer authorize_confirmed_write for new paths."""
+    nonce = _require_pending_write_token(state, task_id, response_region_id, answer_candidate, write_token)
+    response = state.get_response(task_id, response_region_id)
     response["pending_write_tokens"] = [
-        item for item in pending if item.get("nonce") != payload["nonce"]
+        item for item in response.get("pending_write_tokens", []) if item.get("nonce") != nonce
     ]
-    response.setdefault("write_tokens_used", []).append(payload["nonce"])
+    response.setdefault("write_tokens_used", []).append(nonce)
     save_session(state)
+
+
+def authorize_confirmed_write(
+    state: SessionState,
+    task_id: str,
+    response_region_id: str,
+    answer_candidate: str,
+    write_token: str,
+    current_task: dict[str, Any],
+) -> dict[str, Any]:
+    """Atomically validate placement, consume the write token, and mark written.
+
+    Idempotent when the same confirmed answer is already written: returns success
+    without requiring a fresh token so safe client retries cannot strand the student.
+    """
+    validate_task_snapshot(state, task_id, response_region_id, current_task)
+    response = state.get_response(task_id, response_region_id)
+    confirmed = response.get("confirmed_answer", "")
+    written = response.get("written_answer", "")
+    if written and written == answer_candidate and confirmed == answer_candidate:
+        return {"written": True, "idempotent": True, "answer_text": answer_candidate}
+    nonce = _require_pending_write_token(
+        state, task_id, response_region_id, answer_candidate, write_token
+    )
+    if confirmed != answer_candidate:
+        raise HTTPException(status_code=403, detail="answer_text does not match confirmed answer")
+    response["pending_write_tokens"] = [
+        item for item in response.get("pending_write_tokens", []) if item.get("nonce") != nonce
+    ]
+    response.setdefault("write_tokens_used", []).append(nonce)
+    state.mark_written(task_id, response_region_id, answer_candidate)
+    save_session(state)
+    return {"written": True, "idempotent": False, "answer_text": answer_candidate}
 
 
 def validate_task_snapshot(
@@ -477,36 +564,126 @@ def confirm_answer(
     state.get_response(resolved_task_id, resolved_response_id)
     state.set_confirmed(resolved_task_id, resolved_response_id, answer_text)
     save_session(state)
+    written = state.get_response(resolved_task_id, resolved_response_id).get("written_answer", "")
+    if written == answer_text:
+        return {
+            "task_id": resolved_task_id,
+            "response_region_id": resolved_response_id,
+            "confirmed": True,
+            "written": True,
+            "write_token": "",
+        }
     write_token = issue_write_token(state, resolved_task_id, resolved_response_id, answer_text)
     return {
         "task_id": resolved_task_id,
         "response_region_id": resolved_response_id,
         "confirmed": True,
+        "written": False,
         "write_token": write_token,
     }
 
 
-def restore_session_for_client(session_id: str, session_secret: str) -> dict:
+def reauthorize_write(
+    session_id: str,
+    session_secret: str,
+    *,
+    task_id: str = "",
+    response_region_id: str = "",
+    question_id: int | None = None,
+) -> dict:
+    """Re-issue a write token for a confirmed, not-yet-written answer after refresh or retry."""
     state = load_session(session_id)
     if not state.verify_session_secret(session_secret):
         raise HTTPException(status_code=403, detail="Invalid session credentials")
-    state._require_contract()
-    responses: dict[str, dict] = {}
-    for task_id, task in state.data.get("tasks", {}).items():
-        for response_id, response in task.get("responses", {}).items():
-            responses[response_id] = {
-                "task_id": task_id,
-                "confirmed_answer": response.get("confirmed_answer", ""),
-                "written_answer": response.get("written_answer", ""),
-                "confirmed": bool(response.get("confirmed_answer", "").strip()),
-                "written": bool(response.get("written_answer", "").strip()),
-            }
+    resolved_task_id = state.resolve_task_id(task_id, question_id)
+    resolved_response_id = response_region_id or state.default_response_region_id(resolved_task_id)
+    answer_text = state.confirmed_answer(resolved_task_id, resolved_response_id)
+    if not answer_text.strip():
+        raise HTTPException(status_code=400, detail="Answer not confirmed for this response target")
+    written = state.get_response(resolved_task_id, resolved_response_id).get("written_answer", "")
+    if written and written == answer_text:
+        return {
+            "task_id": resolved_task_id,
+            "response_region_id": resolved_response_id,
+            "confirmed": True,
+            "written": True,
+            "write_token": "",
+            "answer_text": answer_text,
+        }
+    write_token = issue_write_token(state, resolved_task_id, resolved_response_id, answer_text)
     return {
-        "session_id": session_id,
-        "assignment_id": state.assignment_id,
-        "expires_at": state.data.get("expires_at"),
-        "responses": responses,
+        "task_id": resolved_task_id,
+        "response_region_id": resolved_response_id,
+        "confirmed": True,
+        "written": False,
+        "write_token": write_token,
+        "answer_text": answer_text,
     }
+
+
+def restore_session_for_client(session_id: str, session_secret: str) -> dict:
+    """Restore confirmed/written state and reissue write tokens for unwritten answers.
+
+    Retries once on concurrent session mutation so refresh is not fatal when a
+    confirm/write races the restore persist.
+    """
+    last_conflict: Exception | None = None
+    for _attempt in range(2):
+        state = load_session(session_id)
+        if not state.verify_session_secret(session_secret):
+            raise HTTPException(status_code=403, detail="Invalid session credentials")
+        state._require_contract()
+        responses: dict[str, dict] = {}
+        dirty = False
+        for task_id, task in state.data.get("tasks", {}).items():
+            for response_id, response in task.get("responses", {}).items():
+                confirmed_answer = response.get("confirmed_answer", "")
+                written_answer = response.get("written_answer", "")
+                confirmed = bool(str(confirmed_answer).strip())
+                written = bool(str(written_answer).strip())
+                entry = {
+                    "task_id": task_id,
+                    "confirmed_answer": confirmed_answer,
+                    "written_answer": written_answer,
+                    "confirmed": confirmed,
+                    "written": written,
+                    "write_token": "",
+                }
+                if confirmed and (not written or written_answer != confirmed_answer):
+                    # Refresh restoration must return a usable write authorization
+                    # without forcing the student to retype an already confirmed answer.
+                    if written_answer and written_answer != confirmed_answer:
+                        response["written_answer"] = ""
+                        response.pop("written_at", None)
+                        dirty = True
+                        entry["written_answer"] = ""
+                        entry["written"] = False
+                    token = _append_pending_write_token(state, task_id, response_id, confirmed_answer)
+                    dirty = True
+                    entry["write_token"] = token
+                responses[response_id] = entry
+        if not dirty:
+            return {
+                "session_id": session_id,
+                "assignment_id": state.assignment_id,
+                "expires_at": state.data.get("expires_at"),
+                "responses": responses,
+            }
+        try:
+            save_session(state)
+            return {
+                "session_id": session_id,
+                "assignment_id": state.assignment_id,
+                "expires_at": state.data.get("expires_at"),
+                "responses": responses,
+            }
+        except storage.StorageConflict as exc:
+            last_conflict = exc
+            continue
+    raise HTTPException(
+        status_code=409,
+        detail="Session changed during restore. Refresh and try again.",
+    ) from last_conflict
 
 
 def init_question_ids_from_manifest(manifest: AssignmentManifest) -> list[int]:
