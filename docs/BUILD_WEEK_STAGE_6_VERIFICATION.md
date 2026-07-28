@@ -28,7 +28,7 @@
 | --- | --- |
 | Frontend contract | Passed (`python scripts/validate_frontend.py`) |
 | UI-state / worksheet target Node tests | Passed via `npm run ci:frontend` (run before merge) |
-| Dead `question-view.js` | Still served for compatibility; not loaded by `/app`. Removal deferred to Stage 10. |
+| Dead `question-view.js` | Removed in Stage 10 (orphan serve route + asset deleted). |
 
 ## Independent review / red-team findings
 
@@ -41,7 +41,7 @@
 | S6-P1-2 | P1 | Landing footer used `?sample=1` while client matched exact ids. | Fixed: canonical deep link + client aliases. |
 | S6-P1-3 | P1 | Progress UI went stale after draft/reject/change; confirmed next-step ignored unsafe destinations. | Fixed: `refreshActiveProgress`; unsafe confirmed copy; needs-review prioritized in task badges. |
 | S6-P2-1 | P2 | Monolithic `app.js` and dual response-state mirrors remain. | Deferred to Stage 10 rationalization / later modularization if needed. |
-| S6-P2-2 | P2 | Orphan `question-view.js` remains served. | Deferred to Stage 10 test-suite cleanup. |
+| S6-P2-2 | P2 | Orphan `question-view.js` remains served. | Closed in Stage 10. |
 
 No remaining valid P0 findings for Stage 6 acceptance.
 

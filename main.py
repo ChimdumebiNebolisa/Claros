@@ -646,15 +646,6 @@ async def serve_voice_live_transport():
     return FileResponse(path, media_type="application/javascript; charset=utf-8")
 
 
-@app.get("/question-view.js", response_class=Response)
-async def serve_question_view_js():
-    """Serve the isolated worksheet question-card renderer."""
-    path = config.ROOT / "frontend" / "question-view.js"
-    if not path.exists():
-        raise HTTPException(status_code=503, detail="question-view.js missing from frontend/")
-    return FileResponse(path, media_type="application/javascript; charset=utf-8")
-
-
 @app.get("/worksheet-view.js", response_class=Response)
 async def serve_worksheet_view_js():
     path = config.ROOT / "frontend" / "worksheet-view.js"

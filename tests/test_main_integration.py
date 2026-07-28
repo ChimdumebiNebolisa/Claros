@@ -161,12 +161,6 @@ def test_styles_css_served():
         assert "css" in response.headers.get("content-type", "").lower()
 
 
-def test_test_page_returns_html():
-    """GET /test is not a public production surface."""
-    response = client.get("/test")
-    assert response.status_code == 404
-
-
 def test_genai_bundle_served_and_non_empty():
     """Bundled Gemini SDK must be present (Cloud Run / CI smoke)."""
     response = client.get("/genai.bundle.js")
@@ -194,11 +188,10 @@ def test_session_rules_js_served():
     assert b"ClarosSessionRules" in response.content
 
 
-def test_question_view_js_served():
+def test_orphan_question_view_route_removed():
+    """Stage 10: orphan question-view.js must not remain a public surface."""
     response = client.get("/question-view.js")
-    assert response.status_code == 200
-    assert "javascript" in response.headers.get("content-type", "").lower()
-    assert b"ClarosQuestionView" in response.content
+    assert response.status_code == 404
 
 
 @pytest.mark.parametrize(
