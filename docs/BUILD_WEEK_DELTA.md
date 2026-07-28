@@ -101,6 +101,16 @@
   visual redesign and no Stage 8 accessibility overhaul.
 - Evidence: see `docs/BUILD_WEEK_STAGE_6_VERIFICATION.md`.
 
+## Revamp Stage 7 record
+
+- Base SHA: `4f36afd` (Stage 6 merged to `main`).
+- Working branch: `codex/stage7-visual-design`.
+- Scope: visual design audit/polish — brand-first landing hierarchy and
+  Sort-style pacing, real sample preview instead of synthetic hero asset,
+  removal of floating hero overlays, confirmation hierarchy polish, and DESIGN
+  token sync. No worksheet behavior/accessibility contract changes.
+- Evidence: see `docs/BUILD_WEEK_STAGE_7_VERIFICATION.md`.
+
 ## First-party canonical parser fixtures
 
 `evaluation/canonical_v1/` establishes the initial parser milestone with three
