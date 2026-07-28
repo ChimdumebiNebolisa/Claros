@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
 import re
 import tempfile
@@ -13,6 +14,8 @@ from google.api_core.exceptions import PreconditionFailed
 import config
 from manifest import CANONICAL_MANIFEST_NAME
 from observability import record_metric
+
+logger = logging.getLogger(__name__)
 
 CANONICAL_PDF_NAME = "assignment.pdf"
 SESSION_PREFIX = "sessions/"
@@ -240,6 +243,19 @@ def register_assignment_session(assignment_id: str, session_id: str) -> None:
     get_gcs_bucket().blob(path).upload_from_string(marker, content_type="text/plain")
 
 
+def unregister_assignment_session(assignment_id: str, session_id: str) -> None:
+    """Remove a session lifecycle pointer without requiring the session blob to exist."""
+    path = f"{assignment_prefix(assignment_id)}session-{_check_id(session_id)}.ref"
+    if is_local_backend():
+        target = _local_path(path)
+        if target.exists() and not target.is_symlink() and target.is_file():
+            target.unlink()
+        return
+    blob = get_gcs_bucket().blob(path)
+    if blob.exists():
+        blob.delete()
+
+
 def list_assignment_session_ids(assignment_id: str) -> list[str]:
     prefix = assignment_prefix(assignment_id)
     marker_prefix = f"{prefix}session-"
@@ -263,9 +279,30 @@ def list_assignment_session_ids(assignment_id: str) -> list[str]:
 
 
 def delete_assignment_and_sessions(assignment_id: str) -> None:
+    """Delete registered sessions, then the entire assignment prefix.
+
+    Session cleanup failures must never prevent assignment prefix deletion.
+    """
     for session_id in list_assignment_session_ids(assignment_id):
         try:
             delete_session_from_gcs(session_id)
         except Exception:
-            record_metric("session_cleanup", status="error", reason="assignment_delete")
+            try:
+                record_metric("session_cleanup", status="error", reason="assignment_delete")
+            except Exception:
+                logger.warning(
+                    "session cleanup failed during assignment delete assignment_id=%s",
+                    assignment_id,
+                )
+        try:
+            unregister_assignment_session(assignment_id, session_id)
+        except Exception:
+            logger.warning(
+                "session ref cleanup failed during assignment delete assignment_id=%s",
+                assignment_id,
+            )
     delete_assignment_prefix(assignment_id)
+    try:
+        record_metric("assignment_deleted", status="ok", reason="assignment_delete")
+    except Exception:
+        pass

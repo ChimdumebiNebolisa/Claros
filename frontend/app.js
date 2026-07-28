@@ -841,14 +841,20 @@
       let response = await fetch(API_BASE + '/api/session/' + saved.sessionId + '/restore', {
         method: 'POST',
         headers: Object.assign({ 'Content-Type': 'application/json' }, assignmentHeaders()),
-        body: JSON.stringify({ session_secret: saved.sessionSecret })
+        body: JSON.stringify({
+          session_secret: saved.sessionSecret,
+          assignment_id: state.assignmentId || saved.assignmentId
+        })
       });
       if (response.status === 409) {
         // Concurrent confirm/write can race restore persistence; retry once.
         response = await fetch(API_BASE + '/api/session/' + saved.sessionId + '/restore', {
           method: 'POST',
           headers: Object.assign({ 'Content-Type': 'application/json' }, assignmentHeaders()),
-          body: JSON.stringify({ session_secret: saved.sessionSecret })
+          body: JSON.stringify({
+            session_secret: saved.sessionSecret,
+            assignment_id: state.assignmentId || saved.assignmentId
+          })
         });
       }
       if (!response.ok) {

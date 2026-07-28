@@ -224,7 +224,10 @@ def test_canonical_sample_task_switch_partial_export_delete_and_retry(
 
         restored = client.post(
             f"/api/session/{session['session_id']}/restore",
-            json={"session_secret": session["session_secret"]},
+            json={
+                "session_secret": session["session_secret"],
+                "assignment_id": first["assignment_id"],
+            },
             headers=headers,
         )
         assert restored.status_code == 200, restored.text

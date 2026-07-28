@@ -284,10 +284,16 @@ def load_session(session_id: str) -> SessionState:
         try:
             exp = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
             if exp < datetime.now(timezone.utc):
+                assignment_id = data.get("assignment_id")
                 try:
                     storage.delete_session_from_gcs(session_id)
                 except Exception:
                     logger.exception("Expired session cleanup failed")
+                if assignment_id:
+                    try:
+                        storage.unregister_assignment_session(str(assignment_id), session_id)
+                    except Exception:
+                        logger.exception("Expired session ref cleanup failed")
                 record_metric("session_expired", status="expired")
                 raise HTTPException(status_code=410, detail="Session expired")
         except ValueError:

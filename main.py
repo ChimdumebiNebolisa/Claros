@@ -252,8 +252,10 @@ def restore_session(
     x_assignment_capability: str | None = Header(default=None),
 ):
     """Restore confirmed-answer state after a browser refresh."""
+    _require_assignment_capability(body.assignment_id, x_assignment_capability)
     state = session_service.load_session(str(session_id))
-    _require_assignment_capability(state.assignment_id, x_assignment_capability)
+    if state.assignment_id != body.assignment_id:
+        raise HTTPException(status_code=403, detail="Invalid assignment capability")
     return session_service.restore_session_for_client(str(session_id), body.session_secret)
 
 
@@ -511,9 +513,12 @@ async def upload_assignment(
                 else []
             ),
         }
-    except PDFProcessingError as exc:
+    except PDFProcessingError:
         record_metric("pdf_parse", status="error", reason="malformed")
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(
+            status_code=400,
+            detail="This PDF could not be processed as a supported worksheet.",
+        )
     except Exception:
         logger.exception("PDF parse/upload failed for assignment %s", assignment_id)
         raise HTTPException(status_code=500, detail="Could not read that PDF. Please try another file.")

@@ -90,7 +90,10 @@ def test_offline_hero_upload_confirm_write_export_and_second_upload(monkeypatch,
         assert second_session.status_code == 200, second_session.text
         restored = client.post(
             f"/api/session/{second_session.json()['session_id']}/restore",
-            json={"session_secret": second_session.json()["session_secret"]},
+            json={
+                "session_secret": second_session.json()["session_secret"],
+                "assignment_id": second["assignment_id"],
+            },
             headers=second_headers,
         )
         assert restored.status_code == 200, restored.text
