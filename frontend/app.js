@@ -1,17 +1,18 @@
 (function () {
   'use strict';
 
-  const SAMPLE_RATE = 16000;
-  const OUT_SAMPLE_RATE = 24000;
-  const API_BASE = location.origin || 'http://127.0.0.1:8000';
-  const SESSION_STORAGE_KEY = 'claros_session_v1';
-
   const UiState = window.ClarosUiState;
   const SessionRules = window.ClarosSessionRules;
   const WorksheetView = window.ClarosWorksheetView;
-  if (!UiState || !SessionRules || !WorksheetView) {
+  const VoiceProductBridge = window.ClarosVoiceProductBridge;
+  const VoiceLiveTransport = window.ClarosVoiceLiveTransport;
+  if (!UiState || !SessionRules || !WorksheetView || !VoiceProductBridge || !VoiceLiveTransport) {
     throw new Error('Claros frontend modules failed to load');
   }
+
+  const API_BASE = location.origin || 'http://127.0.0.1:8000';
+  const SESSION_STORAGE_KEY = 'claros_session_v1';
+  const MAX_VOICE_RECONNECT_ATTEMPTS = 2;
 
   const elements = {
     setupMode: document.getElementById('setupMode'),
@@ -112,14 +113,14 @@
   };
 
   let worksheet;
-  let audioContext = null;
-  let playbackContext = null;
+  let voiceTransport = VoiceLiveTransport.create();
   let mediaStream = null;
-  let sourceNode = null;
-  let processorNode = null;
-  let nextPlaybackTime = 0;
-  let scheduledSources = [];
-  let keepaliveInterval = null;
+  let intentionalVoiceStop = false;
+  let voiceReconnectAttempts = 0;
+  let voiceConnectGeneration = 0;
+  let voiceReconnectTimer = null;
+  let voiceReconnectInFlight = false;
+  let suppressPlaybackUntilTurnComplete = false;
   let activeClarosMessage = null;
   let userPartialElement = null;
   let userPartialText = '';
@@ -1150,43 +1151,289 @@
     userPartialText = '';
   }
 
-  function int16ArrayToBase64(values) {
-    const bytes = new Uint8Array(values.buffer);
-    let binary = '';
-    for (let index = 0; index < bytes.length; index += 1) binary += String.fromCharCode(bytes[index]);
-    return btoa(binary);
-  }
-
-  function queuePcm24kChunk(base64Data) {
-    if (!playbackContext) {
-      playbackContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: OUT_SAMPLE_RATE });
-    }
-    if (playbackContext.state === 'suspended') playbackContext.resume();
-    const binary = atob(base64Data);
-    const bytes = new Uint8Array(binary.length);
-    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-    const samples = new Int16Array(bytes.buffer, 0, binary.length >> 1);
-    const buffer = playbackContext.createBuffer(1, samples.length, OUT_SAMPLE_RATE);
-    const channel = buffer.getChannelData(0);
-    for (let index = 0; index < samples.length; index += 1) channel[index] = samples[index] / 32768;
-    const startTime = Math.max(playbackContext.currentTime, nextPlaybackTime);
-    const source = playbackContext.createBufferSource();
-    source.buffer = buffer;
-    source.connect(playbackContext.destination);
-    source.start(startTime);
-    nextPlaybackTime = startTime + buffer.duration;
-    scheduledSources.push(source);
-    source.onended = function () {
-      scheduledSources = scheduledSources.filter(function (item) { return item !== source; });
-    };
-  }
-
-  function clearPlayback() {
-    scheduledSources.forEach(function (source) {
-      try { source.stop(); } catch (_) {}
+  function applyVoiceProductEvents(events) {
+    let preferredVoiceState = null;
+    (events || []).forEach(function (event) {
+      if (!event || !event.type) return;
+      if (event.type === 'task_selected') {
+        const requestedTask = state.tasks.find(function (task) {
+          return String(task.legacyQuestionId || '') === String(event.legacyQuestionId);
+        });
+        if (requestedTask) selectTask(requestedTask.id);
+        return;
+      }
+      if (event.type === 'answer_proposed') {
+        const target = getResponseTarget(state.activeResponseRegionId);
+        if (!target || !(event.text || '').trim()) return;
+        const responseState = responseStateFor(target.id);
+        if (responseState.confirmed || responseState.writeToken) {
+          setNotice('This answer is already confirmed. Reject or edit it before proposing a new one.');
+          setSessionPanelExpanded(true);
+          preferredVoiceState = 'confirmed';
+          return;
+        }
+        presentAnswer(target.id, event.text);
+        preferredVoiceState = 'answer_detected';
+        return;
+      }
+      if (event.type === 'needs_answer_before_write') {
+        setNotice('State your exact answer first. Claros will not invent an answer to write.');
+        setSessionPanelExpanded(true);
+        return;
+      }
+      if (event.type === 'write_ready_notice') {
+        const target = getResponseTarget(state.activeResponseRegionId);
+        const responseState = target ? responseStateFor(target.id) : null;
+        if (responseState && responseState.confirmed && responseState.writeToken) {
+          setNotice('Your answer is confirmed. Choose Write confirmed answer to place it on the worksheet.');
+          preferredVoiceState = 'confirmed';
+        } else {
+          setNotice('Confirm the exact answer, then choose Write confirmed answer. Voice never writes by itself.');
+        }
+        setSessionPanelExpanded(true);
+        return;
+      }
+      if (event.type === 'export_requested') {
+        if (event.normalized && event.normalized !== state.lastExportVoiceNorm) {
+          state.lastExportVoiceNorm = event.normalized;
+          performExport();
+        }
+      }
     });
-    scheduledSources = [];
-    nextPlaybackTime = 0;
+    return preferredVoiceState;
+  }
+
+  function releaseVoiceMedia() {
+    if (mediaStream) mediaStream.getTracks().forEach(function (track) { track.stop(); });
+    mediaStream = null;
+  }
+
+  function showVoiceFallback(message) {
+    voiceTransport.stopCapture();
+    releaseVoiceMedia();
+    elements.keyboardFallback.hidden = false;
+    setSessionPanelExpanded(true);
+    setNotice(message || 'Voice is unavailable. Continue by typing an answer.');
+    setVoiceState('error');
+    elements.typedAnswer.focus();
+  }
+
+  function scheduleVoiceReconnect(reason, generation) {
+    if (!state.assignmentId || intentionalVoiceStop) return false;
+    if (generation != null && generation !== voiceConnectGeneration) return false;
+    if (voiceReconnectInFlight || state.liveSession) return false;
+    if (voiceReconnectAttempts >= MAX_VOICE_RECONNECT_ATTEMPTS) return false;
+    voiceReconnectAttempts += 1;
+    voiceReconnectInFlight = true;
+    setNotice((reason || 'Voice disconnected.') + ' Reconnecting (' + voiceReconnectAttempts + '/' + MAX_VOICE_RECONNECT_ATTEMPTS + ')…');
+    setVoiceState('connecting');
+    if (voiceReconnectTimer) window.clearTimeout(voiceReconnectTimer);
+    voiceReconnectTimer = window.setTimeout(function () {
+      voiceReconnectTimer = null;
+      voiceReconnectInFlight = false;
+      if (intentionalVoiceStop || !state.assignmentId) return;
+      if (state.liveSession) return;
+      startSession({ reconnect: true });
+    }, 700 * voiceReconnectAttempts);
+    return true;
+  }
+
+  function handleProviderDisconnect(session, generation, reason) {
+    if (generation !== voiceConnectGeneration) return;
+    if (state.liveSession && state.liveSession !== session) return;
+    state.liveSession = null;
+    voiceTransport.stopCapture();
+    voiceTransport.closeSession(session);
+    if (intentionalVoiceStop) {
+      releaseVoiceMedia();
+      setVoiceState(state.assignmentId ? 'stopped' : 'unavailable');
+      return;
+    }
+    if (scheduleVoiceReconnect(reason, generation)) return;
+    showVoiceFallback((reason || 'The voice connection closed.') + ' Continue by typing, or try voice again.');
+  }
+
+  async function startSession(options) {
+    const reconnect = !!(options && options.reconnect);
+    if (!state.assignmentId || state.liveSession || voiceReconnectInFlight && !reconnect) return;
+    const connectGeneration = ++voiceConnectGeneration;
+    intentionalVoiceStop = false;
+    voiceReconnectInFlight = false;
+    suppressPlaybackUntilTurnComplete = false;
+    setError('');
+    elements.keyboardFallback.hidden = true;
+    setVoiceState('connecting');
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Microphone access is not available in this browser.');
+      }
+      if (!mediaStream || !mediaStream.active) {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1
+          }
+        });
+      }
+      setNotice(reconnect ? 'Reconnecting Claros voice…' : 'Microphone access granted. Connecting Claros now.');
+    } catch (error) {
+      const message = error && error.name === 'NotAllowedError'
+        ? 'Microphone access was denied. You can still type, confirm, and export answers.'
+        : (error.message || 'The microphone is unavailable.');
+      showVoiceFallback(message);
+      return;
+    }
+
+    try {
+      await ensureServerSession();
+      if (connectGeneration !== voiceConnectGeneration || intentionalVoiceStop) return;
+      const configResponse = await fetch(API_BASE + '/api/session-config/' + state.assignmentId, { headers: assignmentHeaders() });
+      if (!configResponse.ok) {
+        if (configResponse.status === 429) {
+          throw new Error('Voice is temporarily rate-limited. Continue by typing, or try again shortly.');
+        }
+        throw new Error('Claros could not connect to the voice provider.');
+      }
+      const config = await configResponse.json();
+      const module = await import(API_BASE + '/genai.bundle.js');
+      const GoogleGenAI = module.GoogleGenAI || module.default;
+      const client = new GoogleGenAI({ apiKey: config.token, httpOptions: { apiVersion: 'v1alpha' } });
+      const session = await client.live.connect({
+        model: config.model,
+        config: {
+          responseModalities: ['AUDIO'],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } },
+          systemInstruction: { parts: [{ text: config.system_prompt || '' }] },
+          inputAudioTranscription: { mode: 'ACTIVITY', interimResults: true },
+          outputAudioTranscription: { mode: 'TURN_BASED' }
+        },
+        callbacks: {
+          onmessage: function (message) {
+            if (connectGeneration !== voiceConnectGeneration) return;
+            if (state.liveSession && state.liveSession !== session) return;
+            handleLiveMessage(message, connectGeneration);
+          },
+          onerror: function () {
+            handleProviderDisconnect(session, connectGeneration, 'The voice connection failed.');
+          },
+          onclose: function () {
+            handleProviderDisconnect(session, connectGeneration, 'The voice connection closed.');
+          }
+        }
+      });
+      if (connectGeneration !== voiceConnectGeneration || intentionalVoiceStop) {
+        voiceTransport.closeSession(session);
+        return;
+      }
+      state.liveSession = session;
+      voiceReconnectAttempts = 0;
+      voiceTransport.startCapture(mediaStream, function (audio) {
+        if (connectGeneration !== voiceConnectGeneration || !state.liveSession || state.liveSession !== session) return;
+        try {
+          session.sendRealtimeInput({ audio: audio });
+        } catch (_) {}
+      });
+      startMeter(mediaStream);
+      setVoiceState('listening');
+      setNotice(reconnect ? 'Voice reconnected. Claros is listening.' : 'Voice session started. Claros is listening.');
+    } catch (error) {
+      if (connectGeneration !== voiceConnectGeneration) return;
+      if (!reconnect) releaseVoiceMedia();
+      if (!intentionalVoiceStop && scheduleVoiceReconnect(error.message || 'Claros could not connect to the voice provider.', connectGeneration)) {
+        return;
+      }
+      showVoiceFallback(error.message || 'Claros could not connect to the voice provider.');
+    }
+  }
+
+  function handleLiveMessage(message, generation) {
+    if (generation != null && generation !== voiceConnectGeneration) return;
+    const content = message.serverContent;
+    if (!content) return;
+    if (content.inputTranscription && content.inputTranscription.text) {
+      userTranscriptBuffer += content.inputTranscription.text;
+      if (voiceTransport.hasScheduledPlayback() || state.voice === 'speaking') {
+        voiceTransport.clearPlayback();
+        suppressPlaybackUntilTurnComplete = true;
+        setVoiceState('listening');
+      }
+      showUserPartial(content.inputTranscription.text);
+    }
+    if (content.outputTranscription && content.outputTranscription.text) {
+      const text = content.outputTranscription.text;
+      state.conversation.push({ speaker: 'claros', text: text });
+      addTranscript('claros', text);
+      clarosOutputBuffer = (clarosOutputBuffer + text).slice(-2000);
+    }
+    if (content.modelTurn && content.modelTurn.parts) {
+      content.modelTurn.parts.forEach(function (part) {
+        if (part.inlineData && part.inlineData.data) {
+          if (suppressPlaybackUntilTurnComplete) return;
+          voiceTransport.queuePcm24kChunk(part.inlineData.data);
+          if (!state.writeInProgress) setVoiceState('speaking');
+        }
+      });
+    }
+    if (content.turnComplete) {
+      suppressPlaybackUntilTurnComplete = false;
+      const clarosText = clarosOutputBuffer;
+      clarosOutputBuffer = '';
+      const clarosPreferred = applyVoiceProductEvents(VoiceProductBridge.interpretClarosTurn(clarosText));
+
+      const full = userTranscriptBuffer.trim();
+      userTranscriptBuffer = '';
+      clearUserPartial();
+      activeClarosMessage = null;
+      if (!full) {
+        if (clarosPreferred) setVoiceState(clarosPreferred);
+        else if (state.voice !== 'confirmed') setVoiceState('listening');
+        return;
+      }
+      state.conversation.push({ speaker: 'user', text: full });
+      addTranscript('user', full);
+      const target = getResponseTarget(state.activeResponseRegionId);
+      const responseState = target ? responseStateFor(target.id) : null;
+      const userPreferred = applyVoiceProductEvents(VoiceProductBridge.interpretUserTurn(full, {
+        draft: responseState && responseState.draft || '',
+        confirmed: !!(responseState && responseState.confirmed),
+        writeToken: responseState && responseState.writeToken || ''
+      }));
+      const preferred = userPreferred || clarosPreferred;
+      if (preferred) setVoiceState(preferred);
+      else if (state.voice !== 'confirmed' && state.voice !== 'answer_detected' && state.voice !== 'confirming') {
+        setVoiceState('listening');
+      }
+    }
+  }
+
+  function stopSession(closeProvider) {
+    intentionalVoiceStop = true;
+    voiceConnectGeneration += 1;
+    voiceReconnectAttempts = 0;
+    voiceReconnectInFlight = false;
+    suppressPlaybackUntilTurnComplete = false;
+    if (voiceReconnectTimer) {
+      window.clearTimeout(voiceReconnectTimer);
+      voiceReconnectTimer = null;
+    }
+    const session = state.liveSession;
+    state.liveSession = null;
+    voiceTransport.stopCapture();
+    releaseVoiceMedia();
+    if (closeProvider !== false) voiceTransport.closeSession(session);
+    elements.meterBar.style.width = '0%';
+    clearUserPartial();
+    setVoiceState(state.assignmentId ? 'stopped' : 'unavailable');
+  }
+
+  function interruptAgent() {
+    if (!state.liveSession) return;
+    suppressPlaybackUntilTurnComplete = true;
+    voiceTransport.interruptProvider(state.liveSession);
+    setVoiceState('listening');
+    setNotice('Claros stopped speaking. You can continue.');
   }
 
   function startMeter(stream) {
@@ -1208,203 +1455,6 @@
       requestAnimationFrame(tick);
     }
     tick();
-  }
-
-  function showVoiceFallback(message) {
-    elements.keyboardFallback.hidden = false;
-    setSessionPanelExpanded(true);
-    setNotice(message || 'Voice is unavailable. Continue by typing an answer.');
-    setVoiceState('error');
-    elements.typedAnswer.focus();
-  }
-
-  async function startSession() {
-    if (!state.assignmentId || state.liveSession) return;
-    setError('');
-    elements.keyboardFallback.hidden = true;
-    setVoiceState('connecting');
-    try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Microphone access is not available in this browser.');
-      }
-      mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          channelCount: 1
-        }
-      });
-      setNotice('Microphone access granted. Connecting Claros now.');
-    } catch (error) {
-      const message = error && error.name === 'NotAllowedError'
-        ? 'Microphone access was denied. You can still type, confirm, and export answers.'
-        : (error.message || 'The microphone is unavailable.');
-      showVoiceFallback(message);
-      return;
-    }
-
-    try {
-      await ensureServerSession();
-      const configResponse = await fetch(API_BASE + '/api/session-config/' + state.assignmentId, { headers: assignmentHeaders() });
-      if (!configResponse.ok) throw new Error('Claros could not connect to the voice provider.');
-      const config = await configResponse.json();
-      const module = await import(API_BASE + '/genai.bundle.js');
-      const GoogleGenAI = module.GoogleGenAI || module.default;
-      const client = new GoogleGenAI({ apiKey: config.token, httpOptions: { apiVersion: 'v1alpha' } });
-      const session = await client.live.connect({
-        model: config.model,
-        config: {
-          responseModalities: ['AUDIO'],
-          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } },
-          systemInstruction: { parts: [{ text: config.system_prompt || '' }] },
-          inputAudioTranscription: { mode: 'ACTIVITY', interimResults: true },
-          outputAudioTranscription: { mode: 'TURN_BASED' }
-        },
-        callbacks: {
-          onmessage: handleLiveMessage,
-          onerror: function () {
-            stopSession(false);
-            showVoiceFallback('The voice connection failed. Continue by typing, or try voice again.');
-          },
-          onclose: function () {
-            stopSession(false);
-            setVoiceState('stopped');
-          }
-        }
-      });
-      state.liveSession = session;
-      startAudioInput(mediaStream);
-      startMeter(mediaStream);
-      setVoiceState('listening');
-      setNotice('Voice session started. Claros is listening.');
-    } catch (error) {
-      if (mediaStream) mediaStream.getTracks().forEach(function (track) { track.stop(); });
-      mediaStream = null;
-      showVoiceFallback(error.message || 'Claros could not connect to the voice provider.');
-    }
-  }
-
-  function startAudioInput(stream) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const ratio = audioContext.sampleRate / SAMPLE_RATE;
-    sourceNode = audioContext.createMediaStreamSource(stream);
-    processorNode = audioContext.createScriptProcessor(1024, 1, 1);
-    processorNode.onaudioprocess = function (event) {
-      if (!state.liveSession) return;
-      const input = event.inputBuffer.getChannelData(0);
-      const output = new Int16Array(Math.floor(input.length / ratio));
-      for (let index = 0; index < output.length; index += 1) {
-        const sample = Math.max(-1, Math.min(1, input[Math.min(Math.floor(index * ratio), input.length - 1)]));
-        output[index] = sample < 0 ? sample * 32768 : sample * 32767;
-      }
-      try {
-        state.liveSession.sendRealtimeInput({
-          audio: { data: int16ArrayToBase64(output), mimeType: 'audio/pcm;rate=16000' }
-        });
-      } catch (_) {}
-    };
-    sourceNode.connect(processorNode);
-    processorNode.connect(audioContext.destination);
-    const silence = new Int16Array(320);
-    keepaliveInterval = setInterval(function () {
-      if (!state.liveSession) return;
-      try {
-        state.liveSession.sendRealtimeInput({
-          audio: { data: int16ArrayToBase64(silence), mimeType: 'audio/pcm;rate=16000' }
-        });
-      } catch (_) {}
-    }, 5000);
-  }
-
-  function handleLiveMessage(message) {
-    const content = message.serverContent;
-    if (!content) return;
-    if (content.inputTranscription && content.inputTranscription.text) {
-      userTranscriptBuffer += content.inputTranscription.text;
-      if (scheduledSources.length || state.voice === 'speaking') {
-        clearPlayback();
-        setVoiceState('listening');
-      }
-      showUserPartial(content.inputTranscription.text);
-    }
-    if (content.outputTranscription && content.outputTranscription.text) {
-      const text = content.outputTranscription.text;
-      state.conversation.push({ speaker: 'claros', text: text });
-      addTranscript('claros', text);
-      clarosOutputBuffer = (clarosOutputBuffer + text).slice(-2000);
-    }
-    if (content.modelTurn && content.modelTurn.parts) {
-      content.modelTurn.parts.forEach(function (part) {
-        if (part.inlineData && part.inlineData.data) {
-          queuePcm24kChunk(part.inlineData.data);
-          if (!state.writeInProgress) setVoiceState('speaking');
-        }
-      });
-    }
-    if (content.turnComplete) {
-      const full = userTranscriptBuffer.trim();
-      userTranscriptBuffer = '';
-      clearUserPartial();
-      activeClarosMessage = null;
-      setVoiceState('listening');
-      if (!full) return;
-      const normalized = SessionRules.normalizeTranscript(full);
-      state.conversation.push({ speaker: 'user', text: full });
-      addTranscript('user', full);
-      const parsedQuestion = SessionRules.parseQuestionNum(normalized);
-      const requestedTask = parsedQuestion == null ? null : state.tasks.find(function (task) {
-        return String(task.legacyQuestionId || '') === String(parsedQuestion);
-      });
-      if (requestedTask) selectTask(requestedTask.id);
-      const target = getResponseTarget(state.activeResponseRegionId);
-      if (SessionRules.ANSWER_STATED_RE.test(normalized) && target) {
-        presentAnswer(target.id, SessionRules.extractDraftAnswer(normalized) || full);
-      }
-      if (SessionRules.WRITE_INTENT_RE.test(normalized) && target) {
-        const responseState = responseStateFor(target.id);
-        if (responseState.confirmed && responseState.writeToken) {
-          setNotice('Your answer is confirmed. Choose Write confirmed answer to place it on the worksheet.');
-          setSessionPanelExpanded(true);
-        } else presentAnswer(target.id, responseState.draft || full);
-      }
-      if (SessionRules.hasExportIntent(normalized) && normalized !== state.lastExportVoiceNorm) {
-        state.lastExportVoiceNorm = normalized;
-        performExport();
-      }
-    }
-  }
-
-  function stopSession(closeProvider) {
-    if (keepaliveInterval) clearInterval(keepaliveInterval);
-    keepaliveInterval = null;
-    clearPlayback();
-    if (processorNode) {
-      try {
-        processorNode.disconnect();
-        if (sourceNode) sourceNode.disconnect();
-      } catch (_) {}
-    }
-    processorNode = null;
-    sourceNode = null;
-    if (mediaStream) mediaStream.getTracks().forEach(function (track) { track.stop(); });
-    mediaStream = null;
-    if (state.liveSession && closeProvider !== false && state.liveSession.close) {
-      try { state.liveSession.close(); } catch (_) {}
-    }
-    state.liveSession = null;
-    if (audioContext) audioContext.close();
-    audioContext = null;
-    elements.meterBar.style.width = '0%';
-    clearUserPartial();
-    setVoiceState(state.assignmentId ? 'stopped' : 'unavailable');
-  }
-
-  function interruptAgent() {
-    if (!state.liveSession) return;
-    clearPlayback();
-    setVoiceState('listening');
-    setNotice('Claros stopped speaking. You can continue.');
   }
 
   async function performExport() {

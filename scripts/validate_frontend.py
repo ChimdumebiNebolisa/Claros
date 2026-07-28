@@ -12,6 +12,8 @@ REQUIRED_STYLES = ("tokens.css", "landing.css", "app.css")
 REQUIRED_SCRIPTS = (
     "app.js",
     "session-rules.js",
+    "voice-product-bridge.js",
+    "voice-live-transport.js",
     "ui-state.js",
     "worksheet-view.js",
 )
@@ -95,6 +97,8 @@ def validate_app_html() -> None:
         'document-page-surface',
         "/app.js",
         "/session-rules.js",
+        "/voice-product-bridge.js",
+        "/voice-live-transport.js",
         "/ui-state.js",
         "/worksheet-view.js",
     )
@@ -139,6 +143,14 @@ def validate_app_js_contract() -> None:
         "ClarosSessionRules",
         "ClarosUiState",
         "ClarosWorksheetView",
+        "ClarosVoiceProductBridge",
+        "ClarosVoiceLiveTransport",
+        "applyVoiceProductEvents",
+        "scheduleVoiceReconnect",
+        "handleProviderDisconnect",
+        "suppressPlaybackUntilTurnComplete",
+        "interruptProvider",
+        "MAX_VOICE_RECONNECT_ATTEMPTS",
         "/api/write/",
         "/api/session-config/",
         "/api/session/start",
@@ -181,12 +193,36 @@ def validate_app_js_contract() -> None:
         raise AssertionError("student writes must not submit browser-supplied geometry")
     if "responseTargetIds[0]" in js:
         raise AssertionError("app defaults must resolve the server-selected response target")
+    if "responseState.draft || full" in js:
+        raise AssertionError("write-intent must not propose the full utterance when no draft exists")
+    if "processorNode.connect(audioContext.destination)" in js:
+        raise AssertionError("mic capture must live in voice-live-transport, not app.js speaker monitor path")
 
 
 def validate_session_rules() -> None:
     js = _read(FRONTEND / "session-rules.js")
     if "ClarosSessionRules" not in js:
         raise AssertionError("session-rules.js must export ClarosSessionRules")
+
+
+def validate_voice_product_bridge() -> None:
+    js = _read(FRONTEND / "voice-product-bridge.js")
+    if "ClarosVoiceProductBridge" not in js:
+        raise AssertionError("voice-product-bridge.js must export ClarosVoiceProductBridge")
+    if "interpretUserTurn" not in js or "interpretClarosTurn" not in js:
+        raise AssertionError("voice-product-bridge.js must expose turn interpreters")
+    if "needs_answer_before_write" not in js:
+        raise AssertionError("write intent without a draft must emit needs_answer_before_write")
+
+
+def validate_voice_live_transport() -> None:
+    js = _read(FRONTEND / "voice-live-transport.js")
+    if "ClarosVoiceLiveTransport" not in js:
+        raise AssertionError("voice-live-transport.js must export ClarosVoiceLiveTransport")
+    if "interruptProvider" not in js or "activityEnd" not in js:
+        raise AssertionError("voice transport must support provider interrupt via activityEnd")
+    if "silentGain" not in js:
+        raise AssertionError("voice capture must not monitor mic audio into speakers")
 
 
 def validate_worksheet_view() -> None:
@@ -231,6 +267,8 @@ def main() -> int:
         validate_legacy_frontend_files,
         validate_app_js_contract,
         validate_session_rules,
+        validate_voice_product_bridge,
+        validate_voice_live_transport,
         validate_worksheet_view,
         validate_ui_state,
     )

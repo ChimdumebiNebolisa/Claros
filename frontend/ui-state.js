@@ -64,8 +64,8 @@
     var disabledReason = '';
     if (!hasAssignment) disabledReason = 'Add a worksheet before starting voice.';
     else if (state === 'connecting') disabledReason = 'Claros is still connecting.';
-    else if (state === 'confirmed') disabledReason = 'Write or change the confirmed answer before starting voice.';
-    else if (state === 'writing') disabledReason = 'Wait until the confirmed answer is written.';
+    else if (!sessionActive && state === 'confirmed') disabledReason = 'Write or change the confirmed answer before starting voice.';
+    else if (!sessionActive && state === 'writing') disabledReason = 'Wait until the confirmed answer is written.';
     return {
       state: state,
       title: copy[0],
