@@ -53,4 +53,18 @@ Session credentials returned to the browser are short-lived opaque values. New s
 
 No config change needed: when users open the Cloud Run URL, the frontend uses the same host for API calls.
 
+## Stage 12 recommended Cloud Run posture (documentation only)
+
+These are verified product recommendations. They are **not** applied by merging
+code unless an operator intentionally updates Cloud Run:
+
+- Keep `/health` as the dependency-free probe (Cloud Run reserves `/healthz`).
+- Prefer request concurrency that assumes PDF parse/page-render work can briefly
+  occupy a worker thread (`asyncio.to_thread` offloads parse/render from the
+  event loop in Stage 12).
+- Keep session/voice timeouts long enough for Live reconnect budgets; short
+  platform timeouts will look like random voice drops.
+- Rate limits remain in-process prototype safeguards and are **not** shared
+  across multi-instance Cloud Run services.
+
 > Legacy monolithic frontend prototypes were removed after runtime, test, build, and deployment references were audited. The active pages are `frontend/landing.html` and `frontend/app.html`.
