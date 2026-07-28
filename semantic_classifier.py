@@ -30,7 +30,16 @@ class SemanticTaskCandidate(BaseModel):
     prompt_text: str
     prompt_block_ids: list[str] = Field(min_length=1)
     response_block_ids: list[str] = Field(default_factory=list)
-    response_type: Literal["short_text", "long_text", "numeric", "choice", "drawing", "table", "unknown"]
+    response_type: Literal[
+        "short_text",
+        "long_text",
+        "numeric",
+        "choice",
+        "checkbox",
+        "drawing",
+        "table",
+        "unknown",
+    ]
     confidence: float = Field(ge=0.0, le=1.0)
 
 

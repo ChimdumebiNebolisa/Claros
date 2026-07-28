@@ -16,7 +16,7 @@ Uncertain or unsafe placements route to a deterministic side panel.
 | --- | --- | --- |
 | Gemini semantic classifier (default document path) | Page role, task grouping, and selection of supplied source blocks/response candidates | Coordinates, source text, IDs, confirmation, authorization, PDF changes, overflow, or side-panel rendering |
 | Gemini Live | Audio transport, speech recognition/output, turn detection, interruption, transcript delivery | Document semantics, geometry, confirmation, authorization, PDF changes, or security decisions |
-| Deterministic application code | Physical IR, stable IDs, coordinate and relationship validation, side-panel routing, student confirmation, capabilities, write tokens, export and PDF modification | Model-authored semantics outside supplied evidence |
+| Deterministic application code | Physical IR, stable IDs, source-visibility and relationship validation, persisted-manifest integrity, side-panel routing, student confirmation, capabilities, write tokens, export and PDF modification | Model-authored semantics outside supplied evidence |
 | Student | Confirmation of the exact proposed answer; optional safe correction | Arbitrary unvalidated write coordinates |
 
 ## Current verified runtime
@@ -77,6 +77,39 @@ reconstructed from source blocks rather than model-authored labels. Extraction
 clips or omits evidence outside its page frame; a clipped response candidate is
 not writable.
 
+For current PDF-coordinate documents, an approved response source must be
+native `pdf_geometry`; OCR layout output is semantic evidence only and cannot
+become a write target. The quarantined normalized-legacy adapter retains its
+own legacy-parser provenance only for compatibility with already-normalized
+records. The physical extractor derives stable geometry IDs from page/type/
+coordinates, uses actual glyph bounds for underscore blanks, distinguishes
+typed form widgets and checkbox controls, and recognizes standalone vector
+boxes without treating grids or decorative rules as writable. Candidate work is
+bounded before vector reconstruction; a page over the deterministic vector
+budget contributes no partial vector write evidence.
+
+Native text can authorize a current write only when its glyphs are fully opaque
+and visibly contrasted in a deterministic page render. Text intersecting a
+vector graphic or image is excluded rather than guessed at; this rejects hidden
+text layers, near-transparent/white text, and graphic-overlapped content.
+Typed fields, underscore blanks, vector boxes, and vector lines are likewise
+excluded when their proposed writable interiors contain printed text, graphics,
+or a choice-like control. A deterministic source cue for a teacher guide,
+answer key, or no-write page forces that page to the side panel even if semantic
+output otherwise calls it student-facing.
+
+Task-to-region association is validated deterministically after the semantic
+classifier selects supplied IDs: a target must be on the same page, not overlap
+prompt text (except an explicit underscore run), and cannot skip a competing
+numbered prompt. A task may use multiple physical areas only when their roles
+are deterministic (answer plus explicit show-work/explanation); otherwise it
+routes to the side panel. Ambiguous, cross-page, OCR-only, clipped, table-grid,
+and unsupported relationships route to the side panel. Choice labels are
+preserved as source-backed `DocumentChoice` records. Checkboxes remain
+selection evidence and side-panel-only until a deterministic PDF mark renderer
+exists; neither the review path nor the exporter may turn one into a text
+overlay.
+
 `rotation`, non-default crop, or `/UserUnit` scale marks a page as requiring a
 display transform. Until an explicit deterministic transform exists, native
 physical targets on such pages are unsafe and route to the side panel. Paddle
@@ -85,9 +118,17 @@ evidence only, never a physical target.
 
 The browser receives a safe projection of that document. Normalized browser
 rectangles are derived only at this API boundary; unsafe region geometry is not
-sent to student clients. Historical flat `questions[]` manifests are migrated
+sent to student clients, and checkbox controls are never advertised as text
+write targets. Historical flat `questions[]` manifests are migrated
 in memory to the canonical contract as quarantined legacy evidence. They do
 not become a second persisted production model.
+
+Safe projection and original-page export both require an approved task and
+region, explicit `student_worksheet` roles for the task and page, a parsed
+non-OCR page with reliable native evidence and no pending page review, plus a
+local native task-shaped prompt (or directly adjacent colon-ended field label).
+If any gate fails, geometry is suppressed and the confirmed answer uses the
+side panel.
 
 Session state is separate and mutable. It is keyed by canonical task and
 response-target IDs, records drafts/confirmation/tokens/writes, and binds every
@@ -100,6 +141,17 @@ can expose canonical physical evidence, the stored PDF is bound to the
 canonical document by SHA-256, page count, extraction-frame dimensions,
 rotation, and transform requirement. A mismatch returns an intentional source
 mismatch error rather than showing or approving stale geometry.
+
+Persisted manifests that contain physical response links also carry a
+domain-separated HMAC derived from the server-only session HMAC secret. The tag
+binds the complete manifest payload and its storage assignment ID, and is
+verified before loading it for client projection, review, or export. A changed,
+swapped, or unsigned physical-target manifest is rejected; older records with
+no response links remain quarantined side-panel-only. Export independently
+re-extracts the source page and requires exact current native prompt and
+physical response evidence before drawing. It installs its Unicode font under
+a fresh page-local resource alias so a worksheet-provided alias cannot replace
+approved answer characters.
 
 ## Safety and data controls
 
@@ -126,3 +178,19 @@ mismatch error rather than showing or approving stale geometry.
 The reliability package is an AI-adjudicated silver benchmark, not human gold.
 It reports agreement, adjudication/abstention, validation failures, safety,
 latency, and cost. Any F1 is explicitly provisional silver-relative agreement.
+
+The initial deterministic parser milestone is separate:
+`evaluation/canonical_v1` renders three first-party, selectable-text student
+worksheets from a strict semantic source specification. The renderer captures
+prompt and response geometry as it draws each PDF and emits stable task IDs,
+page roles, typed response regions, and prompt-to-response relationships.
+These deterministic expected labels require no manual Label Studio annotation.
+Stage 3 acceptance requires running those fixtures through
+`document_pipeline.parse_document` without altering expected outputs to match
+parser behavior.
+
+The 20-document external acceptance corpus and preserved 17-page pilot are
+later real-world/stress suites. They remain available for broader layout, OCR,
+packet, table, visual, and outside-context testing, but they are not gates for
+the first milestone. Canonical success must not be generalized to arbitrary
+real-world PDFs.

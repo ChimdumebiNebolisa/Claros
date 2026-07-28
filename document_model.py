@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+import re
 from enum import Enum
 from typing import Any, Literal
 
@@ -22,6 +23,33 @@ _PHYSICAL_RESPONSE_BLOCK_LABELS = {
     "form_field",
     "writable_area",
 }
+_RESPONSE_REGION_TYPE_BY_PHYSICAL_LABEL = {
+    "answer_line": "answer_line",
+    "bounded_box": "bounded_box",
+    "checkbox": "checkbox",
+    "form_field": "form_field",
+    "writable_area": "writable_area",
+}
+_TASK_SHAPED_SOURCE_PROMPT = re.compile(
+    r"^\s*(?:\(?[1-9][0-9]*[.)]|question\s+[1-9][0-9]*\b)\s*\S",
+    re.IGNORECASE,
+)
+_NUMBERED_SOURCE_PROMPT_LABEL = re.compile(r"^\s*\(?([1-9][0-9]*)[.)]\s+\S")
+_NUMERIC_CHOICE_SOURCE_TEXT = re.compile(r"^\s*[1-9][0-9]?\s*[.)]\s+\S")
+_CHOICE_SOURCE_PROMPT_CUE = re.compile(
+    r"\b(?:choose|select|option|choice|correct\s+answer)\b",
+    re.IGNORECASE,
+)
+_TASK_INSTRUCTION_SOURCE_START = re.compile(
+    r"^\s*(?:answer|calculate|choose|circle|compare|complete|describe|draw|"
+    r"explain|fill|find|identify|label|list|read|record|select|solve|state|use|write)\b",
+    re.IGNORECASE,
+)
+_EXPLICIT_SOURCE_RESPONSE_LABEL = re.compile(
+    r"^\s*(?:(?:(?:your|final|student)\s+)?(?:answer|response)|"
+    r"write\s+(?:your\s+)?answer|show\s+(?:your\s+)?work)\s*:\s*$",
+    re.IGNORECASE,
+)
 
 
 class ParseStatus(str, Enum):
@@ -222,6 +250,17 @@ class DocumentPage(BaseModel):
         return self
 
 
+def page_has_reliable_native_write_evidence(page: DocumentPage) -> bool:
+    """Whether a page may contribute deterministic student write authority."""
+    return (
+        page.coordinate_space == CoordinateSpace.pdf_points
+        and page.native_text_exists
+        and not page.ocr_required
+        and page.extraction_status == ParseStatus.parsed
+        and not page.needs_review
+    )
+
+
 class DocumentResponseRegion(BaseModel):
     """One physical response destination with its own stable identity."""
 
@@ -368,6 +407,155 @@ class DocumentTask(BaseModel):
     def source_blocks(self) -> list[str]:
         """Deprecated read-only alias for legacy adapters and diagnostics."""
         return list(self.prompt_block_ids)
+
+
+def task_has_student_write_role(task: DocumentTask, page: DocumentPage) -> bool:
+    """Only an explicitly classified student worksheet may receive a write."""
+    return (
+        page.page_role == PageRole.student_worksheet
+        and task.page_role == PageRole.student_worksheet
+    )
+
+
+def _native_prompt_looks_like_numeric_choice(
+    prompt: DocumentBlock,
+    all_blocks: list[DocumentBlock],
+) -> bool:
+    """Keep a numbered choice from becoming a physical-write prompt."""
+    label = _NUMBERED_SOURCE_PROMPT_LABEL.match(prompt.text)
+    if label is None or prompt.bbox is None or not _NUMERIC_CHOICE_SOURCE_TEXT.match(prompt.text):
+        return False
+    prompt_number = int(label.group(1))
+    for candidate in all_blocks:
+        candidate_label = _NUMBERED_SOURCE_PROMPT_LABEL.match(candidate.text)
+        if (
+            candidate.id == prompt.id
+            or candidate.source != SourceKind.native_pdf
+            or candidate.page_index != prompt.page_index
+            or candidate.bbox is None
+            or candidate.bbox[1] >= prompt.bbox[1] - 2
+            or candidate_label is None
+            or not _CHOICE_SOURCE_PROMPT_CUE.search(candidate.text)
+        ):
+            continue
+        if prompt_number <= int(candidate_label.group(1)) or prompt.bbox[0] >= candidate.bbox[0] + 12:
+            return True
+        if any(
+            block.id not in {candidate.id, prompt.id}
+            and block.source == SourceKind.native_pdf
+            and block.page_index == prompt.page_index
+            and block.bbox is not None
+            and candidate.bbox[1] + 2 < block.bbox[1] < prompt.bbox[1] - 2
+            and abs(block.bbox[0] - prompt.bbox[0]) <= 12
+            and _NUMERIC_CHOICE_SOURCE_TEXT.match(block.text)
+            for block in all_blocks
+        ):
+            return True
+    return False
+
+
+def _native_prompt_text_has_competing_instruction(text: str) -> bool:
+    """Reject a source line that merges multiple imperative tasks."""
+    body = re.sub(
+        r"^\s*(?:\(?[1-9][0-9]*[.)]\s+|question\s+[1-9][0-9]*\s*[:.)]?\s*)",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+    for boundary in re.finditer(r"[.!?]\s*", body):
+        suffix = body[boundary.end() :].strip()
+        if (
+            suffix
+            and _TASK_INSTRUCTION_SOURCE_START.match(suffix)
+            and not _EXPLICIT_SOURCE_RESPONSE_LABEL.match(suffix)
+        ):
+            return True
+    return False
+
+
+def _native_prompt_blocks_describe_one_task(blocks: list[DocumentBlock]) -> bool:
+    """Match the extractor's conservative wrapped-prompt continuity rule."""
+    if len(blocks) == 1:
+        return not _native_prompt_text_has_competing_instruction(blocks[0].text)
+    first = blocks[0]
+    if first.bbox is None or not _TASK_SHAPED_SOURCE_PROMPT.match(first.text):
+        return False
+    previous = first
+    for continuation in blocks[1:]:
+        if (
+            continuation.bbox is None
+            or continuation.page_index != first.page_index
+            or previous.text.rstrip().endswith((".", "?", "!", ":"))
+            or _TASK_SHAPED_SOURCE_PROMPT.match(continuation.text)
+            or _TASK_INSTRUCTION_SOURCE_START.match(continuation.text)
+            or not re.match(r"^\s*(?:[a-z]|[([])", continuation.text)
+            or continuation.text.rstrip().endswith(":")
+            or continuation.bbox[1] < previous.bbox[3] - 2
+            or continuation.bbox[1] - previous.bbox[3] > 24
+            or continuation.bbox[0] < first.bbox[0] - 4
+            or continuation.bbox[0] > first.bbox[0] + 48
+        ):
+            return False
+        previous = continuation
+    return True
+
+
+def task_has_native_local_prompt_evidence(
+    task: DocumentTask,
+    region: DocumentResponseRegion,
+    block_by_id: dict[str, DocumentBlock],
+) -> bool:
+    """Return whether a task's write association has native, local prompt proof.
+
+    OCR text may support understanding, but it cannot authorize a physical
+    write destination. The selected source prompt must be a numbered/question
+    task on the same page, except for a directly adjacent colon-ended form
+    label. Export applies the same proof to freshly extracted source blocks.
+    """
+    if (
+        task.evidence_status != EvidenceStatus.verified
+        or not task.prompt_block_ids
+        or task.anchor_page_index != region.page_index
+    ):
+        return False
+    local_prompt_blocks: list[DocumentBlock] = []
+    for block_id in task.prompt_block_ids:
+        block = block_by_id.get(block_id)
+        if (
+            block is None
+            or block.source != SourceKind.native_pdf
+            or block.page_index != region.page_index
+            or block.bbox is None
+            or not block.text.strip()
+        ):
+            return False
+        local_prompt_blocks.append(block)
+    if not _native_prompt_blocks_describe_one_task(local_prompt_blocks):
+        return False
+    if any(
+        _native_prompt_looks_like_numeric_choice(block, list(block_by_id.values()))
+        for block in local_prompt_blocks
+    ):
+        return False
+    task_shaped_blocks = [
+        block for block in local_prompt_blocks if _TASK_SHAPED_SOURCE_PROMPT.match(block.text)
+    ]
+    if len(task_shaped_blocks) > 1:
+        return False
+    if task_shaped_blocks:
+        return True
+    return any(
+        (
+            block.text.rstrip().endswith(":")
+            and region.bbox[0] >= block.bbox[2] - 15
+            and abs(
+                (region.bbox[1] + region.bbox[3]) / 2
+                - (block.bbox[1] + block.bbox[3]) / 2
+            )
+            <= 20
+        )
+        for block in local_prompt_blocks
+    )
 
 
 def _upgrade_document_payload(payload: dict[str, Any]) -> dict[str, Any]:
@@ -597,9 +785,18 @@ class IntermediateDocument(BaseModel):
                 physical_sources = [
                     block
                     for block in evidence_blocks
-                    if block.semantic_role == BlockSemanticRole.response_area
+                    if (
+                        block.source == SourceKind.pdf_geometry
+                        or (
+                            page.coordinate_space == CoordinateSpace.normalized_legacy
+                            and block.source == SourceKind.legacy_parser
+                        )
+                    )
+                    and block.semantic_role == BlockSemanticRole.response_area
                     and block.block_label in _PHYSICAL_RESPONSE_BLOCK_LABELS
                     and block.bbox is not None
+                    and _RESPONSE_REGION_TYPE_BY_PHYSICAL_LABEL.get(block.block_label)
+                    == region.region_type.value
                 ]
                 if not physical_sources:
                     raise ValueError(
@@ -659,6 +856,10 @@ class IntermediateDocument(BaseModel):
                 region = region_by_id.get(link.response_region_id)
                 if region is None:
                     raise ValueError(f"task {task.id} references unknown response region {link.response_region_id}")
+                if region.region_type == ResponseRegionType.checkbox and link.role != TaskResponseRole.choice:
+                    raise ValueError("checkbox response regions require choice response links")
+                if link.role == TaskResponseRole.choice and region.region_type != ResponseRegionType.checkbox:
+                    raise ValueError("choice response links require checkbox response regions")
                 if region.safety != ResponseSafety.approved and not task.side_panel_fallback:
                     raise ValueError(
                         f"task {task.id} needs side_panel_fallback for non-approved response region"
@@ -717,6 +918,7 @@ class IntermediateDocument(BaseModel):
         payloads while preserving a stable target ID and the side-panel route.
         """
         result: list[dict[str, Any]] = []
+        block_by_id = {block.id: block for block in self.blocks}
         for task in sorted(self.tasks, key=lambda item: item.order):
             if not include_unapproved and not task.approved:
                 continue
@@ -725,7 +927,35 @@ class IntermediateDocument(BaseModel):
             approved_answer_region: DocumentResponseRegion | None = None
             for link in links:
                 region = self.response_region(link.response_region_id)
-                safe_for_write = region.safety == ResponseSafety.approved
+                # A checkbox is a selection control, not a text box. The
+                # canonical contract can represent historical reviewed data,
+                # but student-facing targets remain side-panel-only until a
+                # deterministic mark renderer exists.
+                page = self.page(region.page_index)
+                has_compatible_write_evidence = any(
+                    block.source == SourceKind.pdf_geometry
+                    and block.semantic_role == BlockSemanticRole.response_area
+                    and block.bbox is not None
+                    and _RESPONSE_REGION_TYPE_BY_PHYSICAL_LABEL.get(block.block_label)
+                    == region.region_type.value
+                    and _bbox_contains(block.bbox, region.bbox)
+                    for block_id in region.source_block_ids
+                    if (block := block_by_id.get(block_id)) is not None
+                )
+                safe_for_write = (
+                    task.approved
+                    and not task.side_panel_fallback
+                    and region.safety == ResponseSafety.approved
+                    and region.region_type != ResponseRegionType.checkbox
+                    and page.coordinate_space == CoordinateSpace.pdf_points
+                    and not page.display_transform_required
+                    and page.rotation == 0
+                    and page_has_reliable_native_write_evidence(page)
+                    and task_has_student_write_role(task, page)
+                    and task.anchor_page_index == region.page_index
+                    and task_has_native_local_prompt_evidence(task, region, block_by_id)
+                    and has_compatible_write_evidence
+                )
                 entry: dict[str, Any] = {
                     "id": region.id,
                     "task_id": task.id,

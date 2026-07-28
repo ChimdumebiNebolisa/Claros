@@ -41,15 +41,29 @@ from review_service import apply_review_actions
 
 def _document() -> IntermediateDocument:
     pages = [
-        DocumentPage(page_index=0, width_points=612, height_points=792, block_ids=["p0", "a", "b", "c", "d"]),
-        DocumentPage(page_index=1, width_points=612, height_points=792, block_ids=["p1", "subpart", "explain"]),
+        DocumentPage(
+            page_index=0,
+            width_points=612,
+            height_points=792,
+            native_text_exists=True,
+            page_role=PageRole.student_worksheet,
+            block_ids=["p0", "a", "b", "c", "d"],
+        ),
+        DocumentPage(
+            page_index=1,
+            width_points=612,
+            height_points=792,
+            native_text_exists=True,
+            page_role=PageRole.student_worksheet,
+            block_ids=["p1", "subpart", "explain"],
+        ),
     ]
     blocks = [
         DocumentBlock(
             id="p0",
             page_index=0,
             reading_order=0,
-            text="Choose the best habitat and explain why.",
+            text="8. Choose the best habitat and explain why.",
             block_label="native_text",
             bbox=[40, 40, 400, 62],
             confidence=1,
@@ -134,7 +148,7 @@ def _document() -> IntermediateDocument:
         legacy_question_id=8,
         order=0,
         label="8",
-        prompt_text="Choose the best habitat and explain why.\nExplain your choice on the next page.",
+        prompt_text="8. Choose the best habitat and explain why.\nExplain your choice on the next page.",
         anchor_page_index=0,
         page_role=PageRole.student_worksheet,
         prompt_block_ids=["p0", "p1"],
@@ -195,7 +209,7 @@ def test_canonical_contract_round_trips_rich_cross_page_document_without_flat_qu
     restored = parse_manifest_json(raw)
     task = restored.document.task("task-habitat")
     assert task.prompt_block_ids == ["p0", "p1"]
-    assert task.prompt_text == "Choose the best habitat and explain why.\nExplain your choice on the next page."
+    assert task.prompt_text == "8. Choose the best habitat and explain why.\nExplain your choice on the next page."
     assert [link.response_region_id for link in task.response_links] == ["r-a", "r-b", "r-c", "r-d", "r-explain"]
     assert restored.document.task("task-habitat-subpart").parent_task_id == "task-habitat"
     assert restored.to_client_document()["tasks"][0]["id"] == "task-habitat"
@@ -426,6 +440,10 @@ def test_canonical_model_requires_real_finite_pages():
 
 
 def test_normalized_legacy_coordinate_space_projects_normalized_geometry_without_rescaling():
+    source = fitz.open()
+    source.new_page(width=612, height=792)
+    source_bytes = source.tobytes()
+    source.close()
     page = DocumentPage(
         page_index=0,
         width_points=612,
@@ -437,6 +455,7 @@ def test_normalized_legacy_coordinate_space_projects_normalized_geometry_without
         title="Legacy normalized",
         parser="test",
         status=ParseStatus.parsed,
+        source_sha256=hashlib.sha256(source_bytes).hexdigest(),
         pages=[page],
         blocks=[
             DocumentBlock(
@@ -467,6 +486,7 @@ def test_normalized_legacy_coordinate_space_projects_normalized_geometry_without
                 id="response-region",
                 page_index=0,
                 bbox=[0.1, 0.3, 0.8, 0.4],
+                region_type=ResponseRegionType.answer_line,
                 safety=ResponseSafety.approved,
                 confidence=1,
                 source_block_ids=["response"],
@@ -492,6 +512,25 @@ def test_normalized_legacy_coordinate_space_projects_normalized_geometry_without
         "width": 0.7,
         "height": 0.1,
     }
+    assert document.task_views()[0]["response_target_id"] == "normalized-task:side-panel"
+    exported = build_canonical_export_pdf(
+        source_bytes,
+        document,
+        [
+            {
+                "task_id": "normalized-task",
+                "response_region_id": "response-region",
+                "answer_text": "X",
+            }
+        ],
+    )
+    output = fitz.open(stream=exported, filetype="pdf")
+    try:
+        assert output.page_count == 2
+        assert "X" not in output[0].get_text()
+        assert "X" in output[1].get_text()
+    finally:
+        output.close()
 
 
 def test_canonical_export_routes_an_unsafe_linked_region_to_the_side_panel_even_if_client_supplies_geometry():
@@ -642,7 +681,7 @@ def test_choice_only_task_defaults_to_the_safe_side_panel_and_review_split_prese
                 "parts": [
                     {
                         "prompt_block_ids": ["p0"],
-                        "prompt_text": "Choose the best habitat and explain why.",
+                        "prompt_text": "8. Choose the best habitat and explain why.",
                         "response_region_ids": ["r-a", "r-b"],
                     },
                     {

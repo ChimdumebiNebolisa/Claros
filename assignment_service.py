@@ -14,7 +14,13 @@ from fastapi.responses import Response
 
 import config
 import storage
-from manifest import AssignmentManifest, build_manifest, parse_manifest_json
+from manifest import (
+    AssignmentManifest,
+    build_manifest,
+    parse_manifest_json,
+    sign_assignment_manifest,
+    verify_assignment_manifest,
+)
 from storage import (
     assignment_pdf_path,
     delete_assignment_prefix,
@@ -49,6 +55,10 @@ class AssignmentExpiredError(RuntimeError):
 
 class AssignmentSourceMismatchError(ValueError):
     """Raised when canonical physical evidence no longer matches its PDF."""
+
+
+class AssignmentManifestIntegrityError(ValueError):
+    """Raised when a persisted canonical manifest fails its server MAC."""
 
 
 def _ensure_manifest_active(manifest: AssignmentManifest) -> AssignmentManifest:
@@ -107,6 +117,55 @@ def _download_pdf_bytes(assignment_id: str) -> bytes:
 def _has_physical_response_targets(manifest: AssignmentManifest) -> bool:
     """Detect canonical response evidence that can be shown or approved later."""
     return any(task.response_links for task in manifest.document.tasks)
+
+
+def _is_unsigned_legacy_quarantine(
+    assignment_id: str,
+    manifest: AssignmentManifest,
+) -> bool:
+    """Accept only the no-authority historical manifest shape without a MAC."""
+    document = manifest.document
+    return (
+        manifest.assignment_id == assignment_id
+        and manifest.assignment_capability_hash is None
+        and not document.blocks
+        and not document.response_regions
+        and all(page.coordinate_space.value == "normalized_legacy" and page.needs_review for page in document.pages)
+        and all(
+            task.evidence_status.value == "legacy_unverified"
+            and not task.prompt_block_ids
+            and not task.response_links
+            and task.side_panel_fallback
+            for task in document.tasks
+        )
+    )
+
+
+def _signed_manifest(assignment_id: str, manifest: AssignmentManifest) -> AssignmentManifest:
+    """Authenticate the exact persisted canonical record for its storage key."""
+    return sign_assignment_manifest(
+        manifest,
+        expected_assignment_id=assignment_id,
+        key=config.get_assignment_manifest_hmac_key(),
+    )
+
+
+def _verify_loaded_manifest(assignment_id: str, manifest: AssignmentManifest) -> AssignmentManifest:
+    """Reject altered canonical targets while retaining old side-panel records."""
+    if manifest.integrity_hmac is not None:
+        if not verify_assignment_manifest(
+            manifest,
+            expected_assignment_id=assignment_id,
+            key=config.get_assignment_manifest_hmac_key(),
+        ):
+            raise AssignmentManifestIntegrityError("Assignment manifest integrity check failed")
+    elif not _is_unsigned_legacy_quarantine(assignment_id, manifest):
+        # An unsigned record is permitted only for a fully quarantined legacy
+        # document with no capability binding, source blocks, regions, or
+        # response links. Anything else can influence a live assignment and
+        # therefore requires a server integrity tag.
+        raise AssignmentManifestIntegrityError("Unsigned manifest is not a quarantined legacy record")
+    return manifest
 
 
 def ensure_manifest_source_matches_pdf(
@@ -270,6 +329,7 @@ def persist_assignment_from_pdf_bytes(
             review_mode=review_mode,
             assignment_capability_hash=assignment_capability_hash,
         )
+        manifest = _signed_manifest(assignment_id, manifest)
         upload_pdf_to_gcs(assignment_id, pdf_bytes)
         upload_manifest_to_gcs(assignment_id, manifest.model_dump_json())
         return manifest
@@ -291,14 +351,19 @@ def load_assignment_manifest(assignment_id: str) -> AssignmentManifest:
     if config.USE_MANIFEST:
         raw = download_manifest_from_gcs(assignment_id)
         if raw:
-            return _ensure_manifest_active(parse_manifest_json(raw))
+            return _ensure_manifest_active(
+                _verify_loaded_manifest(assignment_id, parse_manifest_json(raw))
+            )
 
     pdf_bytes = _download_pdf_bytes(assignment_id)
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
         tmp.write(pdf_bytes)
         tmp_path = tmp.name
     try:
-        manifest = _parse_and_build_manifest(assignment_id, tmp_path)
+        manifest = _signed_manifest(
+            assignment_id,
+            _parse_and_build_manifest(assignment_id, tmp_path),
+        )
         try:
             upload_manifest_to_gcs(assignment_id, manifest.model_dump_json())
         except Exception:
@@ -372,6 +437,7 @@ def review_assignment(
         pdf_bytes=pdf_bytes,
         finalize=finalize,
     )
+    updated = _signed_manifest(assignment_id, updated)
     upload_manifest_to_gcs(assignment_id, updated.model_dump_json())
     return updated
 

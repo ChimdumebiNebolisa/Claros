@@ -3,13 +3,19 @@ from __future__ import annotations
 
 from document_model import (
     BlockSemanticRole,
+    CoordinateSpace,
     DocumentResponseRegion,
     DocumentTask,
     IntermediateDocument,
+    ResponseRegionType,
     ResponseSafety,
     ReviewStatus,
+    SourceKind,
+    page_has_reliable_native_write_evidence,
     source_prompt_text,
     stable_task_id,
+    task_has_native_local_prompt_evidence,
+    task_has_student_write_role,
 )
 from manifest import AssignmentManifest, validate_bbox_within_page
 
@@ -110,8 +116,10 @@ def _apply_bbox(
         raise ValueError("answer_bbox cannot move a response region across pages")
     block_by_id = {block.id: block for block in document.blocks}
     if not any(
-        block.semantic_role == BlockSemanticRole.response_area
+        block.source == SourceKind.pdf_geometry
+        and block.semantic_role == BlockSemanticRole.response_area
         and block.block_label in _PHYSICAL_RESPONSE_BLOCK_LABELS
+        and block.block_label == region.region_type.value
         and block.bbox is not None
         and block.bbox[0] <= bbox[0]
         and block.bbox[1] <= bbox[1]
@@ -121,17 +129,49 @@ def _apply_bbox(
         if (block := block_by_id.get(block_id)) is not None
     ):
         raise ValueError("answer_bbox must fit within its physical response evidence")
+    if not task_has_native_local_prompt_evidence(task, region, block_by_id):
+        raise ValueError("answer_bbox requires native, local prompt evidence")
     region.bbox = bbox
 
 
 def _approve_regions(document: IntermediateDocument, task: DocumentTask) -> None:
+    block_by_id = {block.id: block for block in document.blocks}
     for link in task.response_links:
         region = document.response_region(link.response_region_id)
+        if region.safety == ResponseSafety.approved:
+            # Existing records remain representable. New promotion below is
+            # the only operation that can grant fresh write authority.
+            continue
         page = document.page(region.page_index)
-        if page.rotation != 0 or page.display_transform_required:
-            raise ValueError("transformed response regions require the side-panel fallback")
-        if region.safety == ResponseSafety.needs_review:
-            region.safety = ResponseSafety.approved
+        if (
+            page.coordinate_space != CoordinateSpace.pdf_points
+            or page.rotation != 0
+            or page.display_transform_required
+            or not page_has_reliable_native_write_evidence(page)
+            or not task_has_student_write_role(task, page)
+        ):
+            raise ValueError("response regions without reliable native page evidence require the side-panel fallback")
+        if region.region_type == ResponseRegionType.checkbox:
+            # Review cannot promote a newly uncertain checkbox into a text
+            # write target without a deterministic mark renderer.
+            raise ValueError("checkbox response regions require a deterministic mark renderer")
+        if not task_has_native_local_prompt_evidence(task, region, block_by_id):
+            raise ValueError("response region requires native, local prompt evidence")
+        if not any(
+            block.source == SourceKind.pdf_geometry
+            and block.semantic_role == BlockSemanticRole.response_area
+            and block.block_label in _PHYSICAL_RESPONSE_BLOCK_LABELS
+            and block.block_label == region.region_type.value
+            and block.bbox is not None
+            and block.bbox[0] <= region.bbox[0]
+            and block.bbox[1] <= region.bbox[1]
+            and region.bbox[2] <= block.bbox[2]
+            and region.bbox[3] <= block.bbox[3]
+            for block_id in region.source_block_ids
+            if (block := block_by_id.get(block_id)) is not None
+        ):
+            raise ValueError("response region lacks deterministic physical response evidence")
+        region.safety = ResponseSafety.approved
 
 
 def _refresh_task_fallback(document: IntermediateDocument, task: DocumentTask) -> None:

@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import hmac
 import math
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
@@ -24,6 +26,7 @@ from document_model import (
 MANIFEST_VERSION = 4
 LEGACY_MANIFEST_VERSION = 1
 CANONICAL_MANIFEST_NAME = "manifest.json"
+_MANIFEST_HMAC_CONTEXT = b"claros/assignment-manifest/v1\0"
 
 LayoutConfidence = Literal["high", "medium", "low", "manual"]
 
@@ -78,6 +81,9 @@ class AssignmentManifest(BaseModel):
     review_mode: str = "direct"
     review_status: str = "unreviewed"
     assignment_capability_hash: str | None = None
+    # Persisted manifests are authenticated by assignment_service. The model
+    # allows an absent tag only for quarantined legacy side-panel records.
+    integrity_hmac: str | None = None
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     expires_at: str | None = None
 
@@ -381,6 +387,78 @@ def build_manifest(
         review_status=review_status,
         assignment_capability_hash=assignment_capability_hash,
     )
+
+
+def canonical_manifest_bytes(manifest: AssignmentManifest) -> bytes:
+    """Serialize manifest content deterministically, excluding its MAC tag."""
+    payload = manifest.model_dump(mode="json", exclude={"integrity_hmac"})
+    return json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
+
+
+def _assignment_manifest_tag(
+    manifest: AssignmentManifest,
+    *,
+    expected_assignment_id: str,
+    key: bytes,
+) -> str:
+    if not expected_assignment_id or manifest.assignment_id != expected_assignment_id:
+        raise ValueError("manifest assignment_id does not match its storage key")
+    if not isinstance(key, bytes) or not key:
+        raise ValueError("manifest integrity key is required")
+    payload = canonical_manifest_bytes(manifest)
+    return hmac.new(
+        key,
+        _MANIFEST_HMAC_CONTEXT
+        + expected_assignment_id.encode("utf-8")
+        + b"\0"
+        + payload,
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def sign_assignment_manifest(
+    manifest: AssignmentManifest,
+    *,
+    expected_assignment_id: str,
+    key: bytes,
+) -> AssignmentManifest:
+    """Return a copy whose complete persisted payload has a server MAC."""
+    return manifest.model_copy(
+        update={
+            "integrity_hmac": _assignment_manifest_tag(
+                manifest,
+                expected_assignment_id=expected_assignment_id,
+                key=key,
+            )
+        }
+    )
+
+
+def verify_assignment_manifest(
+    manifest: AssignmentManifest,
+    *,
+    expected_assignment_id: str,
+    key: bytes,
+) -> bool:
+    """Verify the stored tag without treating a missing tag as valid."""
+    tag = manifest.integrity_hmac
+    if not isinstance(tag, str) or len(tag) != 64:
+        return False
+    try:
+        expected = _assignment_manifest_tag(
+            manifest,
+            expected_assignment_id=expected_assignment_id,
+            key=key,
+        )
+    except ValueError:
+        return False
+    return hmac.compare_digest(tag, expected)
 
 
 def parse_manifest_json(raw: str | bytes) -> AssignmentManifest:

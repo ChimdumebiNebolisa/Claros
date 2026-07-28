@@ -1,0 +1,746 @@
+{
+  "suite": "canonical_v1",
+  "expected_labels_kind": "deterministic_first_party",
+  "parser": "current production parser (unchanged)",
+  "response_detection_rule": "At least 50% of an expected response region is covered by the parser's answer region for the matched task.",
+  "response_type_note": "The production parser emits one untyped answer region per task. canonical_v1 deterministically adapts its shape to line or box; checkbox cannot be inferred by the current output contract.",
+  "counts": {
+    "documents": 3,
+    "expected_tasks": 15,
+    "predicted_tasks": 14,
+    "expected_response_regions": 36,
+    "detected_response_regions": 10
+  },
+  "metrics": {
+    "task_count_accuracy": 0.933333,
+    "task_count_exact_document_rate": 0.666667,
+    "prompt_text_fidelity": 0.726631,
+    "task_order_accuracy": 0.933333,
+    "response_region_detection": 0.277778,
+    "response_region_mean_iou": 0.062532,
+    "response_type_accuracy": 0.166667,
+    "task_to_response_association_accuracy": 0.277778,
+    "false_positive_tasks": 0,
+    "false_positive_writable_regions": 4
+  },
+  "documents": [
+    {
+      "canonical_id": "canonical-short-answer-ecosystems",
+      "pdf": "pdfs/canonical-short-answer-ecosystems.pdf",
+      "parse_status": "ok",
+      "parse_warnings": [],
+      "parsed_title": "Claros sample worksheet",
+      "expected_task_count": 5,
+      "predicted_task_count": 4,
+      "task_count_exact": false,
+      "task_count_accuracy": 0.8,
+      "prompt_text_fidelity": 0.8,
+      "task_order_accuracy": 0.8,
+      "response_region_detection": 0.8,
+      "response_region_mean_iou": 0.239867,
+      "response_type_accuracy": 0.6,
+      "task_to_response_association_accuracy": 0.8,
+      "false_positive_tasks": 0,
+      "false_positive_writable_regions": 0,
+      "tasks": [
+        {
+          "task_id": "ecosystems-task-1",
+          "order": 1,
+          "matched_prediction": true,
+          "predicted_label": "1",
+          "expected_prompt": "Identify one living part of an ecosystem.",
+          "predicted_prompt": "Identify one living part of an ecosystem.",
+          "prompt_text_fidelity": 1.0,
+          "predicted_response_region": {
+            "x": 0.098039,
+            "y": 0.328283,
+            "width": 0.803922,
+            "height": 0.084596
+          },
+          "best_expected_response_id": "ecosystems-task-1-answer",
+          "best_expected_response_coverage": 1.0,
+          "best_response_iou": 0.262409,
+          "responses": [
+            {
+              "response_id": "ecosystems-task-1-answer",
+              "expected_type": "line",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 0.262409,
+              "adapter_inferred_type": "line",
+              "type_match": true,
+              "association_match": true
+            }
+          ]
+        },
+        {
+          "task_id": "ecosystems-task-2",
+          "order": 2,
+          "matched_prediction": false,
+          "predicted_label": null,
+          "expected_prompt": "Define a producer in your own words.",
+          "predicted_prompt": null,
+          "prompt_text_fidelity": 0.0,
+          "predicted_response_region": null,
+          "best_expected_response_id": null,
+          "best_expected_response_coverage": 0.0,
+          "best_response_iou": 0.0,
+          "responses": [
+            {
+              "response_id": "ecosystems-task-2-answer",
+              "expected_type": "line",
+              "detected": false,
+              "expected_region_coverage": 0.0,
+              "iou": 0.0,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            }
+          ]
+        },
+        {
+          "task_id": "ecosystems-task-3",
+          "order": 3,
+          "matched_prediction": true,
+          "predicted_label": "3",
+          "expected_prompt": "Briefly explain how consumers get energy.",
+          "predicted_prompt": "Briefly explain how consumers get energy.",
+          "prompt_text_fidelity": 1.0,
+          "predicted_response_region": {
+            "x": 0.098039,
+            "y": 0.525253,
+            "width": 0.803922,
+            "height": 0.142677
+          },
+          "best_expected_response_id": "ecosystems-task-3-answer",
+          "best_expected_response_coverage": 1.0,
+          "best_response_iou": 0.393842,
+          "responses": [
+            {
+              "response_id": "ecosystems-task-3-answer",
+              "expected_type": "box",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 0.393842,
+              "adapter_inferred_type": "box",
+              "type_match": true,
+              "association_match": true
+            }
+          ]
+        },
+        {
+          "task_id": "ecosystems-task-4",
+          "order": 4,
+          "matched_prediction": true,
+          "predicted_label": "4",
+          "expected_prompt": "Explain why decomposers are important to an ecosystem.",
+          "predicted_prompt": "Explain why decomposers are important to an ecosystem.",
+          "prompt_text_fidelity": 1.0,
+          "predicted_response_region": {
+            "x": 0.098039,
+            "y": 0.681818,
+            "width": 0.803922,
+            "height": 0.142677
+          },
+          "best_expected_response_id": "ecosystems-task-4-answer",
+          "best_expected_response_coverage": 1.0,
+          "best_response_iou": 0.393842,
+          "responses": [
+            {
+              "response_id": "ecosystems-task-4-answer",
+              "expected_type": "box",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 0.393842,
+              "adapter_inferred_type": "box",
+              "type_match": true,
+              "association_match": true
+            }
+          ]
+        },
+        {
+          "task_id": "ecosystems-task-5",
+          "order": 5,
+          "matched_prediction": true,
+          "predicted_label": "5",
+          "expected_prompt": "Name two nonliving factors found in an ecosystem.",
+          "predicted_prompt": "Name two nonliving factors found in an ecosystem.",
+          "prompt_text_fidelity": 1.0,
+          "predicted_response_region": {
+            "x": 0.088235,
+            "y": 0.838384,
+            "width": 0.823529,
+            "height": 0.145202
+          },
+          "best_expected_response_id": "ecosystems-task-5-answer",
+          "best_expected_response_coverage": 1.0,
+          "best_response_iou": 0.149242,
+          "responses": [
+            {
+              "response_id": "ecosystems-task-5-answer",
+              "expected_type": "line",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 0.149242,
+              "adapter_inferred_type": "box",
+              "type_match": false,
+              "association_match": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "canonical_id": "canonical-choice-digital-safety",
+      "pdf": "pdfs/canonical-choice-digital-safety.pdf",
+      "parse_status": "ok",
+      "parse_warnings": [],
+      "parsed_title": "Claros sample worksheet",
+      "expected_task_count": 5,
+      "predicted_task_count": 5,
+      "task_count_exact": true,
+      "task_count_accuracy": 1.0,
+      "prompt_text_fidelity": 0.379893,
+      "task_order_accuracy": 1.0,
+      "response_region_detection": 0.043478,
+      "response_region_mean_iou": 0.018574,
+      "response_type_accuracy": 0.0,
+      "task_to_response_association_accuracy": 0.043478,
+      "false_positive_tasks": 0,
+      "false_positive_writable_regions": 4,
+      "tasks": [
+        {
+          "task_id": "digital-safety-task-1",
+          "order": 1,
+          "matched_prediction": true,
+          "predicted_label": "1",
+          "expected_prompt": "Which password practice is safest?",
+          "predicted_prompt": "Which password practice is safest?\nA.   Use the same short password everywhere.\nB.   Use a unique passphrase and keep it private.\nC.   Share your password with friends.\nD.   Write your password in a public place.",
+          "prompt_text_fidelity": 0.285714,
+          "predicted_response_region": {
+            "x": 0.098039,
+            "y": 0.431818,
+            "width": 0.803922,
+            "height": 0.026515
+          },
+          "best_expected_response_id": "digital-safety-task-1-choice-a",
+          "best_expected_response_coverage": 0.0,
+          "best_response_iou": 0.0,
+          "responses": [
+            {
+              "response_id": "digital-safety-task-1-choice-a",
+              "expected_type": "checkbox",
+              "detected": false,
+              "expected_region_coverage": 0.0,
+              "iou": 0.0,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            },
+            {
+              "response_id": "digital-safety-task-1-choice-b",
+              "expected_type": "checkbox",
+              "detected": false,
+              "expected_region_coverage": 0.0,
+              "iou": 0.0,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            },
+            {
+              "response_id": "digital-safety-task-1-choice-c",
+              "expected_type": "checkbox",
+              "detected": false,
+              "expected_region_coverage": 0.0,
+              "iou": 0.0,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            },
+            {
+              "response_id": "digital-safety-task-1-choice-d",
+              "expected_type": "checkbox",
+              "detected": false,
+              "expected_region_coverage": 0.0,
+              "iou": 0.0,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            }
+          ]
+        },
+        {
+          "task_id": "digital-safety-task-2",
+          "order": 2,
+          "matched_prediction": true,
+          "predicted_label": "2",
+          "expected_prompt": "What should you do if an unfamiliar person asks for your home address online?",
+          "predicted_prompt": "What should you do if an unfamiliar person asks for your home address online?\nA.   Send it right away.\nB.   Post it where everyone can see it.\nC.   Do not share it and tell a trusted adult.\nD.   Trade it for a game code.\nBriefly explain your choice:",
+          "prompt_text_fidelity": 0.484277,
+          "predicted_response_region": {
+            "x": 0.088235,
+            "y": 0.957071,
+            "width": 0.823529,
+            "height": 0.026515
+          },
+          "best_expected_response_id": "digital-safety-task-2-choice-a",
+          "best_expected_response_coverage": 0.0,
+          "best_response_iou": 0.0,
+          "responses": [
+            {
+              "response_id": "digital-safety-task-2-choice-a",
+              "expected_type": "checkbox",
+              "detected": false,
+              "expected_region_coverage": 0.0,
+              "iou": 0.0,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            },
+            {
+              "response_id": "digital-safety-task-2-choice-b",
+              "expected_type": "checkbox",
+              "detected": false,
+              "expected_region_coverage": 0.0,
+              "iou": 0.0,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            },
+            {
+              "response_id": "digital-safety-task-2-choice-c",
+              "expected_type": "checkbox",
+              "detected": false,
+              "expected_region_coverage": 0.0,
+              "iou": 0.0,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            },
+            {
+              "response_id": "digital-safety-task-2-choice-d",
+              "expected_type": "checkbox",
+              "detected": false,
+              "expected_region_coverage": 0.0,
+              "iou": 0.0,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            },
+            {
+              "response_id": "digital-safety-task-2-explanation",
+              "expected_type": "line",
+              "detected": false,
+              "expected_region_coverage": 0.0,
+              "iou": 0.0,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            }
+          ]
+        },
+        {
+          "task_id": "digital-safety-task-3",
+          "order": 3,
+          "matched_prediction": true,
+          "predicted_label": "3",
+          "expected_prompt": "Which message is most likely a warning sign?",
+          "predicted_prompt": "Which message is most likely a warning sign?\nA.   A teacher posts tomorrow's homework.\nB.   A friend says hello using their usual account.\nC.   A parent shares a family calendar.\nD.   A stranger demands an immediate click to claim a prize.",
+          "prompt_text_fidelity": 0.32,
+          "predicted_response_region": {
+            "x": 0.098039,
+            "y": 0.315657,
+            "width": 0.803922,
+            "height": 0.026515
+          },
+          "best_expected_response_id": "digital-safety-task-3-choice-a",
+          "best_expected_response_coverage": 0.0,
+          "best_response_iou": 0.0,
+          "responses": [
+            {
+              "response_id": "digital-safety-task-3-choice-a",
+              "expected_type": "checkbox",
+              "detected": false,
+              "expected_region_coverage": 0.0,
+              "iou": 0.0,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            },
+            {
+              "response_id": "digital-safety-task-3-choice-b",
+              "expected_type": "checkbox",
+              "detected": false,
+              "expected_region_coverage": 0.0,
+              "iou": 0.0,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            },
+            {
+              "response_id": "digital-safety-task-3-choice-c",
+              "expected_type": "checkbox",
+              "detected": false,
+              "expected_region_coverage": 0.0,
+              "iou": 0.0,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            },
+            {
+              "response_id": "digital-safety-task-3-choice-d",
+              "expected_type": "checkbox",
+              "detected": false,
+              "expected_region_coverage": 0.0,
+              "iou": 0.0,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            }
+          ]
+        },
+        {
+          "task_id": "digital-safety-task-4",
+          "order": 4,
+          "matched_prediction": true,
+          "predicted_label": "4",
+          "expected_prompt": "What is the safest response to an unexpected attachment?",
+          "predicted_prompt": "What is the safest response to an unexpected attachment?\nA.   Open it before reading the message.\nB.   Forward it to everyone.\nC.   Verify the sender and ask a trusted adult if unsure.\nD.   Disable security tools first.\nBriefly explain your choice:",
+          "prompt_text_fidelity": 0.378378,
+          "predicted_response_region": {
+            "x": 0.098039,
+            "y": 0.482323,
+            "width": 0.803922,
+            "height": 0.097222
+          },
+          "best_expected_response_id": "digital-safety-task-4-explanation",
+          "best_expected_response_coverage": 1.0,
+          "best_response_iou": 0.427197,
+          "responses": [
+            {
+              "response_id": "digital-safety-task-4-choice-a",
+              "expected_type": "checkbox",
+              "detected": false,
+              "expected_region_coverage": 0.0,
+              "iou": 0.0,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            },
+            {
+              "response_id": "digital-safety-task-4-choice-b",
+              "expected_type": "checkbox",
+              "detected": false,
+              "expected_region_coverage": 0.0,
+              "iou": 0.0,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            },
+            {
+              "response_id": "digital-safety-task-4-choice-c",
+              "expected_type": "checkbox",
+              "detected": false,
+              "expected_region_coverage": 0.0,
+              "iou": 0.0,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            },
+            {
+              "response_id": "digital-safety-task-4-choice-d",
+              "expected_type": "checkbox",
+              "detected": false,
+              "expected_region_coverage": 0.0,
+              "iou": 0.0,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            },
+            {
+              "response_id": "digital-safety-task-4-explanation",
+              "expected_type": "box",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 0.427197,
+              "adapter_inferred_type": "line",
+              "type_match": false,
+              "association_match": true
+            }
+          ]
+        },
+        {
+          "task_id": "digital-safety-task-5",
+          "order": 5,
+          "matched_prediction": true,
+          "predicted_label": "5",
+          "expected_prompt": "Which action helps protect your privacy on a shared computer?",
+          "predicted_prompt": "Which action helps protect your privacy on a shared computer?\nA.   Stay signed in after leaving.\nB.   Save private files to the desktop.\nC.   Tell others your passphrase.\nD.   Sign out when you finish.\nBriefly explain your choice:",
+          "prompt_text_fidelity": 0.431095,
+          "predicted_response_region": {
+            "x": 0.088235,
+            "y": 0.957071,
+            "width": 0.823529,
+            "height": 0.026515
+          },
+          "best_expected_response_id": "digital-safety-task-5-choice-a",
+          "best_expected_response_coverage": 0.0,
+          "best_response_iou": 0.0,
+          "responses": [
+            {
+              "response_id": "digital-safety-task-5-choice-a",
+              "expected_type": "checkbox",
+              "detected": false,
+              "expected_region_coverage": 0.0,
+              "iou": 0.0,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            },
+            {
+              "response_id": "digital-safety-task-5-choice-b",
+              "expected_type": "checkbox",
+              "detected": false,
+              "expected_region_coverage": 0.0,
+              "iou": 0.0,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            },
+            {
+              "response_id": "digital-safety-task-5-choice-c",
+              "expected_type": "checkbox",
+              "detected": false,
+              "expected_region_coverage": 0.0,
+              "iou": 0.0,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            },
+            {
+              "response_id": "digital-safety-task-5-choice-d",
+              "expected_type": "checkbox",
+              "detected": false,
+              "expected_region_coverage": 0.0,
+              "iou": 0.0,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            },
+            {
+              "response_id": "digital-safety-task-5-explanation",
+              "expected_type": "line",
+              "detected": false,
+              "expected_region_coverage": 0.0,
+              "iou": 0.0,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "canonical_id": "canonical-numeric-everyday-math",
+      "pdf": "pdfs/canonical-numeric-everyday-math.pdf",
+      "parse_status": "ok",
+      "parse_warnings": [],
+      "parsed_title": "Claros sample worksheet",
+      "expected_task_count": 5,
+      "predicted_task_count": 5,
+      "task_count_exact": true,
+      "task_count_accuracy": 1.0,
+      "prompt_text_fidelity": 1.0,
+      "task_order_accuracy": 1.0,
+      "response_region_detection": 0.625,
+      "response_region_mean_iou": 0.078078,
+      "response_type_accuracy": 0.375,
+      "task_to_response_association_accuracy": 0.625,
+      "false_positive_tasks": 0,
+      "false_positive_writable_regions": 0,
+      "tasks": [
+        {
+          "task_id": "everyday-math-task-1",
+          "order": 1,
+          "matched_prediction": true,
+          "predicted_label": "1",
+          "expected_prompt": "Maya has 18 library books to place equally on 3 shelves. How many books go on each shelf?",
+          "predicted_prompt": "Maya has 18 library books to place equally on 3 shelves. How many books go on each shelf?",
+          "prompt_text_fidelity": 1.0,
+          "predicted_response_region": {
+            "x": 0.098039,
+            "y": 0.194444,
+            "width": 0.803922,
+            "height": 0.084596
+          },
+          "best_expected_response_id": "everyday-math-task-1-answer",
+          "best_expected_response_coverage": 1.0,
+          "best_response_iou": 0.262409,
+          "responses": [
+            {
+              "response_id": "everyday-math-task-1-answer",
+              "expected_type": "line",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 0.262409,
+              "adapter_inferred_type": "line",
+              "type_match": true,
+              "association_match": true
+            }
+          ]
+        },
+        {
+          "task_id": "everyday-math-task-2",
+          "order": 2,
+          "matched_prediction": true,
+          "predicted_label": "2",
+          "expected_prompt": "A class collects 27 cans on Monday and 16 cans on Tuesday. How many cans do they collect in all?",
+          "predicted_prompt": "A class collects 27 cans on Monday and 16 cans on Tuesday. How many cans do they collect in\nall?",
+          "prompt_text_fidelity": 1.0,
+          "predicted_response_region": {
+            "x": 0.098039,
+            "y": 0.30303,
+            "width": 0.803922,
+            "height": 0.185606
+          },
+          "best_expected_response_id": "everyday-math-task-2-answer",
+          "best_expected_response_coverage": 1.0,
+          "best_response_iou": 0.119601,
+          "responses": [
+            {
+              "response_id": "everyday-math-task-2-answer",
+              "expected_type": "line",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 0.119601,
+              "adapter_inferred_type": "box",
+              "type_match": false,
+              "association_match": true
+            },
+            {
+              "response_id": "everyday-math-task-2-work",
+              "expected_type": "box",
+              "detected": false,
+              "expected_region_coverage": 1.0,
+              "iou": 0.34224,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            }
+          ]
+        },
+        {
+          "task_id": "everyday-math-task-3",
+          "order": 3,
+          "matched_prediction": true,
+          "predicted_label": "3",
+          "expected_prompt": "A notebook costs $4. Lena buys 5 notebooks. What is the total cost?",
+          "predicted_prompt": "A notebook costs $4. Lena buys 5 notebooks. What is the total cost?",
+          "prompt_text_fidelity": 1.0,
+          "predicted_response_region": {
+            "x": 0.088235,
+            "y": 0.502525,
+            "width": 0.823529,
+            "height": 0.481061
+          },
+          "best_expected_response_id": "everyday-math-task-3-answer",
+          "best_expected_response_coverage": 1.0,
+          "best_response_iou": 0.074366,
+          "responses": [
+            {
+              "response_id": "everyday-math-task-3-answer",
+              "expected_type": "box",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 0.074366,
+              "adapter_inferred_type": "box",
+              "type_match": true,
+              "association_match": true
+            }
+          ]
+        },
+        {
+          "task_id": "everyday-math-task-4",
+          "order": 4,
+          "matched_prediction": true,
+          "predicted_label": "4",
+          "expected_prompt": "A 48-minute practice is divided into 6 equal activities. How many minutes does each activity last?",
+          "predicted_prompt": "A 48-minute practice is divided into 6 equal activities. How many minutes does each activity\nlast?",
+          "prompt_text_fidelity": 1.0,
+          "predicted_response_region": {
+            "x": 0.098039,
+            "y": 0.207071,
+            "width": 0.803922,
+            "height": 0.215909
+          },
+          "best_expected_response_id": "everyday-math-task-4-answer",
+          "best_expected_response_coverage": 1.0,
+          "best_response_iou": 0.102815,
+          "responses": [
+            {
+              "response_id": "everyday-math-task-4-answer",
+              "expected_type": "line",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 0.102815,
+              "adapter_inferred_type": "box",
+              "type_match": false,
+              "association_match": true
+            },
+            {
+              "response_id": "everyday-math-task-4-work",
+              "expected_type": "box",
+              "detected": false,
+              "expected_region_coverage": 1.0,
+              "iou": 0.429993,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            }
+          ]
+        },
+        {
+          "task_id": "everyday-math-task-5",
+          "order": 5,
+          "matched_prediction": true,
+          "predicted_label": "5",
+          "expected_prompt": "Jordan has $30 and spends $12 on a museum ticket. How much money remains?",
+          "predicted_prompt": "Jordan has $30 and spends $12 on a museum ticket. How much money remains?",
+          "prompt_text_fidelity": 1.0,
+          "predicted_response_region": {
+            "x": 0.088235,
+            "y": 0.436869,
+            "width": 0.823529,
+            "height": 0.546717
+          },
+          "best_expected_response_id": "everyday-math-task-5-answer",
+          "best_expected_response_coverage": 1.0,
+          "best_response_iou": 0.065435,
+          "responses": [
+            {
+              "response_id": "everyday-math-task-5-answer",
+              "expected_type": "box",
+              "detected": true,
+              "expected_region_coverage": 1.0,
+              "iou": 0.065435,
+              "adapter_inferred_type": "box",
+              "type_match": true,
+              "association_match": true
+            },
+            {
+              "response_id": "everyday-math-task-5-work",
+              "expected_type": "box",
+              "detected": false,
+              "expected_region_coverage": 1.0,
+              "iou": 0.165769,
+              "adapter_inferred_type": null,
+              "type_match": false,
+              "association_match": false
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

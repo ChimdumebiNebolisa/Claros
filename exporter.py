@@ -21,13 +21,163 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, Preformatted
 
-from document_model import CoordinateSpace, IntermediateDocument, ResponseSafety
+from document_model import (
+    BlockSemanticRole,
+    CoordinateSpace,
+    IntermediateDocument,
+    ResponseRegionType,
+    ResponseSafety,
+    SourceKind,
+    page_has_reliable_native_write_evidence,
+    task_has_native_local_prompt_evidence,
+    task_has_student_write_role,
+)
+from document_pipeline import (
+    _response_matches_prompt,
+    current_pdf_page_evidence,
+    has_reliable_native_page_text,
+    page_has_nonstudent_write_cue,
+    page_has_nonstudent_write_cue_in_source,
+    selected_response_blocks_are_distinct,
+)
 from manifest import validate_bbox_within_page
 from parser import normalize_worksheet_text
 
 _MIN_FONT_SIZE = 7.0
 _MAX_FONT_SIZE = 12.0
+# ReportLab's registered font is process-global. MuPDF font resource names
+# are page-local and may already be present in an uploaded worksheet, so they
+# intentionally use a different, collision-resistant namespace below.
 _ANSWER_FONT_NAME = "ClarosUnicode"
+_ANSWER_FONT_PREFIX = "ClarosAnswer"
+
+
+def _actual_page_requires_display_transform(page: fitz.Page) -> bool:
+    """Return whether source-page extraction coordinates need a transform.
+
+    Canonical metadata is validated, but export also checks the PDF it is about
+    to mutate. A malformed stored record must not claim an unrotated frame for
+    a rotated, cropped, or UserUnit-scaled source page.
+    """
+    rotation = int(page.rotation) % 360
+    extraction_width = float(page.rect.height if rotation in {90, 270} else page.rect.width)
+    extraction_height = float(page.rect.width if rotation in {90, 270} else page.rect.height)
+    media = page.mediabox
+    crop = page.cropbox
+    return rotation != 0 or any(
+        abs(left - right) > 0.01
+        for left, right in zip(
+            (media.x0, media.y0, media.x1, media.y1),
+            (crop.x0, crop.y0, crop.x1, crop.y1),
+        )
+    ) or abs(extraction_width - float(media.width)) > 0.01 or abs(
+        extraction_height - float(media.height)
+    ) > 0.01
+
+
+def _same_bbox(first: list[float] | None, second: list[float] | None) -> bool:
+    return (
+        first is not None
+        and second is not None
+        and len(first) == len(second) == 4
+        and all(abs(float(left) - float(right)) <= 0.01 for left, right in zip(first, second))
+    )
+
+
+def _region_matches_current_pdf_evidence(
+    *,
+    page: fitz.Page,
+    page_index: int,
+    document_model: IntermediateDocument,
+    task,
+    region,
+    page_evidence_cache: dict[int, tuple[list, list]],
+) -> bool:
+    """Authenticate a write target against fresh deterministic PDF evidence.
+
+    A source hash binds the source PDF, not a mutable stored claim about that
+    PDF's response geometry. Re-extraction prevents an altered canonical
+    record from drawing over an unrelated source-panel or image.
+    """
+    block_by_id = {block.id: block for block in document_model.blocks}
+    if not task_has_native_local_prompt_evidence(task, region, block_by_id):
+        return False
+    native, physical = page_evidence_cache.setdefault(
+        page_index,
+        current_pdf_page_evidence(page, page_index),
+    )
+    if not has_reliable_native_page_text(native):
+        return False
+    if page_has_nonstudent_write_cue(native) or page_has_nonstudent_write_cue_in_source(page):
+        return False
+    current_native = {block.id: block for block in native}
+    current_physical = {block.id: block for block in physical}
+    prompt_blocks = []
+    for block_id in task.prompt_block_ids:
+        stored = block_by_id.get(block_id)
+        observed = current_native.get(block_id)
+        if (
+            stored is None
+            or observed is None
+            or stored.source != SourceKind.native_pdf
+            or observed.source != SourceKind.native_pdf
+            or stored.text != observed.text
+            or not _same_bbox(stored.bbox, observed.bbox)
+        ):
+            return False
+        prompt_blocks.append(observed)
+
+    task_response_source_ids = {
+        source_block_id
+        for link in task.response_links
+        for source_block_id in document_model.response_region(link.response_region_id).source_block_ids
+    }
+    selected_response_blocks = [
+        current_physical[source_block_id]
+        for source_block_id in task_response_source_ids
+        if source_block_id in current_physical
+    ]
+    if len(selected_response_blocks) != len(task_response_source_ids) or not selected_response_blocks_are_distinct(
+        selected_response_blocks,
+        prompt_blocks,
+        [*native, *physical],
+    ):
+        return False
+    response_blocks = []
+    for block_id in region.source_block_ids:
+        stored = block_by_id.get(block_id)
+        observed = current_physical.get(block_id)
+        if (
+            stored is None
+            or observed is None
+            or stored.source != SourceKind.pdf_geometry
+            or observed.source != SourceKind.pdf_geometry
+            or stored.block_label != observed.block_label
+            or stored.semantic_role != BlockSemanticRole.response_area
+            or observed.semantic_role != BlockSemanticRole.response_area
+            or stored.block_label != region.region_type.value
+            or observed.block_label != region.region_type.value
+            or not _same_bbox(stored.bbox, observed.bbox)
+            or observed.bbox is None
+            or not (
+                observed.bbox[0] <= region.bbox[0]
+                and observed.bbox[1] <= region.bbox[1]
+                and region.bbox[2] <= observed.bbox[2]
+                and region.bbox[3] <= observed.bbox[3]
+            )
+        ):
+            return False
+        response_blocks.append(observed)
+    return bool(response_blocks) and all(
+        _response_matches_prompt(
+            response,
+            prompt_blocks,
+            [*native, *physical],
+            anchor_page_index=task.anchor_page_index,
+            selected_response_ids=task_response_source_ids,
+        )
+        for response in response_blocks
+    )
 
 
 class LayoutExportError(ValueError):
@@ -61,9 +211,29 @@ def _answer_font() -> fitz.Font:
     return fitz.Font(fontname="cjk")
 
 
-def _install_answer_font(page: fitz.Page) -> str:
-    page.insert_font(fontname=_ANSWER_FONT_NAME, fontbuffer=_answer_font().buffer)
-    return _ANSWER_FONT_NAME
+def _install_answer_font(page: fitz.Page, *, preferred_name: str | None = None) -> str:
+    """Embed the Unicode font under a page-local alias that the source lacks.
+
+    A worksheet controls its own PDF resource aliases. Reusing a fixed name
+    such as ``ClarosUnicode`` could silently select a source-provided Latin
+    font and substitute approved Unicode answer characters. A fresh alias is
+    selected after inspecting the page's actual resources.
+    """
+    existing_names = {
+        str(font[4])
+        for font in page.get_fonts(full=True)
+        if len(font) > 4 and isinstance(font[4], str)
+    }
+    candidates: list[str] = []
+    if preferred_name and preferred_name not in existing_names:
+        candidates.append(preferred_name)
+    candidates.extend(f"{_ANSWER_FONT_PREFIX}{index}" for index in range(1024))
+    for candidate in candidates:
+        if candidate in existing_names:
+            continue
+        page.insert_font(fontname=candidate, fontbuffer=_answer_font().buffer)
+        return candidate
+    raise ValueError("No safe PDF font resource alias is available")
 
 
 def _validated_answer_by_id(answers: list[dict]) -> dict[int, str]:
@@ -262,6 +432,7 @@ def build_canonical_export_pdf(
             document_model.source_sha256 or "",
             hashlib.sha256(pdf_bytes).hexdigest(),
         )
+        page_evidence_cache: dict[int, tuple[list, list]] = {}
         for (task_id, response_region_id), answer in answer_by_target.items():
             if not answer:
                 continue
@@ -279,7 +450,10 @@ def build_canonical_export_pdf(
             side_panel_label = f"{task_label} - {_canonical_target_label(task, response_region_id)}"
             if (
                 region is None
+                or not task.approved
+                or task.side_panel_fallback
                 or region.safety != ResponseSafety.approved
+                or region.region_type == ResponseRegionType.checkbox
                 or region.page_index < 0
                 or region.page_index >= document.page_count
             ):
@@ -290,25 +464,28 @@ def build_canonical_export_pdf(
             if (
                 not document_layout_matches
                 or not document_source_matches
+                or _actual_page_requires_display_transform(page)
+                or page_metadata.coordinate_space != CoordinateSpace.pdf_points
+                or not page_has_reliable_native_write_evidence(page_metadata)
+                or not task_has_student_write_role(task, page_metadata)
                 or (
-                    page_metadata.coordinate_space != CoordinateSpace.normalized_legacy
-                    and (
-                        abs(page_metadata.width_points - page.rect.width) > 0.5
-                        or abs(page_metadata.height_points - page.rect.height) > 0.5
-                    )
+                    abs(page_metadata.width_points - page.rect.width) > 0.5
+                    or abs(page_metadata.height_points - page.rect.height) > 0.5
                 )
             ):
                 side_panel_items.append((side_panel_label, normalize_worksheet_text(task.prompt_text), answer))
                 continue
-            if page_metadata.coordinate_space == CoordinateSpace.normalized_legacy:
-                rect = fitz.Rect(
-                    region.bbox[0] * page.rect.width,
-                    region.bbox[1] * page.rect.height,
-                    region.bbox[2] * page.rect.width,
-                    region.bbox[3] * page.rect.height,
-                )
-            else:
-                rect = fitz.Rect(*region.bbox)
+            if not _region_matches_current_pdf_evidence(
+                page=page,
+                page_index=region.page_index,
+                document_model=document_model,
+                task=task,
+                region=region,
+                page_evidence_cache=page_evidence_cache,
+            ):
+                side_panel_items.append((side_panel_label, normalize_worksheet_text(task.prompt_text), answer))
+                continue
+            rect = fitz.Rect(*region.bbox)
             if (
                 rect.width <= 0
                 or rect.height <= 0
@@ -519,11 +696,11 @@ def _textbox_fits(
     probe = fitz.open()
     try:
         scratch = probe.new_page(width=page_width, height=page_height)
-        _install_answer_font(scratch)
+        scratch_font_name = _install_answer_font(scratch, preferred_name=fontname)
         rc = scratch.insert_textbox(
             rect,
             text,
-            fontname=fontname,
+            fontname=scratch_font_name,
             fontsize=fontsize,
             align=fitz.TEXT_ALIGN_LEFT,
             color=(0, 0, 0),

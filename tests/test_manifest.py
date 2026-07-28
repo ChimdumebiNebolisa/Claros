@@ -2,7 +2,15 @@
 import json
 from datetime import datetime, timezone
 
-from manifest import MANIFEST_VERSION, AssignmentManifest, build_manifest, parse_manifest_json
+from manifest import (
+    MANIFEST_VERSION,
+    AssignmentManifest,
+    build_manifest,
+    canonical_manifest_bytes,
+    parse_manifest_json,
+    sign_assignment_manifest,
+    verify_assignment_manifest,
+)
 
 
 def test_build_manifest_round_trip():
@@ -106,3 +114,37 @@ def test_manifest_expiration_is_enforced_by_time():
 def test_manifest_without_expiration_is_active():
     manifest = AssignmentManifest(assignment_id="active", title="T", questions=[])
     assert manifest.is_expired() is False
+
+
+def test_manifest_integrity_tag_binds_canonical_content_and_storage_assignment():
+    manifest = build_manifest(
+        assignment_id="signed-assignment",
+        title="Quiz",
+        questions=[{"id": 1, "text": "Explain"}],
+    )
+    key = b"test-manifest-key"
+    signed = sign_assignment_manifest(
+        manifest,
+        expected_assignment_id="signed-assignment",
+        key=key,
+    )
+
+    assert canonical_manifest_bytes(signed) == canonical_manifest_bytes(manifest)
+    assert verify_assignment_manifest(
+        signed,
+        expected_assignment_id="signed-assignment",
+        key=key,
+    )
+    assert not verify_assignment_manifest(
+        signed,
+        expected_assignment_id="other-assignment",
+        key=key,
+    )
+
+    changed = signed.model_copy(deep=True)
+    changed.title = "Altered"
+    assert not verify_assignment_manifest(
+        changed,
+        expected_assignment_id="signed-assignment",
+        key=key,
+    )

@@ -14,6 +14,7 @@ from document_model import (
     DocumentResponseRegion,
     DocumentTask,
     IntermediateDocument,
+    PageRole,
     ParseStatus,
     ResponseSafety,
     ReviewStatus,
@@ -68,6 +69,7 @@ def _physical_manifest(pdf_bytes: bytes, *, include_hash: bool = True):
                 id="response-region",
                 page_index=0,
                 bbox=[72, 120, 360, 150],
+                region_type="answer_line",
                 safety=ResponseSafety.approved,
                 confidence=1,
                 source_block_ids=["response"],
@@ -181,6 +183,108 @@ def test_client_manifest_source_binding_rejects_changed_or_unhashed_physical_doc
     monkeypatch.setattr(assignment_service, "_download_pdf_bytes", lambda _id: trusted_bytes)
     with pytest.raises(assignment_service.AssignmentSourceMismatchError):
         assignment_service.load_assignment_manifest_for_client(TEST_ASSIGNMENT_ID)
+
+
+def test_persisted_canonical_manifest_requires_an_unmodified_server_integrity_tag(monkeypatch):
+    source = fitz.open()
+    source.new_page(width=612, height=792)
+    pdf_bytes = source.tobytes()
+    source.close()
+    signed = assignment_service._signed_manifest(TEST_ASSIGNMENT_ID, _physical_manifest(pdf_bytes))
+
+    monkeypatch.setattr(
+        assignment_service,
+        "download_manifest_from_gcs",
+        lambda _id: signed.model_dump_json(),
+    )
+    assert assignment_service.load_assignment_manifest(TEST_ASSIGNMENT_ID).integrity_hmac == signed.integrity_hmac
+
+    tampered = signed.model_copy(deep=True)
+    tampered.document.pages[0].page_role = PageRole.teacher_guide
+    monkeypatch.setattr(
+        assignment_service,
+        "download_manifest_from_gcs",
+        lambda _id: tampered.model_dump_json(),
+    )
+    with pytest.raises(assignment_service.AssignmentManifestIntegrityError):
+        assignment_service.load_assignment_manifest(TEST_ASSIGNMENT_ID)
+
+    monkeypatch.setattr(
+        assignment_service,
+        "download_manifest_from_gcs",
+        lambda _id: _physical_manifest(pdf_bytes).model_dump_json(),
+    )
+    with pytest.raises(assignment_service.AssignmentManifestIntegrityError):
+        assignment_service.load_assignment_manifest(TEST_ASSIGNMENT_ID)
+
+
+def test_manifest_integrity_tag_cannot_be_replayed_under_another_assignment_id(monkeypatch):
+    source = fitz.open()
+    source.new_page(width=612, height=792)
+    pdf_bytes = source.tobytes()
+    source.close()
+    signed = assignment_service._signed_manifest(TEST_ASSIGNMENT_ID, _physical_manifest(pdf_bytes))
+    monkeypatch.setattr(
+        assignment_service,
+        "download_manifest_from_gcs",
+        lambda _id: signed.model_dump_json(),
+    )
+
+    with pytest.raises(assignment_service.AssignmentManifestIntegrityError):
+        assignment_service.load_assignment_manifest("another-assignment")
+
+
+def test_unsigned_legacy_manifest_cannot_rebind_a_capability_or_storage_key(monkeypatch):
+    forged_capability = "attacker-known-capability"
+    forged = build_manifest(
+        TEST_ASSIGNMENT_ID,
+        "Legacy",
+        questions=[{"id": 1, "text": "State the answer."}],
+        assignment_capability_hash=assignment_service.assignment_capability_digest(forged_capability),
+    )
+    monkeypatch.setattr(
+        assignment_service,
+        "download_manifest_from_gcs",
+        lambda _id: forged.model_dump_json(),
+    )
+    with pytest.raises(assignment_service.AssignmentManifestIntegrityError):
+        assignment_service.load_assignment_manifest(TEST_ASSIGNMENT_ID)
+    with pytest.raises(assignment_service.AssignmentManifestIntegrityError):
+        assignment_service.require_assignment_capability(TEST_ASSIGNMENT_ID, forged_capability)
+
+    cross_assignment = build_manifest(
+        "attacker-assignment",
+        "Legacy",
+        questions=[{"id": 1, "text": "State the answer."}],
+    )
+    monkeypatch.setattr(
+        assignment_service,
+        "download_manifest_from_gcs",
+        lambda _id: cross_assignment.model_dump_json(),
+    )
+    with pytest.raises(assignment_service.AssignmentManifestIntegrityError):
+        assignment_service.load_assignment_manifest(TEST_ASSIGNMENT_ID)
+
+
+def test_review_persists_a_fresh_manifest_integrity_tag(monkeypatch):
+    source = fitz.open()
+    source.new_page(width=612, height=792)
+    pdf_bytes = source.tobytes()
+    source.close()
+    manifest = _physical_manifest(pdf_bytes).model_copy(update={"review_mode": "teacher"})
+    uploaded = {}
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest", lambda _id: manifest)
+    monkeypatch.setattr(assignment_service, "_download_pdf_bytes", lambda _id: pdf_bytes)
+    monkeypatch.setattr(
+        assignment_service,
+        "upload_manifest_to_gcs",
+        lambda _id, raw: uploaded.setdefault("raw", raw),
+    )
+
+    updated = assignment_service.review_assignment(TEST_ASSIGNMENT_ID, [])
+    assert updated.integrity_hmac
+    restored = parse_manifest_json(uploaded["raw"])
+    assert assignment_service._verify_loaded_manifest(TEST_ASSIGNMENT_ID, restored) is restored
 
 
 def test_client_manifest_binding_rejects_unrecorded_pdf_display_transforms(monkeypatch):
@@ -314,9 +418,11 @@ def test_persist_assignment_writes_manifest(monkeypatch, tmp_pdf_question_format
     pdf_bytes = tmp_pdf_question_format.read_bytes()
     manifest = assignment_service.persist_assignment_from_pdf_bytes("abc-123", pdf_bytes)
     assert manifest.parse_status == "layout_review_required"
+    assert manifest.integrity_hmac
     assert uploaded["pdf"] == pdf_bytes
     restored = parse_manifest_json(uploaded["manifest"])
     assert restored.title == manifest.title
+    assert assignment_service._verify_loaded_manifest("abc-123", restored) is restored
     assert len(restored.questions) >= 2
     assert restored.page_count >= 1
 

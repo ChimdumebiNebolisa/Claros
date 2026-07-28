@@ -2,6 +2,8 @@
 import logging
 import os
 import secrets
+import hashlib
+import hmac
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -182,6 +184,15 @@ def get_session_hmac_secret() -> str:
         raise RuntimeError("SESSION_HMAC_SECRET must be set when APP_ENV=production")
     logger.warning("SESSION_HMAC_SECRET is unset; using an ephemeral development secret")
     return _EPHEMERAL_SESSION_HMAC_SECRET
+
+
+def get_assignment_manifest_hmac_key() -> bytes:
+    """Derive a manifest-only HMAC key from the server-held session secret."""
+    return hmac.new(
+        get_session_hmac_secret().encode("utf-8"),
+        b"claros/key/assignment-manifest/v1",
+        hashlib.sha256,
+    ).digest()
 
 
 if is_production() and not os.environ.get("SESSION_HMAC_SECRET", "").strip():
