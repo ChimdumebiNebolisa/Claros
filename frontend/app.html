@@ -148,7 +148,10 @@
                <button type="button" class="text-action" id="questionListToggle">All tasks</button>
              </div>
              <p id="currentQuestionExcerpt"></p>
+             <ul id="taskChoices" class="task-choices" hidden aria-label="Answer choices"></ul>
              <p class="placement-summary" id="placementSummary" role="status"></p>
+             <p class="answer-progress" id="answerProgress" role="status">No draft yet for this response.</p>
+             <p class="layout-review-notice" id="layoutReviewNotice" hidden role="status">Some response destinations need layout review. Claros will not write to an unsafe area; those answers use the export side panel or stay as drafts.</p>
              <div id="questionsContainer" class="question-picker" hidden></div>
              <div id="responseTargets" class="response-targets" role="group" aria-label="Response destinations"></div>
              <p id="currentResponseLabel" class="response-target-label">Answer destination</p>
@@ -173,6 +176,7 @@
               <p class="confirmation-label">Step 2 of 2: write</p>
               <h3 id="writeTitle" tabindex="-1">Answer confirmed</h3>
               <p class="confirmation-note" id="writeDestination">Choose where to write this confirmed answer.</p>
+              <div id="confirmedAnswerPreview" class="proposed-answer" aria-label="Confirmed answer ready to write"></div>
               <div class="confirmation-actions confirmation-actions-write">
                 <button type="button" class="btn secondary-action" id="changeConfirmedAnswerBtn">Change answer</button>
                 <button type="button" class="btn primary-action" id="writeConfirmedAnswerBtn">Write confirmed answer</button>

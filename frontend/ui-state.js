@@ -30,7 +30,7 @@
     answer_detected: ['Answer ready for review', 'Edit, reject, or confirm the proposed answer. Nothing is written yet.', 'Review'],
     confirming: ['Confirming answer', 'Checking the exact answer you chose.', 'Review'],
     confirmed: ['Answer confirmed', 'Choose Write confirmed answer when you are ready.', 'Ready'],
-    writing: ['Writing answer', 'Adding the confirmed answer to the selected question.', 'Writing'],
+    writing: ['Authorizing answer', 'Saving the confirmed answer for export placement.', 'Writing'],
     stopped: ['Session ended', 'Your worksheet and typed answers remain available.', 'Offline'],
     error: ['Voice connection failed', 'Continue by typing, or try voice again.', 'Offline']
   };
