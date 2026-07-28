@@ -77,6 +77,7 @@ def test_security_headers_cover_html_assets_and_not_found_responses(path):
 
 
 def test_dockerfile_copies_all_runtime_python_modules():
+    """Protect runtime imports that docker smoke (/health, /) will not exercise."""
     dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
     for filename in (
         "manifest.py",
@@ -84,6 +85,9 @@ def test_dockerfile_copies_all_runtime_python_modules():
         "session_service.py",
         "observability.py",
         "ocr_adapter.py",
+        "sample_catalog.py",
+        "document_pipeline.py",
+        "semantic_classifier.py",
     ):
         assert filename in dockerfile
 

@@ -1,4 +1,10 @@
-"""Tests for parser module: PDF question extraction."""
+"""Tests for parser module: PDF question extraction.
+
+Stage 10 note: new parser/product risks belong in
+`test_document_pipeline.py`, `test_canonical_v1.py`, and
+`test_canonical_sample_product_flow.py`. This module remains for legacy
+`parse_pdf` / `parse_pdf_with_diagnostics` regression coverage.
+"""
 import pytest
 import fitz
 

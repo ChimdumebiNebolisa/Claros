@@ -1,4 +1,4 @@
-"""Characterization tests for write contract and parser fallback behavior."""
+"""Characterization tests for write contract behavior."""
 import pytest
 from fastapi.testclient import TestClient
 
@@ -45,15 +45,6 @@ def test_write_rejects_missing_write_token(write_client):
         },
     )
     assert response.status_code == 403
-
-
-def test_parser_unsupported_layout_has_no_fallback_question(tmp_pdf_no_questions):
-    from parser import parse_pdf_with_diagnostics
-
-    _title, questions, warnings, status = parse_pdf_with_diagnostics(tmp_pdf_no_questions)
-    assert questions == []
-    assert status == "unsupported_layout"
-    assert "unsupported_layout" in warnings
 
 
 def test_session_confirm_issues_write_token(monkeypatch, write_client):

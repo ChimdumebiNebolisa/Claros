@@ -130,6 +130,15 @@
   and safer mic capture wiring. Confirmation/write remain server-gated.
 - Evidence: see `docs/BUILD_WEEK_STAGE_9_VERIFICATION.md`.
 
+## Revamp Stage 10 record
+
+- Base SHA: `b9fd751` (Stage 9 merged to `main`).
+- Working branch: `codex/stage10-test-rationalization`.
+- Scope: remove dead WriteTokenParser and orphan question-view surfaces, drop
+  duplicate frontend/parser/Dockerfile gates, and document remaining product-risk
+  ownership for parser vs canonical suites.
+- Evidence: see `docs/BUILD_WEEK_STAGE_10_VERIFICATION.md`.
+
 ## First-party canonical parser fixtures
 
 `evaluation/canonical_v1/` establishes the initial parser milestone with three
