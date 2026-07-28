@@ -7,8 +7,10 @@ three student-facing worksheets created by Claros:
 - **Multiple Choice** — *Digital Safety Basics*
 - **Math Practice** — *Everyday Math*
 
-These are also product-quality sample worksheets for a future “Try a sample
-worksheet” entry point. Frontend wiring is intentionally out of scope here.
+These are the official Claros product sample worksheets. The app loads them
+through the normal assignment upload path (`/api/samples` → sample PDF →
+`POST /upload`). Stage 3 evaluation remains independent and does not invent
+geometry.
 
 The first-party source specification is authoritative. These labels are
 deterministic expected data produced with the PDFs; they are not human labels,
