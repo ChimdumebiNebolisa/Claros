@@ -1,6 +1,8 @@
 """Assignment owner-capability regression coverage."""
 import json
 
+import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 import assignment_service
@@ -41,10 +43,15 @@ def test_capability_authorizes_session_but_export_uses_only_written_server_answe
     stored = {}
     monkeypatch.setattr(assignment_service, "load_assignment_manifest", lambda _id: _manifest(capability))
     monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", lambda _id: ("Capability test", [{"id": 1, "text": "Question"}]))
+    monkeypatch.setattr(
+        main_module,
+        "load_export_source",
+        lambda _id: ([{"id": 1, "text": "Question"}], b"mock-pdf"),
+    )
     monkeypatch.setattr(session_service.storage, "upload_session_to_gcs", lambda sid, payload, **_kwargs: stored.setdefault(sid, payload))
     monkeypatch.setattr(session_service.storage, "download_session_from_gcs", lambda sid, **_kwargs: stored[sid])
     monkeypatch.setattr(session_service, "written_answers_for_export", lambda *_args: [{"question_id": 1, "answer_text": "written"}])
-    monkeypatch.setattr(main_module, "build_export_response", lambda _id, answers: {"answers": answers})
+    monkeypatch.setattr(main_module, "build_export_response", lambda _id, answers, **_kwargs: {"answers": answers})
     client = TestClient(main_module.app)
     headers = {"X-Assignment-Capability": capability}
 
@@ -81,11 +88,54 @@ def test_written_answer_is_persisted_in_session_state(monkeypatch):
     monkeypatch.setattr(session_service.storage, "upload_session_to_gcs", upload)
     monkeypatch.setattr(session_service.storage, "download_session_from_gcs", lambda sid, **_kwargs: stored[sid])
 
-    created = session_service.create_session(TEST_ASSIGNMENT_ID, [1])
+    question = {"id": 1, "text": "Question", "answer_region_status": "side_panel"}
+    created = session_service.create_session(TEST_ASSIGNMENT_ID, [question])
     state = session_service.load_session(created["session_id"])
     state.set_confirmed(1, "Student answer")
     session_service.save_session(state)
-    session_service.mark_answer_written(state, 1, "Student answer")
+    session_service.mark_answer_written(state, 1, "Student answer", question)
 
     restored = json.loads(stored[created["session_id"]])
     assert restored["questions"]["1"]["written_answer"] == "Student answer"
+
+
+def test_export_rejects_a_task_that_changed_since_the_confirmed_write(monkeypatch):
+    stored = {}
+
+    def upload(session_id, payload, **_kwargs):
+        stored[session_id] = payload
+
+    monkeypatch.setattr(session_service.storage, "upload_session_to_gcs", upload)
+    monkeypatch.setattr(session_service.storage, "download_session_from_gcs", lambda sid, **_kwargs: stored[sid])
+
+    question = {
+        "id": 1,
+        "task_id": "q1-source",
+        "text": "State the conclusion.",
+        "page": 1,
+        "answer_region_status": "side_panel",
+        "source_blocks": ["source-1"],
+    }
+    created = session_service.create_session(TEST_ASSIGNMENT_ID, [question])
+    state = session_service.load_session(created["session_id"])
+    state.set_confirmed(1, "Exact confirmed answer")
+    session_service.save_session(state)
+    session_service.mark_answer_written(state, 1, "Exact confirmed answer", question)
+
+    exported = session_service.written_answers_for_export(
+        created["session_id"],
+        created["session_secret"],
+        TEST_ASSIGNMENT_ID,
+        [question],
+    )
+    assert exported == [{"question_id": 1, "answer_text": "Exact confirmed answer"}]
+
+    changed_question = {**question, "text": "A teacher changed this task after confirmation."}
+    with pytest.raises(HTTPException) as exc:
+        session_service.written_answers_for_export(
+            created["session_id"],
+            created["session_secret"],
+            TEST_ASSIGNMENT_ID,
+            [changed_question],
+        )
+    assert exc.value.status_code == 409

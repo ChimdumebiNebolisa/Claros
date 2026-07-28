@@ -6,8 +6,8 @@ Legacy path: reconstruct a ReportLab PDF for manifests without layout metadata.
 """
 from __future__ import annotations
 
-import re
 from datetime import UTC, datetime
+from functools import lru_cache
 from io import BytesIO
 from typing import List
 
@@ -15,14 +15,16 @@ import fitz
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, Preformatted
 
 from manifest import validate_bbox_within_page
 from parser import normalize_worksheet_text
 
-_MAX_ANSWER_CHARS = 4000
 _MIN_FONT_SIZE = 7.0
 _MAX_FONT_SIZE = 12.0
+_ANSWER_FONT_NAME = "ClarosUnicode"
 
 
 class LayoutExportError(ValueError):
@@ -41,8 +43,49 @@ class SidePanelOverflowError(ValueError):
         self.affected_task_ids = affected_task_ids
 
 
-def strip_latex_dollars(s: str) -> str:
-    return re.sub(r"\$([^$]+)\$", r"\1", s) if s else ""
+class UnsupportedAnswerTextError(ValueError):
+    """Raised when a confirmed answer cannot be rendered without substitution."""
+
+    def __init__(self, affected_question_ids: list[int]):
+        super().__init__("Confirmed answer contains text the PDF renderer cannot preserve")
+        self.affected_question_ids = affected_question_ids
+
+
+@lru_cache(maxsize=1)
+def _answer_font() -> fitz.Font:
+    """Use MuPDF's bundled Unicode fallback so PDF export preserves approved text."""
+    return fitz.Font(fontname="cjk")
+
+
+def _install_answer_font(page: fitz.Page) -> str:
+    page.insert_font(fontname=_ANSWER_FONT_NAME, fontbuffer=_answer_font().buffer)
+    return _ANSWER_FONT_NAME
+
+
+def _validated_answer_by_id(answers: list[dict]) -> dict[int, str]:
+    result: dict[int, str] = {}
+    unsupported_question_ids: list[int] = []
+    font = _answer_font()
+    for item in answers:
+        question_id = int(item["question_id"])
+        answer_text = item.get("answer_text", "")
+        if not isinstance(answer_text, str):
+            raise TypeError("answer_text must be a string")
+        if any(
+            character in {"\r", "\t"} or (character != "\n" and font.has_glyph(ord(character)) == 0)
+            for character in answer_text
+        ):
+            unsupported_question_ids.append(question_id)
+        result[question_id] = answer_text
+    if unsupported_question_ids:
+        raise UnsupportedAnswerTextError(sorted(set(unsupported_question_ids)))
+    return result
+
+
+def _register_reportlab_answer_font() -> str:
+    if _ANSWER_FONT_NAME not in pdfmetrics.getRegisteredFontNames():
+        pdfmetrics.registerFont(TTFont(_ANSWER_FONT_NAME, BytesIO(_answer_font().buffer)))
+    return _ANSWER_FONT_NAME
 
 
 def _valid_normalized_region(region: dict | None) -> bool:
@@ -61,14 +104,7 @@ def build_original_export_pdf(
     answers: List[dict],
 ) -> bytes:
     """Write approved regions and append side-panel answers without guessing coordinates."""
-    answer_by_id = {
-        item["question_id"]: re.sub(
-            r"\$([^$]+)\$",
-            r"\1",
-            normalize_worksheet_text(item.get("answer_text", "") or ""),
-        ).strip()
-        for item in answers
-    }
+    answer_by_id = _validated_answer_by_id(answers)
     region_by_id = {
         item["question_id"]: item.get("answer_region")
         for item in answers
@@ -103,6 +139,7 @@ def build_original_export_pdf(
                 )
                 continue
             page = document[page_number]
+            answer_font_name = _install_answer_font(page)
             rect = fitz.Rect(
                 float(region["x"]) * page.rect.width,
                 float(region["y"]) * page.rect.height,
@@ -111,7 +148,14 @@ def build_original_export_pdf(
             )
             font_size = max(8.0, min(12.0, rect.height * 0.36))
             inset = rect + (3, 2, -3, -2)
-            if not _textbox_fits(page.rect.width, page.rect.height, inset, answer, font_size):
+            if not _textbox_fits(
+                page.rect.width,
+                page.rect.height,
+                inset,
+                answer,
+                font_size,
+                answer_font_name,
+            ):
                 side_panel_items.append(
                     (
                         str(question.get("label") or question.get("id")),
@@ -124,7 +168,7 @@ def build_original_export_pdf(
             result = page.insert_textbox(
                 inset,
                 answer,
-                fontname="helv",
+                fontname=answer_font_name,
                 fontsize=font_size,
                 color=(0.09, 0.07, 0.05),
                 lineheight=1.2,
@@ -177,17 +221,18 @@ def _append_side_panel_pages(document: fitz.Document, items: list[tuple[str, str
         prompt = prompt.replace("\n", " ")[:280]
         for index, chunk in enumerate(chunks(answer)):
             page = new_page()
+            answer_font_name = _install_answer_font(page)
             heading = f"Question {label}: {prompt}" if index == 0 else f"Question {label} (continued)"
             heading_result = page.insert_textbox(
                 fitz.Rect(54, 104, page.rect.width - 54, 146),
                 heading,
-                fontname="helv",
+                fontname=answer_font_name,
                 fontsize=10,
             )
             answer_result = page.insert_textbox(
                 fitz.Rect(54, 150, page.rect.width - 54, page.rect.height - 54),
                 chunk,
-                fontname="helv",
+                fontname=answer_font_name,
                 fontsize=10,
                 lineheight=1.25,
             )
@@ -226,7 +271,7 @@ def build_export_pdf(
         fontSize=12,
         spaceAfter=6,
     )
-    body_style = styles["Normal"]
+    body_style = ParagraphStyle("AnswerBody", parent=styles["Normal"], fontName=_register_reportlab_answer_font())
 
     story = []
     story.append(Paragraph("Claros - Assignment Answers", title_style))
@@ -234,21 +279,15 @@ def build_export_pdf(
     story.append(Paragraph(safe_title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"), body_style))
     story.append(Spacer(1, 0.25 * inch))
 
-    answer_by_id = {
-        a["question_id"]: strip_latex_dollars(
-            normalize_worksheet_text(a.get("answer_text", "") or "")
-        )
-        for a in answers
-    }
+    answer_by_id = _validated_answer_by_id(answers)
 
     for q in questions:
         qid = q.get("id", 0)
         qtext = normalize_worksheet_text(q.get("text") or "")
         qtext = qtext.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         story.append(Paragraph(f"<b>Question {qid}</b>: {qtext}", heading_style))
-        ans = normalize_worksheet_text(answer_by_id.get(qid) or "")
-        ans = ans.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br/>")
-        story.append(Paragraph(ans or "(No answer)", body_style))
+        answer_text = answer_by_id.get(qid) or "(No answer)"
+        story.append(Preformatted(answer_text, body_style))
         story.append(Spacer(1, 0.15 * inch))
         story.append(HRFlowable(width="100%", thickness=0.5, color="gray"))
         story.append(Spacer(1, 0.2 * inch))
@@ -307,15 +346,23 @@ def _resolved_answer_bbox(
     return int(page_index), validated
 
 
-def _textbox_fits(page_width: float, page_height: float, rect: fitz.Rect, text: str, fontsize: float) -> bool:
+def _textbox_fits(
+    page_width: float,
+    page_height: float,
+    rect: fitz.Rect,
+    text: str,
+    fontsize: float,
+    fontname: str,
+) -> bool:
     """Probe fit on a scratch page so failed attempts never touch the original."""
     probe = fitz.open()
     try:
         scratch = probe.new_page(width=page_width, height=page_height)
+        _install_answer_font(scratch)
         rc = scratch.insert_textbox(
             rect,
             text,
-            fontname="helv",
+            fontname=fontname,
             fontsize=fontsize,
             align=fitz.TEXT_ALIGN_LEFT,
             color=(0, 0, 0),
@@ -325,12 +372,12 @@ def _textbox_fits(page_width: float, page_height: float, rect: fitz.Rect, text: 
         probe.close()
 
 
-def _fit_textbox(page, rect: fitz.Rect, text: str) -> bool:
+def _fit_textbox(page, rect: fitz.Rect, text: str, fontname: str) -> bool:
     """Insert multiline text into rect, shrinking font until it fits. Returns False on overflow."""
     fontsize = _MAX_FONT_SIZE
     chosen = None
     while fontsize >= _MIN_FONT_SIZE:
-        if _textbox_fits(page.rect.width, page.rect.height, rect, text, fontsize):
+        if _textbox_fits(page.rect.width, page.rect.height, rect, text, fontsize, fontname):
             chosen = fontsize
             break
         fontsize -= 0.5
@@ -339,7 +386,7 @@ def _fit_textbox(page, rect: fitz.Rect, text: str) -> bool:
     rc = page.insert_textbox(
         rect,
         text,
-        fontname="helv",
+        fontname=fontname,
         fontsize=chosen,
         align=fitz.TEXT_ALIGN_LEFT,
         color=(0, 0, 0),
@@ -362,12 +409,7 @@ def build_layout_export_pdf(
     """
     pages_by_index = {int(p["page_index"]): p for p in (pages or [])}
     overrides_by_id = {int(o["question_id"]): o for o in (layout_overrides or [])}
-    answer_by_id = {
-        int(a["question_id"]): strip_latex_dollars(
-            normalize_worksheet_text((a.get("answer_text") or "")[:_MAX_ANSWER_CHARS])
-        ).strip()
-        for a in answers
-    }
+    answer_by_id = _validated_answer_by_id(answers)
 
     try:
         doc = fitz.open(stream=original_pdf_bytes, filetype="pdf")
@@ -405,12 +447,13 @@ def build_layout_export_pdf(
                 unresolved_ids.append(qid)
                 continue
             page = doc.load_page(page_index)
+            answer_font_name = _install_answer_font(page)
             rect = fitz.Rect(bbox[0], bbox[1], bbox[2], bbox[3])
             # Shrink slightly so text stays inside printed boxes.
             inset = rect + (2, 2, -2, -2)
             if inset.width < 8 or inset.height < 8:
                 inset = rect
-            ok = _fit_textbox(page, inset, answer_text)
+            ok = _fit_textbox(page, inset, answer_text, answer_font_name)
             if not ok:
                 overflow_ids.append(qid)
 

@@ -14,9 +14,26 @@ EVENTS = {
     "provider_failure",
     "restoration",
     "export",
+    "rate_limit",
 }
-STATUSES = {"ok", "error", "fallback", "expired", "conflict", "rejected"}
-REASONS = {"malformed", "provider", "microphone", "storage", "permission", "replay", "timeout", "unknown"}
+STATUSES = {"ok", "error", "fallback", "expired", "conflict", "rejected", "blocked"}
+REASONS = {
+    "malformed",
+    "provider",
+    "microphone",
+    "storage",
+    "permission",
+    "replay",
+    "timeout",
+    "unknown",
+    "upload",
+    "provider_session",
+    "write",
+    "assignment_mutation",
+    "page_render",
+    "debug_provider",
+    "session_start",
+}
 
 
 def record_metric(event: str, *, status: str = "ok", reason: str | None = None) -> None:

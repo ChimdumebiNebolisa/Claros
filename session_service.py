@@ -8,6 +8,7 @@ import logging
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from fastapi import HTTPException
 
@@ -69,7 +70,7 @@ class SessionState:
 
     def mark_written(self, question_id: int, answer_text: str) -> None:
         q = self.data.setdefault("questions", {}).setdefault(str(question_id), {})
-        if _normalize_answer(q.get("confirmed_answer", "")) != _normalize_answer(answer_text):
+        if q.get("confirmed_answer", "") != answer_text:
             raise HTTPException(status_code=403, detail="answer_text does not match confirmed answer")
         q["written_answer"] = answer_text
         q["written_at"] = datetime.now(timezone.utc).isoformat()
@@ -80,7 +81,50 @@ def _session_expires_at() -> str:
     return (datetime.now(timezone.utc) + timedelta(hours=hours)).isoformat()
 
 
-def create_session(assignment_id: str, question_ids: list[int]) -> dict:
+def _task_snapshot(question: dict[str, Any]) -> str:
+    """Fingerprint the task evidence that a confirmation is allowed to write into."""
+    try:
+        question_id = int(question["id"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("Session task requires an integer id") from exc
+    payload = {
+        "id": question_id,
+        "task_id": question.get("task_id"),
+        "label": question.get("label"),
+        "text": question.get("text", ""),
+        "page": question.get("page"),
+        "page_index": question.get("page_index"),
+        "prompt_region": question.get("prompt_region"),
+        "answer_region": question.get("answer_region"),
+        "prompt_bbox": question.get("prompt_bbox"),
+        "answer_bbox": question.get("answer_bbox"),
+        "response_type": question.get("response_type"),
+        "answer_region_status": question.get("answer_region_status"),
+        "needs_layout_review": question.get("needs_layout_review"),
+        "source_blocks": question.get("source_blocks", []),
+        "approved": question.get("approved"),
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _session_questions(questions: list[dict[str, Any]]) -> dict[str, dict[str, str]]:
+    session_questions: dict[str, dict[str, str]] = {}
+    for question in questions:
+        if not isinstance(question, dict):
+            raise ValueError("Session questions must be objects")
+        try:
+            question_id = int(question["id"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("Session task requires an integer id") from exc
+        key = str(question_id)
+        if key in session_questions:
+            raise ValueError(f"Duplicate session question id: {question_id}")
+        session_questions[key] = {"task_snapshot": _task_snapshot(question)}
+    return session_questions
+
+
+def create_session(assignment_id: str, questions: list[dict[str, Any]]) -> dict:
     session_id = str(uuid.uuid4())
     session_secret = secrets.token_urlsafe(32)
     now = datetime.now(timezone.utc).isoformat()
@@ -91,7 +135,7 @@ def create_session(assignment_id: str, question_ids: list[int]) -> dict:
         "session_secret_version": 1,
         "created_at": now,
         "expires_at": _session_expires_at(),
-        "questions": {str(qid): {} for qid in question_ids},
+        "questions": _session_questions(questions),
         "metrics": {"errors_recovered": 0},
     }
     storage.upload_session_to_gcs(session_id, json.dumps(blob).encode("utf-8"))
@@ -152,12 +196,8 @@ def save_session(state: SessionState) -> None:
         state.storage_generation = None
 
 
-def _normalize_answer(text: str) -> str:
-    return " ".join(text.split()).strip().lower()
-
-
 def _answer_fingerprint(answer_text: str) -> str:
-    return hashlib.sha256(_normalize_answer(answer_text).encode("utf-8")).hexdigest()
+    return hashlib.sha256(answer_text.encode("utf-8")).hexdigest()
 
 
 def _hmac_secret() -> bytes:
@@ -179,7 +219,7 @@ def issue_write_token(
     if not state.is_confirmed(question_id):
         raise HTTPException(status_code=400, detail="Answer not confirmed for this question")
     confirmed = state.confirmed_answer(question_id)
-    if _normalize_answer(confirmed) != _normalize_answer(answer_text):
+    if confirmed != answer_text:
         raise HTTPException(status_code=400, detail="answer_text does not match confirmed answer")
 
     nonce = secrets.token_urlsafe(16)
@@ -209,7 +249,11 @@ def validate_write_token(
     if len(parts) != 5:
         raise HTTPException(status_code=403, detail="Invalid write_token")
     sid, qid_str, fp, nonce, sig = parts
-    if sid != state.session_id or int(qid_str) != question_id:
+    try:
+        token_question_id = int(qid_str)
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail="Invalid write_token") from exc
+    if sid != state.session_id or token_question_id != question_id:
         raise HTTPException(status_code=403, detail="write_token does not match session or question")
     if fp != _answer_fingerprint(answer_candidate):
         raise HTTPException(status_code=403, detail="write_token does not match answer_candidate")
@@ -230,7 +274,20 @@ def validate_write_token(
     save_session(state)
 
 
-def mark_answer_written(state: SessionState, question_id: int, answer_text: str) -> None:
+def validate_task_snapshot(state: SessionState, question_id: int, current_question: dict[str, Any]) -> None:
+    question_state = state.get_question(question_id)
+    expected = (question_state or {}).get("task_snapshot", "")
+    if not expected or not hmac.compare_digest(expected, _task_snapshot(current_question)):
+        raise HTTPException(status_code=409, detail="Task changed since confirmation. Reload the worksheet and confirm again.")
+
+
+def mark_answer_written(
+    state: SessionState,
+    question_id: int,
+    answer_text: str,
+    current_question: dict[str, Any],
+) -> None:
+    validate_task_snapshot(state, question_id, current_question)
     state.mark_written(question_id, answer_text)
     save_session(state)
 
@@ -239,17 +296,24 @@ def written_answers_for_export(
     session_id: str,
     session_secret: str,
     assignment_id: str,
+    current_questions: list[dict[str, Any]],
 ) -> list[dict]:
     state = load_session(session_id)
     if state.assignment_id != assignment_id:
         raise HTTPException(status_code=403, detail="Session does not match assignment")
     if not state.verify_session_secret(session_secret):
         raise HTTPException(status_code=403, detail="Invalid session credentials")
-    return [
-        {"question_id": int(question_id), "answer_text": data["written_answer"]}
-        for question_id, data in state.data.get("questions", {}).items()
-        if str(data.get("written_answer", "")).strip()
-    ]
+    current_by_id = {str(question.get("id")): question for question in current_questions}
+    answers = []
+    for question_id, data in state.data.get("questions", {}).items():
+        if not str(data.get("written_answer", "")).strip():
+            continue
+        question = current_by_id.get(question_id)
+        if question is None:
+            raise HTTPException(status_code=409, detail="Task changed since writing. Reload the worksheet before export.")
+        validate_task_snapshot(state, int(question_id), question)
+        answers.append({"question_id": int(question_id), "answer_text": data["written_answer"]})
+    return answers
 
 
 def confirm_answer(
@@ -266,9 +330,10 @@ def confirm_answer(
     if str(question_id) not in state.data.get("questions", {}):
         raise HTTPException(status_code=400, detail=f"Unknown question id: {question_id}")
 
-    state.set_confirmed(question_id, answer_text.strip())
+    approved_text = answer_text
+    state.set_confirmed(question_id, approved_text)
     save_session(state)
-    write_token = issue_write_token(state, question_id, answer_text.strip())
+    write_token = issue_write_token(state, question_id, approved_text)
     return {
         "question_id": question_id,
         "confirmed": True,

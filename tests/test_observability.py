@@ -13,6 +13,13 @@ def test_metric_event_uses_fixed_safe_labels(caplog):
     assert "metric event=write_conflict status=conflict reason=storage" in caplog.text
 
 
+def test_rate_limit_metric_uses_fixed_safe_labels(caplog):
+    with caplog.at_level(logging.INFO):
+        record_metric("rate_limit", status="blocked", reason="session_start")
+
+    assert "metric event=rate_limit status=blocked reason=session_start" in caplog.text
+
+
 @pytest.mark.parametrize(
     "kwargs",
     [

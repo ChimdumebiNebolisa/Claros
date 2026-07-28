@@ -35,7 +35,7 @@
     }
 
     function renderOverlays() {
-      overlayLayer.innerHTML = '';
+      overlayLayer.replaceChildren();
       pageQuestions().forEach(function (question) {
         if (Number(state.activeQuestionId) !== Number(question.id)) return;
         var region = question.answer_region;
@@ -60,8 +60,14 @@
           button.classList.add('needs-review');
         }
         var answer = state.answers[question.id] || '';
-        button.innerHTML = '<span class="region-number">Q' + (question.label || question.id) + '</span><span class="region-answer"></span>';
-        button.querySelector('.region-answer').textContent = answer || '';
+        var number = document.createElement('span');
+        number.className = 'region-number';
+        number.textContent = 'Q' + (question.label || question.id);
+        var answerText = document.createElement('span');
+        answerText.className = 'region-answer';
+        answerText.textContent = answer || '';
+        button.appendChild(number);
+        button.appendChild(answerText);
         button.addEventListener('click', function () {
           state.activeQuestionId = question.id;
           renderOverlays();

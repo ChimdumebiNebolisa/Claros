@@ -1,4 +1,5 @@
 """Assignment service unit tests."""
+import fitz
 import pytest
 from fastapi import HTTPException
 
@@ -49,6 +50,28 @@ def test_build_export_response_maps_backend_error_to_500(monkeypatch):
     with pytest.raises(HTTPException) as exc:
         assignment_service.build_export_response(TEST_ASSIGNMENT_ID, [])
     assert exc.value.status_code == 500
+
+
+def test_build_export_response_rejects_unrenderable_confirmed_text_without_substitution(monkeypatch):
+    source = fitz.open()
+    source.new_page()
+    pdf_bytes = source.tobytes()
+    source.close()
+    monkeypatch.setattr(
+        assignment_service,
+        "load_assignment_from_gcs",
+        lambda _id: ("Worksheet", [{"id": 1, "text": "Prompt", "page": 1, "answer_region": None}]),
+    )
+    monkeypatch.setattr(assignment_service, "_download_pdf_bytes", lambda _id: pdf_bytes)
+
+    with pytest.raises(HTTPException) as exc:
+        assignment_service.build_export_response(
+            TEST_ASSIGNMENT_ID,
+            [{"question_id": 1, "answer_text": "Unsupported \U0001f642"}],
+        )
+
+    assert exc.value.status_code == 422
+    assert exc.value.detail["code"] == "UNSUPPORTED_ANSWER_TEXT"
 
 
 def test_build_export_response_original_pdf_path(monkeypatch, tmp_path):
@@ -147,7 +170,7 @@ def test_hybrid_semantics_cannot_run_on_upload_without_explicit_worker_gate(
 ):
     captured = []
 
-    class _FakeOpenAIClassifier:
+    class _FakeGeminiClassifier:
         pass
 
     def fake_parse(_pdf_bytes, *, semantic_classifier, **_kwargs):
@@ -164,8 +187,8 @@ def test_hybrid_semantics_cannot_run_on_upload_without_explicit_worker_gate(
     monkeypatch.setattr(config, "PDF_PARSER_MODE", "hybrid")
     monkeypatch.setattr(config, "ENABLE_DOCUMENT_SEMANTICS", True)
     monkeypatch.setattr(config, "ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS", False)
-    monkeypatch.setattr(config, "DOCUMENT_SEMANTIC_PROVIDER", "openai")
-    monkeypatch.setattr(assignment_service, "OpenAIClosedWorldSemanticClassifier", _FakeOpenAIClassifier)
+    monkeypatch.setattr(config, "DOCUMENT_SEMANTIC_PROVIDER", "gemini")
+    monkeypatch.setattr(assignment_service, "GeminiSemanticClassifier", _FakeGeminiClassifier)
     monkeypatch.setattr(assignment_service, "parse_document", fake_parse)
 
     assignment_service._parse_and_build_manifest("candidate", str(tmp_pdf_question_format))
@@ -173,4 +196,8 @@ def test_hybrid_semantics_cannot_run_on_upload_without_explicit_worker_gate(
 
     monkeypatch.setattr(config, "ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS", True)
     assignment_service._parse_and_build_manifest("candidate", str(tmp_pdf_question_format))
-    assert isinstance(captured[-1], _FakeOpenAIClassifier)
+    assert isinstance(captured[-1], _FakeGeminiClassifier)
+
+    monkeypatch.setattr(config, "DOCUMENT_SEMANTIC_PROVIDER", "none")
+    assignment_service._parse_and_build_manifest("candidate", str(tmp_pdf_question_format))
+    assert isinstance(captured[-1], NullSemanticClassifier)

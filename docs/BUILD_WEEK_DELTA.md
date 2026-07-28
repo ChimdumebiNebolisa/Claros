@@ -1,5 +1,26 @@
 # Build Week delta
 
+> Historical-record notice: the legacy Build Week entries below describe
+> candidate work from that period. In particular, OpenAI/GPT statements below
+> are not claims about the current Claros runtime. Current runtime boundaries
+> are maintained in `docs/ARCHITECTURE.md` and Stage 1 verification evidence
+> is recorded in `docs/BUILD_WEEK_STAGE_1_VERIFICATION.md`.
+
+## Revamp Stage 1 record
+
+- Base/current committed SHA before Stage 1: `5c13307afe7488348ac1b25ffcd522de260333f3`
+  (`Merge pull request #21 from ChimdumebiNebolisa/codex/claros-revamp-roadmap`).
+- Working branch: `codex/stage1-runtime-safety`; Stage 1 changes are reviewed
+  locally before any remote publication.
+- Contributor evidence: current Codex task plus repository diff and test
+  output. No unavailable session ID or exclusive authorship is claimed.
+- Scope: Gemini-only production runtime consolidation; deterministic exact
+  confirmed-answer stamping and export; provider/config and rate-limit
+  failure handling; removal or gating of legacy debug/provider paths; browser
+  injection regression coverage and baseline security headers.
+- Evidence and remaining deployment uncertainty: see
+  `docs/BUILD_WEEK_STAGE_1_VERIFICATION.md`.
+
 ## Provenance baseline
 
 - Owner-confirmed contest start: `2026-07-13T09:00:00-07:00`

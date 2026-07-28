@@ -23,11 +23,10 @@ from storage import (
     upload_pdf_to_gcs,
 )
 from config import get_gcs_bucket
-from exporter import SidePanelOverflowError, build_original_export_pdf
+from exporter import SidePanelOverflowError, UnsupportedAnswerTextError, build_original_export_pdf
 from document_pipeline import document_questions, parse_document
 from parser import PDFProcessingError, parse_pdf_with_diagnostics
 from semantic_classifier import GeminiSemanticClassifier, NullSemanticClassifier
-from providers.openai_semantic_classifier import OpenAIClosedWorldSemanticClassifier
 from review_service import apply_review_actions
 from observability import record_metric
 
@@ -148,9 +147,7 @@ def _parse_and_build_manifest(
             logger.warning("Synchronous document semantics are disabled; run classification in a parser worker/service")
         classifier = NullSemanticClassifier()
         if config.ENABLE_DOCUMENT_SEMANTICS and config.ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS:
-            if config.DOCUMENT_SEMANTIC_PROVIDER == "openai":
-                classifier = OpenAIClosedWorldSemanticClassifier()
-            elif config.DOCUMENT_SEMANTIC_PROVIDER == "gemini":
+            if config.DOCUMENT_SEMANTIC_PROVIDER == "gemini":
                 classifier = GeminiSemanticClassifier()
         try:
             document_model = parse_document(
@@ -322,10 +319,25 @@ def load_assignment_text_from_gcs(assignment_id: str) -> str:
     return format_assignment_text(title, questions)
 
 
-def build_export_response(assignment_id: str, answers_list: list[dict]) -> Response:
+def load_export_source(assignment_id: str) -> tuple[list[dict], bytes]:
+    """Load one immutable-in-process export snapshot for validation and rendering."""
+    _title, questions = load_assignment_from_gcs(assignment_id)
+    return questions, _download_pdf_bytes(assignment_id)
+
+
+def build_export_response(
+    assignment_id: str,
+    answers_list: list[dict],
+    *,
+    questions: list[dict] | None = None,
+    pdf_bytes: bytes | None = None,
+) -> Response:
+    """Build an export from either a supplied validated snapshot or a fresh source load."""
     try:
-        _title, questions = load_assignment_from_gcs(assignment_id)
-        pdf_bytes = _download_pdf_bytes(assignment_id)
+        if questions is None and pdf_bytes is None:
+            questions, pdf_bytes = load_export_source(assignment_id)
+        elif questions is None or pdf_bytes is None:
+            raise ValueError("questions and pdf_bytes must be supplied together")
     except AssignmentExpiredError:
         raise HTTPException(status_code=410, detail="Assignment expired")
     except ValueError:
@@ -339,6 +351,11 @@ def build_export_response(assignment_id: str, answers_list: list[dict]) -> Respo
         raise HTTPException(
             status_code=422,
             detail={"code": "SIDE_PANEL_OVERFLOW", "affected_task_ids": exc.affected_task_ids},
+        )
+    except UnsupportedAnswerTextError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "UNSUPPORTED_ANSWER_TEXT", "affected_question_ids": exc.affected_question_ids},
         )
     record_metric("export", status="ok")
     return Response(

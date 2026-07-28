@@ -9,9 +9,12 @@ import pytest
 from document_model import (
     AnswerRegionStatus,
     BlockSemanticRole,
+    DocumentBlock,
+    DocumentPage,
     PageRole,
     ParseStatus,
     ReviewStatus,
+    SourceKind,
 )
 from document_pipeline import _page_is_visually_structured, parse_document
 from exporter import build_original_export_pdf
@@ -389,6 +392,82 @@ def test_invalid_semantic_output_is_rejected_without_tasks_or_content_logs(caplo
     assert "page_0:semantic_result_rejected" in parsed.warnings
     assert "Student Worksheet" not in caplog.text
     assert "Invented" not in caplog.text
+
+
+def test_gemini_provider_failure_falls_back_without_content_logs(caplog):
+    class _Models:
+        def generate_content(self, **_kwargs):
+            raise RuntimeError("provider unavailable")
+
+    classifier = GeminiSemanticClassifier(client=SimpleNamespace(models=_Models()), model="gemini-test")
+    parsed = parse_document(
+        _pdf_bytes(),
+        ocr_adapter=NullOCRAdapter(),
+        semantic_classifier=classifier,
+    )
+    assert parsed.tasks == []
+    assert parsed.pages[0].page_role == PageRole.unknown
+    assert "page_0:semantic_result_rejected" in parsed.warnings
+    assert "Student Worksheet" not in caplog.text
+    assert "provider unavailable" not in caplog.text
+
+
+def test_gemini_semantic_tasks_reconstruct_prompt_text_from_selected_source_blocks():
+    page = DocumentPage(page_index=0, width_points=612, height_points=792, block_ids=["prompt", "response"])
+    blocks = [
+        DocumentBlock(
+            id="prompt",
+            page_index=0,
+            reading_order=1,
+            text="Use the evidence from the table.",
+            block_label="native_text",
+            bbox=[10, 10, 300, 30],
+            confidence=1.0,
+            source=SourceKind.native_pdf,
+        ),
+        DocumentBlock(
+            id="response",
+            page_index=0,
+            reading_order=2,
+            text="",
+            block_label="answer_line",
+            bbox=[10, 40, 300, 60],
+            confidence=1.0,
+            source=SourceKind.pdf_geometry,
+        ),
+    ]
+
+    class _Models:
+        def generate_content(self, **_kwargs):
+            return SimpleNamespace(
+                parsed={
+                    "page_index": 0,
+                    "page_role": "student_worksheet",
+                    "confidence": 1.0,
+                    "blocks": [
+                        {"block_id": "prompt", "role": "student_prompt", "confidence": 1.0},
+                        {"block_id": "response", "role": "response_area", "confidence": 1.0},
+                    ],
+                    "tasks": [
+                        {
+                            "label": "1",
+                            "prompt_text": "Model-authored replacement text",
+                            "prompt_block_ids": ["prompt"],
+                            "response_block_ids": ["response"],
+                            "response_type": "short_text",
+                            "confidence": 1.0,
+                        }
+                    ],
+                    "warnings": [],
+                },
+                text="",
+            )
+
+    result = GeminiSemanticClassifier(client=SimpleNamespace(models=_Models()), model="gemini-test").classify_page(
+        page,
+        blocks,
+    )
+    assert result.tasks[0].prompt_text == "Use the evidence from the table."
 
 
 def test_semantic_schema_rejects_duplicate_tasks_before_id_generation():

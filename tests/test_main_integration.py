@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 import assignment_service
 import main as main_module
 import session_service
+from rate_limit import SlidingWindowRateLimiter
 from tests.conftest import TEST_ASSIGNMENT_ID
 
 
@@ -62,6 +63,26 @@ def test_session_start_maps_expired_assignment(monkeypatch):
     assert response.json()["detail"] == "Assignment expired"
 
 
+def test_session_start_is_rate_limited_before_allocating_another_durable_session(monkeypatch):
+    monkeypatch.setattr(main_module, "rate_limiter", SlidingWindowRateLimiter())
+    monkeypatch.setattr(main_module.config, "MAX_SESSION_STARTS_PER_MINUTE", 1)
+    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", _fake_load_assignment)
+    created = []
+
+    def create_session(assignment_id, questions):
+        created.append((assignment_id, questions))
+        return {"session_id": "only-session", "session_secret": "secret", "expires_at": "later"}
+
+    monkeypatch.setattr(session_service, "create_session", create_session)
+    first = client.post("/api/session/start", json={"assignment_id": TEST_ASSIGNMENT_ID})
+    second = client.post("/api/session/start", json={"assignment_id": TEST_ASSIGNMENT_ID})
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+    assert "content-security-policy" in second.headers
+    assert len(created) == 1
+
+
 def test_landing_has_no_app_workspace():
     """GET / serves marketing landing without functional upload workspace."""
     response = client.get("/")
@@ -107,12 +128,9 @@ def test_styles_css_served():
 
 
 def test_test_page_returns_html():
-    """GET /test returns HTML (voice test page or 404 if file missing)."""
+    """GET /test is not a public production surface."""
     response = client.get("/test")
-    # 200 if test_voice.html exists, 404 otherwise
-    assert response.status_code in (200, 404)
-    if response.status_code == 200:
-        assert "text/html" in response.headers.get("content-type", "")
+    assert response.status_code == 404
 
 
 def test_genai_bundle_served_and_non_empty():
@@ -124,8 +142,8 @@ def test_genai_bundle_served_and_non_empty():
 
 
 def test_test_assignment_pdf_served():
-    """Built-in test PDF is shipped for local/demo use."""
-    response = client.get("/test-assignment.pdf")
+    """Built-in sample PDF uses a product-facing route."""
+    response = client.get("/sample-assignment.pdf")
     assert response.status_code == 200
     assert response.headers.get("content-type", "").lower().startswith("application/pdf")
     assert response.content[:4] == b"%PDF"
@@ -211,6 +229,43 @@ def test_export_post_returns_pdf_attachment(monkeypatch):
     assert response.headers.get("content-type", "").lower().startswith("application/pdf")
     assert response.headers.get("content-disposition") == f'attachment; filename="claros-{TEST_ASSIGNMENT_ID}.pdf"'
     assert response.content.startswith(b"%PDF")
+
+
+def test_export_uses_the_exact_manifest_snapshot_that_was_validated(monkeypatch):
+    original_questions = [{"id": 1, "text": "Original task evidence", "page": 1, "answer_region": None}]
+    changed_questions = [{"id": 1, "text": "Changed task evidence", "page": 1, "answer_region": None}]
+    calls = []
+
+    def load_assignment(_assignment_id):
+        calls.append(_assignment_id)
+        return "Mock Assignment", original_questions if len(calls) == 1 else changed_questions
+
+    monkeypatch.setattr(assignment_service, "load_assignment_from_gcs", load_assignment)
+    monkeypatch.setattr(assignment_service, "_download_pdf_bytes", lambda _id: _fake_pdf_bytes())
+    monkeypatch.setattr(
+        session_service,
+        "written_answers_for_export",
+        lambda _sid, _secret, _aid, questions: (
+            [{"question_id": 1, "answer_text": "Confirmed answer"}]
+            if questions == original_questions
+            else pytest.fail("export validated a changed task snapshot")
+        ),
+    )
+
+    response = client.post(
+        f"/export/{TEST_ASSIGNMENT_ID}",
+        json={"session_id": "session-1", "session_secret": "session-secret"},
+    )
+
+    assert response.status_code == 200
+    assert calls == [TEST_ASSIGNMENT_ID]
+    document = fitz.open(stream=response.content, filetype="pdf")
+    try:
+        exported_text = " ".join(page.get_text() for page in document)
+    finally:
+        document.close()
+    assert "Original task evidence" in exported_text
+    assert "Changed task evidence" not in exported_text
 
 
 def test_export_post_accepts_long_answer_body(monkeypatch):

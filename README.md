@@ -52,7 +52,7 @@ This is not about making assignments easier. It is about making them accessible 
 - **Real-time voice conversation** - Bidirectional audio through Gemini Live. The student speaks and hears Claros respond with natural voice.
 - **Socratic guidance** - Claros defaults to teaching mode, asking guiding questions rather than stating answers.
 - **Per-question answer readiness tracking** - The frontend tracks whether the student has stated a final answer for each question before allowing a write.
-- **Controlled answer writing** - When permitted, the frontend calls the backend write API; the answer is streamed into the correct question field via Gemini text generation. LaTeX-style `$...$` delimiters in model output are stripped so answers display as plain text (e.g. "x = 5" instead of "$x = 5$").
+- **Controlled answer writing** - After explicit student confirmation, the frontend calls the backend write API with an answer-bound, single-use token. The backend stamps that exact confirmed text; no model rewrites it, including LaTeX-style `$...$` delimiters.
 - **Live transcript** - Both sides of the conversation are transcribed and displayed in real time (from Gemini Live in the browser).
 - **PDF export onto the original worksheet** - Export inserts answers only into approved regions on the original PDF. Confirmed answers without safe coordinates are preserved on appended side-panel pages instead of being silently skipped, truncated, or written to a guessed location.
 - **Answer-stated indicator** - The UI shows a visual badge when the student (or Claros) has indicated the answer for a given question.
@@ -73,7 +73,7 @@ flowchart LR
   Session --> Storage
   App --> Live[Direct Gemini Live]
   App --> Write[POST /api/write]
-  Write --> Gemini[Gemini text stream]
+  Write --> Stamp[Deterministic confirmed-text stamp]
   App --> Export[POST /export]
   Export --> PDF[Original PDF + regions]
 ```
@@ -93,11 +93,11 @@ FastAPI backend (main.py + service modules)
   │
   ├── config.py — env, GCS bucket, API key helpers
   ├── assignment_service.py — load/parse assignments from GCS, page preview, export assembly
-  ├── gemini_service.py — ephemeral tokens, answer write streaming
+  ├── gemini_service.py — ephemeral tokens and confirmed-text stamping
   ├── storage.py — GCS upload
   ├── schemas.py — request validation
   ├── Ephemeral token creation (auth_tokens.create) for browser-Gemini Live
-  ├── Gemini 2.5 Flash (text) for answer writing via generate_content_stream()
+  ├── Gemini structured page/block/task classification
   ├── PDF parser (parser.py + parser_layout.py - PyMuPDF geometry)
   ├── Hybrid document model + PP-StructureV3 adapter (flagged; not production default)
   ├── Gemini structured page/block/task classification (flagged)
@@ -107,7 +107,7 @@ FastAPI backend (main.py + service modules)
 
 **Real-time voice** uses **Gemini Live directly from the browser**. The backend does not proxy audio. On "Start Session", the frontend loads the Gemini SDK from the app’s own asset (`/genai.bundle.js`, built from `@google/genai` and checked in), fetches an ephemeral token and session config from `GET /api/session-config/{assignment_id}`, then connects to Gemini Live. The browser captures mic at 16 kHz PCM, sends audio to Gemini, and plays back responses. Transcripts are handled in the client; write detection (e.g. "write my answer for question N") and answer-stated detection run in the frontend.
 
-**Answer writing** is triggered when the user or Claros asks to write and the answer is marked ready for that question (e.g. student stated it or Claros said "Let me write that for question N"). The frontend calls `POST /api/write/{assignment_id}` with conversation context and optional answer candidate; the backend streams plain text into the correct question field. LaTeX `$...$` in the stream is stripped so the UI and export show plain text only.
+**Answer writing** is available only after the student confirms the exact answer for that task. The frontend calls `POST /api/write/{assignment_id}` with the confirmed candidate and a single-use token; the backend validates the task snapshot and streams that exact text into the correct question field. The write route does not call a text model or accept conversation as write authority.
 
 **Barge-in / interruption** is implemented in the frontend. When the user starts speaking (or clicks the **Interrupt** button) while Claros is playing, the browser stops scheduled audio buffers, clears the playback queue, and returns to listening. This is not full-duplex.
 
@@ -142,7 +142,7 @@ Claros is deployed on **Google Cloud Run** as a containerized service.
 
 - **Container image** is built from the project `Dockerfile` (Python 3.11, FastAPI/Uvicorn).
 - **Assignment PDFs** are stored in a **Google Cloud Storage** bucket. The upload, session-config, write, and export endpoints use GCS where needed.
-- **Gemini API**: The backend holds the Gemini API key and uses it only to (1) create ephemeral tokens for the browser-Gemini Live connection and (2) run the text model for answer writing. The browser never receives the API key; it uses a short-lived token for Live only.
+- **Gemini API**: The backend holds the Gemini API key for (1) ephemeral browser-Gemini Live tokens and (2) closed-world document semantics. The browser never receives the API key; it uses a short-lived token for Live only.
 - Cloud Run provides automatic HTTPS, scaling, and a public URL for the frontend.
 
 **Deploying:**
@@ -177,7 +177,7 @@ Replace `<PROJECT_ID>`, `<REGION>`, `<key>`, `<bucket>`, and `<project>` with yo
 |-------|-----------|
 | Backend | Python, FastAPI, Uvicorn |
 | Voice AI | Gemini Live API (direct from browser via bundled @google/genai; SDK served from app; ephemeral token from backend) |
-| Text AI | Gemini 2.5 Flash (backend, for answer writing) |
+| Text AI | Gemini structured document semantics; confirmed writes are deterministic |
 | PDF parsing | PyMuPDF (fitz) |
 | PDF export | ReportLab |
 | Storage | Google Cloud Storage |
@@ -225,12 +225,10 @@ Create a `.env` file in the project root:
 
 ```
 GEMINI_API_KEY=<your-gemini-api-key>
-OPENAI_API_KEY=<your-openai-api-key>
 GCS_BUCKET_NAME=<your-gcs-bucket-name>
 GOOGLE_CLOUD_PROJECT=<your-gcp-project-id>
 GEMINI_TEXT_MODEL=gemini-2.5-flash
-# OPENAI_REASONING_MODEL=gpt-5.6
-# DOCUMENT_SEMANTIC_PROVIDER=openai
+# DOCUMENT_SEMANTIC_PROVIDER=gemini
 # PDF_PARSER_MODE=hybrid
 # ENABLE_PADDLEOCR=false
 # ALLOW_SYNCHRONOUS_PADDLEOCR=false
@@ -241,15 +239,16 @@ GEMINI_TEXT_MODEL=gemini-2.5-flash
 
 | Variable | Description |
 |----------|-------------|
-| `GEMINI_API_KEY` | API key for Google Gemini models (voice and text) |
-| `OPENAI_API_KEY` | API key for the default GPT-5.6 closed-world document compiler |
+| `GEMINI_API_KEY` | API key for Gemini voice and closed-world document semantics; required in production |
 | `GCS_BUCKET_NAME` | Google Cloud Storage bucket name for storing uploaded PDFs |
 | `GOOGLE_CLOUD_PROJECT` | Google Cloud project ID |
-| `GEMINI_TEXT_MODEL` | Text model used for answer generation (default: `gemini-2.5-flash`) |
+| `GEMINI_TEXT_MODEL` | Gemini model used for closed-world document semantics (default: `gemini-2.5-flash`) |
 | `ENABLE_DEBUG_GEMINI` | Set to `true` to expose `GET /debug-gemini` for local Gemini connectivity checks (default: disabled) |
-| `OPENAI_REASONING_MODEL` | GPT-5.6 model used by the closed-world semantic compiler (default: `gpt-5.6`) |
-| `DOCUMENT_SEMANTIC_PROVIDER` | `openai` (default), `gemini`, or `none` for document semantics |
-| `PDF_PARSER_MODE` | `hybrid` (default), `legacy`, or `paddle`; hybrid builds deterministic physical evidence before GPT-5.6 selection |
+| `ENABLE_DEBUG_ROUTES` | Set to `true` only for local legacy diagnostic routes such as `GET /test` (default: disabled) |
+| `DOCUMENT_SEMANTIC_PROVIDER` | `gemini` (default) or `none` for document semantics |
+| `APP_ENV` | Canonical environment name (`development` or `production`); if legacy `CLAROS_ENV` is also set, both values must match |
+| `MAX_SESSION_STARTS_PER_MINUTE` | Maximum durable session creations per caller in the sliding window (production default: 30) |
+| `PDF_PARSER_MODE` | `hybrid` (default), `legacy`, or `paddle`; hybrid builds deterministic physical evidence before Gemini selection |
 | `ENABLE_PADDLEOCR` | Enable the local PP-StructureV3 adapter (default: false) |
 | `ALLOW_SYNCHRONOUS_PADDLEOCR` | Development-only worker escape hatch; keep false on the upload service (default: false) |
 | `ENABLE_DOCUMENT_SEMANTICS` | Enable strict closed-world document classification (default: true) |
@@ -310,7 +309,7 @@ The optional `requirements-voice.txt` stack is for `test_voice.py` (standalone m
 - **Heuristic answer detection** - Answer readiness is determined in the frontend by matching common phrasing patterns (e.g., "my answer is…", "I think it's…"). Unusual phrasings may not be detected.
 - **Single-session state** - Conversation and answer readiness are held in memory in the browser. Refreshing the page starts a new session.
 - **PDF format dependency** - Question extraction relies on "Question N:" line patterns. PDFs with different formatting may fall back to single-block extraction.
-- **Voice model compliance** - The system prompt instructs Claros to follow specific rules, but LLM compliance is not guaranteed. The product rule (write only after answer stated or offered by Claros) is enforced in the frontend; the backend uses the conversation to produce the written answer.
+- **Voice model compliance** - The system prompt guides tutoring behavior, but LLM compliance is not assumed. The backend enforces student confirmation, task binding, single-use write authorization, and exact confirmed-text stamping independently of the conversation.
 - **Direct Gemini Live** - Voice runs browser → Gemini Live. The frontend loads the `@google/genai` SDK from the app’s own asset (`/genai.bundle.js`); no runtime CDN. The bundle must be built once with `npm run build:genai` and committed.
 - **Ephemeral tokens** - Session config uses the Gemini API to create short-lived tokens. If token creation fails (e.g. API or region limitation), the backend returns 500 and the user must retry or check logs.
 - **Basic barge-in** - When the user starts speaking (or clicks Interrupt) while Claros is talking, frontend playback is stopped and the app returns to listening. This is not full-duplex.

@@ -223,7 +223,7 @@
   }
 
   function renderQuestionPicker() {
-    elements.questionsContainer.innerHTML = '';
+    elements.questionsContainer.replaceChildren();
     state.questions.forEach(function (question) {
       const row = document.createElement('div');
       row.className = 'question-choice';
@@ -398,7 +398,7 @@
   async function loadSamplePdf() {
     setError('');
     try {
-      const response = await fetch('/test-assignment.pdf');
+      const response = await fetch('/sample-assignment.pdf');
       if (!response.ok) throw new Error('The sample worksheet is unavailable.');
       const blob = await response.blob();
       await doUpload(new File([blob], 'Claros sample algebra worksheet.pdf', { type: 'application/pdf' }));
@@ -504,9 +504,9 @@
   }
 
   function presentAnswer(questionId, text) {
-    const cleaned = (text || '').trim();
+    const cleaned = text || '';
     const question = getQuestion(questionId);
-    if (!question || !cleaned) return;
+    if (!question || !cleaned.trim()) return;
     state.activeQuestionId = question.id;
     state.proposedQuestionId = question.id;
     state.proposedText = cleaned;
@@ -536,8 +536,8 @@
 
   async function confirmProposedAnswer() {
     const questionId = state.proposedQuestionId;
-    const text = (state.proposedText || elements.typedAnswer.textContent || '').trim();
-    if (questionId == null || !text) {
+    const text = state.proposedText || elements.typedAnswer.textContent || '';
+    if (questionId == null || !text.trim()) {
       setError('Add an answer before confirming it.');
       return;
     }
@@ -623,7 +623,6 @@
         const result = await reader.read();
         if (result.done) break;
         written += decoder.decode(result.value, { stream: true });
-        written = written.replace(/\$([^$]+)\$/g, '$1');
         state.answers[questionId] = written;
         elements.typedAnswer.textContent = written;
         worksheet.updateAnswer(questionId, written);
@@ -658,7 +657,10 @@
       if (!activeClarosMessage) {
         activeClarosMessage = document.createElement('div');
         activeClarosMessage.className = 'msg claros';
-        activeClarosMessage.innerHTML = '<span class="msg-label">Claros</span>';
+        const label = document.createElement('span');
+        label.className = 'msg-label';
+        label.textContent = 'Claros';
+        activeClarosMessage.appendChild(label);
         elements.transcript.appendChild(activeClarosMessage);
       }
       activeClarosMessage.appendChild(document.createTextNode(text));
@@ -666,7 +668,10 @@
       activeClarosMessage = null;
       const item = document.createElement('div');
       item.className = 'msg user';
-      item.innerHTML = '<span class="msg-label">You</span>';
+      const label = document.createElement('span');
+      label.className = 'msg-label';
+      label.textContent = 'You';
+      item.appendChild(label);
       item.appendChild(document.createTextNode(text));
       elements.transcript.appendChild(item);
     }
@@ -678,7 +683,10 @@
     if (!userPartialElement) {
       userPartialElement = document.createElement('div');
       userPartialElement.className = 'msg user partial';
-      userPartialElement.innerHTML = '<span class="msg-label">You, live</span>';
+      const label = document.createElement('span');
+      label.className = 'msg-label';
+      label.textContent = 'You, live';
+      userPartialElement.appendChild(label);
       userPartialElement._text = document.createTextNode('');
       userPartialElement.appendChild(userPartialElement._text);
       elements.transcript.appendChild(userPartialElement);
@@ -1021,10 +1029,10 @@
     elements.questionsContainer.hidden = !elements.questionsContainer.hidden;
   });
   elements.typedAnswer.addEventListener('input', function () {
-    const text = elements.typedAnswer.textContent.trim();
+    const text = elements.typedAnswer.textContent;
     const questionId = state.activeQuestionId;
     state.drafts[questionId] = text;
-    elements.confirmTypedBtn.disabled = !text;
+    elements.confirmTypedBtn.disabled = !text.trim();
     if (state.confirmed[questionId]) {
       delete state.writeTokens[questionId];
       state.confirmed[questionId] = false;

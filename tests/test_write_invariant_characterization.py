@@ -3,8 +3,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 import assignment_service
-import config
-import gemini_service
 import main as main_module
 import session_service
 from tests.conftest import TEST_ASSIGNMENT_ID
@@ -15,40 +13,16 @@ def write_client(monkeypatch):
     monkeypatch.setattr(
         assignment_service,
         "load_assignment_from_gcs",
-        lambda _id: ("Mock", [{"id": 1, "text": "Q?"}]),
+        lambda _id: (
+            "Mock",
+            [{"id": 1, "text": "Q?", "answer_region": {"x": 0.1, "y": 0.2, "width": 0.4, "height": 0.1}}],
+        ),
     )
-    monkeypatch.setattr(gemini_service, "get_api_key", lambda: "test-api-key-not-used")
     monkeypatch.setattr(main_module, "_require_assignment_capability", lambda *_args: None)
-
-    class FakeChunk:
-        __slots__ = ("text",)
-
-        def __init__(self, text: str):
-            self.text = text
-
-    class FakeModels:
-        async def generate_content_stream(self, model, contents):
-            async def _stream():
-                yield FakeChunk("formatted")
-
-            return _stream()
-
-    class FakeAio:
-        def __init__(self):
-            self.models = FakeModels()
-
-    class FakeClient:
-        def __init__(self, *args, **kwargs):
-            self.aio = FakeAio()
-
-    import types as std_types
-
-    monkeypatch.setattr(gemini_service, "genai", std_types.SimpleNamespace(Client=FakeClient))
     return TestClient(main_module.app)
 
 
-def test_write_rejects_empty_candidate_when_contract_enforced(write_client, monkeypatch):
-    monkeypatch.setattr(config, "ENFORCE_WRITE_CONTRACT", True)
+def test_write_rejects_empty_candidate(write_client):
     response = write_client.post(
         f"/api/write/{TEST_ASSIGNMENT_ID}",
         json={
@@ -61,8 +35,7 @@ def test_write_rejects_empty_candidate_when_contract_enforced(write_client, monk
     assert "non-empty" in response.json()["detail"]
 
 
-def test_write_rejects_missing_write_token_when_contract_enforced(write_client, monkeypatch):
-    monkeypatch.setattr(config, "ENFORCE_WRITE_CONTRACT", True)
+def test_write_rejects_missing_write_token(write_client):
     response = write_client.post(
         f"/api/write/{TEST_ASSIGNMENT_ID}",
         json={
@@ -72,13 +45,6 @@ def test_write_rejects_missing_write_token_when_contract_enforced(write_client, 
         },
     )
     assert response.status_code == 403
-
-
-def test_write_prompt_requires_confirmed_candidate_text():
-    prompt = gemini_service.build_write_prompt("Title\n\nQuestion 1: Q", [], 1, "42")
-    assert "confirmed answer" in prompt.lower()
-    assert '"42"' in prompt
-    assert "do not invent" in prompt.lower()
 
 
 def test_parser_unsupported_layout_has_no_fallback_question(tmp_pdf_no_questions):
@@ -91,7 +57,6 @@ def test_parser_unsupported_layout_has_no_fallback_question(tmp_pdf_no_questions
 
 
 def test_session_confirm_issues_write_token(monkeypatch, write_client):
-    monkeypatch.setattr(config, "ENFORCE_WRITE_CONTRACT", True)
     created = {
         "blob": {
             "session_id": "550e8400-e29b-41d4-a716-446655440001",

@@ -4,8 +4,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 import assignment_service
-import config
-import gemini_service
 import main as main_module
 import session_service
 from tests.conftest import TEST_ASSIGNMENT_ID
@@ -157,32 +155,7 @@ def test_confirm_and_restore_round_trip(client):
     assert token
 
 
-def test_write_token_single_use(client, monkeypatch):
-    monkeypatch.setattr(config, "ENFORCE_WRITE_CONTRACT", True)
-    monkeypatch.setattr(gemini_service, "get_api_key", lambda: "k")
-
-    class FakeChunk:
-        def __init__(self, text="ok"):
-            self.text = text
-
-    class FakeModels:
-        async def generate_content_stream(self, model, contents):
-            async def _stream():
-                yield FakeChunk("ok")
-
-            return _stream()
-
-    class FakeAio:
-        def __init__(self):
-            self.models = FakeModels()
-
-    class FakeClient:
-        def __init__(self, *args, **kwargs):
-            self.aio = FakeAio()
-
-    import types as std_types
-
-    monkeypatch.setattr(gemini_service, "genai", std_types.SimpleNamespace(Client=FakeClient))
+def test_write_token_single_use(client):
 
     start = client.post("/api/session/start", json={"assignment_id": TEST_ASSIGNMENT_ID}).json()
     confirm = client.post(

@@ -193,7 +193,18 @@ class GeminiSemanticClassifier:
                     raise ValueError("semantic task prompt_text was empty")
             if result.page_role not in {PageRole.student_worksheet, PageRole.mixed} and result.tasks:
                 raise ValueError("non-student page returned student tasks")
-            return result
+            source_blocks = {block.id: block for block in blocks}
+            materialized_tasks = []
+            for task in result.tasks:
+                selected_blocks = sorted(
+                    (source_blocks[block_id] for block_id in task.prompt_block_ids),
+                    key=lambda block: block.reading_order,
+                )
+                prompt_text = "\n".join(block.text.strip() for block in selected_blocks if block.text.strip())
+                if not prompt_text:
+                    raise ValueError("semantic task selected no source prompt text")
+                materialized_tasks.append(task.model_copy(update={"prompt_text": prompt_text}))
+            return result.model_copy(update={"tasks": materialized_tasks})
         except Exception as exc:
             # Do not log page text, model output, or image bytes.
             logger.warning(

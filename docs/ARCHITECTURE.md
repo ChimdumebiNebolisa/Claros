@@ -14,8 +14,8 @@ Uncertain or unsafe placements route to a deterministic side panel.
 
 | Owner | May decide | Must not decide |
 | --- | --- | --- |
-| GPT-5.6 semantic compiler (default document path) | Page role, task grouping, parent/subpart relationships, selection of supplied source blocks/response candidates | Coordinates, source text, IDs, confirmation, authorization, PDF changes, overflow, or side-panel rendering |
-| OpenAI Realtime (target) | Audio transport, speech recognition/output, turn detection, interruption, transcript delivery | Document semantics, geometry, confirmation, authorization, PDF changes, or security decisions |
+| Gemini semantic classifier (default document path) | Page role, task grouping, and selection of supplied source blocks/response candidates | Coordinates, source text, IDs, confirmation, authorization, PDF changes, overflow, or side-panel rendering |
+| Gemini Live | Audio transport, speech recognition/output, turn detection, interruption, transcript delivery | Document semantics, geometry, confirmation, authorization, PDF changes, or security decisions |
 | Deterministic application code | Physical IR, stable IDs, coordinate and relationship validation, side-panel routing, student confirmation, capabilities, write tokens, export and PDF modification | Model-authored semantics outside supplied evidence |
 | Student | Confirmation of the exact proposed answer; optional safe correction | Arbitrary unvalidated write coordinates |
 
@@ -25,7 +25,7 @@ Uncertain or unsafe placements route to a deterministic side panel.
 flowchart LR
   U[Browser] -->|PDF upload| A[Assignment service]
   A --> P[Deterministic physical IR]
-  P --> C[GPT-5.6 closed-world compiler]
+  P --> C[Gemini closed-world classifier]
   C --> M[Validated manifest v3 / GCS]
   U -->|start/confirm/write| S[Session service]
   U <-->|audio/transcript| G[Gemini Live]
@@ -34,16 +34,16 @@ flowchart LR
   E --> X[Original pages plus side-panel pages]
 ```
 
-The checked-in default builds a deterministic physical IR, then uses GPT-5.6
-for closed-world document semantics. Gemini Live remains an optional legacy
-voice path; OpenAI Realtime is not part of this runtime.
+The checked-in default builds a deterministic physical IR, then uses Gemini
+for closed-world document semantics. Gemini Live provides the optional voice
+path. No OpenAI provider is part of this runtime.
 
 ## Target document path
 
 ```mermaid
 flowchart LR
   PDF[PDF] --> PHY[Deterministic physical IR]
-  PHY -->|page image + supplied IDs| C[GPT-5.6 closed-world compiler]
+  PHY -->|page image + supplied IDs| C[Gemini closed-world classifier]
   C --> V[Deterministic validator/materializer]
   V -->|safe candidate| R[Verified physical answer region]
   V -->|uncertain or unsafe| SP[Side-panel route]
@@ -63,10 +63,17 @@ from ordered source blocks and derives geometry only from validated candidates.
   target P0/P1 design. They are high-entropy browser-held secrets stored only as
   keyed hashes server-side, never URLs.
 - Confirmation state and written answers are server-authoritative for export.
+  The confirmed answer is carried unchanged through its answer-bound write token
+  and Unicode-capable PDF renderer; unsupported text fails explicitly rather
+  than being silently substituted.
+- Export validates task snapshots and renders from that same in-process manifest
+  snapshot, so a concurrent review edit cannot redirect a previously confirmed
+  answer to a different task or region.
 - Model/provider operational logs exclude worksheet/transcript content by
   default; telemetry uses hashes, latency, cost, and reason codes.
-- Upload and provider-session creation use bounded in-process sliding-window
-  limits. They are prototype safeguards, not a distributed production WAF.
+- Upload, provider-session, durable-session, write, mutation, preview, and
+  debug-provider routes use bounded in-process sliding-window limits. They are
+  prototype safeguards, not a distributed production WAF.
 - Expiration and physical deletion are different. Storage lifecycle behavior is
   documented rather than claimed until verified.
 
