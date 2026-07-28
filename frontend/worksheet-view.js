@@ -386,6 +386,7 @@
       activeTaskId: null,
       activeResponseRegionId: null,
       zoom: 100,
+      fitWidthMode: true,
     };
 
     function pageResponseTargets() {
@@ -395,10 +396,18 @@
       });
     }
 
+    function syncFitWidthControl() {
+      if (!options.fitWidthBtn) return;
+      options.fitWidthBtn.setAttribute('aria-pressed', String(!!state.fitWidthMode));
+    }
+
     function updateToolbar() {
       if (pageLabel) pageLabel.textContent = 'Page ' + state.currentPage + ' of ' + state.pageCount;
       if (zoomLabel) zoomLabel.textContent = state.zoom + '%';
+      // Zoom is percent of the document viewport content box. 100% fills the
+      // container width (true fit-width once page min-width is not forced).
       container.style.setProperty('--document-zoom', state.zoom + '%');
+      syncFitWidthControl();
     }
 
     function renderOverlays() {
@@ -455,6 +464,9 @@
       }).then(function (blob) {
         if (state.pageObjectUrl) URL.revokeObjectURL(state.pageObjectUrl);
         state.pageObjectUrl = URL.createObjectURL(blob);
+        pageImage.onload = function () {
+          if (state.fitWidthMode) fitWidth();
+        };
         pageImage.src = state.pageObjectUrl;
       }).catch(function () {
         pageImage.removeAttribute('src');
@@ -462,6 +474,7 @@
       });
       updateToolbar();
       renderOverlays();
+      if (state.fitWidthMode) fitWidth();
     }
 
     function load(data) {
@@ -485,13 +498,23 @@
       renderPage();
     }
 
-    function setZoom(zoom) {
+    function setZoom(zoom, opts) {
+      if (!(opts && opts.preserveFit)) state.fitWidthMode = false;
       state.zoom = clamp(Math.round(Number(zoom)), 75, 175);
       updateToolbar();
     }
 
     function fitWidth() {
-      setZoom(100);
+      // Page width is --document-zoom percent of the viewport. 100% is true
+      // scale-to-container once CSS does not force a large min-width.
+      state.fitWidthMode = true;
+      setZoom(100, { preserveFit: true });
+    }
+
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('resize', function () {
+        if (state.fitWidthMode) fitWidth();
+      });
     }
 
     function setActiveTarget(taskId, responseRegionId) {

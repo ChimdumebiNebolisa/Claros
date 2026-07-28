@@ -65,10 +65,10 @@
 .assignment-title { max-width: min(66vw, 48rem); margin-top: 0.3rem; font-size: clamp(1.3rem, 2.2vw, 2rem); letter-spacing: -0.035em; overflow-wrap: anywhere; }
 .demo-replay-indicator { max-width: 62ch; margin-top: 0.5rem; color: var(--warn); font-size: 0.77rem; }
 .workspace-header-actions { display: flex; align-items: center; gap: 0.55rem; flex-shrink: 0; }
-.toolbar-button, .icon-button { min-height: 2.5rem; padding: 0.52rem 0.72rem; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--ink-soft); background: var(--surface); font-size: 0.8rem; font-weight: 700; }
+.toolbar-button, .icon-button { min-height: 2.75rem; padding: 0.52rem 0.72rem; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--ink-soft); background: var(--surface); font-size: 0.8rem; font-weight: 700; }
 .toolbar-button:hover, .icon-button:hover { color: var(--ink); border-color: var(--border-strong); background: var(--surface-strong); }
-.icon-button { width: 2.5rem; padding: 0; font-size: 1rem; }
-.btn.export { min-height: 2.5rem; }
+.icon-button { width: 2.75rem; padding: 0; font-size: 1rem; }
+.btn.export { min-height: 2.75rem; }
 
 .active-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(20rem, 25rem); gap: 1rem; align-items: start; }
 .document-workspace { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-soft); }
@@ -76,8 +76,10 @@
 .toolbar-value { min-width: 4rem; color: var(--muted); font-size: 0.78rem; font-weight: 740; text-align: center; white-space: nowrap; }
 .toolbar-divider { width: 1px; height: 1.6rem; margin: 0 0.2rem; background: var(--border); }
 .document-scroll { height: calc(100dvh - 11.2rem); min-height: 35rem; padding: clamp(0.85rem, 2vw, 1.8rem); overflow: auto; background: var(--document-stage); overscroll-behavior: contain; }
-.document-page { position: relative; width: var(--document-zoom, 100%); min-width: 34rem; margin: 0 auto; background: var(--surface); box-shadow: 0 10px 30px rgba(20, 35, 45, 0.17); }
+.document-page { position: relative; width: var(--document-zoom, 100%); min-width: 0; margin: 0 auto; background: var(--surface); box-shadow: 0 10px 30px rgba(20, 35, 45, 0.17); }
+.document-page-surface { position: relative; }
 .document-page img { display: block; width: 100%; height: auto; }
+.document-page-caption { margin: 0; padding: 0.45rem 0.65rem; color: var(--muted); font-size: 0.72rem; font-weight: 650; background: var(--surface-soft); }
 .answer-overlay-layer { position: absolute; inset: 0; pointer-events: none; }
 .answer-region { position: absolute; min-width: 44px; min-height: 44px; display: flex; align-items: flex-start; gap: 0.3rem; padding: 0.22rem; overflow: hidden; border: 2px solid var(--iris-deep); border-radius: 5px; color: var(--ink); background: transparent; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.84); pointer-events: auto; text-align: left; }
 .answer-region.is-active { outline: 3px solid rgba(223, 108, 35, 0.26); outline-offset: 2px; }
@@ -106,7 +108,7 @@
 
 .question-context { padding: 0.85rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-soft); }
 .question-context h3 { font-size: 0.95rem; }
-.question-context-head .text-action { min-height: 1.8rem; font-size: 0.76rem; white-space: nowrap; }
+.question-context-head .text-action { min-height: 2.75rem; font-size: 0.76rem; white-space: nowrap; }
 #currentQuestionExcerpt { margin-top: 0.45rem; color: var(--ink-soft); font-size: 0.82rem; line-height: 1.48; }
 .placement-summary { margin-top: 0.65rem; padding: 0.52rem 0.58rem; border-left: 2px solid var(--border-strong); color: var(--ink-soft); background: var(--surface); font-size: 0.74rem; line-height: 1.42; }
 .placement-summary.answer-line { border-color: var(--success); }
@@ -122,8 +124,14 @@
 .question-placement.missing { color: var(--iris-deep); border-color: var(--iris-line); background: var(--iris-soft); }
 .question-placement.in_progress { color: var(--ink); border-color: var(--border-strong); background: var(--surface); }
 .question-placement.written { color: var(--success); border-color: var(--success-line); background: var(--success-soft); }
-.task-choices { margin: 0.55rem 0 0; padding-left: 1.1rem; color: var(--ink-soft); font-size: 0.78rem; line-height: 1.45; }
+.task-choices { margin: 0.55rem 0 0; padding: 0; list-style: none; display: grid; gap: 0.35rem; color: var(--ink-soft); font-size: 0.78rem; line-height: 1.45; }
 .task-choices[hidden] { display: none; }
+.task-choice-btn { width: 100%; min-height: 2.75rem; padding: 0.55rem 0.7rem; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--ink); background: var(--surface); font: inherit; font-weight: 700; text-align: left; cursor: pointer; }
+.task-choice-btn:hover, .task-choice-btn:focus-visible { border-color: var(--border-strong); background: var(--surface-strong); }
+.semantic-task-block { display: grid; gap: 0.2rem; }
+.workspace-error { margin-top: 0.55rem; padding: 0.55rem 0.7rem; border: 1px solid var(--error-line); border-radius: var(--radius-sm); color: var(--error); background: var(--error-soft); font-size: 0.8rem; font-weight: 650; }
+.workspace-error[hidden] { display: none; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .answer-progress { margin-top: 0.55rem; color: var(--ink-soft); font-size: 0.74rem; line-height: 1.42; font-weight: 680; }
 .layout-review-notice { margin-top: 0.55rem; padding: 0.52rem 0.58rem; border-left: 2px solid var(--iris); color: var(--iris-deep); background: var(--iris-soft); font-size: 0.74rem; line-height: 1.42; }
 .layout-review-notice[hidden] { display: none; }
@@ -137,7 +145,7 @@
 .answer-label { display: block; margin-top: 0.85rem; color: var(--ink-soft); font-size: 0.74rem; font-weight: 760; }
 .answer-field { min-height: 5.1rem; margin-top: 0.35rem; padding: 0.68rem; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); color: var(--ink); background: var(--surface); line-height: 1.5; }
 .answer-field:empty::before { content: attr(data-placeholder); color: var(--muted-light); pointer-events: none; }
-.confirm-typed { min-height: 2.2rem; margin-top: 0.28rem; }
+.confirm-typed { min-height: 2.75rem; margin-top: 0.28rem; }
 
 .answer-confirmation, .write-confirmation { padding: 1rem; border: 1px solid var(--iris-line); border-radius: var(--radius-md); background: var(--iris-soft); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7); }
 .write-confirmation { border-color: var(--success-line); background: var(--success-soft); }
@@ -147,9 +155,10 @@
 .proposed-answer { margin-top: 0.65rem; padding: 0.75rem; border: 1px solid var(--iris-line); border-radius: var(--radius-sm); background: var(--surface); font-size: 0.92rem; line-height: 1.48; white-space: pre-wrap; }
 .confirmation-actions { margin-top: 0.7rem; display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 0.42rem; }
 .confirmation-actions-write { grid-template-columns: auto minmax(0, 1fr); }
-.confirmation-actions .btn { min-height: 2.55rem; padding-inline: 0.68rem; font-size: 0.78rem; }
+.confirmation-actions .btn { min-height: 2.75rem; padding-inline: 0.68rem; font-size: 0.78rem; }
 .return-to-worksheet { justify-self: start; }
 .notice { min-height: 0; color: var(--success); font-size: 0.78rem; font-weight: 650; }
+.notice.is-error { color: var(--error); }
 .keyboard-fallback { padding: 0.65rem; border-left: 2px solid var(--warn); color: var(--warn); background: var(--warn-soft); font-size: 0.78rem; }
 .session-actions { display: grid; gap: 0.45rem; }
 .btn.session-btn { min-height: 3rem; color: var(--on-accent); background: var(--iris); }
@@ -171,7 +180,7 @@
   .document-scroll { height: calc(100dvh - 10.5rem); }
 }
 @media (max-width: 760px) {
-  .app-main { padding: 1rem 0.7rem 8rem; }
+  .app-main { padding: 1rem 0.7rem max(14rem, 32dvh); }
   .setup-mode { margin-block: 2.25rem; }
   .setup-copy h1 { font-size: clamp(2.4rem, 12vw, 3.65rem); }
   .upload-zone { min-height: 0; grid-template-columns: auto minmax(0, 1fr); }
@@ -184,20 +193,66 @@
   .workspace-header-actions { flex-direction: column-reverse; align-items: stretch; }
   .active-workspace { display: block; }
   .document-toolbar { position: sticky; top: 3.8rem; z-index: 2; }
-  .document-scroll { height: calc(100dvh - 13.6rem); min-height: 28rem; padding: 0.7rem; }
-  .document-page { min-width: 30rem; }
+  .document-scroll {
+    height: calc(100dvh - 13.6rem);
+    min-height: 22rem;
+    padding: 0.7rem;
+    /* Clear the fixed guidance sheet so the worksheet is not permanently covered. */
+    padding-bottom: max(24rem, 52dvh, calc(22rem + env(safe-area-inset-bottom)));
+  }
+  body:has(.session-panel.is-expanded) .document-scroll {
+    padding-bottom: max(32rem, 74dvh, calc(30rem + env(safe-area-inset-bottom)));
+  }
+  .document-page { min-width: 0; }
   .toolbar-divider { display: none; }
-  .session-panel { position: fixed; z-index: var(--z-sheet); inset: auto 0.55rem max(0.55rem, env(safe-area-inset-bottom)); max-height: 7.35rem; padding: 0.7rem; overflow: hidden; border-color: var(--border-strong); box-shadow: var(--shadow-strong); }
-  .session-panel.is-expanded { max-height: min(71dvh, 42rem); overflow-y: auto; }
+  .session-panel {
+    position: fixed;
+    z-index: var(--z-sheet);
+    inset: auto 0.55rem max(0.55rem, env(safe-area-inset-bottom));
+    max-height: min(48dvh, 22rem);
+    padding: 0.7rem;
+    padding-bottom: 4.4rem;
+    overflow-y: auto;
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-strong);
+  }
+  .session-panel.is-expanded {
+    max-height: min(71dvh, 42rem);
+    overflow-y: auto;
+    padding-bottom: 0.7rem;
+  }
   .voice-panel-toggle { display: inline-flex; align-items: center; justify-content: center; }
   .session-panel.is-expanded .voice-panel-toggle { transform: rotate(180deg); }
-  .session-panel:not(.is-expanded) > :not(.session-head):not(.status-bar):not(.session-actions):not(.answer-confirmation):not(.write-confirmation):not(.return-to-worksheet) { display: none; }
-  .session-panel:not(.is-expanded):has(.answer-confirmation:not([hidden])), .session-panel:not(.is-expanded):has(.write-confirmation:not([hidden])) { max-height: min(72dvh, 31rem); overflow-y: auto; }
-  .session-panel:not(.is-expanded) .session-actions { position: absolute; right: 0.7rem; bottom: 0.7rem; }
-  .session-panel:not(.is-expanded) .session-actions .session-privacy-note, .session-panel:not(.is-expanded) .interrupt { display: none; }
-  .session-panel:not(.is-expanded) .session-btn { min-height: 2.7rem; padding-inline: 0.75rem; font-size: 0.78rem; }
+  /* Keep typed answer, semantic task content, notices, and mic-denial fallback
+     visible while collapsed so core flows work without voice or expand. */
+  .session-panel:not(.is-expanded) > :not(.session-head):not(.status-bar):not(.session-actions):not(.question-context):not(.notice):not(.keyboard-fallback):not(.answer-confirmation):not(.write-confirmation):not(.return-to-worksheet) { display: none; }
+  .session-panel:not(.is-expanded) .question-picker,
+  .session-panel:not(.is-expanded) .response-targets,
+  .session-panel:not(.is-expanded) .layout-review-notice,
+  .session-panel:not(.is-expanded) .task-choices,
+  .session-panel:not(.is-expanded) .meter-wrap { display: none; }
+  .session-panel:not(.is-expanded):has(.answer-confirmation:not([hidden])),
+  .session-panel:not(.is-expanded):has(.write-confirmation:not([hidden])),
+  .session-panel:not(.is-expanded):has(.keyboard-fallback:not([hidden])) {
+    max-height: min(72dvh, 34rem);
+    overflow-y: auto;
+  }
+  .session-panel:not(.is-expanded) .session-actions {
+    position: absolute;
+    right: 0.7rem;
+    bottom: 0.7rem;
+    left: auto;
+    z-index: 1;
+  }
+  .session-panel:not(.is-expanded) .session-actions .session-privacy-note,
+  .session-panel:not(.is-expanded) .interrupt { display: none; }
+  .session-panel:not(.is-expanded) .session-btn { min-height: 2.75rem; padding-inline: 0.75rem; font-size: 0.78rem; }
   .session-panel:not(.is-expanded) .status-bar { min-height: 3.1rem; margin-right: 8.8rem; padding: 0.48rem; }
   .session-panel:not(.is-expanded) .status-bar small { display: none; }
+  .session-panel:not(.is-expanded) .question-context { padding: 0.55rem; padding-bottom: 0.2rem; }
+  .session-panel:not(.is-expanded) .answer-field { min-height: 3.6rem; }
+  .confirmation-actions .btn,
+  .btn.export { min-height: 2.75rem; }
 }
 @media (max-width: 430px) {
   .help-menu { display: none; }
