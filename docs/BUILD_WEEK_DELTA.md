@@ -139,6 +139,15 @@
   ownership for parser vs canonical suites.
 - Evidence: see `docs/BUILD_WEEK_STAGE_10_VERIFICATION.md`.
 
+## Revamp Stage 11 record
+
+- Base SHA: `3905da6` (Stage 10 merged to `main`).
+- Working branch: `codex/stage11-security-privacy`.
+- Scope: assignment delete reliability, capability-safe legacy manifests,
+  restore authorization with assignment_id, retention honesty docs, and
+  content-free upload error responses.
+- Evidence: see `docs/BUILD_WEEK_STAGE_11_VERIFICATION.md`.
+
 ## First-party canonical parser fixtures
 
 `evaluation/canonical_v1/` establishes the initial parser milestone with three

@@ -157,6 +157,7 @@ def validate_app_js_contract() -> None:
         "/api/session/",
         "reauthorize-write",
         "reauthorizeWriteToken",
+        "assignment_id: state.assignmentId || saved.assignmentId",
         "confirmProposedAnswer",
         "writeConfirmedAnswerBtn",
         "setWorkspaceState",

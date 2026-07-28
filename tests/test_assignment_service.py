@@ -444,7 +444,8 @@ def test_load_assignment_manifest_backfill(monkeypatch, tmp_pdf_question_format)
     title, questions = assignment_service.load_assignment_from_gcs("legacy-id")
     assert title
     assert questions
-    assert manifest_json is not None
+    # Stage 11: capability-less signed manifests must not be persisted.
+    assert manifest_json is None
 
 
 def test_expired_manifest_is_rejected(monkeypatch):

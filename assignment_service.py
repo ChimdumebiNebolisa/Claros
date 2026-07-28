@@ -64,7 +64,7 @@ class AssignmentManifestIntegrityError(ValueError):
 
 def _ensure_manifest_active(manifest: AssignmentManifest) -> AssignmentManifest:
     if manifest.is_expired():
-        record_metric("session_expired", status="expired")
+        record_metric("assignment_expired", status="expired")
         raise AssignmentExpiredError("Assignment expired")
     return manifest
 
@@ -348,7 +348,11 @@ def persist_assignment_from_pdf_bytes(
 
 
 def load_assignment_manifest(assignment_id: str) -> AssignmentManifest:
-    """Load manifest from GCS; backfill by parsing PDF once for legacy assignments."""
+    """Load manifest from GCS; parse PDF for legacy assignments without capability binding.
+
+    Stage 11: never persist a signed serving manifest without an owner capability
+    hash. Capability-less backfill returns an in-memory parse only.
+    """
     if config.USE_MANIFEST:
         raw = download_manifest_from_gcs(assignment_id)
         if raw:
@@ -361,20 +365,32 @@ def load_assignment_manifest(assignment_id: str) -> AssignmentManifest:
         tmp.write(pdf_bytes)
         tmp_path = tmp.name
     try:
-        manifest = _signed_manifest(
-            assignment_id,
-            _parse_and_build_manifest(assignment_id, tmp_path),
-        )
-        try:
-            upload_manifest_to_gcs(assignment_id, manifest.model_dump_json())
-        except Exception:
-            logger.exception("Manifest backfill upload failed for %s", assignment_id)
-        return _ensure_manifest_active(manifest)
+        # In-memory only — uploading a capability-less signed MAC bricks ownership.
+        return _ensure_manifest_active(_parse_and_build_manifest(assignment_id, tmp_path))
     finally:
         try:
             os.unlink(tmp_path)
         except OSError:
             pass
+
+
+def delete_assignment(assignment_id: str) -> None:
+    """Delete assignment PDF/manifest/session markers when any of them remain."""
+    has_pdf = True
+    try:
+        _download_pdf_bytes(assignment_id)
+    except ValueError:
+        has_pdf = False
+    has_manifest = False
+    if config.USE_MANIFEST:
+        try:
+            has_manifest = bool(download_manifest_from_gcs(assignment_id))
+        except Exception:
+            has_manifest = False
+    has_sessions = bool(storage.list_assignment_session_ids(assignment_id))
+    if not has_pdf and not has_manifest and not has_sessions:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    delete_assignment_and_sessions(assignment_id)
 
 
 def load_assignment_from_gcs(assignment_id: str) -> tuple[str, list]:
@@ -514,11 +530,3 @@ def build_export_response(
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{_export_filename(assignment_id)}"'},
     )
-
-
-def delete_assignment(assignment_id: str) -> None:
-    try:
-        _download_pdf_bytes(assignment_id)
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Assignment not found")
-    delete_assignment_and_sessions(assignment_id)

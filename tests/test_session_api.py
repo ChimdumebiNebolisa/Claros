@@ -1,4 +1,4 @@
-"""Session API tests with mocked GCS session storage."""
+﻿"""Session API tests with mocked GCS session storage."""
 import json
 import pytest
 from fastapi.testclient import TestClient
@@ -108,7 +108,7 @@ def test_restore_rejects_wrong_session_secret(client):
     start = client.post("/api/session/start", json={"assignment_id": TEST_ASSIGNMENT_ID}).json()
     response = client.post(
         f"/api/session/{start['session_id']}/restore",
-        json={"session_secret": "wrong-secret"},
+        json={"session_secret": "wrong-secret", "assignment_id": TEST_ASSIGNMENT_ID},
     )
     assert response.status_code == 403
 
@@ -167,7 +167,7 @@ def test_confirm_and_restore_round_trip(client):
 
     restore = client.post(
         f"/api/session/{start['session_id']}/restore",
-        json={"session_secret": start["session_secret"]},
+        json={"session_secret": start["session_secret"], "assignment_id": TEST_ASSIGNMENT_ID},
     )
     assert restore.status_code == 200
     restored = restore.json()["responses"][_TASK_ONE_REGION_ID]
@@ -220,7 +220,7 @@ def test_restore_reissues_write_token_for_confirmed_unwritten_answer(client):
 
     restore = client.post(
         f"/api/session/{start['session_id']}/restore",
-        json={"session_secret": start["session_secret"]},
+        json={"session_secret": start["session_secret"], "assignment_id": TEST_ASSIGNMENT_ID},
     ).json()
     restored_token = restore["responses"][_TASK_ONE_REGION_ID]["write_token"]
     assert restored_token
@@ -323,7 +323,7 @@ def test_reconfirm_clears_previous_written_answer(client):
 
     restore = client.post(
         f"/api/session/{start['session_id']}/restore",
-        json={"session_secret": start["session_secret"]},
+        json={"session_secret": start["session_secret"], "assignment_id": TEST_ASSIGNMENT_ID},
     ).json()
     restored = restore["responses"][_TASK_ONE_REGION_ID]
     assert restored["confirmed_answer"] == "New"
@@ -383,7 +383,7 @@ def test_restore_retries_after_storage_conflict(monkeypatch, client):
     monkeypatch.setattr(session_service, "save_session", flaky_save)
     restore = client.post(
         f"/api/session/{start['session_id']}/restore",
-        json={"session_secret": start["session_secret"]},
+        json={"session_secret": start["session_secret"], "assignment_id": TEST_ASSIGNMENT_ID},
     )
     assert restore.status_code == 200
     assert restore.json()["responses"][_TASK_ONE_REGION_ID]["write_token"]
