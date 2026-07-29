@@ -2,11 +2,19 @@
 
 ## Status
 
-Claros is entering a focused product revamp.
+Claros completed a focused product revamp through Stages 1–12 on `main`
+(observability and production deploy path included). Stages 13–14 finish
+documentation convergence and whole-product audit.
 
-The objective is not to rewrite the application or expand scope. The objective is to converge the current prototype into a coherent, reliable, accessible product with one document model, one runtime AI strategy, a real sample flow, strong browser behavior, and verified safety.
+The objective was not to rewrite the application or expand scope. The objective
+was to converge the prototype into a coherent, reliable, accessible product with
+one document model, one runtime AI strategy, a real sample flow, strong browser
+behavior, and verified safety.
 
-Historical audits, Build Week plans, parser experiments, benchmark reports, and handoff documents remain useful context, but this document is the canonical implementation roadmap for the revamp.
+Historical audits, Build Week plans, parser experiments, benchmark reports, and
+handoff documents remain useful context and must be read as **historical** where
+labeled. This document remains the canonical **revamp** roadmap; for present-tense
+runtime boundaries prefer [`ARCHITECTURE.md`](ARCHITECTURE.md) and the README.
 
 ---
 
@@ -549,7 +557,8 @@ Canonical release target:
 - zero false-positive writable regions,
 - stable results across repeated generation and parsing.
 
-Do not alter ground truth to improve results.
+Do not alter AI-adjudicated silver labels, canonical expected manifests, or
+fixture provenance to improve reported scores.
 
 ---
 

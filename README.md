@@ -1,8 +1,14 @@
 # Claros
 
-> Claros is currently undergoing a focused product revamp. See the [canonical revamp roadmap](docs/CLAROS_REVAMP_ROADMAP.md).
+> **Present tense:** Claros is a human-free worksheet-understanding and tutoring
+> system for structured PDF worksheets. Revamp Stages 1–12 are on `main`
+> (records in [`docs/BUILD_WEEK_DELTA.md`](docs/BUILD_WEEK_DELTA.md)); Stages
+> 13–14 finish documentation convergence and whole-product audit. Historical
+> Build Week / OpenAI / parser-experiment plans are **not** the current product —
+> see banners on those docs. Canonical technical boundary:
+> [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-**An AI agent primarily for students with typing difficulties - it reads assignments, guides reasoning through real-time voice conversation, and writes the final answer into the correct question field only after the student has worked it out or stated it.**
+**An AI agent primarily for students with typing difficulties — it understands structured worksheet PDFs, guides reasoning through voice or typing, and writes the student-confirmed answer into a safe response region (or the labeled side panel) only after the student has stated or approved that exact answer.**
 
 ## Demo
 
@@ -16,26 +22,26 @@ For students with typing difficulties - whether due to motor impairments, dyslex
 
 Existing AI tutors either give away answers immediately (undermining learning) or require typed input (excluding users who struggle with typing). There is a gap for a tool that preserves guided reasoning while removing the typing bottleneck for the final answer entry step.
 
-Claros closes this gap. It operates directly on the worksheet: guiding the student through each question via voice, then writing the answer into the correct field only when the student is ready.
+Claros closes this gap. It operates directly on the worksheet: guiding the student through each task via voice or typed interaction, then writing only the student-confirmed answer when placement is safe.
 
 ## How Claros Works
 
-1. **Upload a worksheet PDF** - Claros parses the document, keeps page geometry, and overlays answer fields on the original worksheet pages.
-2. **Start a voice session** - Claros connects to a real-time audio session. The student speaks through their microphone and hears Claros respond naturally.
-3. **Discuss a question** - Claros guides the student through the problem using Socratic questioning. It does not give the answer directly. Guided reasoning first, not answer generation.
-4. **State the final answer** - The student says their answer out loud (e.g., "I think the answer is 42" or "My answer for question 1 is the Civil War").
-5. **Ask Claros to write it** - The student says something like "Write my answer for question 1," or Claros may offer ("Let me write that for question 1") after the student has worked through the answer. Claros then writes the answer into the correct field on the worksheet.
-6. **Export as PDF** - The Export PDF button appears once an assignment is loaded. Export writes answers onto the **original worksheet PDF** at detected or manually corrected regions.
+1. **Upload a worksheet PDF or open an official sample** — Claros builds deterministic physical evidence, keeps page geometry, and projects tasks and response regions onto the original worksheet pages.
+2. **Use voice and/or typing** — Voice (Gemini Live) is optional. Typed interaction always works; microphone access is never required.
+3. **Discuss a task** — Claros guides the student through the problem using Socratic questioning. Guided reasoning first, not answer generation.
+4. **State and confirm the exact final answer** — The student states or edits their answer, then explicitly confirms that exact text for that task.
+5. **Write only after confirmation** — Confirmation and writing are distinct. After confirm, deterministic code stamps the exact confirmed text into a validated region (or the labeled side panel when placement is unsafe).
+6. **Export as PDF** — Export writes confirmed answers onto the **original worksheet PDF** at approved regions; uncertain or overflow content goes to appended side-panel pages.
 
 ## Core Product Rule
 
-Claros enforces a deliberate constraint: **it will not write an answer until the student has stated it first.**
+Claros enforces a deliberate constraint: **confirm ≠ write.** It will not write an answer until the student has explicitly confirmed the exact proposed answer for that specific task.
 
-- If the student asks Claros to write before they have given their answer, Claros responds: *"Tell me your final answer first, then I can write it into the worksheet."*
-- This rule is enforced per question. Stating an answer for question 1 does not unlock writing for question 2.
-- Answer readiness is set when the student states their answer (e.g. "my answer is 5") or when Claros offers to write after discussion (e.g. "Let me write that for question 1"). The frontend triggers the write only when readiness is set for that question. The backend generates the written answer from the conversation and optional answer candidate; it no longer requires a non-empty candidate.
+- If the student asks Claros to write before they have given and confirmed their answer, Claros will not stamp the worksheet.
+- This rule is enforced per task. Confirming an answer for task 1 does not unlock writing for task 2.
+- The frontend may propose readiness from conversation cues, but the write API only stamps the exact confirmed candidate after a server-issued, single-use write token. The backend does **not** regenerate the answer from conversation history.
 
-This is an intentional product decision. Claros is designed to support learning, not to bypass it. The voice interface removes the typing barrier; the readiness gate preserves the reasoning requirement.
+This is an intentional product decision. Claros is designed to support learning, not to bypass it. Voice removes the typing barrier when available; typed fallback preserves full access; the confirmation gate preserves the reasoning requirement.
 
 ## Why This Matters
 
@@ -66,7 +72,7 @@ flowchart LR
   Browser[Browser] --> Landing[GET / → landing.html]
   Browser --> App[GET /app → app.html]
   App --> Upload[POST /upload]
-  Upload --> Parser[Legacy PyMuPDF parser or flagged hybrid adapter]
+  Upload --> Parser[Hybrid physical IR (default) / legacy or paddle flags]
   Parser --> Semantics[Gemini structured semantic classification]
   Parser --> Storage[(Google Cloud Storage)]
   App --> Session[Session start / restore / confirm]
@@ -98,9 +104,9 @@ FastAPI backend (main.py + service modules)
   ├── schemas.py — request validation
   ├── Ephemeral token creation (auth_tokens.create) for browser-Gemini Live
   ├── Gemini structured page/block/task classification
-  ├── PDF parser (parser.py + parser_layout.py - PyMuPDF geometry)
-  ├── Hybrid document model + PP-StructureV3 adapter (flagged; not production default)
-  ├── Gemini structured page/block/task classification (flagged)
+  ├── PDF parser (parser.py + parser_layout.py - PyMuPDF geometry; default PDF_PARSER_MODE=hybrid)
+  ├── Hybrid document model + optional PP-StructureV3 adapter (ENABLE_PADDLEOCR flagged; not required)
+  ├── Gemini structured page/block/task classification
   ├── PDF exporter (exporter.py - layout-preserving primary, ReportLab legacy fallback)
   └── Google Cloud Storage (assignment PDF persistence)
 ```
@@ -113,11 +119,11 @@ FastAPI backend (main.py + service modules)
 
 **Voice-enabled PDF export** is detected on the user speech path in the browser. When a user utterance for a completed turn clearly matches export-intent phrases (e.g., “export pdf”, “export as pdf”, “export this as pdf”, “download pdf”, “download the pdf”, “save as pdf”, “save this as pdf”, “save it as pdf”), the frontend triggers the same `/export/{assignment_id}` route as the Export button. Export is allowed with or without answers; answered text is placed onto the original worksheet when regions are available.
 
-**Answer readiness gating** is enforced in the frontend: writing is only triggered once the answer is marked ready for that question (student stated it or Claros said "Let me write that for question N"). The backend accepts the request with or without an answer candidate and uses the conversation to generate the written answer.
+**Answer confirmation** is required before any worksheet stamp: the student must confirm the exact candidate for that task. Models may propose tutoring actions from supplied evidence; deterministic code owns write tokens, geometry validation, authorization, overflow, and PDF changes.
 
-**PDF pipeline**: Uploaded PDFs are stored in Google Cloud Storage under `assignments/{uuid}/assignment.pdf`, parsed once into a versioned layout manifest (see `LAYOUT.md`), previewed as page images, and exported by writing answers into the original PDF regions. See that doc for confidence states, OCR-required pages, and unsupported layouts.
+**PDF pipeline**: Uploaded PDFs are stored in Google Cloud Storage under `assignments/{uuid}/assignment.pdf`, parsed into the versioned canonical document contract (see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and `LAYOUT.md`), previewed as page images, and exported by writing answers into the original PDF regions when safe.
 
-The candidate hybrid design, teacher-review flow, safety invariants, and benchmark commands are documented in [`docs/pdf-understanding-architecture.md`](docs/pdf-understanding-architecture.md). The existing parser remains the default until the acceptance benchmark supports promotion.
+Current runtime architecture is [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Parser mode defaults to **`PDF_PARSER_MODE=hybrid`**. July 2026 PDF-understanding investigation notes (legacy-default experiments, optional teacher-review sketches) are historical: [`docs/pdf-understanding-architecture.md`](docs/pdf-understanding-architecture.md).
 
 ## Hardening and risk prevention
 
@@ -179,7 +185,7 @@ Replace `<PROJECT_ID>`, `<REGION>`, `<key>`, `<bucket>`, and `<project>` with yo
 | Voice AI | Gemini Live API (direct from browser via bundled @google/genai; SDK served from app; ephemeral token from backend) |
 | Text AI | Gemini structured document semantics; confirmed writes are deterministic |
 | PDF parsing | PyMuPDF (fitz) |
-| PDF export | ReportLab |
+| PDF export | Original PDF via PyMuPDF (ReportLab legacy fallback only) |
 | Storage | Google Cloud Storage |
 | Frontend | HTML, CSS, vanilla JavaScript |
 | Deployment | Docker, Google Cloud Run |
@@ -219,7 +225,7 @@ Samples use the same upload and session path as a student worksheet.
 
 **Gemini SDK bundle:** The frontend loads the Gemini SDK from `/genai.bundle.js` (same origin). That file is produced by `npm run build:genai` and checked in under `frontend/genai.bundle.js`. There is no runtime dependency on esm.sh or any other CDN.
 
-**Note:** The browser will request microphone access. Use Chrome or a Chromium-based browser for best WebSocket and audio API support.
+**Note:** Microphone access is requested only if the student starts a voice session. Typed confirmation, writing, and export remain fully usable without a mic. Use Chrome or a Chromium-based browser for best WebSocket and audio API support.
 
 ## Environment Variables
 

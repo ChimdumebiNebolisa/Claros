@@ -152,11 +152,26 @@
 
 - Base SHA: `22bc656` (Stage 11 merged to `main`).
 - Working branch: `codex/stage12-observability`.
+- Merge: PR #31 → `322f55a` on `main`.
 - Scope: offload PDF parse/page render from the event loop, bounded duration
-  metrics, voice-connect metrics, and documented Cloud Run posture. No live
-  Cloud Run settings changed; merge requires deploy-approval because
-  `deploy.yml` triggers on `main`.
+  metrics, voice-connect metrics, and documented Cloud Run posture.
+- Deploy: Stages 5–11 Cloud Run deploys had been blocked by missing Secret
+  Manager API / `claros-session-hmac` secret (workflow unchanged). After enabling
+  the API and creating the secret with runtime accessor IAM, Stage 11 deploy
+  rerun `30402982310` and Stage 12 deploy `30417519073` both succeeded with
+  post-deploy smoke (`/health`, `/`, `/app`, `/styles/tokens.css`).
 - Evidence: see `docs/BUILD_WEEK_STAGE_12_VERIFICATION.md`.
+
+## Revamp Stage 13 record
+
+- Base SHA: `322f55a` (Stage 12 merged to `main`).
+- Working branch: `codex/stage13-docs-convergence`.
+- Scope: present-tense documentation convergence — README confirm≠write and
+  parser defaults; deploy ops `/health` + Secret Manager; historical banners on
+  Build Week / PDF-understanding / audit journals; PRODUCT and revamp status
+  aligned with Gemini + deterministic ownership. No canonical eval labels or
+  manifests changed.
+- Evidence: see `docs/BUILD_WEEK_STAGE_13_VERIFICATION.md`.
 
 ## First-party canonical parser fixtures
 

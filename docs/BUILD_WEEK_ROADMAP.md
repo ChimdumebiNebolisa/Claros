@@ -1,7 +1,12 @@
 # Build Week roadmap
 
-This is the current execution order. The full acceptance criteria and detailed
-implementation instructions live in `BUILD_WEEK_EXECUTION_PLAN.md`.
+> **Historical document.** This was the Build Week / contest-era execution
+> order (including GPT-5.6 and OpenAI Realtime steps). It is **not** the
+> current Claros roadmap. Use [`CLAROS_REVAMP_ROADMAP.md`](CLAROS_REVAMP_ROADMAP.md)
+> and [`BUILD_WEEK_DELTA.md`](BUILD_WEEK_DELTA.md) for present-tense status.
+
+This was the Build Week execution order at plan time. Detailed historical
+instructions live in `BUILD_WEEK_EXECUTION_PLAN.md`.
 
 1. Preserve the worktree and establish provenance -> verify branch, inventory,
    ignore policy, and intentional commits.

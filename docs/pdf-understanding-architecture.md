@@ -1,8 +1,17 @@
 # Claros PDF understanding architecture
 
-## Decision
+> **Historical investigation note (2026-07).** Defaults and promotion advice
+> below are **not** present-tense product truth. Current runtime defaults
+> (`PDF_PARSER_MODE=hybrid`, synchronous Gemini semantics enabled) and
+> authority boundaries live in [`ARCHITECTURE.md`](ARCHITECTURE.md) and
+> `config.py`. Claros does not require teacher review during normal use.
 
-Claros keeps the existing PyMuPDF parser as the production default (`PDF_PARSER_MODE=legacy`). Automatic hybrid task approval has a second default-off promotion gate (`ENABLE_DOCUMENT_TASK_AUTO_APPROVE=false`). The candidate path is a feature-flagged hybrid:
+## Decision (investigation-era)
+
+At investigation time Claros kept the existing PyMuPDF parser as a candidate
+production default (`PDF_PARSER_MODE=legacy`). Automatic hybrid task approval
+had a second default-off promotion gate (`ENABLE_DOCUMENT_TASK_AUTO_APPROVE=false`).
+The candidate path was a feature-flagged hybrid:
 
 1. PyMuPDF opens the original PDF, records page geometry/rotation, extracts reliable native text, discovers physical form fields and drawn answer lines, renders previews, draws evidence overlays, and writes only approved answers back to the original.
 2. PP-StructureV3 supplies OCR, layout labels, polygons/boxes, confidence, and reading order for scans or visually structured pages. Its pixel coordinates are normalized to PyMuPDF page points.

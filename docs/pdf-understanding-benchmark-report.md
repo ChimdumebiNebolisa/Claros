@@ -1,11 +1,16 @@
 # Claros PDF understanding benchmark report
 
+> **Historical benchmark snapshot (2026-07-15).** Promotion advice and
+> “legacy as production default” conclusions below are investigation-era, not
+> present-tense Claros runtime claims. Current defaults: see
+> [`ARCHITECTURE.md`](ARCHITECTURE.md) and `config.py` (`PDF_PARSER_MODE=hybrid`).
+
 **Date:** 2026-07-15
 **Corpus:** `C:\Users\Chimdumebi\Downloads\claros-pdf-acceptance-corpus\claros-pdf-corpus`
 **Scope:** 20 PDFs, 109 pages, including 17 selectable PDFs and 3 image-only scans
 **Deployment:** none
 
-## Decision
+## Decision (investigation-era)
 
 **Do not promote PP-StructureV3/Gemini as the production default.** Keep the corrected legacy parser as the default, keep the hybrid behind default-off feature flags, and move any future Paddle/Gemini execution to an asynchronous low-concurrency parser worker. Require teacher review for mixed packets, scans, forms/tables, and any task without a reviewed response region.
 

@@ -12,9 +12,9 @@ Students with typing difficulties — motor impairments, dyslexia, injury, or si
 
 ## Product Purpose
 
-Claros is a voice-guided worksheet assistant. Students upload a worksheet PDF, talk through each question with a real-time voice agent (Gemini Live), and Claros writes the answer into the correct field — but only after the student has stated or approved that answer for that specific question. Completed worksheets export as PDF.
+Claros is a human-free worksheet-understanding and tutoring product for structured PDF worksheets. Students upload a worksheet (or open an official sample), work through each task with optional Gemini Live voice **or** typed interaction, and Claros writes only the student-confirmed exact answer into a validated response region — or a labeled side panel when placement is unsafe. Completed worksheets export as the original PDF plus any side-panel pages.
 
-Success looks like: a student completes a worksheet by thinking out loud, without typing, and without the tool doing the thinking for them.
+Success looks like: a student completes a structured worksheet by thinking out loud or typing, without the tool inventing answers or coordinates, and without requiring a microphone.
 
 ## Core Product Rule (never weaken)
 
@@ -35,7 +35,7 @@ Calm, capable, trustworthy. A patient tutor, not a flashy gadget. Premium access
 
 1. **Calm over clever** — whitespace, restrained color, and large readable type carry the premium feel; decoration never competes with the worksheet.
 2. **The gate is visible** — answer-readiness and writing states are first-class visual states, always legible at a glance.
-3. **Voice is the hero** — the live session console should feel like a real assistant, with clear listening / speaking / writing feedback.
+3. **Voice is optional; access is not** — Gemini Live is a first-class path, but typed confirmation, writing, and export must remain complete when voice fails or is declined.
 4. **Accessible by default** — this is a tool for students with disabilities; contrast, focus states, reduced motion, and screen-reader attributes are non-negotiable.
 5. **Grounded copy** — say what the product does in plain sentences; no superlatives.
 

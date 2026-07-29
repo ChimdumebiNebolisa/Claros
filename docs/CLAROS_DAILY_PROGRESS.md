@@ -1,5 +1,10 @@
 # Claros Daily Progress
 
+> **Historical engineering journal (last updated 2026-07-12).** Not a
+> present-tense product or deploy specification. Some entries mention
+> `/healthz` or removed frontend assets; current probes use `/health` and
+> `frontend/landing.html` / `frontend/app.html`.
+
 Last updated: 2026-07-12 (America/Chicago)
 
 ## Current state

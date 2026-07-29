@@ -1,6 +1,13 @@
 # Claros Build Week Execution Plan
 
-**Status:** planning document (execute from this, not from ad-hoc chat)
+> **Historical document (Build Week / contest-era plan).** This is **not** the
+> current Claros product roadmap or runtime architecture. OpenAI/GPT-5.6 /
+> OpenAI Realtime targets below describe a superseded candidate path. Current
+> product: Gemini + deterministic confirmation/write ownership —
+> [`ARCHITECTURE.md`](ARCHITECTURE.md), [`CLAROS_REVAMP_ROADMAP.md`](CLAROS_REVAMP_ROADMAP.md),
+> and Stage records in [`BUILD_WEEK_DELTA.md`](BUILD_WEEK_DELTA.md).
+
+**Status:** historical planning document (do not execute as present-tense work)
 **Worktree:** `C:\Users\Chimdumebi\Claros`
 **Baseline branch at plan time:** `feat/claros-session2-rebuild` @ `e232daf29330ce3a198659c5b9709df95ea5bafa`
 **Remote main at plan time:** `3e356976b1ca5b097efd3d7330803e9e4818d37f`

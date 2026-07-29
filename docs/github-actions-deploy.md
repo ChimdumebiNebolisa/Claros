@@ -213,15 +213,19 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
 
 ## Runtime Cloud Run and GCS requirements
 
-The workflow sets these **runtime** environment variables on the Cloud Run service:
+The workflow sets these **runtime** environment variables / secrets on the Cloud Run service:
 
 | Env var | Source |
 |---------|--------|
+| `APP_ENV` | Set to `production` by the deploy step |
 | `GEMINI_API_KEY` | GitHub secret `GEMINI_API_KEY` |
 | `GCS_BUCKET_NAME` | GitHub secret `GCS_BUCKET_NAME` |
 | `GOOGLE_CLOUD_PROJECT` | GitHub secret `GCP_PROJECT_ID` |
+| `SESSION_HMAC_SECRET` | Secret Manager `claros-session-hmac:latest` via `--set-secrets` |
 
 The workflow does not set `GEMINI_TEXT_MODEL` (the app defaults to `gemini-2.5-flash`).
+
+Secret Manager must be enabled in the project, the `claros-session-hmac` secret must exist, and the Cloud Run runtime service account needs `roles/secretmanager.secretAccessor` on that secret.
 
 ### GCS bucket
 
@@ -271,7 +275,7 @@ After a successful deploy, check the production URL.
 
 | URL | Expected |
 |-----|----------|
-| `/healthz` | 200, `{"status":"ok"}` |
+| `/health` | 200, dependency-free `{"status":"ok"}` (do **not** use `/healthz`; Cloud Run intercepts paths ending in `z`) |
 | `/` | 200, marketing landing page only |
 | `/app` | 200, worksheet app |
 | `/app?sample=1` | 200, app with sample PDF auto-load |

@@ -1,8 +1,12 @@
 # Claros audit record
 
+> **Historical public-claim audit (updated 2026-07-12).** Superseded as a
+> present-tense architecture diagram. Current flow:
+> [`ARCHITECTURE.md`](ARCHITECTURE.md) and the README architecture section.
+
 Updated: 2026-07-12
 
-## Active producer-to-consumer flow
+## Active producer-to-consumer flow (as of 2026-07-12)
 
 ```mermaid
 flowchart LR
