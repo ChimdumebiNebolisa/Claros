@@ -52,7 +52,7 @@ This is not about making assignments easier. It is about making them accessible 
 ## Features
 
 - **PDF assignment ingestion** - Upload a PDF worksheet. Claros detects numbered questions, page geometry, and proposed answer regions for overlay editing.
-- **Layout-preserving worksheet view** - Original page previews are shown with accessible answer fields positioned on the page; low-confidence regions can be corrected before export.
+- **Layout-preserving worksheet view** - Original page previews are shown with accessible answer fields positioned on the page. Unsafe or low-confidence placement routes confirmed answers to a labeled side panel instead of guessing coordinates; the student app does not offer free-form region editing.
 - **PDF safety limits** - Uploads are bounded by byte size, page count, and extracted-text size; malformed or unsupported PDFs return a recoverable validation error.
 - **OCR-required detection and candidate adapter** - Image-only/scanned pages are marked `requires_ocr` without fake questions. PP-StructureV3 is available only through an optional, feature-flagged adapter pending corpus and Cloud Run promotion evidence.
 - **Real-time voice conversation** - Bidirectional audio through Gemini Live. The student speaks and hears Claros respond with natural voice.
@@ -60,10 +60,10 @@ This is not about making assignments easier. It is about making them accessible 
 - **Per-question answer readiness tracking** - The frontend tracks whether the student has stated a final answer for each question before allowing a write.
 - **Controlled answer writing** - After explicit student confirmation, the frontend calls the backend write API with an answer-bound, single-use token. The backend stamps that exact confirmed text; no model rewrites it, including LaTeX-style `$...$` delimiters.
 - **Live transcript** - Both sides of the conversation are transcribed and displayed in real time (from Gemini Live in the browser).
-- **PDF export onto the original worksheet** - Export inserts answers only into approved regions on the original PDF. Confirmed answers without safe coordinates are preserved on appended side-panel pages instead of being silently skipped, truncated, or written to a guessed location.
+- **PDF export onto the original worksheet** - Export inserts answers only into approved regions on the original PDF. Confirmed answers without safe coordinates are preserved on appended side-panel pages instead of being silently skipped, truncated, or written to a guessed location. Export requires at least one confirmed written answer.
 - **Answer-stated indicator** - The UI shows a visual badge when the student (or Claros) has indicated the answer for a given question.
 - **Barge-in / interruption** - If the student starts speaking while Claros is talking, Claros’ audio playback is stopped and the app returns to listening. An **Interrupt** button (visible during a session) stops Claros's speech immediately so the student can talk without speaking first.
-- **Voice-enabled PDF export** - Saying phrases like “export pdf” or “export this as pdf” from within the voice session triggers the same PDF export as the button; export is allowed even when no answers have been written yet.
+- **Voice-enabled PDF export** - Saying phrases like “export pdf” or “export this as pdf” from within the voice session triggers the same PDF export as the button, including the same “at least one written answer” requirement.
 
 ## Architecture
 
@@ -117,7 +117,7 @@ FastAPI backend (main.py + service modules)
 
 **Barge-in / interruption** is implemented in the frontend. When the user starts speaking (or clicks the **Interrupt** button) while Claros is playing, the browser stops scheduled audio buffers, clears the playback queue, and returns to listening. This is not full-duplex.
 
-**Voice-enabled PDF export** is detected on the user speech path in the browser. When a user utterance for a completed turn clearly matches export-intent phrases (e.g., “export pdf”, “export as pdf”, “export this as pdf”, “download pdf”, “download the pdf”, “save as pdf”, “save this as pdf”, “save it as pdf”), the frontend triggers the same `/export/{assignment_id}` route as the Export button. Export is allowed with or without answers; answered text is placed onto the original worksheet when regions are available.
+**Voice-enabled PDF export** is detected on the user speech path in the browser. When a user utterance for a completed turn clearly matches export-intent phrases (e.g., “export pdf”, “export as pdf”, “export this as pdf”, “download pdf”, “download the pdf”, “save as pdf”, “save this as pdf”, “save it as pdf”), the frontend triggers the same `/export/{assignment_id}` route as the Export button. Export still requires at least one confirmed written answer; answered text is placed onto the original worksheet when regions are available.
 
 **Answer confirmation** is required before any worksheet stamp: the student must confirm the exact candidate for that task. Models may propose tutoring actions from supplied evidence; deterministic code owns write tokens, geometry validation, authorization, overflow, and PDF changes.
 
