@@ -5,6 +5,7 @@ Real-time voice uses Gemini Live directly from the browser.
 import asyncio
 import json
 import logging
+import time
 import uuid
 from uuid import UUID
 
@@ -166,7 +167,9 @@ def get_session_config(
     _require_assignment_capability(aid, x_assignment_capability)
     _enforce_rate_limit(request, "provider_session", config.MAX_PROVIDER_SESSIONS_PER_MINUTE, x_assignment_capability)
     try:
-        return create_session_config(aid)
+        payload = create_session_config(aid)
+        record_metric("voice_connect", status="ok")
+        return payload
     except assignment_service.AssignmentExpiredError:
         raise HTTPException(status_code=410, detail="Assignment expired")
     except assignment_service.AssignmentSourceMismatchError:
@@ -174,10 +177,12 @@ def get_session_config(
     except ValueError:
         raise _assignment_not_found()
     except RuntimeError as e:
+        record_metric("voice_connect", status="error", reason="provider")
         if "token" in str(e).lower():
             raise HTTPException(status_code=500, detail="Session setup failed. Please try again.")
         raise HTTPException(status_code=500, detail="Session setup failed. Please try again.")
     except Exception:
+        record_metric("voice_connect", status="error", reason="unknown")
         logger.exception("session-config failed for assignment %s", aid)
         raise HTTPException(status_code=500, detail="Session setup failed. Please try again.")
 
@@ -418,17 +423,18 @@ def update_teacher_assignment(
 
 
 @app.get("/api/assignments/{assignment_id}/pages/{page_number}.png")
-def assignment_page_preview(
+async def assignment_page_preview(
     assignment_id: UUID,
     page_number: int,
     request: Request,
     x_assignment_capability: str | None = Header(default=None),
 ):
     """Render an original worksheet page for the browser document canvas."""
+    started = time.perf_counter()
     try:
         _require_assignment_capability(str(assignment_id), x_assignment_capability)
         _enforce_rate_limit(request, "page_render", config.MAX_PAGE_RENDERS_PER_MINUTE, x_assignment_capability)
-        content = render_assignment_page(str(assignment_id), page_number)
+        content = await asyncio.to_thread(render_assignment_page, str(assignment_id), page_number)
     except HTTPException:
         raise
     except assignment_service.AssignmentExpiredError:
@@ -439,7 +445,10 @@ def assignment_page_preview(
         raise HTTPException(status_code=404, detail="Page not found")
     except Exception:
         logger.exception("page preview failed for assignment %s", assignment_id)
+        record_metric("page_render", status="error", reason="unknown")
         raise HTTPException(status_code=500, detail="Could not render worksheet page.")
+    duration_ms = int((time.perf_counter() - started) * 1000)
+    record_metric("page_render", status="ok", duration_ms=duration_ms)
     return Response(content=content, media_type="image/png")
 
 
@@ -471,22 +480,31 @@ async def upload_assignment(
     content = await _read_upload_bounded(file, config.MAX_UPLOAD_BYTES)
     if not config.looks_like_pdf(content):
         raise HTTPException(status_code=400, detail="Only valid PDF files are accepted.")
+    started = time.perf_counter()
     try:
+        capability_hash = assignment_service.assignment_capability_digest(assignment_capability)
         if review_mode == "teacher":
-            manifest = persist_assignment_from_pdf_bytes(
+            manifest = await asyncio.to_thread(
+                persist_assignment_from_pdf_bytes,
                 assignment_id,
                 content,
                 review_mode=review_mode,
-                assignment_capability_hash=assignment_service.assignment_capability_digest(assignment_capability),
+                assignment_capability_hash=capability_hash,
             )
         else:
-            manifest = persist_assignment_from_pdf_bytes(
+            manifest = await asyncio.to_thread(
+                persist_assignment_from_pdf_bytes,
                 assignment_id,
                 content,
-                assignment_capability_hash=assignment_service.assignment_capability_digest(assignment_capability),
+                assignment_capability_hash=capability_hash,
             )
         payload = manifest.to_questions_dict()
-        record_metric("pdf_parse", status="ok" if manifest.parse_status == "ok" else "fallback")
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        record_metric(
+            "pdf_parse",
+            status="ok" if manifest.parse_status == "ok" else "fallback",
+            duration_ms=duration_ms,
+        )
         logger.info(
             "[POST /upload] Parsed questions: count=%s assignment_id=%s parse_status=%s",
             len(payload),

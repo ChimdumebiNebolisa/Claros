@@ -148,6 +148,16 @@
   content-free upload error responses.
 - Evidence: see `docs/BUILD_WEEK_STAGE_11_VERIFICATION.md`.
 
+## Revamp Stage 12 record
+
+- Base SHA: `22bc656` (Stage 11 merged to `main`).
+- Working branch: `codex/stage12-observability`.
+- Scope: offload PDF parse/page render from the event loop, bounded duration
+  metrics, voice-connect metrics, and documented Cloud Run posture. No live
+  Cloud Run settings changed; merge requires deploy-approval because
+  `deploy.yml` triggers on `main`.
+- Evidence: see `docs/BUILD_WEEK_STAGE_12_VERIFICATION.md`.
+
 ## First-party canonical parser fixtures
 
 `evaluation/canonical_v1/` establishes the initial parser milestone with three

@@ -10,7 +10,20 @@ def test_metric_event_uses_fixed_safe_labels(caplog):
     with caplog.at_level(logging.INFO):
         record_metric("write_conflict", status="conflict", reason="storage")
 
-    assert "metric event=write_conflict status=conflict reason=storage" in caplog.text
+    assert "metric event=write_conflict status=conflict reason=storage duration_ms=none" in caplog.text
+
+
+def test_metric_accepts_bounded_duration(caplog):
+    with caplog.at_level(logging.INFO):
+        record_metric("pdf_parse", status="ok", duration_ms=1234)
+    assert "duration_ms=1234" in caplog.text
+
+
+def test_metric_rejects_unbounded_duration():
+    with pytest.raises(ValueError):
+        record_metric("pdf_parse", status="ok", duration_ms=-1)
+    with pytest.raises(ValueError):
+        record_metric("pdf_parse", status="ok", duration_ms=3_600_001)
 
 
 def test_rate_limit_metric_uses_fixed_safe_labels(caplog):
