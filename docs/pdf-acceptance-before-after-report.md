@@ -1,5 +1,7 @@
 # Claros PDF acceptance: targeted-correction before/after report
 
+> **Historical before/after study (2026-07-15).** Not present-tense product spec.
+
 **Audit date:** 2026-07-15
 **Corpus:** `C:\Users\Chimdumebi\Downloads\claros-pdf-acceptance-corpus\claros-pdf-corpus`
 **Scope:** all 20 supplied PDFs and all 109 pages (17 selectable-text PDFs, 3 image-only scans)

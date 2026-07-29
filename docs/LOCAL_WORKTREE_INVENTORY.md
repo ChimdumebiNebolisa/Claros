@@ -1,5 +1,9 @@
 # Local worktree inventory
 
+> **Historical snapshot (2026-07-18 on `build-week/claros-openai`).** Not the
+> current `main` inventory or active plan. Present-tense roadmap:
+> [`CLAROS_REVAMP_ROADMAP.md`](CLAROS_REVAMP_ROADMAP.md).
+
 Recorded: 2026-07-18
 Branch: `build-week/claros-openai`
 
@@ -27,7 +31,7 @@ blindly with unrelated Build Week work.
 | --- | --- | --- |
 | Candidate source worth evaluating/integrating | `document_model.py`, `document_pipeline.py`, `semantic_classifier.py`, `review_service.py`, `ocr_adapter.py` changes | Preserve. Candidate pipeline is default-off; semantic classifier currently uses Gemini and requires migration to the closed-world provider interface. |
 | Evaluation source and protocols | `evaluation/pdf_gold_pilot/`, `scripts/benchmark_pdf_pipeline.py`, `scripts/merge_pdf_benchmark_reports.py`, `tests/test_document_pipeline.py`, `tests/test_pdf_gold_pilot.py`, `tests/test_parser_acceptance_corrections.py`, `tests/fixtures/pdf_acceptance_expectations.json` | Preserve source and small fixtures. Rename/document as silver-only before publishing results. Do not add external PDFs. |
-| Governing execution document | `docs/BUILD_WEEK_EXECUTION_PLAN.md` | Preserve as the active plan. It was initially untracked because the previous documentation ignore policy covered new files. It will be versioned with the Build Week documentation phase. |
+| Governing execution document | `docs/BUILD_WEEK_EXECUTION_PLAN.md` | Historical Build Week plan at inventory time (now labeled historical; not present-tense Claros roadmap). |
 | Optional OCR dependency definition | `requirements-paddleocr.txt` | Preserve as an optional local dependency; do not make it a production default without separate performance and safety verification. |
 | Generated benchmark/evaluation output | `output/pdf-benchmark-*`, `output/pdf-gold-pilot/`, `output/playwright/` | Retain locally; ignored because they contain derived corpus material, screenshots, and generated reports. Only reproduce/redact selected evidence with confirmed rights. |
 | Local editor/tool state | `.cursor/`, `.impeccable/`, `.playwright-cli/` | Ignore and retain locally. Not application source. |

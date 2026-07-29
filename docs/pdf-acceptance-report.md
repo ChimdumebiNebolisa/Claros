@@ -1,5 +1,8 @@
 # Claros PDF acceptance baseline
 
+> **Historical benchmark snapshot (2026-07-15).** Not a present-tense
+> production freeze decision for current Claros.
+
 **Audit date:** 2026-07-15
 **Corpus:** `C:\Users\Chimdumebi\Downloads\claros-pdf-acceptance-corpus\claros-pdf-corpus`
 **Scope:** all 20 supplied PDFs (109 pages): 17 selectable-text, 3 image-only scans. No application or parser code was changed, and nothing was deployed.

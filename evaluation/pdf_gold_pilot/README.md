@@ -7,7 +7,7 @@ initial parser milestone or its critical path. Its historical directory name
 does not imply that human or otherwise validated gold labels exist. The
 controlled first-party milestone is `evaluation/canonical_v1`.
 
-This directory is an offline evaluation package. Nothing here is imported by the Claros upload, assignment, answer-confirmation, PDF-writing, or export paths. The legacy parser remains the production default.
+This directory is an offline evaluation package. Nothing here is imported by the Claros upload, assignment, answer-confirmation, PDF-writing, or export paths. Production parser mode is configured separately (`PDF_PARSER_MODE` defaults to `hybrid` in current Claros); this package does not define runtime defaults.
 
 ## Current stopping point
 

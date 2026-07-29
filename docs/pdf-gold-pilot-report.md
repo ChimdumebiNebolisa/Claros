@@ -1,5 +1,8 @@
 # Claros 17-page gold-label pilot status
 
+> **Historical pilot status (2026-07-15).** Labels here are not human gold;
+> directory naming is historical. See `evaluation/pdf_gold_pilot/README.md`.
+
 **Date:** 2026-07-15
 **Scope:** isolated evaluation only
 **Production/deployment changes:** none

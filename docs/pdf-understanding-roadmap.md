@@ -1,8 +1,13 @@
 # Claros PDF understanding roadmap
 
+> **Historical roadmap (status date 2026-07-15).** Not the present-tense
+> Claros product roadmap. Current defaults and authority:
+> [`ARCHITECTURE.md`](ARCHITECTURE.md), [`CLAROS_REVAMP_ROADMAP.md`](CLAROS_REVAMP_ROADMAP.md).
+> Normal use does not require teacher review.
+
 **Status date:** 2026-07-15
 **Purpose:** durable execution plan grounded in the completed repository investigation, 20-PDF benchmark, and 17-page pilot
-**Current authorization:** documentation and evaluation planning only; no production promotion or deployment
+**Current authorization (at writing):** documentation and evaluation planning only; no production promotion or deployment
 
 Claros remains an AI learning agent for students with typing difficulties. Its target workflow is direct student upload of educational PDFs, accessible answering by voice or typing, answer review and confirmation, and export of the completed original PDF whenever placement is reliable. Teacher review is an optional safety support, not the product premise or a required path for direct student uploads.
 
