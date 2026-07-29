@@ -2,9 +2,8 @@
 
 ## Status
 
-Claros completed a focused product revamp through Stages 1–12 on `main`
-(observability and production deploy path included). Stages 13–14 finish
-documentation convergence and whole-product audit.
+Claros completed a focused product revamp through Stages 1–14 on `main`
+(documentation convergence and whole-product audit included).
 
 The objective was not to rewrite the application or expand scope. The objective
 was to converge the prototype into a coherent, reliable, accessible product with

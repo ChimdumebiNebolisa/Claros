@@ -166,12 +166,25 @@
 
 - Base SHA: `322f55a` (Stage 12 merged to `main`).
 - Working branch: `codex/stage13-docs-convergence`.
+- Merge: PR #32 → `805df8c` on `main` (deploy `30419137249` succeeded with smoke).
 - Scope: present-tense documentation convergence — README confirm≠write and
   parser defaults; deploy ops `/health` + Secret Manager; historical banners on
   Build Week / PDF-understanding / audit journals; PRODUCT and revamp status
   aligned with Gemini + deterministic ownership. No canonical eval labels or
   manifests changed.
 - Evidence: see `docs/BUILD_WEEK_STAGE_13_VERIFICATION.md`.
+
+## Revamp Stage 14 record
+
+- Base SHA: `805df8c` (Stage 13 merged to `main`).
+- Working branch: `codex/stage14-product-audit`.
+- Scope: whole-product audit fixes — empty-task uploads fail closed (not
+  `ready`); Replace worksheet best-effort DELETE; mobile expanded session uses
+  `aria-modal` + `inert` on the worksheet viewport; README/FAQ aligned with
+  export policy and retention honesty; optional live Gemini semantics test
+  (skipped without `CLAROS_LIVE_SEMANTICS=1`). Canonical labels/manifests
+  unchanged; `canonical_v1.evaluate` offline metrics remain 1.0 / FP writable 0.
+- Evidence: see `docs/BUILD_WEEK_STAGE_14_VERIFICATION.md`.
 
 ## First-party canonical parser fixtures
 

@@ -47,6 +47,8 @@ def validate_landing_html() -> None:
         ">Claros</p>",
         "/samples/canonical-short-answer-ecosystems/preview.png",
         "evidence-caption",
+        "Replace worksheet",
+        "does not promise automatic timed deletion",
     )
     for needle in checks:
         if needle not in html:
@@ -182,12 +184,19 @@ def validate_app_js_contract() -> None:
         "confirmedAnswerPreview",
         "layoutReviewNotice",
         "canonical-short-answer-ecosystems",
+        "emptyTasks",
+        "semantic_result_rejected",
+        "documentViewport.inert",
+        "method: 'DELETE'",
+        "/api/assignments/",
     )
     for needle in checks:
         if needle not in js:
             raise AssertionError(f"app.js missing expected content: {needle!r}")
     if "await triggerWrite(questionId);" in js:
         raise AssertionError("answer confirmation must not automatically trigger a write")
+    if "export is allowed even when no answers have been written yet" in _read(ROOT / "README.md"):
+        raise AssertionError("README must not claim export is allowed with zero written answers")
     if "teacherReviewMode" in js or "teacherReviewPanel" in js:
         raise AssertionError("student app must not include teacher review branches")
     if "layout_confirmed" in js or "answer_region: question.answer_region" in js:

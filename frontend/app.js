@@ -155,6 +155,16 @@
       'aria-label',
       expanded ? 'Collapse Claros panel' : 'Expand Claros panel'
     );
+    const mobileSheet = window.matchMedia('(max-width: 760px)').matches;
+    if (mobileSheet && expanded) {
+      elements.sessionPanel.setAttribute('aria-modal', 'true');
+      elements.sessionPanel.setAttribute('role', 'dialog');
+      if (elements.documentViewport) elements.documentViewport.inert = true;
+    } else {
+      elements.sessionPanel.removeAttribute('aria-modal');
+      elements.sessionPanel.removeAttribute('role');
+      if (elements.documentViewport) elements.documentViewport.inert = false;
+    }
   }
 
   function setVoiceState(next) {
@@ -620,12 +630,28 @@
       selectResponseTarget(state.activeTaskId, state.activeResponseRegionId, { preserveVoice: true });
     }
     const rejected = state.parseStatus === 'requires_ocr' || state.parseStatus === 'unsupported_layout';
-    setWorkspaceState(rejected || unresolvedTasks().length ? 'needs_layout_review' : 'ready');
-    setVoiceState(rejected ? 'unavailable' : 'idle');
-    if (state.parseStatus === 'requires_ocr') {
-      setError('This PDF needs OCR before Claros can identify questions.');
-    } else if (state.parseStatus === 'unsupported_layout') {
-      setError('Claros could not safely identify a supported student worksheet layout.');
+    const emptyTasks = !state.tasks.length;
+    const semanticRejected = Array.isArray(data.parse_warnings)
+      && data.parse_warnings.some(function (warning) {
+        return String(warning).indexOf('semantic_result_rejected') !== -1
+          || String(warning).indexOf('semantic_task_materialization_rejected') !== -1;
+      });
+    if (emptyTasks) {
+      setWorkspaceState('error');
+      setVoiceState('unavailable');
+      setError(
+        semanticRejected
+          ? 'Claros could not identify student tasks for this worksheet (document understanding unavailable or rejected). Retry later or choose a different selectable-text PDF.'
+          : 'Claros could not find student tasks on this worksheet. Choose a different selectable-text PDF or try an official sample.'
+      );
+    } else {
+      setWorkspaceState(rejected || unresolvedTasks().length ? 'needs_layout_review' : 'ready');
+      setVoiceState(rejected ? 'unavailable' : 'idle');
+      if (state.parseStatus === 'requires_ocr') {
+        setError('This PDF needs OCR before Claros can identify questions.');
+      } else if (state.parseStatus === 'unsupported_layout') {
+        setError('Claros could not safely identify a supported student worksheet layout.');
+      }
     }
     renderLayoutState();
     restoreSessionFromStorage();
@@ -656,7 +682,9 @@
       const data = await response.json();
       finishProcessingProgress();
       applyAssignment(data);
-      setNotice('Worksheet ready. The microphone is still off.');
+      if (state.workspace !== 'error') {
+        setNotice('Worksheet ready. The microphone is still off.');
+      }
     } catch (error) {
       clearInterval(processingTimer);
       processingTimer = null;
@@ -702,7 +730,9 @@
     }
   }
 
-  function resetWorkspace() {
+  async function resetWorkspace() {
+    const assignmentId = state.assignmentId;
+    const capability = state.assignmentCapability;
     clearAssignmentSessionState();
     state.assignmentId = null;
     state.document = null;
@@ -718,6 +748,17 @@
     setNotice('');
     setWorkspaceState('empty');
     setVoiceState('unavailable');
+    setSessionPanelExpanded(false);
+    if (assignmentId && capability) {
+      try {
+        await fetch(API_BASE + '/api/assignments/' + assignmentId, {
+          method: 'DELETE',
+          headers: { 'X-Assignment-Capability': capability }
+        });
+      } catch (_) {
+        /* Best-effort server cleanup; local workspace is already cleared. */
+      }
+    }
   }
 
   function clearAssignmentSessionState() {
