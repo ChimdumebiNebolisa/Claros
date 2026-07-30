@@ -23,33 +23,34 @@ replace.
 
 ## Production status
 
-The frontend simplification release is deployed:
+The Shadcn landing refinement is deployed:
 
-- commit:
-  `bc23357c4703bd0dad33be5921c51d6d6df24ed3`;
+- implementation commit:
+  `423f65ae1d577c75ae62d2682c744ba45d3b1483`;
 - Cloud Run service and revision:
-  `claros` / `claros-00060-f48`, serving 100 percent of traffic;
+  `claros` / `claros-00062-l2n`, serving 100 percent of traffic;
 - immutable image:
-  `gcr.io/<GCP_PROJECT_ID>/claros:bc23357c4703bd0dad33be5921c51d6d6df24ed3`,
+  `gcr.io/<GCP_PROJECT_ID>/claros:423f65ae1d577c75ae62d2682c744ba45d3b1483`,
   digest
-  `sha256:5df9e1e603dbcad9a59718d70b74d57dd0bbce4b82882980304f54ffc840eee8`;
+  `sha256:1b491be91fa0e822c107375f5dc3883549ed2cd74794fa14911258269661756e`;
 - deployment workflow:
-  [GitHub Actions run 30513131324](https://github.com/ChimdumebiNebolisa/Claros/actions/runs/30513131324),
-  completed successfully at `2026-07-30T04:14:25Z`;
+  [GitHub Actions run 30516312521](https://github.com/ChimdumebiNebolisa/Claros/actions/runs/30516312521),
+  completed successfully at `2026-07-30T05:24:34Z`;
 - production URL verified:
   `https://claros-fnaobzrxeq-uc.a.run.app`;
 - verifier:
   the tracked GitHub Actions deploy workflow plus the current Codex task;
-- direct response evidence at `2026-07-30T04:15:35Z`:
-  `/health`, `/`, `/app`, `/styles/tokens.css`,
-  `/sample-workspace-review.png`, and
-  `/fonts/instrument-sans-latin-wght-normal.woff2` each returned HTTP 200
-  with the expected content type; and
-- content probes found the current landing hero and Review capture, found the
-  mobile view switch in `/app`, and did not find the removed visible Reject
-  control.
+- direct response evidence at `2026-07-30T05:25:13Z`:
+  `/health`, `/`, `/app`, `/landing-app.js`, `/styles/landing.css`,
+  `/fonts/geist-latin-wght-normal.woff2`, and `/favicon.png` each returned
+  HTTP 200 with the expected content type; and
+- content probes found the current hero and server-rendered Review state,
+  found no stale raster workspace captures, retained the mobile view switch in
+  `/app`, and did not find the removed visible Reject control.
 
 The workflow's tests, production image build, deployment, and static smoke
-checks all passed. This evidence does not establish live worksheet parsing,
-production storage access, voice provider operation, write authorization, or
-export behavior; those require separate credentialed functional verification.
+checks all passed. A production browser run exercised Review to Confirmed to
+Added to export with zero console errors or warnings. This evidence does not
+establish live worksheet parsing, production storage access, voice provider
+operation, write authorization, or export behavior; those require separate
+credentialed functional verification.

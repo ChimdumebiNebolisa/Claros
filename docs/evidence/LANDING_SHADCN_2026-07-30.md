@@ -112,10 +112,36 @@ tree: two moderate, two high, and one critical. The new isolated marketing
 package reports zero advisories.
 
 The local Docker build could not start because the Docker Desktop Linux engine
-was unavailable. The tracked deployment workflow performs a fresh production
-container build before deployment, so its build result remains the release
-authority. Cloud Run revision and production endpoint evidence are pending the
-main push.
+was unavailable. The tracked deployment workflow performed the authoritative
+fresh production container build successfully.
+
+## Production evidence
+
+- implementation commit:
+  `423f65ae1d577c75ae62d2682c744ba45d3b1483`;
+- deployment workflow:
+  [GitHub Actions run 30516312521](https://github.com/ChimdumebiNebolisa/Claros/actions/runs/30516312521),
+  completed successfully at `2026-07-30T05:24:34Z`;
+- Cloud Run service and revision:
+  `claros` / `claros-00062-l2n`, serving 100 percent of traffic;
+- immutable image:
+  `gcr.io/<GCP_PROJECT_ID>/claros:423f65ae1d577c75ae62d2682c744ba45d3b1483`,
+  digest
+  `sha256:1b491be91fa0e822c107375f5dc3883549ed2cd74794fa14911258269661756e`;
+- production URL:
+  `https://claros-fnaobzrxeq-uc.a.run.app`; and
+- direct response evidence at `2026-07-30T05:25:13Z`:
+  `/health`, `/`, `/app`, `/landing-app.js`, `/styles/landing.css`,
+  `/fonts/geist-latin-wght-normal.woff2`, and `/favicon.png` each returned
+  HTTP 200 with the expected content type.
+
+The production landing contained the current hero, server-rendered Review
+state, and hydration entrypoint, and contained no stale workspace capture
+reference. The production app retained the Worksheet and Answer mobile switch
+and omitted the removed visible Reject control. A Playwright production run
+moved the marketing example from Review to Confirmed and then Added to export,
+with zero console errors and zero warnings. The landing bundle returned
+`content-encoding: gzip` when requested with gzip support.
 
 ## Limits
 
