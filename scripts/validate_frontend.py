@@ -40,33 +40,75 @@ def validate_shared_styles() -> None:
 
 def validate_landing_html() -> None:
     html = _read(FRONTEND / "landing.html")
+    app_source = _read(ROOT / "marketing" / "src" / "App.tsx")
+    preview_source = _read(
+        ROOT / "marketing" / "src" / "components" / "product-preview.tsx"
+    )
+    landing_css = _read(ROOT / "marketing" / "src" / "index.css")
+    components = _read(ROOT / "marketing" / "components.json")
     _require(
         html,
         (
-            'href="/styles/tokens.css"',
             'href="/styles/landing.css"',
+            'src="/landing-app.js"',
+            'id="root"',
+        ),
+        "landing.html",
+    )
+    _require(
+        app_source,
+        (
             'href="/app"',
             'href="/app?sample=canonical-short-answer-ecosystems"',
-            'src="/sample-workspace-review.png"',
-            'srcset="/sample-workspace-review-mobile.png"',
-            'src="/sample-workspace.png"',
-            'srcset="/sample-workspace-mobile.png"',
-            "Three deliberate steps",
+            "The pause is part of the product",
+            "Ready does not mean written",
             "Confirmed, not written",
             "Safety and access",
             "does not promise automatic timed deletion",
             'id="how-it-works"',
             'id="safety"',
             'id="faq"',
+            "<ProductPreview />",
+            "Accordion",
         ),
-        "landing.html",
+        "marketing/src/App.tsx",
     )
-    if html.count('href="/app?sample=canonical-short-answer-ecosystems"') != 1:
-        raise AssertionError("landing.html must expose one primary sample action")
-    landing_css = _read(FRONTEND / "styles" / "landing.css")
-    for forbidden in ("rotate(", "linear-gradient("):
-        if forbidden in landing_css:
-            raise AssertionError(f"landing.css contains obsolete marketing effect: {forbidden!r}")
+    _require(
+        preview_source,
+        (
+            'from "@/components/ui/card"',
+            'from "@/components/ui/tabs"',
+            'from "@/components/ui/textarea"',
+            "Interactive example",
+            "Confirming does not write to the worksheet",
+            "Confirmed, not written",
+            "Add to export",
+        ),
+        "marketing/src/components/product-preview.tsx",
+    )
+    if app_source.count('href="/app?sample=canonical-short-answer-ecosystems"') != 1:
+        raise AssertionError("landing source must expose one primary sample action")
+    if '"style": "radix-nova"' not in components:
+        raise AssertionError("landing must retain its initialized Shadcn design system")
+    bundle = FRONTEND / "landing-app.js"
+    if not bundle.exists() or bundle.stat().st_size < 50_000:
+        raise AssertionError("compiled landing-app.js is missing or unexpectedly small")
+    for source_name, source in (
+        ("landing source", app_source + preview_source),
+        ("landing CSS source", landing_css),
+    ):
+        for forbidden in (
+            "sample-workspace-review.png",
+            "sample-workspace.png",
+            "rotate(",
+            "linear-gradient(",
+            "\u2014",
+            "\u2013",
+        ):
+            if forbidden in source:
+                raise AssertionError(
+                    f"{source_name} contains obsolete or prohibited content: {forbidden!r}"
+                )
 
 
 def validate_app_html() -> None:

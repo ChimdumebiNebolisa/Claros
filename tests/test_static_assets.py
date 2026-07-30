@@ -37,13 +37,16 @@ def test_favicon_and_logo_served():
         response = client.get(path)
         assert response.status_code == 200
         assert response.headers.get("content-type", "").startswith("image/")
+    assert len(client.get("/favicon.png").content) < 20_000
 
 
 def test_landing_page_links_to_app():
     response = client.get("/")
     assert response.status_code == 200
-    assert b'href="/app"' in response.content
-    assert response.content.count(b'href="/app?sample=canonical-short-answer-ecosystems"') == 1
+    assert b'src="/landing-app.js"' in response.content
+    source = (ROOT / "marketing" / "src" / "App.tsx").read_text(encoding="utf-8")
+    assert 'href="/app"' in source
+    assert source.count('href="/app?sample=canonical-short-answer-ecosystems"') == 1
 
 
 def test_active_frontend_routes_serve_the_documented_entrypoints():
@@ -71,7 +74,10 @@ def test_legacy_debug_routes_are_disabled_by_default():
         assert response.status_code == 404
 
 
-@pytest.mark.parametrize("path", ("/", "/app", "/app.js", "/styles/app.css", "/does-not-exist"))
+@pytest.mark.parametrize(
+    "path",
+    ("/", "/app", "/app.js", "/landing-app.js", "/styles/app.css", "/does-not-exist"),
+)
 def test_security_headers_cover_html_assets_and_not_found_responses(path):
     response = client.get(path)
     assert response.headers["x-content-type-options"] == "nosniff"

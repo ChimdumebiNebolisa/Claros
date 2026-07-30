@@ -12,6 +12,7 @@ from uuid import UUID
 import fitz
 from fastapi import FastAPI, File, Header, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
+from starlette.middleware.gzip import GZipMiddleware
 
 import assignment_service
 from assignment_service import (
@@ -47,6 +48,7 @@ app = FastAPI(
     redoc_url=None if config.is_production() else "/redoc",
     openapi_url=None if config.is_production() else "/openapi.json",
 )
+app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=6)
 rate_limiter = SlidingWindowRateLimiter()
 upload_semaphore = asyncio.Semaphore(config.MAX_CONCURRENT_UPLOADS)
 
@@ -721,12 +723,21 @@ async def serve_app_js():
     return FileResponse(path, media_type="application/javascript; charset=utf-8")
 
 
+@app.get("/landing-app.js", response_class=Response)
+async def serve_landing_app_js():
+    """Serve the compiled Shadcn/React landing application."""
+    path = config.ROOT / "frontend" / "landing-app.js"
+    if not path.exists():
+        raise HTTPException(status_code=503, detail="landing-app.js missing from frontend/")
+    return FileResponse(path, media_type="application/javascript; charset=utf-8")
+
+
 @app.get("/favicon.png")
 async def serve_favicon():
-    """Serve the Claros favicon asset."""
-    path = config.ROOT / "claros favicon.png"
+    """Serve the optimized Claros favicon asset."""
+    path = config.ROOT / "frontend" / "favicon.png"
     if not path.exists():
-        raise HTTPException(status_code=404, detail="claros favicon.png not found")
+        raise HTTPException(status_code=404, detail="frontend/favicon.png not found")
     return FileResponse(path, media_type="image/png")
 
 
@@ -752,7 +763,7 @@ async def serve_style(filename: str):
 
 @app.get("/fonts/{filename}")
 async def serve_font(filename: str):
-    """Serve the repository-vendored Claros typeface."""
+    """Serve repository-vendored worksheet and landing typefaces."""
     if not filename.endswith(".woff2") or "/" in filename or "\\" in filename:
         raise HTTPException(status_code=404, detail="Not found")
     path = config.ROOT / "frontend" / "fonts" / filename

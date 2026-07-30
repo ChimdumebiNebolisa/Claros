@@ -204,6 +204,22 @@
 - Evidence: see
   `docs/evidence/FRONTEND_SIMPLIFICATION_2026-07-29.md`.
 
+## Shadcn landing refinement
+
+- Mainline base: `6f60f43` (frontend simplification evidence deployed).
+- Working branch: `codex/frontend-simplification-release`.
+- Scope: replace both landing-page raster workspace captures with a
+  responsive, interactive product composition built from repository-owned
+  Shadcn source components; add a contained React/Vite marketing build,
+  server-side prerendering, hydration, self-hosted Geist, system dark mode,
+  and compressed static delivery.
+- Compatibility: the vanilla worksheet application, canonical task and
+  response IDs, Gemini voice transport, confirmation tokens, write
+  authorization, PDF geometry, storage, and export contracts are unchanged.
+  The marketing interaction is local demonstration state and never calls a
+  confirmation or write endpoint.
+- Evidence: see `docs/evidence/LANDING_SHADCN_2026-07-30.md`.
+
 ## First-party canonical parser fixtures
 
 `evaluation/canonical_v1/` establishes the initial parser milestone with three

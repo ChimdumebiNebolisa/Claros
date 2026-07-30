@@ -5,13 +5,21 @@ is not provider or production evidence.
 
 ## Current frontend evidence
 
-The current workspace and landing evidence record is:
+The current landing evidence record is:
+
+`docs/evidence/LANDING_SHADCN_2026-07-30.md`
+
+It records the Shadcn/Vite integration base, interactive product-state
+behavior, desktop and mobile checks, dark mode, accessibility, Lighthouse
+results, and local test results.
+
+The current worksheet workspace evidence remains:
 
 `docs/evidence/FRONTEND_SIMPLIFICATION_2026-07-29.md`
 
-It records the mainline integration base, real product-state capture hashes,
-desktop and mobile checks, confirmation/write request separation, failed-write
-recovery, and local test results.
+It records confirmation/write request separation, failed-write recovery, and
+the real workspace browser checks that the marketing-only refinement does not
+replace.
 
 ## Production status
 

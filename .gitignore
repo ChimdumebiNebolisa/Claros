@@ -20,6 +20,7 @@ __pycache__/
 .coverage
 .pytest_cache/
 node_modules/
+marketing/.scaffold-git-metadata/
 
 # Local tools, generated evidence, and private document-processing artifacts.
 # Keep reproducible source, schemas, and small synthetic fixtures in the repo.

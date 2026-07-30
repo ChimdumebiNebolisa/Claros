@@ -65,9 +65,11 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
-      - name: Build genai bundle
+      - name: Build frontend bundles
         run: |
           npm ci
+          npm ci --prefix marketing
+          npm run build:landing
           npm run build:genai
 
       - name: Authenticate to Google Cloud

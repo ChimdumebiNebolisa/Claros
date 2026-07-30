@@ -1,4 +1,6 @@
 """Integration tests for main FastAPI app (static/export routes only; no GCS/Gemini)."""
+from pathlib import Path
+
 import pytest
 import fitz
 
@@ -119,11 +121,15 @@ def test_session_start_is_rate_limited_before_allocating_another_durable_session
 def test_landing_has_no_app_workspace():
     """GET / serves marketing landing without functional upload workspace."""
     response = client.get("/")
+    landing_source = (
+        Path(__file__).resolve().parent.parent / "marketing" / "src" / "App.tsx"
+    ).read_text(encoding="utf-8")
     assert response.status_code == 200
     assert b"id=\"uploadZone\"" not in response.content
     assert b"id=\"micBtn\"" not in response.content
-    assert b"Work through the answer. Keep the final say." in response.content
-    assert response.content.count(b'href="/app?sample=canonical-short-answer-ecosystems"') == 1
+    assert b'src="/landing-app.js"' in response.content
+    assert "Think it through. You decide." in landing_source
+    assert landing_source.count('href="/app?sample=canonical-short-answer-ecosystems"') == 1
 
 
 def test_app_sample_query_param_hint():
@@ -168,6 +174,15 @@ def test_genai_bundle_served_and_non_empty():
     assert response.status_code == 200
     assert "javascript" in response.headers.get("content-type", "").lower()
     assert len(response.content) > 1000
+
+
+def test_landing_bundle_served_and_non_empty():
+    """Compiled Shadcn landing application must be present."""
+    response = client.get("/landing-app.js")
+    assert response.status_code == 200
+    assert "javascript" in response.headers.get("content-type", "").lower()
+    assert response.headers["content-encoding"] == "gzip"
+    assert len(response.content) > 50_000
 
 
 def test_test_assignment_pdf_served():
@@ -232,6 +247,13 @@ def test_sample_workspace_previews_served():
 
 def test_instrument_sans_font_served():
     response = client.get("/fonts/instrument-sans-latin-wght-normal.woff2")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("font/woff2")
+    assert response.content.startswith(b"wOF2")
+
+
+def test_geist_landing_font_served():
+    response = client.get("/fonts/geist-latin-wght-normal.woff2")
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("font/woff2")
     assert response.content.startswith(b"wOF2")

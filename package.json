@@ -4,14 +4,17 @@
   "description": "One-time build of @google/genai for frontend; not used at runtime.",
   "scripts": {
     "build:genai": "node build-genai.mjs",
+    "build:landing": "npm run build --prefix marketing",
+    "lint:landing": "npm run lint --prefix marketing",
+    "typecheck:landing": "npm run typecheck --prefix marketing",
     "test:session-rules": "node tests/session-rules.test.cjs",
     "test:voice-bridge": "node tests/voice-product-bridge.test.cjs",
     "test:ui-state": "node tests/ui-state.test.cjs",
     "test:worksheet-security": "node tests/worksheet-view-security.test.cjs",
     "test:worksheet-targets": "node tests/worksheet-view-targets.test.cjs",
     "validate:frontend": "python3 scripts/validate_frontend.py",
-    "test:frontend": "npm run test:session-rules && npm run test:voice-bridge && npm run test:ui-state && npm run test:worksheet-security && npm run test:worksheet-targets && npm run validate:frontend",
-    "ci:frontend": "npm ci && npm run test:frontend && npm run build:genai"
+    "test:frontend": "npm run lint:landing && npm run typecheck:landing && npm run test:session-rules && npm run test:voice-bridge && npm run test:ui-state && npm run test:worksheet-security && npm run test:worksheet-targets && npm run validate:frontend",
+    "ci:frontend": "npm ci && npm ci --prefix marketing && npm run build:landing && npm run test:frontend && npm run build:genai"
   },
   "devDependencies": {
     "@google/genai": "^1.45.0",

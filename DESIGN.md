@@ -1,11 +1,14 @@
 # Design
 
 Claros uses one quiet visual system across the public landing and worksheet
-workspace. The implementation remains vanilla HTML, CSS, and JavaScript.
+workspace. The worksheet remains vanilla HTML, CSS, and JavaScript. The public
+landing is a prerendered React/Vite surface built from repository-owned
+Shadcn source components.
 
 ## Foundation
 
-- Instrument Sans is served from the repository.
+- Instrument Sans is served from the repository for the worksheet workspace.
+- The landing uses self-hosted Geist through its Shadcn theme.
 - The canvas is near-white; interactive surfaces are white.
 - Dark navy carries primary text, cool gray carries secondary text and rules.
 - Cobalt is reserved for focus and direct student actions.
@@ -13,7 +16,9 @@ workspace. The implementation remains vanilla HTML, CSS, and JavaScript.
 - Spacing follows an 8px base. Controls use 8px radii; major surfaces use 12px.
 - Shadows are reserved for the rendered PDF page or genuinely elevated menus.
 
-The shared values live in `frontend/styles/tokens.css`.
+Workspace values live in `frontend/styles/tokens.css`. Landing values live in
+`marketing/src/index.css` and use Shadcn semantic tokens rather than ad-hoc
+component colors.
 
 ## Workspace hierarchy
 
@@ -52,9 +57,18 @@ motion, and document controls remain supported.
 ## Landing
 
 The landing uses a compact header, a two-column hero with one sample action,
-and real Review-state product evidence. The remaining order is the three-step
-flow, a real confirmed-not-written state, combined safety/accessibility
-information, a short FAQ, and a restrained footer. It uses spacing and rules
-instead of feature cards, decorative rotation, or marketing effects.
+and an interactive Shadcn product composition. The composition demonstrates
+Capture, Review, Confirmed, and export-side-panel states locally without
+calling worksheet APIs. It replaces the prior raster workspace captures.
+
+The remaining order is the deliberate three-part flow, an interactive
+confirmed-not-written decision receipt, combined safety/accessibility
+information, a short Shadcn accordion, and a restrained footer. The page uses
+spacing, type, and stateful controls instead of fabricated browser chrome,
+decorative rotation, or screenshot images.
+
+Vite builds the client bundle and a server-rendered snapshot. The checked-in
+`frontend/landing.html` is prerendered for first paint and then hydrated for
+the product-state interactions.
 
 Current visual and request evidence is indexed from `docs/VERIFICATION.md`.

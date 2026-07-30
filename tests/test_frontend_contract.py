@@ -44,13 +44,26 @@ def test_response_states_keep_confirmation_and_write_separate():
     assert "Review and confirm the exact answer again." in js
 
 
-def test_landing_is_light_flat_and_uses_real_workspace_states():
+def test_landing_uses_shadcn_live_states_instead_of_workspace_images():
     html = _read("landing.html")
-    css = _read("styles/landing.css")
+    app = (ROOT / "marketing" / "src" / "App.tsx").read_text(encoding="utf-8")
+    preview = (
+        ROOT / "marketing" / "src" / "components" / "product-preview.tsx"
+    ).read_text(encoding="utf-8")
+    css = (ROOT / "marketing" / "src" / "index.css").read_text(encoding="utf-8")
+    components = (ROOT / "marketing" / "components.json").read_text(encoding="utf-8")
 
-    assert html.count('href="/app?sample=canonical-short-answer-ecosystems"') == 1
-    assert 'src="/sample-workspace-review.png"' in html
-    assert 'src="/sample-workspace.png"' in html
+    assert app.count('href="/app?sample=canonical-short-answer-ecosystems"') == 1
+    assert 'src="/landing-app.js"' in html
+    assert "<ProductPreview />" in app
+    assert 'from "@/components/ui/tabs"' in preview
+    assert 'from "@/components/ui/card"' in preview
+    assert "Confirmed, not written" in preview
+    assert '"style": "radix-nova"' in components
+    assert "sample-workspace-review.png" not in app + preview
+    assert "sample-workspace.png" not in app + preview
     assert "rotate(" not in css
     assert "linear-gradient(" not in css
-    assert "background: var(--bg)" in css
+    assert "\u2014" not in app + preview
+    assert "\u2013" not in app + preview
+    assert "--primary: oklch(0.55 0.205 259)" in css
