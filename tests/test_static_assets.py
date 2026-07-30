@@ -20,6 +20,18 @@ def test_styles_rejects_non_css_extension():
     assert response.status_code == 404
 
 
+def test_instrument_sans_font_is_served_from_the_repository():
+    response = client.get("/fonts/instrument-sans-latin-wght-normal.woff2")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("font/woff2")
+    assert response.content[:4] == b"wOF2"
+
+
+def test_fonts_reject_non_woff2_files():
+    response = client.get("/fonts/Instrument-Sans-OFL.txt")
+    assert response.status_code == 404
+
+
 def test_favicon_and_logo_served():
     for path in ("/favicon.png", "/logo.png"):
         response = client.get(path)
@@ -31,6 +43,7 @@ def test_landing_page_links_to_app():
     response = client.get("/")
     assert response.status_code == 200
     assert b'href="/app"' in response.content
+    assert response.content.count(b'href="/app?sample=canonical-short-answer-ecosystems"') == 1
 
 
 def test_active_frontend_routes_serve_the_documented_entrypoints():

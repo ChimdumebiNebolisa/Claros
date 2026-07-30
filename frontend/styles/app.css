@@ -254,10 +254,419 @@
   .confirmation-actions .btn,
   .btn.export { min-height: 2.75rem; }
 }
+
+/* Frontend simplification: quiet chrome, document-first layout, explicit mobile views. */
+.app-topbar {
+  display: grid;
+  grid-template-columns: auto minmax(8rem, 1fr) auto;
+  gap: 1rem;
+  border-bottom-color: var(--border);
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+}
+
+.app-topbar .topbar-left,
+.app-topbar .topbar-right {
+  flex: 0 0 auto;
+}
+
+.app-topbar .topbar-right {
+  gap: 0.5rem;
+}
+
+.topbar-assignment {
+  min-width: 0;
+  align-self: center;
+}
+
+.topbar-assignment .assignment-title {
+  max-width: 100%;
+  margin: 0;
+  overflow: hidden;
+  font-size: 0.94rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-assignment .demo-replay-indicator {
+  margin: 0.08rem 0 0;
+  font-size: 0.68rem;
+}
+
+.workspace-chrome {
+  min-height: 2.5rem;
+}
+
+.app-main {
+  width: min(1600px, 100%);
+  padding: 0.75rem clamp(0.75rem, 1.5vw, 1.25rem) 2rem;
+}
+
+.active-workspace {
+  grid-template-columns: minmax(0, 2fr) minmax(22rem, 1fr);
+  gap: 1rem;
+}
+
+.document-workspace {
+  border-color: var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+
+.document-scroll {
+  height: calc(100dvh - 9.25rem);
+  min-height: 38rem;
+  background: var(--document-stage);
+}
+
+.document-page {
+  box-shadow: 0 12px 32px rgba(23, 32, 51, 0.14);
+}
+
+.session-panel {
+  position: sticky;
+  top: 5.25rem;
+  max-height: calc(100dvh - 6rem);
+  padding: 1rem 1rem 1.5rem;
+  gap: 0.75rem;
+  overflow-y: auto;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.voice-panel-toggle {
+  display: none;
+}
+
+.status-bar {
+  min-height: 0;
+  padding: 0.5rem 0;
+  align-items: center;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.status-bar strong {
+  font-size: 0.8rem;
+}
+
+.status-bar small {
+  font-size: 0.72rem;
+}
+
+body[data-voice-state="idle"] .status-bar,
+body[data-voice-state="unavailable"] .status-bar,
+body[data-voice-state="answer_detected"] .status-bar,
+body[data-response-state="confirmed"] .status-bar,
+body[data-response-state="written"] .status-bar {
+  display: none;
+}
+
+.meter-wrap {
+  background: transparent;
+}
+
+.question-context {
+  padding: 0 0 1rem;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.question-context h3 {
+  font-size: 1rem;
+}
+
+#currentQuestionExcerpt {
+  margin-top: 0.5rem;
+  font-size: 0.92rem;
+}
+
+.placement-summary {
+  padding: 0.5rem 0 0.5rem 0.75rem;
+  background: transparent;
+}
+
+.draft-editor {
+  margin-top: 1rem;
+}
+
+.answer-field {
+  min-height: 8rem;
+  background: var(--surface);
+}
+
+.confirm-typed {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.answer-confirmation,
+.write-confirmation {
+  padding: 1rem 0 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.written-status {
+  padding: 1rem;
+  border: 1px solid var(--success-line);
+  border-radius: var(--radius-md);
+  background: var(--success-soft);
+}
+
+.answer-confirmation h3,
+.write-confirmation h3,
+.written-status h3 {
+  font-size: 1.05rem;
+}
+
+.proposed-answer,
+.confirmed-answer {
+  padding: 1rem;
+  background: var(--surface);
+}
+
+.write-confirmation .confirmed-answer {
+  border-color: var(--success-line);
+  background: var(--surface);
+}
+
+.confirmation-actions {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.confirmation-actions .primary-action {
+  grid-column: auto;
+}
+
+.worksheet-unchanged {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.notice:empty {
+  display: none;
+}
+
+.session-actions {
+  grid-template-columns: 1fr 1fr;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.btn.session-btn {
+  color: var(--iris-deep);
+  border-color: var(--iris-line);
+  background: var(--surface);
+}
+
+.btn.session-btn:hover {
+  color: var(--on-accent);
+  background: var(--iris);
+}
+
+.btn.interrupt,
+.session-privacy-note {
+  grid-column: 1 / -1;
+}
+
+.session-privacy-note {
+  max-width: 48ch;
+  font-size: 0.74rem;
+  text-align: left;
+}
+
+body:not([data-response-state="capture"]) .session-actions {
+  display: none;
+}
+
+body[data-voice-state="listening"] .session-actions,
+body[data-voice-state="speaking"] .session-actions,
+body[data-voice-state="connecting"] .session-actions {
+  display: grid;
+}
+
+.conversation-details {
+  padding-top: 0;
+}
+
+.mobile-view-switch {
+  min-height: 3rem;
+  padding: 0.25rem;
+  display: none;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.view-switch-button {
+  min-height: 2.75rem;
+  padding: 0.55rem 0.75rem;
+  border: 0;
+  border-radius: 6px;
+  color: var(--muted);
+  background: transparent;
+  font-weight: 700;
+}
+
+.view-switch-button:hover {
+  color: var(--ink);
+  background: var(--surface-soft);
+}
+
+.view-switch-button[aria-pressed="true"] {
+  color: var(--on-accent);
+  background: var(--iris);
+}
+
+@media (max-width: 1100px) and (min-width: 701px) {
+  .active-workspace {
+    grid-template-columns: minmax(0, 1.45fr) minmax(19rem, 1fr);
+  }
+
+  .session-panel {
+    position: sticky;
+    inset: auto;
+    top: 5.25rem;
+    max-height: calc(100dvh - 6rem);
+    padding: 0.75rem;
+    transform: none;
+  }
+
+  .document-scroll {
+    padding-bottom: clamp(0.85rem, 2vw, 1.8rem);
+  }
+}
+
+@media (max-width: 700px) {
+  .app-topbar {
+    min-height: 4rem;
+    grid-template-columns: auto minmax(4rem, 1fr) auto;
+    gap: 0.5rem;
+  }
+
+  .app-topbar .topbar-right {
+    gap: 0.25rem;
+  }
+
+  .app-topbar .help-menu {
+    display: none;
+  }
+
+  .app-topbar .toolbar-button,
+  .app-topbar .btn.export {
+    min-height: 2.75rem;
+    padding: 0.45rem 0.6rem;
+    font-size: 0.74rem;
+  }
+
+  .topbar-assignment .assignment-title {
+    font-size: 0.78rem;
+  }
+
+  .topbar-assignment .demo-replay-indicator {
+    display: none;
+  }
+
+  .app-main {
+    padding: 0.5rem 0.55rem 3rem;
+  }
+
+  .mobile-view-switch {
+    position: sticky;
+    top: calc(4rem + 0.5rem);
+    z-index: var(--z-sticky);
+    margin-bottom: 0.5rem;
+    display: grid;
+    box-shadow: var(--shadow-soft);
+  }
+
+  .active-workspace {
+    display: block;
+  }
+
+  .document-workspace,
+  .session-panel {
+    width: 100%;
+  }
+
+  body[data-mobile-view="worksheet"] .session-panel {
+    display: none;
+  }
+
+  body[data-mobile-view="answer"] .document-workspace {
+    display: none;
+  }
+
+  .document-toolbar {
+    position: static;
+  }
+
+  .document-scroll {
+    height: calc(100dvh - 12rem);
+    min-height: 28rem;
+    padding: 0.5rem;
+  }
+
+  .document-page {
+    min-width: 0;
+  }
+
+  .session-panel,
+  .session-panel.is-expanded {
+    position: static;
+    inset: auto;
+    max-height: none;
+    padding: 1rem;
+    overflow: visible;
+    transform: none;
+  }
+
+  .question-context {
+    padding-bottom: 0.75rem;
+  }
+
+  .answer-field {
+    min-height: 7rem;
+    padding: 0.75rem;
+  }
+
+  .answer-confirmation,
+  .write-confirmation {
+    padding-top: 1rem;
+  }
+
+  .proposed-answer,
+  .confirmed-answer {
+    padding: 0.75rem;
+  }
+}
+
+@media (max-width: 430px) {
+  .confirmation-actions,
+  .confirmation-actions-write {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  }
+}
 @media (max-width: 430px) {
   .help-menu { display: none; }
-  .confirmation-actions { grid-template-columns: 1fr 1fr; }
-  .confirmation-actions .primary-action { grid-column: 1 / -1; }
-  .confirmation-actions-write { grid-template-columns: 1fr; }
+  .confirmation-actions,
+  .confirmation-actions-write { grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); }
+  .confirmation-actions .primary-action { grid-column: auto; }
   .confirmation-actions-write .primary-action { grid-column: auto; }
 }

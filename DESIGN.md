@@ -1,63 +1,60 @@
 # Design
 
-Visual system for the Claros frontend (vanilla HTML/CSS/JS). Tokens live in
-`frontend/styles/tokens.css`; page styles in `frontend/styles/landing.css` and
-`frontend/styles/app.css`.
+Claros uses one quiet visual system across the public landing and worksheet
+workspace. The implementation remains vanilla HTML, CSS, and JavaScript.
 
-## Theme
+## Foundation
 
-Calm, precise, academic. Cool pale-blue paper surfaces with a restrained orange
-accent and dark ink. The product should feel like a trustworthy worksheet desk,
-not a dashboard or purple AI template.
+- Instrument Sans is served from the repository.
+- The canvas is near-white; interactive surfaces are white.
+- Dark navy carries primary text, cool gray carries secondary text and rules.
+- Cobalt is reserved for focus and direct student actions.
+- Green, amber, and red are semantic success, caution, and failure roles.
+- Spacing follows an 8px base. Controls use 8px radii; major surfaces use 12px.
+- Shadows are reserved for the rendered PDF page or genuinely elevated menus.
 
-## Color
+The shared values live in `frontend/styles/tokens.css`.
 
-| Role | Token | Value |
-|---|---|---|
-| Body background | `--bg` / `--bg-tint` / `--bg-blue` | `#f5f8fa` / `#eaf2f7` / `#dceef7` |
-| Surface | `--surface` / `--surface-soft` | `#ffffff` / `#f8fbfd` |
-| Ink (text) | `--ink` / `--ink-soft` / `--muted` | `#14232d` / `#314651` / `#617782` |
-| Accent | `--iris` / `--iris-deep` / `--iris-soft` | `#df6c23` / `#ab4710` / `#fff0e4` |
-| Dark counterpoint | `--dark-bg` / `--dark-surface` / `--dark-text` | reserved for rare contrast surfaces |
-| Success / warn / error | `--success*` / `--warn*` / `--error*` | reserved for state only |
+## Workspace hierarchy
 
-Primary buttons use dark ink on orange (`--on-accent` on `--iris`) or white on
-deep orange so text contrast meets WCAG AA.
+The worksheet is primary. At desktop widths the document uses approximately
+two-thirds of the workspace and the answer panel uses one-third. The answer
+panel is flat: spacing and rules separate sections, while borders identify
+editable, proposed, confirmed, written, or failed content.
 
-## Typography
+The visible response stages are:
 
-System-native premium stack (`--font-sans`): Avenir Next → Segoe UI Variable →
-system-ui. Weight and scale carry hierarchy. Landing brand/headings use
-`clamp()`; the app uses a compact rem scale.
+1. Capture: current task, editable reasoning, optional voice, typed fallback,
+   one privacy line, and Review answer.
+2. Review: the exact proposed answer, Edit answer, and Confirm answer.
+3. Confirmed: the fixed exact answer, Change answer, a destination-specific
+   write action, and the unchanged-worksheet reminder.
+4. Writing: the fixed answer remains visible while conflicting actions are
+   disabled and progress is announced.
+5. Written: one success treatment contains the answer and destination.
+6. Failed write: Review returns with one failure message and requires a new
+   confirmation.
 
-## Shape and elevation
+Confirmation and write remain separate requests. Presentation must never imply
+that confirmation changes the PDF.
 
-Radii: 8 / 14 / 20 / 28 px + pill. Soft layered shadows
-(`--shadow-soft/mid/strong`). Cards only where grouping or interaction needs a
-container; prefer spacing and surface shifts elsewhere. Landing hero evidence
-is a real worksheet preview, not a floating promo sticker.
+## Mobile
 
-## Motion
+At 700px and below, the mounted worksheet and answer panels are selected by a
+persistent `Worksheet` / `Answer` switch. A newly loaded assignment opens on
+Worksheet. Only explicit student input changes the mobile view, and the choice
+survives resizing. Both panels remain mounted so draft and document state are
+preserved.
 
-150–250 ms ease transitions; landing section rise at ~640 ms with staggered
-delays. Global `prefers-reduced-motion` kill-switch in `tokens.css` and landing
-styles.
+Touch targets are at least 44px. Keyboard focus, typed-only completion, reduced
+motion, and document controls remain supported.
 
-## Application state vocabulary
+## Landing
 
-Body attributes:
+The landing uses a compact header, a two-column hero with one sample action,
+and real Review-state product evidence. The remaining order is the three-step
+flow, a real confirmed-not-written state, combined safety/accessibility
+information, a short FAQ, and a restrained footer. It uses spacing and rules
+instead of feature cards, decorative rotation, or marketing effects.
 
-- `data-workspace-state`: `empty` | `uploading` | `parsing` | `ready` |
-  `needs_layout_review` | `exporting` | `complete` | `error`
-- `data-voice-state`: `unavailable` | `idle` | `connecting` | `listening` |
-  `speaking` | `answer_detected` | `confirming` | `confirmed` | `writing` |
-  `stopped` | `error`
-
-Derived UI comes from `frontend/ui-state.js`.
-
-## Landing page
-
-Brand-first hero: Claros is the primary visual signal, followed by one headline,
-one supporting sentence, and one CTA group beside a real sample-page preview.
-Sort-style pacing uses generous section spacing and restrained decoration.
-Worksheet behavior and accessibility contracts remain owned by the app shell.
+Current visual and request evidence is indexed from `docs/VERIFICATION.md`.

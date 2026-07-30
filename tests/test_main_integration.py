@@ -122,7 +122,8 @@ def test_landing_has_no_app_workspace():
     assert response.status_code == 200
     assert b"id=\"uploadZone\"" not in response.content
     assert b"id=\"micBtn\"" not in response.content
-    assert b"Keep the page in view" in response.content
+    assert b"Work through the answer. Keep the final say." in response.content
+    assert response.content.count(b'href="/app?sample=canonical-short-answer-ecosystems"') == 1
 
 
 def test_app_sample_query_param_hint():
@@ -216,11 +217,24 @@ def test_sample_page_preview_served():
     assert response.content.startswith(b"\x89PNG")
 
 
-def test_sample_workspace_preview_served():
-    response = client.get("/sample-workspace.png")
+def test_sample_workspace_previews_served():
+    for route in (
+        "/sample-workspace.png",
+        "/sample-workspace-mobile.png",
+        "/sample-workspace-review.png",
+        "/sample-workspace-review-mobile.png",
+    ):
+        response = client.get(route)
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("image/png")
+        assert response.content.startswith(b"\x89PNG")
+
+
+def test_instrument_sans_font_served():
+    response = client.get("/fonts/instrument-sans-latin-wght-normal.woff2")
     assert response.status_code == 200
-    assert response.headers["content-type"].startswith("image/png")
-    assert response.content.startswith(b"\x89PNG")
+    assert response.headers["content-type"].startswith("font/woff2")
+    assert response.content.startswith(b"wOF2")
 
 
 def test_assignment_page_preview_served(monkeypatch):

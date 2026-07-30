@@ -27,10 +27,10 @@
     connecting: ['Connecting', 'Setting up a private voice session.', 'Connecting'],
     listening: ['Listening', 'Claros is listening for your response.', 'Live'],
     speaking: ['Claros is speaking', 'You can interrupt at any time.', 'Live'],
-    answer_detected: ['Answer ready for review', 'Edit, reject, or confirm the proposed answer. Nothing is written yet.', 'Review'],
+    answer_detected: ['Answer ready for review', 'Check the exact words below.', 'Review'],
     confirming: ['Confirming answer', 'Checking the exact answer you chose.', 'Review'],
     confirmed: ['Answer confirmed', 'Choose Write confirmed answer when you are ready.', 'Ready'],
-    writing: ['Authorizing answer', 'Saving the confirmed answer for export placement.', 'Writing'],
+    writing: ['Writing answer', 'Adding the confirmed answer to the selected destination.', 'Writing'],
     stopped: ['Session ended', 'Your worksheet and typed answers remain available.', 'Offline'],
     error: ['Voice connection failed', 'Continue by typing, or try voice again.', 'Offline']
   };
@@ -52,7 +52,7 @@
       showWorkspace: hasAssignment && ['ready', 'needs_layout_review', 'exporting', 'complete'].indexOf(state) !== -1,
       showLayoutReview: state === 'needs_layout_review',
       canExport: hasAssignment && state !== 'uploading' && state !== 'parsing' && state !== 'exporting',
-      exportLabel: state === 'exporting' ? 'Preparing PDF\u2026' : (state === 'complete' ? 'Export again' : 'Export PDF')
+      exportLabel: state === 'exporting' ? 'Exporting\u2026' : (state === 'complete' ? 'Export again' : 'Export')
     };
   }
 
@@ -76,9 +76,42 @@
       showInterrupt: state === 'speaking',
       showConfirmation: state === 'answer_detected' || state === 'confirming',
       showWriteConfirmation: state === 'confirmed',
-      primaryLabel: sessionActive ? 'End session' : (state === 'connecting' ? 'Connecting\u2026' : (state === 'error' ? 'Try voice again' : 'Start voice session')),
+      primaryLabel: sessionActive ? 'End voice guidance' : (state === 'connecting' ? 'Connecting\u2026' : (state === 'error' ? 'Try voice again' : 'Use voice guidance')),
       primaryDisabled: !!disabledReason,
       disabledReason: disabledReason
+    };
+  }
+
+  function getResponseModel(context) {
+    context = context || {};
+    var placement = context.placementStatus === 'side_panel'
+      ? 'side_panel'
+      : (context.placementBlocked ? 'blocked' : 'physical');
+    var stage = 'capture';
+    if (context.writeInProgress) stage = 'writing';
+    else if (context.writtenAnswer && context.writtenDestination) stage = 'written';
+    else if (context.writeFailure) stage = 'review';
+    else if (context.confirmed) stage = 'confirmed';
+    else if (context.reviewRequested) stage = 'review';
+
+    return {
+      stage: stage,
+      placement: placement,
+      showEditor: stage === 'capture',
+      showReview: stage === 'review',
+      showConfirmed: stage === 'confirmed' || stage === 'writing',
+      showWritten: stage === 'written',
+      typeInsteadVisible: stage === 'capture',
+      actionLabel: placement === 'side_panel' ? 'Add to export side panel' : 'Write confirmed answer',
+      actionDisabled: placement === 'blocked' || stage === 'writing',
+      destinationDescription: placement === 'side_panel'
+        ? 'This adds the confirmed answer to the export side panel. The original worksheet page stays unchanged.'
+        : (placement === 'blocked'
+          ? 'A safe destination is not available. This answer cannot be written yet.'
+          : 'This writes the confirmed answer to the selected answer area on the worksheet.'),
+      writtenDescription: context.writtenDestination === 'side_panel'
+        ? 'Added to the export side panel. The original worksheet page is unchanged.'
+        : 'Written to the selected answer area on the worksheet.'
     };
   }
 
@@ -86,7 +119,8 @@
     WORKSPACE_STATES: WORKSPACE_STATES,
     VOICE_STATES: VOICE_STATES,
     getWorkspaceModel: getWorkspaceModel,
-    getVoiceModel: getVoiceModel
+    getVoiceModel: getVoiceModel,
+    getResponseModel: getResponseModel
   };
 
   root.ClarosUiState = api;

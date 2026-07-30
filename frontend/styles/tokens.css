@@ -1,47 +1,65 @@
-/* Claros shared foundation: a light, document-first academic workspace. */
+/* Claros shared foundation: a quiet, document-first workspace. */
+@font-face {
+  font-family: "Instrument Sans";
+  src: url("/fonts/instrument-sans-latin-wght-normal.woff2") format("woff2-variations");
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+}
+
 :root {
-  --bg: #f5f8fa;
-  --bg-tint: #eaf2f7;
-  --bg-blue: #dceef7;
+  --bg: #f7f8fa;
+  --bg-tint: #f1f3f6;
+  --bg-blue: #eef3ff;
   --surface: #ffffff;
-  --surface-soft: #f8fbfd;
-  --surface-strong: #eef5f8;
-  --document-stage: #d9e5eb;
-  --border: #d5e0e6;
-  --border-strong: #aec2cd;
+  --surface-soft: #f7f8fa;
+  --surface-strong: #eef1f5;
+  --document-stage: #e9edf2;
+  --border: #d9dee7;
+  --border-strong: #b9c2d0;
 
-  --ink: #14232d;
-  --ink-soft: #314651;
-  --muted: #617782;
-  --muted-light: #78909b;
+  --ink: #172033;
+  --ink-soft: #344156;
+  --muted: #667085;
+  --muted-light: #737d8d;
 
-  /* Orange is reserved for direct student action and confirmation. */
-  --iris: #df6c23;
-  --iris-deep: #ab4710;
-  --iris-soft: #fff0e4;
-  --iris-line: #f1b98e;
-  --on-accent: #23140b;
+  /* Cobalt is reserved for direct student action and focus. */
+  --iris: #2864f0;
+  --iris-deep: #1d4ed8;
+  --iris-soft: #e7eeff;
+  --iris-line: #9bb6fa;
+  --on-accent: #ffffff;
 
-  --success: #14734c;
-  --success-soft: #e6f7ee;
-  --success-line: #addfc7;
-  --warn: #8d590d;
-  --warn-soft: #fff4dd;
-  --warn-line: #edcf91;
-  --error: #a62b48;
-  --error-soft: #fbeaf0;
-  --error-line: #eeb8c5;
+  --success: #197854;
+  --success-soft: #e7f5ee;
+  --success-line: #a4d5c1;
+  --warn: #9a6700;
+  --warn-soft: #fff5d8;
+  --warn-line: #e4c46a;
+  --error: #b42318;
+  --error-soft: #fdecec;
+  --error-line: #e9aaa4;
 
-  --font-sans: "Avenir Next", Avenir, "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-sans: "Instrument Sans", Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
   --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
+  --radius-md: 12px;
+  --radius-lg: 12px;
+  --radius-xl: 12px;
   --radius-pill: 999px;
 
-  --shadow-soft: 0 1px 2px rgba(20, 35, 45, 0.05), 0 10px 24px rgba(20, 35, 45, 0.06);
-  --shadow-mid: 0 2px 4px rgba(20, 35, 45, 0.06), 0 20px 42px rgba(20, 35, 45, 0.1);
-  --shadow-strong: 0 8px 18px rgba(20, 35, 45, 0.09), 0 30px 60px rgba(20, 35, 45, 0.15);
+  --shadow-soft: 0 1px 2px rgba(23, 32, 51, 0.06);
+  --shadow-mid: 0 12px 28px rgba(23, 32, 51, 0.12);
+  --shadow-strong: 0 20px 60px rgba(23, 32, 51, 0.18);
+
+  /* Descriptive aliases used by the simplified landing and workspace. */
+  --paper: var(--surface);
+  --paper-soft: var(--surface-soft);
+  --paper-selected: var(--iris-soft);
+  --cobalt: var(--iris);
+  --cobalt-hover: var(--iris-deep);
+  --cobalt-subtle: var(--iris-soft);
+  --rule: var(--border);
+  --rule-strong: var(--border-strong);
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --duration-fast: 150ms;

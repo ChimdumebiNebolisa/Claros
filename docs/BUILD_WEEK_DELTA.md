@@ -186,6 +186,24 @@
   unchanged; `canonical_v1.evaluate` offline metrics remain 1.0 / FP writable 0.
 - Evidence: see `docs/BUILD_WEEK_STAGE_14_VERIFICATION.md`.
 
+## Frontend simplification release
+
+- Mainline integration base: `c87d8a5` (Stage 14 merged to `main`).
+- Working branch: `codex/frontend-simplification-release`.
+- Scope: near-white Instrument Sans visual foundation; compact workspace
+  header; approximately two-thirds / one-third document and answer layout;
+  flattened Capture, Review, Confirmed, Writing, Written, and failed-write
+  hierarchy; explicit 700px Worksheet / Answer switch; light landing built
+  from real Review and confirmed-not-written product captures.
+- Compatibility: canonical task/response IDs, multi-response targets, Gemini
+  voice transport, assignment capabilities, confirmation tokens, write
+  authorization, storage, PDF geometry, and export contracts remain in place.
+- Safety evidence: confirmation produced `/confirm` without `/api/write/`;
+  controlled write failure required a new confirmation; the recovery sequence
+  ended with a separate successful write.
+- Evidence: see
+  `docs/evidence/FRONTEND_SIMPLIFICATION_2026-07-29.md`.
+
 ## First-party canonical parser fixtures
 
 `evaluation/canonical_v1/` establishes the initial parser milestone with three

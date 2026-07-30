@@ -32,6 +32,8 @@
     replaceBtn: document.getElementById('replaceBtn'),
     errors: document.getElementById('errors'),
     workspaceErrors: document.getElementById('workspaceErrors'),
+    topbarAssignment: document.getElementById('topbarAssignment'),
+    workspaceChrome: document.querySelectorAll('.workspace-chrome'),
     assignmentTitle: document.getElementById('assignmentTitle'),
     demoReplayIndicator: document.getElementById('demoReplayIndicator'),
     replaceWorksheetBtn: document.getElementById('replaceWorksheetBtn'),
@@ -64,13 +66,13 @@
     questionsContainer: document.getElementById('questionsContainer'),
     responseTargets: document.getElementById('responseTargets'),
     currentResponseLabel: document.getElementById('currentResponseLabel'),
+    draftEditor: document.getElementById('draftEditor'),
     typedAnswer: document.getElementById('typedAnswer'),
     confirmTypedBtn: document.getElementById('confirmTypedBtn'),
     answerConfirmation: document.getElementById('answerConfirmation'),
     confirmationTitle: document.getElementById('confirmationTitle'),
     proposedAnswer: document.getElementById('proposedAnswer'),
     editAnswerBtn: document.getElementById('editAnswerBtn'),
-    rejectAnswerBtn: document.getElementById('rejectAnswerBtn'),
     confirmAnswerBtn: document.getElementById('confirmAnswerBtn'),
     writeConfirmation: document.getElementById('writeConfirmation'),
     writeTitle: document.getElementById('writeTitle'),
@@ -78,11 +80,18 @@
     confirmedAnswerPreview: document.getElementById('confirmedAnswerPreview'),
     changeConfirmedAnswerBtn: document.getElementById('changeConfirmedAnswerBtn'),
     writeConfirmedAnswerBtn: document.getElementById('writeConfirmedAnswerBtn'),
+    writtenStatus: document.getElementById('writtenStatus'),
+    writtenTitle: document.getElementById('writtenTitle'),
+    writtenAnswer: document.getElementById('writtenAnswer'),
+    writtenDestination: document.getElementById('writtenDestination'),
     placementSummary: document.getElementById('placementSummary'),
-    returnToWorksheetBtn: document.getElementById('returnToWorksheetBtn'),
+    mobileViewSwitch: document.getElementById('mobileViewSwitch'),
+    worksheetViewBtn: document.getElementById('worksheetViewBtn'),
+    answerViewBtn: document.getElementById('answerViewBtn'),
     notice: document.getElementById('notice'),
     keyboardFallback: document.getElementById('keyboardFallback'),
     micBtn: document.getElementById('micBtn'),
+    typeInsteadBtn: document.getElementById('typeInsteadBtn'),
     interruptBtn: document.getElementById('interruptBtn'),
     transcript: document.getElementById('transcript')
   };
@@ -109,6 +118,7 @@
     liveSession: null,
     conversation: [],
     writeInProgress: false,
+    mobileView: 'worksheet',
     lastExportVoiceNorm: ''
   };
 
@@ -129,12 +139,24 @@
   let transcriptPinned = true;
   let processingTimer = null;
 
+  function setMobileView(view) {
+    state.mobileView = view === 'answer' ? 'answer' : 'worksheet';
+    document.body.dataset.mobileView = state.mobileView;
+    elements.worksheetViewBtn.setAttribute('aria-pressed', String(state.mobileView === 'worksheet'));
+    elements.answerViewBtn.setAttribute('aria-pressed', String(state.mobileView === 'answer'));
+  }
+
   function setWorkspaceState(next) {
     state.workspace = next;
     const model = UiState.getWorkspaceModel(next, { hasAssignment: !!state.assignmentId });
     document.body.dataset.workspaceState = next;
     elements.setupMode.hidden = !model.showSetup;
     elements.workspaceMode.hidden = !model.showWorkspace;
+    elements.topbarAssignment.hidden = !model.showWorkspace;
+    elements.workspaceChrome.forEach(function (element) {
+      element.hidden = !model.showWorkspace;
+    });
+    elements.mobileViewSwitch.hidden = !model.showWorkspace;
     elements.startCard.hidden = next !== 'empty';
     elements.processingPanel.hidden = !['uploading', 'parsing', 'error'].includes(next);
     elements.processingActions.hidden = next !== 'error';
@@ -155,15 +177,42 @@
       'aria-label',
       expanded ? 'Collapse Claros panel' : 'Expand Claros panel'
     );
-    const mobileSheet = window.matchMedia('(max-width: 760px)').matches;
-    if (mobileSheet && expanded) {
-      elements.sessionPanel.setAttribute('aria-modal', 'true');
-      elements.sessionPanel.setAttribute('role', 'dialog');
-      if (elements.documentViewport) elements.documentViewport.inert = true;
-    } else {
-      elements.sessionPanel.removeAttribute('aria-modal');
-      elements.sessionPanel.removeAttribute('role');
-      if (elements.documentViewport) elements.documentViewport.inert = false;
+    elements.sessionPanel.removeAttribute('aria-modal');
+    elements.sessionPanel.removeAttribute('role');
+    if (elements.documentViewport) elements.documentViewport.inert = false;
+  }
+
+  function renderResponseState() {
+    const target = getResponseTarget(state.activeResponseRegionId);
+    const responseState = target ? responseStateFor(target.id) : null;
+    const hasWrittenAnswer = !!(responseState && (responseState.written || '').trim());
+    const reviewRequested = state.voice === 'answer_detected' || state.voice === 'confirming';
+    const model = UiState.getResponseModel({
+      placementStatus: target && target.useSidePanel ? 'side_panel' : 'physical',
+      placementBlocked: !!(target && !target.canWrite),
+      reviewRequested: reviewRequested,
+      confirmed: !!(responseState && responseState.confirmed),
+      writeReady: !!(responseState && responseState.writeToken),
+      writeInProgress: state.writeInProgress,
+      writeFailure: responseState && responseState.writeFailure,
+      writtenAnswer: responseState && responseState.written,
+      writtenDestination: hasWrittenAnswer ? (target.useSidePanel ? 'side_panel' : 'physical') : ''
+    });
+    document.body.dataset.responseState = model.stage;
+    elements.draftEditor.hidden = !model.showEditor;
+    elements.answerConfirmation.hidden = !model.showReview;
+    elements.writeConfirmation.hidden = !model.showConfirmed;
+    elements.writtenStatus.hidden = !model.showWritten;
+    elements.typeInsteadBtn.hidden = !model.typeInsteadVisible;
+    elements.writeConfirmedAnswerBtn.textContent = model.actionLabel;
+    elements.writeConfirmedAnswerBtn.disabled = model.actionDisabled;
+    elements.writeDestination.textContent = model.destinationDescription;
+    if (model.showWritten) {
+      elements.writtenAnswer.textContent = responseState.written;
+      elements.writtenDestination.textContent = model.writtenDescription;
+    }
+    if (model.showReview && responseState) {
+      elements.proposedAnswer.textContent = responseState.draft || '';
     }
   }
 
@@ -184,17 +233,7 @@
     elements.micBtn.disabled = model.primaryDisabled;
     elements.micBtn.title = model.disabledReason;
     elements.micBtn.setAttribute('aria-describedby', model.disabledReason ? 'statusDescription' : '');
-    elements.answerConfirmation.hidden = !model.showConfirmation;
-    elements.writeConfirmation.hidden = !model.showWriteConfirmation;
-    elements.returnToWorksheetBtn.hidden = !(model.showConfirmation || model.showWriteConfirmation);
-    if (model.showConfirmation || model.showWriteConfirmation || next === 'writing') {
-      setSessionPanelExpanded(true);
-      if (window.matchMedia('(max-width: 760px)').matches && (model.showConfirmation || model.showWriteConfirmation)) {
-        window.setTimeout(function () {
-          (model.showWriteConfirmation ? elements.writeTitle : elements.confirmationTitle).focus();
-        }, 0);
-      }
-    }
+    renderResponseState();
   }
 
   function setNotice(message) {
@@ -206,10 +245,10 @@
     const text = message || '';
     elements.errors.textContent = text;
     if (elements.workspaceErrors) {
-      elements.workspaceErrors.textContent = text;
-      elements.workspaceErrors.hidden = !text;
+      elements.workspaceErrors.textContent = '';
+      elements.workspaceErrors.hidden = true;
     }
-    if (text && state.workspace === 'ready') {
+    if (text && state.assignmentId) {
       elements.notice.textContent = text;
       elements.notice.classList.add('is-error');
     } else if (!text) {
@@ -227,6 +266,7 @@
     }
     const responseState = responseStateFor(target.id);
     responseState.draft = cleaned;
+    responseState.writeFailure = '';
     elements.confirmTypedBtn.disabled = !cleaned.trim();
     if (responseState.confirmed) {
       responseState.writeToken = '';
@@ -239,6 +279,7 @@
     }
     syncWorksheetResponseState(target.id);
     refreshActiveProgress();
+    renderResponseState();
   }
 
   function setProcessingStep(index) {
@@ -302,7 +343,8 @@
         draft: '',
         confirmed: false,
         writeToken: '',
-        written: ''
+        written: '',
+        writeFailure: ''
       };
     }
     return state.responseStates[key];
@@ -490,6 +532,7 @@
     elements.currentQuestionExcerpt.textContent = task.promptText || '';
     renderTaskChoices(task);
     elements.currentResponseLabel.textContent = targetLabel(target, task) + ': ' + targetPlacementText(target);
+    elements.currentResponseLabel.hidden = taskTargets(task).length <= 1;
     elements.typedAnswer.setAttribute('aria-label', 'Draft ' + targetLabel(target, task) + ' for Question ' + taskLabel(task));
     elements.typedAnswer.textContent = responseState.draft || responseState.written || '';
     elements.confirmTypedBtn.disabled = !elements.typedAnswer.textContent.trim();
@@ -511,6 +554,7 @@
         setVoiceState(state.liveSession ? 'listening' : 'idle');
       }
     }
+    renderResponseState();
     persistSessionLocally();
   }
 
@@ -614,6 +658,7 @@
 
   function applyAssignment(data) {
     clearAssignmentSessionState();
+    setMobileView('worksheet');
     state.assignmentId = data.assignment_id;
     state.assignmentCapability = data.assignment_capability || null;
     state.title = data.title || state.filename || 'Worksheet';
@@ -659,6 +704,7 @@
 
   async function doUpload(file) {
     if (!file) return;
+    setMobileView('worksheet');
     if (state.assignmentId || state.sessionId || state.sessionSecret) clearAssignmentSessionState();
     state.lastFile = file;
     state.filename = file.name;
@@ -748,6 +794,7 @@
     setNotice('');
     setWorkspaceState('empty');
     setVoiceState('unavailable');
+    setMobileView('worksheet');
     setSessionPanelExpanded(false);
     if (assignmentId && capability) {
       try {
@@ -952,12 +999,13 @@
     const responseState = responseStateFor(target.id);
     responseState.writeToken = '';
     responseState.confirmed = false;
+    responseState.writeFailure = '';
     responseState.draft = cleaned;
     state.proposedResponseRegionId = target.id;
     selectResponseTarget(task.id, target.id, { preserveConfirmation: true, preserveVoice: true });
     elements.typedAnswer.textContent = cleaned;
     elements.proposedAnswer.textContent = cleaned;
-    elements.confirmationTitle.textContent = 'Confirm ' + targetLabel(target, task) + ' for Question ' + taskLabel(task);
+    elements.confirmationTitle.textContent = 'Review ' + targetLabel(target, task) + ' for Question ' + taskLabel(task);
     setVoiceState('answer_detected');
     setNotice('Review the proposed answer. Nothing has been written yet.');
     refreshActiveProgress();
@@ -1012,6 +1060,7 @@
       responseState.confirmed = true;
       responseState.draft = text;
       responseState.writeToken = data.write_token;
+      responseState.writeFailure = '';
       state.proposedResponseRegionId = target.id;
       if (elements.confirmedAnswerPreview) elements.confirmedAnswerPreview.textContent = text;
       syncWorksheetResponseState(target.id);
@@ -1109,33 +1158,26 @@
         syncWorksheetResponseState(target.id);
       }
       responseState.writeToken = '';
+      responseState.writeFailure = '';
       state.proposedResponseRegionId = null;
       syncWorksheetResponseState(target.id);
       persistSessionLocally();
       renderAnswerProgress(task, target);
       renderQuestionPicker();
-      setNotice('Answer authorized for Question ' + taskLabel(task) + '. Export places it on the worksheet. Continue another task or export when ready.');
-      elements.typedAnswer.focus();
+      setNotice('Answer written. Continue another task or export when ready.');
     } catch (error) {
-      // Keep server-aligned confirmation intact so retries remain possible.
-      if (error && error.reauthorize) {
-        responseState.writeToken = '';
-        try {
-          await reauthorizeWriteToken(task, target);
-          setError('Write authorization was refreshed. Choose Write confirmed answer again.');
-        } catch (reauthError) {
-          setError(reauthError.message || error.message || 'The confirmed answer could not be written.');
-        }
-      } else if (error && error.conflict) {
-        setError(error.message || 'Session changed. Refresh and try again.');
-      } else {
-        responseState.writeToken = '';
-        setError(error.message || 'The confirmed answer could not be written.');
-      }
+      const failure = error.message || 'The confirmed answer could not be written.';
+      responseState.writeToken = '';
+      responseState.confirmed = false;
+      responseState.writeFailure = failure;
+      state.proposedResponseRegionId = target.id;
+      elements.proposedAnswer.textContent = responseState.draft || '';
+      setError(failure + ' Review and confirm the exact answer again.');
       syncWorksheetResponseState(target.id);
+      refreshActiveProgress();
     } finally {
       state.writeInProgress = false;
-      setVoiceState(state.liveSession ? 'listening' : 'idle');
+      setVoiceState(responseState.writeFailure ? 'answer_detected' : (state.liveSession ? 'listening' : 'idle'));
     }
   }
 
@@ -1598,12 +1640,12 @@
     presentAnswer(state.activeResponseRegionId, elements.typedAnswer.textContent);
   });
   elements.editAnswerBtn.addEventListener('click', function () {
+    const responseState = state.proposedResponseRegionId != null
+      ? responseStateFor(state.proposedResponseRegionId)
+      : null;
+    if (responseState) responseState.writeFailure = '';
     setVoiceState(state.liveSession ? 'listening' : 'idle');
     elements.typedAnswer.focus();
-  });
-  elements.rejectAnswerBtn.addEventListener('click', function () {
-    dismissAnswer(true);
-    setNotice('Proposed answer rejected. Nothing was written.');
   });
   elements.confirmAnswerBtn.addEventListener('click', confirmProposedAnswer);
   elements.changeConfirmedAnswerBtn.addEventListener('click', function () {
@@ -1612,12 +1654,13 @@
       const responseState = responseStateFor(responseRegionId);
       responseState.writeToken = '';
       responseState.confirmed = false;
+      responseState.writeFailure = '';
       responseState.draft = responseState.draft || elements.typedAnswer.textContent || '';
       elements.proposedAnswer.textContent = responseState.draft;
       if (elements.confirmedAnswerPreview) elements.confirmedAnswerPreview.textContent = '';
       syncWorksheetResponseState(responseRegionId);
-      setVoiceState('answer_detected');
-      setNotice('Update the draft, then review it again. Nothing was written.');
+      setVoiceState(state.liveSession ? 'listening' : 'idle');
+      setNotice('Update the answer, then review and confirm it again.');
       elements.typedAnswer.focus();
       refreshActiveProgress();
     }
@@ -1625,9 +1668,14 @@
   elements.writeConfirmedAnswerBtn.addEventListener('click', function () {
     triggerWrite(state.proposedResponseRegionId || state.activeResponseRegionId);
   });
-  elements.returnToWorksheetBtn.addEventListener('click', function () {
-    setSessionPanelExpanded(false);
-    elements.documentViewport.focus();
+  elements.worksheetViewBtn.addEventListener('click', function () {
+    setMobileView('worksheet');
+  });
+  elements.answerViewBtn.addEventListener('click', function () {
+    setMobileView('answer');
+  });
+  elements.typeInsteadBtn.addEventListener('click', function () {
+    elements.typedAnswer.focus();
   });
   elements.micBtn.addEventListener('click', function () {
     if (state.liveSession) stopSession();
@@ -1643,6 +1691,7 @@
 
   setWorkspaceState('empty');
   setVoiceState('unavailable');
+  setMobileView('worksheet');
 
   if (new URLSearchParams(location.search).get('sample')) {
     loadSamplePdf(new URLSearchParams(location.search).get('sample'));

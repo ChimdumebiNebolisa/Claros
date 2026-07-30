@@ -625,10 +625,37 @@ async def serve_sample_page_preview():
 
 @app.get("/sample-workspace.png")
 async def serve_sample_workspace_preview():
-    """Serve the checked-in sample workspace image used on the landing page."""
+    """Serve the real confirmed-workspace capture used on the landing page."""
     path = config.ROOT / "frontend" / "sample-workspace.png"
     if not path.exists():
         raise HTTPException(status_code=404, detail="sample-workspace.png not found")
+    return FileResponse(path, media_type="image/png")
+
+
+@app.get("/sample-workspace-mobile.png")
+async def serve_sample_workspace_mobile_preview():
+    """Serve the real mobile confirmed-workspace capture."""
+    path = config.ROOT / "frontend" / "sample-workspace-mobile.png"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="sample-workspace-mobile.png not found")
+    return FileResponse(path, media_type="image/png")
+
+
+@app.get("/sample-workspace-review.png")
+async def serve_sample_workspace_review_preview():
+    """Serve the real desktop Review-state workspace capture."""
+    path = config.ROOT / "frontend" / "sample-workspace-review.png"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="sample-workspace-review.png not found")
+    return FileResponse(path, media_type="image/png")
+
+
+@app.get("/sample-workspace-review-mobile.png")
+async def serve_sample_workspace_review_mobile_preview():
+    """Serve the real mobile Review-state workspace capture."""
+    path = config.ROOT / "frontend" / "sample-workspace-review-mobile.png"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="sample-workspace-review-mobile.png not found")
     return FileResponse(path, media_type="image/png")
 
 
@@ -721,6 +748,17 @@ async def serve_style(filename: str):
     if not path.exists():
         raise HTTPException(status_code=404, detail="Not found")
     return FileResponse(path, media_type="text/css; charset=utf-8")
+
+
+@app.get("/fonts/{filename}")
+async def serve_font(filename: str):
+    """Serve the repository-vendored Claros typeface."""
+    if not filename.endswith(".woff2") or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=404, detail="Not found")
+    path = config.ROOT / "frontend" / "fonts" / filename
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(path, media_type="font/woff2")
 
 
 @app.get("/", response_class=HTMLResponse)

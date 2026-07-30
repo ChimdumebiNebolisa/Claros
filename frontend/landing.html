@@ -4,115 +4,125 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Claros: Guided worksheet workspace</title>
-  <meta name="description" content="Work through a PDF worksheet, review every answer, then choose exactly where it is written.">
+  <meta name="description" content="Work through a PDF worksheet, review every answer, then choose exactly when it is written.">
   <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="preload" href="/fonts/instrument-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" as="image" href="/sample-workspace-review.png" media="(min-width: 701px)">
+  <link rel="preload" as="image" href="/sample-workspace-review-mobile.png" media="(max-width: 700px)">
   <link rel="stylesheet" href="/styles/tokens.css">
   <link rel="stylesheet" href="/styles/landing.css">
 </head>
-<body>
+<body class="landing-body">
   <a class="skip-link" href="#main-content">Skip to main content</a>
-  <div class="app-shell" id="top">
+  <div class="landing-shell" id="top">
     <header class="topbar landing-topbar">
-      <div class="topbar-left brand-lockup">
-        <div class="brand-mark" aria-hidden="true"></div>
-        <div class="brand-copy">
-          <a href="#top" class="brand-link" aria-label="Claros home"><strong>Claros</strong></a>
-          <span>Guided worksheets</span>
-        </div>
-      </div>
+      <a href="#top" class="brand-link" aria-label="Claros home"><strong>Claros</strong></a>
       <nav class="topbar-links" aria-label="Primary">
         <a href="#how-it-works">How it works</a>
-        <a href="#accessibility">Accessibility</a>
+        <a href="#safety">Safety</a>
         <a href="#faq">FAQ</a>
       </nav>
       <a href="/app" class="nav-pill">Open worksheet</a>
     </header>
 
     <main id="main-content">
-      <section class="hero-section" aria-labelledby="hero-brand">
-        <div class="hero-copy-column">
-          <p class="hero-brand" id="hero-brand">Claros</p>
-          <h1 id="hero-title">Keep the page in view. Keep the final word.</h1>
-          <p class="hero-description">Choose a task, work through your answer by text or voice, then decide exactly when and where it is written.</p>
-          <div class="hero-actions">
-            <a href="/app" class="btn btn-primary">Open worksheet</a>
-            <a href="/app?sample=canonical-short-answer-ecosystems" class="btn btn-secondary">Try a sample</a>
-          </div>
+      <section class="landing-hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">Guided worksheet workspace</p>
+          <h1 id="hero-title">Work through the answer. Keep the final say.</h1>
+          <p>Type or use voice guidance, review the exact words, then choose when they reach the worksheet.</p>
+          <a href="/app?sample=canonical-short-answer-ecosystems" class="btn btn-primary">Try a sample worksheet</a>
         </div>
-        <figure class="product-evidence">
-          <div class="evidence-bar"><span>Official samples</span><span>Short Answer · Choice · Math</span></div>
-          <div class="evidence-page">
-            <img src="/samples/canonical-short-answer-ecosystems/preview.png" alt="Claros Short Answer sample worksheet page used in the guided workspace">
-          </div>
-          <figcaption class="evidence-caption">
-            <strong>Review before writing</strong>
-            <span>The original worksheet stays central. A student confirms the exact answer, then chooses to write.</span>
-          </figcaption>
+
+        <figure class="product-proof" aria-labelledby="review-caption">
+          <picture>
+            <source media="(max-width: 700px)" srcset="/sample-workspace-review-mobile.png" width="390" height="844">
+            <img
+              src="/sample-workspace-review.png"
+              width="1242"
+              height="671"
+              alt="The real Claros Review state with the worksheet beside the exact proposed answer and explicit confirmation."
+              fetchpriority="high"
+              decoding="async"
+            >
+          </picture>
+          <figcaption id="review-caption"><strong>Review</strong><span>Exact words, still not written.</span></figcaption>
         </figure>
       </section>
 
-      <section class="principles-strip" aria-label="Claros essentials">
-        <p><strong>The PDF stays central</strong><span>Work alongside the original worksheet.</span></p>
-        <p><strong>Typed works throughout</strong><span>Voice guidance is optional, never required.</span></p>
-        <p><strong>Uncertain pages stay safe</strong><span>Use the export side panel instead of guessing.</span></p>
-      </section>
-
-      <section class="process-section" id="how-it-works" aria-labelledby="process-title">
-        <div class="process-intro">
-          <p class="section-kicker">A deliberate sequence</p>
-          <h2 id="process-title">Every answer has two intentional moments.</h2>
-          <p>Claros helps students work through one supported task at a time. It never treats a draft as permission to change the PDF.</p>
+      <section class="flow-section" id="how-it-works" aria-labelledby="flow-title">
+        <div class="section-heading">
+          <p class="eyebrow">How it works</p>
+          <h2 id="flow-title">Three deliberate steps.</h2>
         </div>
-        <ol class="process-flow">
-          <li><span>Open</span><div><h3>Choose a worksheet</h3><p>Claros identifies supported student tasks and shows the document first.</p></div></li>
-          <li><span>Review</span><div><h3>Make the answer yours</h3><p>Type, or use voice guidance. Edit or reject the proposal before confirmation.</p></div></li>
-          <li><span>Write</span><div><h3>Choose the destination</h3><p>A confirmed answer still waits for an explicit write action. Unsafe layouts route to the side panel.</p></div></li>
-          <li><span>Export</span><div><h3>Take the completed PDF</h3><p>Export only after the answers you intended have been written.</p></div></li>
+        <ol class="flow-list">
+          <li><span>01</span><div><h3>Capture</h3><p>Type your reasoning, or use voice guidance when it helps.</p></div></li>
+          <li><span>02</span><div><h3>Review</h3><p>Check the exact proposed answer. Confirmation never writes by itself.</p></div></li>
+          <li><span>03</span><div><h3>Write</h3><p>Use the separate destination-specific action only when you are ready.</p></div></li>
         </ol>
       </section>
 
-      <section class="safety-section" aria-labelledby="safety-title">
-        <div class="safety-visual"><img src="/sample-page.png" alt="Sample worksheet page with an answer area"></div>
-        <div class="safety-copy">
-          <p class="section-kicker">Safe placement</p>
-          <h2 id="safety-title">Claros does not guess where an answer belongs.</h2>
-          <p>When a worksheet has a safe answer line, the student can write there. When placement is uncertain, the original page stays untouched and the answer is added to a clearly labeled export side panel.</p>
-          <a href="/app?sample=canonical-short-answer-ecosystems">See the sample worksheet flow</a>
+      <section class="confirmed-section" aria-labelledby="confirmed-title">
+        <div class="confirmed-copy">
+          <p class="eyebrow">Confirmed, not written</p>
+          <h2 id="confirmed-title">Confirmation holds the answer still. You decide what happens next.</h2>
+          <p>Change the answer and confirm again, write it to a safe response area, or place it in the export side panel when the page is uncertain.</p>
         </div>
+        <figure class="confirmed-proof">
+          <picture>
+            <source media="(max-width: 700px)" srcset="/sample-workspace-mobile.png" width="390" height="844">
+            <img
+              src="/sample-workspace.png"
+              width="1400"
+              height="815"
+              alt="The real Claros Confirmed state with the exact answer, Change answer, and a separate write action."
+              loading="lazy"
+              decoding="async"
+            >
+          </picture>
+        </figure>
       </section>
 
-      <section class="accessibility-section" id="accessibility" aria-labelledby="accessibility-title">
-        <div class="accessibility-copy">
-          <h2 id="accessibility-title">Guidance that does not depend on speaking.</h2>
-          <p>The same student-controlled flow is available with keyboard, pointer, touch, typed response, or optional voice guidance.</p>
+      <section class="trust-section" id="safety" aria-labelledby="trust-title">
+        <div class="section-heading">
+          <p class="eyebrow">Safety and access</p>
+          <h2 id="trust-title">The page stays safe. Voice stays optional.</h2>
         </div>
-        <ul class="accessibility-list">
-          <li><strong>Visible focus</strong><span>Document, task, and confirmation controls stay reachable by keyboard.</span></li>
-          <li><strong>Readable at zoom</strong><span>Fit-width and document zoom controls keep the worksheet usable.</span></li>
-          <li><strong>Safe fallback</strong><span>Provider and microphone failures keep typed answers and export available.</span></li>
-        </ul>
+        <div class="trust-columns">
+          <div>
+            <h3>Placement follows evidence</h3>
+            <p>A verified response area can receive a confirmed answer. Uncertain placement uses the export side panel instead of guessing.</p>
+          </div>
+          <div>
+            <h3>Typing works throughout</h3>
+            <p>Microphone access is never required. Keyboard focus, typed answers, reduced motion, and document controls stay available.</p>
+          </div>
+          <div>
+            <h3>Original pages are preserved</h3>
+            <p>Drafts and confirmation do not alter the PDF. Only the separate write action authorizes an answer for export.</p>
+          </div>
+        </div>
       </section>
 
       <section class="faq-section" id="faq" aria-labelledby="faq-title">
-        <div><p class="section-kicker">Common questions</p><h2 id="faq-title">What to expect from Claros</h2></div>
-        <div class="faq-list">
-          <details><summary>Does Claros give students answers?</summary><p>No. Claros is prompted to guide with questions and hints. The student states, confirms, and deliberately writes the final answer.</p></details>
-          <details><summary>Which PDFs work best?</summary><p>Worksheets with selectable text and clearly numbered questions work best. Image-only scans may need OCR first.</p></details>
-          <details><summary>When does the microphone turn on?</summary><p>Only after the student starts voice guidance and grants browser permission. Typed answers remain available.</p></details>
-          <details><summary>Where are worksheets stored?</summary><p>Uploaded PDFs and session state use the configured worksheet storage so a session can restore and export. Claros does not promise automatic timed deletion. Choosing <strong>Replace worksheet</strong> in the app deletes that assignment from server storage when the browser still holds the assignment capability.</p></details>
+        <div class="section-heading">
+          <p class="eyebrow">FAQ</p>
+          <h2 id="faq-title">A few useful details.</h2>
         </div>
-      </section>
-
-      <section class="final-cta">
-        <div><h2>Bring a worksheet. Keep control of every answer.</h2><p>Open your own PDF or use the sample to see the complete review and write sequence.</p></div>
-        <a href="/app?sample=canonical-short-answer-ecosystems" class="btn btn-primary">Try the sample</a>
+        <div class="faq-list">
+          <details><summary>Does Claros grade the answer?</summary><p>No. Claros helps the student shape and review an answer. It does not present AI correctness grading.</p></details>
+          <details><summary>Which PDFs work best?</summary><p>Worksheets with selectable text and clearly numbered tasks work best. Image-only scans may need OCR first.</p></details>
+          <details><summary>When does the microphone turn on?</summary><p>Only after the student chooses voice guidance and grants browser permission. Typed answers remain available.</p></details>
+          <details><summary>Where are worksheets stored?</summary><p>Uploaded PDFs and session state use the configured worksheet storage. Claros does not promise automatic timed deletion.</p></details>
+        </div>
       </section>
     </main>
 
     <footer class="footer">
-      <div><strong>Claros</strong><span>Guided worksheets</span></div>
-      <nav aria-label="Footer"><a href="#how-it-works">How it works</a><a href="#accessibility">Accessibility</a><a href="#faq">FAQ</a></nav>
-      <p>© 2026 Claros</p>
+      <strong>Claros</strong>
+      <p>Guided worksheets with deliberate answers.</p>
+      <nav aria-label="Footer"><a href="/app">Open worksheet</a><a href="#how-it-works">How it works</a><a href="#safety">Safety</a></nav>
+      <p>&copy; 2026 Claros</p>
     </footer>
   </div>
 </body>

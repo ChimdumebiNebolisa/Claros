@@ -5,19 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Claros: Worksheet workspace</title>
   <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="preload" href="/fonts/instrument-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/styles/tokens.css">
   <link rel="stylesheet" href="/styles/app.css">
 </head>
-<body data-workspace-state="empty" data-voice-state="unavailable">
+<body data-workspace-state="empty" data-voice-state="unavailable" data-response-state="capture" data-mobile-view="worksheet">
   <a class="skip-link" href="#main-content">Skip to worksheet</a>
   <div class="app-shell" id="top">
     <header class="topbar app-topbar">
       <div class="topbar-left brand-lockup">
-        <div class="brand-mark" aria-hidden="true"></div>
         <div class="brand-copy">
           <a href="/" class="brand-link" aria-label="Claros home"><strong>Claros</strong></a>
-          <span>Guided worksheets</span>
         </div>
+      </div>
+      <div class="topbar-assignment" id="topbarAssignment" hidden>
+        <h1 class="assignment-title" id="assignmentTitle">Worksheet</h1>
+        <p class="demo-replay-indicator" id="demoReplayIndicator" hidden role="status">Sample worksheet</p>
       </div>
       <div class="topbar-right">
         <details class="help-menu">
@@ -27,7 +30,8 @@
             <a href="/#faq">PDF and privacy questions</a>
           </div>
         </details>
-        <a href="/" class="nav-pill">Home</a>
+        <button type="button" class="toolbar-button workspace-chrome" id="replaceWorksheetBtn" hidden>Replace</button>
+        <button class="btn export workspace-chrome" id="exportBtn" type="button" hidden>Export</button>
       </div>
     </header>
 
@@ -91,21 +95,14 @@
       </section>
 
       <section class="workspace-mode" id="workspaceMode" hidden aria-label="Active worksheet">
-        <header class="workspace-header">
-          <div>
-            <p class="workspace-label">Current worksheet</p>
-            <h1 class="assignment-title" id="assignmentTitle">Worksheet</h1>
-            <p class="demo-replay-indicator" id="demoReplayIndicator" hidden role="status">Offline demo fixture: validated locally, no live provider request.</p>
-            <div id="workspaceErrors" class="workspace-error" role="alert" hidden></div>
-          </div>
-          <div class="workspace-header-actions">
-            <button type="button" class="toolbar-button" id="replaceWorksheetBtn">Replace worksheet</button>
-            <button class="btn export" id="exportBtn" type="button">Export PDF</button>
-          </div>
-        </header>
+        <div class="mobile-view-switch" id="mobileViewSwitch" role="group" aria-label="Workspace view" hidden>
+          <button type="button" class="view-switch-button" id="worksheetViewBtn" aria-pressed="true" aria-controls="documentWorkspace">Worksheet</button>
+          <button type="button" class="view-switch-button" id="answerViewBtn" aria-pressed="false" aria-controls="sessionPanel">Answer</button>
+        </div>
+        <div id="workspaceErrors" class="workspace-error" role="alert" hidden></div>
 
         <div class="active-workspace">
-          <section class="document-workspace" aria-label="Worksheet document">
+          <section class="document-workspace" id="documentWorkspace" aria-label="Worksheet document">
             <div class="document-toolbar" role="toolbar" aria-label="Document controls">
               <button type="button" class="toolbar-button" id="previousPageBtn" aria-label="Previous page">Previous</button>
               <span class="toolbar-value" id="pageLabel">Page 1 of 1</span>
@@ -156,47 +153,56 @@
                <ul id="taskChoices" class="task-choices" hidden aria-label="Answer choices"></ul>
              </div>
              <p class="placement-summary" id="placementSummary"></p>
-             <p class="answer-progress" id="answerProgress">No draft yet for this response.</p>
+             <p class="answer-progress sr-only" id="answerProgress">No draft yet for this response.</p>
              <p class="layout-review-notice" id="layoutReviewNotice" hidden>Some response destinations need layout review. Claros will not write to an unsafe area; those answers use the export side panel or stay as drafts.</p>
              <div id="questionsContainer" class="question-picker" hidden></div>
              <div id="responseTargets" class="response-targets" role="group" aria-label="Response destinations"></div>
              <p id="currentResponseLabel" class="response-target-label">Answer destination</p>
-             <label class="answer-label" for="typedAnswer">Draft answer</label>
-              <div id="typedAnswer" class="answer-field" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Draft answer for the current question" data-placeholder="Type an answer, or use voice guidance"></div>
-              <button type="button" class="text-action confirm-typed" id="confirmTypedBtn" disabled>Review this answer</button>
+             <div class="draft-editor" id="draftEditor">
+               <label class="answer-label" for="typedAnswer">Your reasoning</label>
+               <div id="typedAnswer" class="answer-field" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Editable reasoning for the current question" data-placeholder="Type your reasoning"></div>
+               <button type="button" class="btn primary-action confirm-typed" id="confirmTypedBtn" disabled>Review answer</button>
+             </div>
             </section>
 
             <section class="answer-confirmation" id="answerConfirmation" hidden aria-labelledby="confirmationTitle">
-              <p class="confirmation-label">Step 1 of 2: review</p>
-              <h3 id="confirmationTitle" tabindex="-1">Confirm answer for Question 1</h3>
-              <p class="confirmation-note">Edit or reject this draft. Confirmation only prepares the answer for writing.</p>
-              <div id="proposedAnswer" class="proposed-answer"></div>
+              <p class="confirmation-label" id="reviewStateLabel">Proposed exact answer</p>
+              <h3 id="confirmationTitle" tabindex="-1">Review answer for Question 1</h3>
+              <p class="confirmation-note" id="reviewStateNote">Check the exact words. Confirming does not write to the worksheet.</p>
+              <div id="proposedAnswer" class="proposed-answer" aria-label="Proposed exact answer"></div>
               <div class="confirmation-actions">
-                <button type="button" class="btn secondary-action" id="editAnswerBtn">Edit</button>
-                <button type="button" class="btn secondary-action" id="rejectAnswerBtn">Reject</button>
+                <button type="button" class="btn secondary-action" id="editAnswerBtn">Edit answer</button>
                 <button type="button" class="btn primary-action" id="confirmAnswerBtn">Confirm answer</button>
               </div>
             </section>
 
             <section class="write-confirmation" id="writeConfirmation" hidden aria-labelledby="writeTitle">
-              <p class="confirmation-label">Step 2 of 2: write</p>
+              <p class="confirmation-label">Confirmed, not written</p>
               <h3 id="writeTitle" tabindex="-1">Answer confirmed</h3>
+              <div id="confirmedAnswerPreview" class="confirmed-answer" aria-label="Confirmed exact answer"></div>
               <p class="confirmation-note" id="writeDestination">Choose where to write this confirmed answer.</p>
-              <div id="confirmedAnswerPreview" class="proposed-answer" aria-label="Confirmed answer ready to write"></div>
               <div class="confirmation-actions confirmation-actions-write">
                 <button type="button" class="btn secondary-action" id="changeConfirmedAnswerBtn">Change answer</button>
                 <button type="button" class="btn primary-action" id="writeConfirmedAnswerBtn">Write confirmed answer</button>
               </div>
+              <p class="worksheet-unchanged" id="worksheetUnchanged" role="status">The worksheet is unchanged until you choose to write.</p>
             </section>
-            <button type="button" class="text-action return-to-worksheet" id="returnToWorksheetBtn" hidden>Return to worksheet</button>
+
+            <section class="written-status" id="writtenStatus" hidden aria-labelledby="writtenTitle">
+              <p class="confirmation-label">Written</p>
+              <h3 id="writtenTitle" tabindex="-1">Answer written</h3>
+              <div class="confirmed-answer" id="writtenAnswer" aria-label="Written answer"></div>
+              <p class="confirmation-note" id="writtenDestination"></p>
+            </section>
 
             <div id="notice" class="notice" role="status" aria-live="polite"></div>
             <p id="keyboardFallback" class="keyboard-fallback" hidden>Voice is unavailable. You can still type, confirm, write, and export.</p>
 
             <div class="session-actions">
               <button class="btn session-btn" id="micBtn" type="button">Use voice guidance</button>
+              <button class="btn secondary-action type-instead" id="typeInsteadBtn" type="button">Type instead</button>
               <button class="btn interrupt" id="interruptBtn" type="button" aria-label="Interrupt Claros">Interrupt Claros</button>
-              <p class="session-privacy-note">Voice turns on only after you start a voice session. Typing remains available.</p>
+              <p class="session-privacy-note">Voice starts only after you choose it. Typing is always available.</p>
             </div>
 
             <details class="conversation-details">
