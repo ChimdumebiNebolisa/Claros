@@ -15,16 +15,33 @@ recovery, and local test results.
 
 ## Production status
 
-Production deployment evidence is pending. Before a production claim, record:
+The frontend simplification release is deployed:
 
-- deployed commit and Cloud Run revision;
-- workflow run and immutable image;
-- UTC timestamp and verifier;
-- `/health`, `/`, `/app`, and shared-asset response evidence;
-- functional provider/storage checks only when the required credentials are
-  explicitly available; and
-- remaining rollback or runtime uncertainty.
+- commit:
+  `bc23357c4703bd0dad33be5921c51d6d6df24ed3`;
+- Cloud Run service and revision:
+  `claros` / `claros-00060-f48`, serving 100 percent of traffic;
+- immutable image:
+  `gcr.io/<GCP_PROJECT_ID>/claros:bc23357c4703bd0dad33be5921c51d6d6df24ed3`,
+  digest
+  `sha256:5df9e1e603dbcad9a59718d70b74d57dd0bbce4b82882980304f54ffc840eee8`;
+- deployment workflow:
+  [GitHub Actions run 30513131324](https://github.com/ChimdumebiNebolisa/Claros/actions/runs/30513131324),
+  completed successfully at `2026-07-30T04:14:25Z`;
+- production URL verified:
+  `https://claros-fnaobzrxeq-uc.a.run.app`;
+- verifier:
+  the tracked GitHub Actions deploy workflow plus the current Codex task;
+- direct response evidence at `2026-07-30T04:15:35Z`:
+  `/health`, `/`, `/app`, `/styles/tokens.css`,
+  `/sample-workspace-review.png`, and
+  `/fonts/instrument-sans-latin-wght-normal.woff2` each returned HTTP 200
+  with the expected content type; and
+- content probes found the current landing hero and Review capture, found the
+  mobile view switch in `/app`, and did not find the removed visible Reject
+  control.
 
-The GitHub Actions workflow provides static post-deploy smoke checks. Those
-checks do not by themselves prove live worksheet parsing, storage access,
-voice provider operation, write authorization, or export behavior.
+The workflow's tests, production image build, deployment, and static smoke
+checks all passed. This evidence does not establish live worksheet parsing,
+production storage access, voice provider operation, write authorization, or
+export behavior; those require separate credentialed functional verification.

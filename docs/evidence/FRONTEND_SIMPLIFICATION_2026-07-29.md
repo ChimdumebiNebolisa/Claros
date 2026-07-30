@@ -103,8 +103,36 @@ results:
 one critical). No dependency or runtime JavaScript package was added by this
 frontend change, and no automatic audit rewrite was applied.
 
+## Production deployment evidence
+
+- Deployed commit:
+  `bc23357c4703bd0dad33be5921c51d6d6df24ed3`.
+- Workflow:
+  [GitHub Actions run 30513131324](https://github.com/ChimdumebiNebolisa/Claros/actions/runs/30513131324),
+  completed successfully at `2026-07-30T04:14:25Z`.
+- Cloud Run service and revision:
+  `claros` / `claros-00060-f48`, serving 100 percent of traffic.
+- Immutable image tag:
+  `gcr.io/<GCP_PROJECT_ID>/claros:bc23357c4703bd0dad33be5921c51d6d6df24ed3`.
+- Image digest:
+  `sha256:5df9e1e603dbcad9a59718d70b74d57dd0bbce4b82882980304f54ffc840eee8`.
+- Verified production URL:
+  `https://claros-fnaobzrxeq-uc.a.run.app`.
+- Verifier:
+  the tracked GitHub Actions deploy workflow plus the current Codex task.
+
+GitHub Actions passed lint, the full coverage suite, frontend CI, the
+production image build, Cloud Run deployment, and the post-deploy static smoke
+check. Independent probes at `2026-07-30T04:15:35Z` received HTTP 200 with the
+expected content type from `/health`, `/`, `/app`, `/styles/tokens.css`,
+`/sample-workspace-review.png`, and
+`/fonts/instrument-sans-latin-wght-normal.woff2`. Content probes found the
+current landing hero and Review capture, found the mobile view switch, and did
+not find the removed visible Reject control.
+
 ## Limits
 
 This evidence uses a deterministic local synthetic fixture and local storage.
-It does not establish live Gemini behavior, production GCS access, a Cloud Run
-revision, or production write/export behavior.
+The production evidence establishes the deployed static release and Cloud Run
+revision. It does not establish live Gemini behavior, production GCS access,
+voice-provider behavior, or production write/export behavior.
