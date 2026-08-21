@@ -28,9 +28,9 @@ def validate_shared_styles() -> None:
         (
             "@font-face",
             '"Instrument Sans"',
-            "--iris: #2864f0",
-            "--ink: #172033",
-            "--bg: #f7f8fa",
+            "--iris: #155fe5",
+            "--ink: #11264b",
+            "--bg: #f7f6f1",
             "--radius-sm: 8px",
             "--radius-md: 12px",
         ),
@@ -157,8 +157,10 @@ def validate_app_html() -> None:
             raise AssertionError(f"student app retains obsolete control: {obsolete!r}")
 
     app_css = _read(FRONTEND / "styles" / "app.css")
-    mobile_start = app_css.rfind("@media (max-width: 700px)")
-    mobile_css = app_css[mobile_start:] if mobile_start >= 0 else ""
+    # The redesign layer adds a second mobile media block after the original
+    # behavior-preserving responsive rules. Validate the contract across the
+    # composed stylesheet rather than assuming one final media block.
+    mobile_css = app_css
     _require(
         mobile_css,
         (

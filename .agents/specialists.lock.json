@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "change": "claros-image-to-code-redesign",
+  "brownfieldException": "Explicitly authorized by the user for this Claros redesign experiment; preserve current functionality and apply behavior-freeze rules before implementation.",
+  "baseline": {
+    "remote": "origin/main",
+    "sha": "63f8b0f611903f64dc5c4fa7b62390c83da5c452",
+    "branch": "experiment/claros-image-to-code-redesign"
+  },
+  "specialists": [
+    {
+      "name": "openspec",
+      "revision": "@fission-ai/openspec@1.10.0",
+      "role": "planning and lifecycle backbone",
+      "status": "active"
+    },
+    {
+      "name": "writing-for-agents",
+      "revision": "mattpocock/skills@0ab1b63a410a03d3627979a109c8695de27af954",
+      "role": "root AGENTS.md and agent-facing guidance",
+      "status": "active"
+    },
+    {
+      "name": "codebase-design",
+      "revision": "mattpocock/skills@0ab1b63a410a03d3627979a109c8695de27af954",
+      "role": "architecture advisor for existing frontend state and seams",
+      "status": "active"
+    },
+    {
+      "name": "image-to-code",
+      "revision": "Leonxlnx/taste-skill@dfb6f9f9e93a39f673b1827c0889cc28326d1800",
+      "role": "primary visual authority for / and /app; owns generated references and first correction loop",
+      "surfaces": ["/ landing", "/app worksheet workspace"],
+      "status": "active"
+    },
+    {
+      "name": "design-taste-frontend",
+      "revision": "Leonxlnx/taste-skill@dfb6f9f9e93a39f673b1827c0889cc28326d1800",
+      "role": "available but inactive for visual invention on this run",
+      "status": "inactive"
+    },
+    {
+      "name": "frontend-design",
+      "revision": "anthropics/skills@f6656c1256d5a8adfa37db9110046ef20bac644c",
+      "role": "available but inactive during initial design and implementation; bounded diagnostic only if explicitly needed after image-to-code correction",
+      "status": "inactive"
+    },
+    {
+      "name": "vibe-security",
+      "revision": "raroque/vibe-security-skill@850938f20f6915e7c3688d85c0a838f7909c87bb",
+      "role": "security guidance for uploads, parser/model-controlled text, AI sessions, tokens, and write/export requests",
+      "status": "active"
+    },
+    {
+      "name": "code-review-expert",
+      "revision": "sanyuan0704/sanyuan-skills@08b6572ef108f22d4e8a3ecf9182a4bbef097744",
+      "role": "read-only final diff review",
+      "status": "active"
+    }
+  ]
+}

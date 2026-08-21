@@ -1,5 +1,9 @@
 # Planning and documentation (track durable PDF investigation records only)
 docs/*
+!docs/agents/
+!docs/agents/**
+!docs/redesign/
+!docs/redesign/**
 !docs/pdf-acceptance-before-after-report.md
 !docs/pdf-acceptance-report.md
 !docs/pdf-gold-pilot-report.md

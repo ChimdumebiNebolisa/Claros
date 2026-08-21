@@ -71,3 +71,13 @@ unsafe-placement language. Any F1 must be labelled "silver-relative agreement
   `output/`, local corpus data, or browser state.
 - Keep this file and `docs/BUILD_WEEK_DELTA.md` current as the implementation
   changes.
+
+## Engineering
+
+Before non-trivial code, architecture, schema, integration, or refactoring work,
+read [`docs/agents/engineering.md`](docs/agents/engineering.md).
+
+- Preserve the behavior contract in `docs/redesign/BEHAVIOR_CONTRACT.md` before changing presentation.
+- Use the active OpenSpec change for substantive requirement, architecture, and task changes.
+- Keep typed operation, explicit answer confirmation, safe placement, and side-panel fallback intact.
+- Route visual invention for this experiment through the locked `image-to-code` authority; keep other visual skills inactive unless a bounded diagnostic is explicitly justified.

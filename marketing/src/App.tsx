@@ -129,15 +129,15 @@ export function App() {
       <main id="main-content">
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero-copy">
-            <p className="eyebrow">Guided worksheet workspace</p>
-            <h1 id="hero-title">Think it through. You decide.</h1>
+            <p className="eyebrow">Worksheet tutoring, done right</p>
+            <h1 id="hero-title">Understand more. Do it yourself.</h1>
             <p className="hero-intro">
-              Shape the answer with guidance, review the exact words, then
-              decide if and where they are written.
+              Claros helps you work through a worksheet step by step, so you
+              build real understanding and confidence that lasts.
             </p>
             <Button asChild size="lg" className="hero-cta">
               <a href="/app?sample=canonical-short-answer-ecosystems">
-                Try the sample
+                Upload a worksheet
               </a>
             </Button>
           </div>

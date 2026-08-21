@@ -8,26 +8,26 @@
 }
 
 :root {
-  --bg: #f7f8fa;
-  --bg-tint: #f1f3f6;
-  --bg-blue: #eef3ff;
-  --surface: #ffffff;
-  --surface-soft: #f7f8fa;
-  --surface-strong: #eef1f5;
-  --document-stage: #e9edf2;
-  --border: #d9dee7;
-  --border-strong: #b9c2d0;
+  --bg: #f7f6f1;
+  --bg-tint: #f0f2f5;
+  --bg-blue: #edf3fa;
+  --surface: #fffefa;
+  --surface-soft: #f4f6f8;
+  --surface-strong: #e8eef5;
+  --document-stage: #e4ebf3;
+  --border: #d7dee8;
+  --border-strong: #aebdce;
 
-  --ink: #172033;
-  --ink-soft: #344156;
-  --muted: #667085;
-  --muted-light: #737d8d;
+  --ink: #11264b;
+  --ink-soft: #344967;
+  --muted: #5f6c7e;
+  --muted-light: #748195;
 
   /* Cobalt is reserved for direct student action and focus. */
-  --iris: #2864f0;
-  --iris-deep: #1d4ed8;
-  --iris-soft: #e7eeff;
-  --iris-line: #9bb6fa;
+  --iris: #155fe5;
+  --iris-deep: #0c46b8;
+  --iris-soft: #e9f1fb;
+  --iris-line: #99b9e9;
   --on-accent: #ffffff;
 
   --success: #197854;

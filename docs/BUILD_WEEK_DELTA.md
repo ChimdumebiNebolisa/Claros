@@ -1,5 +1,25 @@
 # Build Week delta
 
+## Claros image-to-code redesign experiment
+
+- Baseline SHA: `63f8b0f611903f64dc5c4fa7b62390c83da5c452` (`origin/main` at
+  experiment start).
+- Working branch: `experiment/claros-image-to-code-redesign`, isolated from the
+  pre-existing dirty worktree on `design/editorial-k12-redesign`.
+- Contributor evidence: user-requested redesign brief, repository archaeology,
+  current diff, generated local reference images, and local verification output.
+  No unavailable session ID or exclusive authorship is claimed.
+- Scope: behavior-preserving visual redesign of `/` and `/app`, including the
+  generated Claros reference set, visual system, surface map, current-product
+  PRD, behavior contract, research matrix, and locked specialist provenance.
+  Backend routes, session rules, confirmation, write authorization, placement
+  safety, typed fallback, persistence, export, and production configuration were
+  not changed.
+- Evidence and remaining uncertainty: the empty entry and landing surfaces were
+  rendered at desktop and mobile sizes; focused frontend/backend checks are run
+  from the isolated worktree. Live sample preparation remains environment-bound
+  where the local storage/provider configuration is unavailable.
+
 > Historical-record notice: the legacy Build Week entries below describe
 > candidate work from that period. In particular, OpenAI/GPT statements below
 > are not claims about the current Claros runtime. Current runtime boundaries
