@@ -1,4 +1,5 @@
 """Hybrid native-PDF, PaddleOCR, and semantic document-understanding pipeline."""
+
 from __future__ import annotations
 
 import hashlib
@@ -32,6 +33,11 @@ from document_model import (
 )
 from ocr_adapter import OCRAdapter, NullOCRAdapter, get_ocr_adapter
 from semantic_classifier import NullSemanticClassifier, SemanticClassifier
+from worksheet_contract import (
+    UnsupportedWorksheetError,
+    classify_supported_worksheet,
+    workload_rejection,
+)
 
 _NATIVE_TEXT_MIN_CHARS = 12
 _SAFE_RESPONSE_LABELS = {
@@ -48,7 +54,7 @@ _AUTO_APPROVABLE_RESPONSE_LABELS = {
     "writable_area",
 }
 _RESPONSE_CUE = re.compile(
-    r"\b(answer|response|explain|describe|calculate|solve|write|record|select|choose|complete|fill)\b",
+    r"\b(answer|response|explain|describe|define|identify|list|name|state|calculate|solve|write|record|select|choose|complete|fill)\b",
     re.IGNORECASE,
 )
 _CHOICE_TEXT = re.compile(r"^\s*(?:[A-Za-z]|[1-9][0-9]*)\s*[.)]\s+\S")
@@ -61,7 +67,7 @@ _CHOICE_PROMPT_CUE = re.compile(
 )
 _TASK_INSTRUCTION_START = re.compile(
     r"^\s*(?:answer|calculate|choose|circle|compare|complete|describe|draw|"
-    r"explain|fill|find|identify|label|list|read|record|select|solve|state|use|write)\b",
+    r"explain|fill|find|identify|label|list|name|read|record|select|solve|state|use|write)\b",
     re.IGNORECASE,
 )
 _SHOW_WORK_CUE = re.compile(r"\b(show\s+(?:your\s+)?work|work\s*:|calculations?)\b", re.IGNORECASE)
@@ -81,7 +87,7 @@ _NONSTUDENT_WRITE_CUE = re.compile(
     r"(?:guide|notes|copy|edition)|answer\s+(?:key|sheet)|do\s+not\s+write)\b|"
     r"^\s*(?:solutions?|worked\s+(?:solutions?|examples?)|"
     r"facilitator(?:\s+copy)?|trainer\s+(?:guide|notes|copy)|"
-    r"answer\s+bank|model\s+answers?)\b)",
+    r"answer\s+bank|model\s+answers?)\b|\b(?:scoring\s+rubric|packet\s+overview)\b)",
     re.IGNORECASE,
 )
 _MAX_VECTOR_RECTANGLE_CANDIDATES = 256
@@ -90,10 +96,7 @@ _MAX_VECTOR_RULE_CANDIDATES = 256
 
 
 def _is_task_shaped_prompt(text: str) -> bool:
-    return bool(
-        _NUMBERED_PROMPT.match(text)
-        or re.match(r"^\s*question\s+[1-9][0-9]*\b", text, re.IGNORECASE)
-    )
+    return bool(_NUMBERED_PROMPT.match(text) or re.match(r"^\s*question\s+[1-9][0-9]*\b", text, re.IGNORECASE))
 
 
 def _is_unnumbered_student_prompt_anchor(text: str) -> bool:
@@ -172,8 +175,7 @@ def _expand_wrapped_prompt_blocks(
         candidates = [
             block
             for block in all_blocks
-            if block.id not in selected_ids
-            and _is_tight_prompt_continuation(previous, block, first=first)
+            if block.id not in selected_ids and _is_tight_prompt_continuation(previous, block, first=first)
         ]
         if not candidates:
             break
@@ -199,10 +201,7 @@ def _is_explicit_response_label_text(text: str) -> bool:
     stripped = text.strip()
     # Explanation / show-work colon labels are explicit destinations even when
     # they are longer than a bare "Answer:" token.
-    return bool(
-        stripped.endswith(":")
-        and (_SHOW_WORK_CUE.search(stripped) or _EXPLANATION_CUE.search(stripped))
-    )
+    return bool(stripped.endswith(":") and (_SHOW_WORK_CUE.search(stripped) or _EXPLANATION_CUE.search(stripped)))
 
 
 def _prompt_text_has_competing_instruction(text: str) -> bool:
@@ -220,11 +219,7 @@ def _prompt_text_has_competing_instruction(text: str) -> bool:
     )
     for boundary in re.finditer(r"[.!?]\s*", body):
         suffix = body[boundary.end() :].strip()
-        if (
-            suffix
-            and _TASK_INSTRUCTION_START.match(suffix)
-            and not _is_explicit_response_label_text(suffix)
-        ):
+        if suffix and _TASK_INSTRUCTION_START.match(suffix) and not _is_explicit_response_label_text(suffix):
             return True
     return False
 
@@ -258,10 +253,7 @@ def _prompt_looks_like_a_numeric_choice(
         # Choice lists commonly restart at 1 or repeat the question number;
         # later worksheet questions instead advance numbering at the same
         # left margin. Indented numeric labels are also option-shaped.
-        if (
-            prompt_number <= candidate_number
-            or prompt.bbox[0] >= candidate.bbox[0] + 12
-        ):
+        if prompt_number <= candidate_number or prompt.bbox[0] >= candidate.bbox[0] + 12:
             return True
         # A later option normally advances its label (``2. Beta``), so the
         # repeated-number check above is not enough. A numbered option-shaped
@@ -321,12 +313,15 @@ def _page_requires_display_transform(page: fitz.Page) -> bool:
     media = page.mediabox
     crop = page.cropbox
     extraction_width, extraction_height = _page_extraction_dimensions(page)
-    return page.rotation != 0 or any(
-        abs(left - right) > 0.01
-        for left, right in zip((media.x0, media.y0, media.x1, media.y1), (crop.x0, crop.y0, crop.x1, crop.y1))
-    ) or abs(extraction_width - float(media.width)) > 0.01 or abs(
-        extraction_height - float(media.height)
-    ) > 0.01
+    return (
+        page.rotation != 0
+        or any(
+            abs(left - right) > 0.01
+            for left, right in zip((media.x0, media.y0, media.x1, media.y1), (crop.x0, crop.y0, crop.x1, crop.y1))
+        )
+        or abs(extraction_width - float(media.width)) > 0.01
+        or abs(extraction_height - float(media.height)) > 0.01
+    )
 
 
 def _clip_bbox_to_page(
@@ -387,18 +382,13 @@ def _stable_physical_block_id(
     discriminator: str = "",
 ) -> str:
     """Derive physical evidence IDs from source geometry, never OCR order."""
-    fingerprint = ":".join(
-        [str(page_index), kind, *(f"{float(value):.3f}" for value in bbox), discriminator]
-    )
+    fingerprint = ":".join([str(page_index), kind, *(f"{float(value):.3f}" for value in bbox), discriminator])
     digest = hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()[:16]
     return f"page-{page_index}-{kind}-{digest}"
 
 
 def _bbox_interiors_overlap(first: list[float], second: list[float]) -> bool:
-    return (
-        max(first[0], second[0]) < min(first[2], second[2])
-        and max(first[1], second[1]) < min(first[3], second[3])
-    )
+    return max(first[0], second[0]) < min(first[2], second[2]) and max(first[1], second[1]) < min(first[3], second[3])
 
 
 def _fill_is_paper_like(fill: object) -> bool:
@@ -460,11 +450,7 @@ def _bbox_has_page_graphics(
             continue
         drawing_bbox = [float(rect.x0), float(rect.y0), float(rect.x1), float(rect.y1)]
         fill = drawing.get("fill")
-        if (
-            fill is not None
-            and not _fill_is_paper_like(fill)
-            and _bbox_interiors_overlap(bbox, drawing_bbox)
-        ):
+        if fill is not None and not _fill_is_paper_like(fill) and _bbox_interiors_overlap(bbox, drawing_bbox):
             return True
         for item in drawing.get("items", []):
             if not item:
@@ -595,9 +581,8 @@ def _widget_has_rendered_appearance(
         for x in range(x0, x1, stride):
             source_offset = source_row + x * source_pixmap.n
             annotation_offset = annotation_row + x * annotation_pixmap.n
-            if (
-                source_offset + 2 >= len(source_pixmap.samples)
-                or annotation_offset + 2 >= len(annotation_pixmap.samples)
+            if source_offset + 2 >= len(source_pixmap.samples) or annotation_offset + 2 >= len(
+                annotation_pixmap.samples
             ):
                 return False
             difference = math.sqrt(
@@ -765,9 +750,7 @@ def _span_has_rendered_visibility(
     if visibility_pixmap is None:
         return False
     expected = _span_rgb(span)
-    luminance = (
-        0.2126 * expected[0] + 0.7152 * expected[1] + 0.0722 * expected[2]
-    ) / 255
+    luminance = (0.2126 * expected[0] + 0.7152 * expected[1] + 0.0722 * expected[2]) / 255
     # Very light ink cannot supply a deterministic contrast proof against the
     # normal worksheet background. Preserve it as unsupported rather than
     # infer visibility from source metadata alone.
@@ -887,10 +870,7 @@ def _underscore_run_bboxes(
                     other_glyph_bbox = [float(value) for value in other_bbox]
                     if not _bbox_interiors_overlap(expanded, other_glyph_bbox):
                         continue
-                    terminal_punctuation = (
-                        char_text in ".,;:!?()[]{}"
-                        and index in {match.start() - 1, match.end()}
-                    )
+                    terminal_punctuation = char_text in ".,;:!?()[]{}" and index in {match.start() - 1, match.end()}
                     if terminal_punctuation and not _bbox_interiors_overlap(bbox, other_glyph_bbox):
                         continue
                     overlaps_other_text = True
@@ -954,9 +934,13 @@ def _vector_rectangle_bboxes(
             elif item[0] == "l":
                 p0, p1 = item[1], item[2]
                 if abs(p0.y - p1.y) <= tolerance and abs(p1.x - p0.x) >= 8:
-                    horizontals.append((min(float(p0.x), float(p1.x)), max(float(p0.x), float(p1.x)), float((p0.y + p1.y) / 2)))
+                    horizontals.append(
+                        (min(float(p0.x), float(p1.x)), max(float(p0.x), float(p1.x)), float((p0.y + p1.y) / 2))
+                    )
                 elif abs(p0.x - p1.x) <= tolerance and abs(p1.y - p0.y) >= 8:
-                    verticals.append((float((p0.x + p1.x) / 2), min(float(p0.y), float(p1.y)), max(float(p0.y), float(p1.y))))
+                    verticals.append(
+                        (float((p0.x + p1.x) / 2), min(float(p0.y), float(p1.y)), max(float(p0.y), float(p1.y)))
+                    )
 
     if direct_rectangle_overflow:
         # A page with more than the bounded candidate budget is visually
@@ -1082,9 +1066,7 @@ def _native_blocks(
                 )
             ]
             text = " ".join(
-                str(span.get("text") or "").strip()
-                for span in visible_spans
-                if str(span.get("text") or "").strip()
+                str(span.get("text") or "").strip() for span in visible_spans if str(span.get("text") or "").strip()
             ).strip()
             if not text:
                 continue
@@ -1209,9 +1191,7 @@ def _physical_response_blocks(
                 bbox=clipped,
                 confidence=confidence if safe_label else min(confidence, 0.55),
                 source=SourceKind.pdf_geometry,
-                semantic_role=(
-                    BlockSemanticRole.response_area if safe_label else BlockSemanticRole.unknown
-                ),
+                semantic_role=(BlockSemanticRole.response_area if safe_label else BlockSemanticRole.unknown),
             )
         )
         order += 1
@@ -1239,21 +1219,26 @@ def _physical_response_blocks(
 
     def has_explicit_response_evidence(bbox: list[float]) -> bool:
         nearby = nearby_text(bbox)
-        explicit_response_label = any(
-            _is_explicit_response_label_text(block.text) for block in nearby
-        )
+        explicit_response_label = any(_is_explicit_response_label_text(block.text) for block in nearby)
         # A generic metadata field such as "Name:" cannot inherit write
         # authority from an unrelated nearby task. Only a narrowly named,
         # visible response label can make geometry eligible; task ownership is
         # proved later by _response_matches_prompt, including its competing
         # prompt checks, so right-aligned labels remain supported.
-        return explicit_response_label
+        local_numbered_prompt = any(
+            block.bbox is not None
+            and block.bbox[3] <= bbox[1] + 8
+            and _NUMBERED_PROMPT.match(block.text)
+            and (
+                _TASK_INSTRUCTION_START.match(re.sub(r"^\s*\(?[1-9][0-9]*[.)]\s+", "", block.text)) or "?" in block.text
+            )
+            for block in nearby
+        )
+        return explicit_response_label or local_numbered_prompt
 
     def has_interior_text(bbox: list[float]) -> bool:
         return any(
-            native.bbox is not None
-            and _bbox_interiors_overlap(bbox, native.bbox)
-            and native.text.strip()
+            native.bbox is not None and _bbox_interiors_overlap(bbox, native.bbox) and native.text.strip()
             for native in native_blocks
         )
 
@@ -1283,9 +1268,7 @@ def _physical_response_blocks(
 
     widget_bboxes: list[list[float]] = []
     widgets = list(page.widgets() or [])
-    annotation_visibility_pixmap = (
-        _page_annotation_visibility_pixmap(page) if widgets else None
-    )
+    annotation_visibility_pixmap = _page_annotation_visibility_pixmap(page) if widgets else None
     if widgets:
         for widget in widgets:
             rect = widget.rect
@@ -1319,8 +1302,7 @@ def _physical_response_blocks(
                     8 <= rect.width <= 48
                     and 8 <= rect.height <= 48
                     and max(rect.width, rect.height) / min(rect.width, rect.height) <= 1.5
-                    and str(getattr(widget, "field_value", "") or "").strip().casefold()
-                    in {"", "off"}
+                    and str(getattr(widget, "field_value", "") or "").strip().casefold() in {"", "off"}
                 ):
                     append_block(
                         kind="checkbox",
@@ -1345,20 +1327,10 @@ def _physical_response_blocks(
             if any(
                 native.bbox is not None
                 and (
-                    (
-                        native.bbox[0] >= bbox[2] - 3
-                        and native.bbox[0] - bbox[2] <= 240
-                    )
-                    or (
-                        native.bbox[2] <= bbox[0] + 3
-                        and bbox[0] - native.bbox[2] <= 240
-                    )
+                    (native.bbox[0] >= bbox[2] - 3 and native.bbox[0] - bbox[2] <= 240)
+                    or (native.bbox[2] <= bbox[0] + 3 and bbox[0] - native.bbox[2] <= 240)
                 )
-                and abs(
-                    (native.bbox[1] + native.bbox[3]) / 2
-                    - (bbox[1] + bbox[3]) / 2
-                )
-                <= max(14, bbox[3] - bbox[1])
+                and abs((native.bbox[1] + native.bbox[3]) / 2 - (bbox[1] + bbox[3]) / 2) <= max(14, bbox[3] - bbox[1])
                 and _is_deterministic_choice_label(native, native_blocks)
                 for native in native_blocks
             ):
@@ -1435,10 +1407,7 @@ def _physical_response_blocks(
         _vector_rectangle_bboxes(drawings) if vector_geometry_available else ([], [], [])
     )
     if vector_geometry_available:
-        existing = {
-            tuple(round(value, 3) for value in bbox)
-            for bbox in rectangle_bboxes
-        }
+        existing = {tuple(round(value, 3) for value in bbox) for bbox in rectangle_bboxes}
         for frame in _closed_frame_bboxes(drawings):
             key = tuple(round(value, 3) for value in frame)
             if key not in existing:
@@ -1459,34 +1428,22 @@ def _physical_response_blocks(
     def line_touches_bbox(p0, p1, bbox: list[float], *, margin: float = 2.0) -> bool:
         x0, x1 = sorted((float(p0.x), float(p1.x)))
         y0, y1 = sorted((float(p0.y), float(p1.y)))
-        return not (
-            x1 < bbox[0] - margin
-            or x0 > bbox[2] + margin
-            or y1 < bbox[1] - margin
-            or y0 > bbox[3] + margin
-        )
+        return not (x1 < bbox[0] - margin or x0 > bbox[2] + margin or y1 < bbox[1] - margin or y0 > bbox[3] + margin)
 
     def line_marks_interior(p0, p1, bbox: list[float]) -> bool:
         inner = [bbox[0] + 2, bbox[1] + 2, bbox[2] - 2, bbox[3] - 2]
-        return (
-            inner[2] <= inner[0]
-            or inner[3] <= inner[1]
-            or line_touches_bbox(p0, p1, inner, margin=0)
-        )
+        return inner[2] <= inner[0] or inner[3] <= inner[1] or line_touches_bbox(p0, p1, inner, margin=0)
 
     def rectangle_marks_interior(rect, bbox: list[float]) -> bool:
         inner = [bbox[0] + 2, bbox[1] + 2, bbox[2] - 2, bbox[3] - 2]
         if inner[2] <= inner[0] or inner[3] <= inner[1]:
             return True
-        return (
-            any(
-                inner[0] < x < inner[2] and rect.y0 < inner[3] and rect.y1 > inner[1]
-                for x in (float(rect.x0), float(rect.x1))
-            )
-            or any(
-                inner[1] < y < inner[3] and rect.x0 < inner[2] and rect.x1 > inner[0]
-                for y in (float(rect.y0), float(rect.y1))
-            )
+        return any(
+            inner[0] < x < inner[2] and rect.y0 < inner[3] and rect.y1 > inner[1]
+            for x in (float(rect.x0), float(rect.x1))
+        ) or any(
+            inner[1] < y < inner[3] and rect.x0 < inner[2] and rect.x1 > inner[0]
+            for y in (float(rect.y0), float(rect.y1))
         )
 
     def has_nontext_graphic_content(
@@ -1511,11 +1468,7 @@ def _physical_response_blocks(
             fill = drawing.get("fill")
             # Paper-like fills are empty worksheet interiors, including white
             # checkbox/field backgrounds. Dark fills remain covering content.
-            if (
-                fill is not None
-                and not _fill_is_paper_like(fill)
-                and _bbox_interiors_overlap(bbox, drawing_bbox)
-            ):
+            if fill is not None and not _fill_is_paper_like(fill) and _bbox_interiors_overlap(bbox, drawing_bbox):
                 return True
             for item in drawing.get("items", []):
                 if not item:
@@ -1538,10 +1491,7 @@ def _physical_response_blocks(
                     and not (
                         ignore_candidate_outline
                         and _drawing_is_closed_frame(drawing)
-                        and all(
-                            abs(edge - other) <= 2
-                            for edge, other in zip(bbox, drawing_bbox)
-                        )
+                        and all(abs(edge - other) <= 2 for edge, other in zip(bbox, drawing_bbox))
                     )
                     and _bbox_interiors_overlap(bbox, drawing_bbox)
                 ):
@@ -1557,17 +1507,10 @@ def _physical_response_blocks(
             for native in native_blocks
             if native.bbox is not None
             and (
-                (
-                    native.bbox[0] >= bbox[2] - 3
-                    and native.bbox[0] - bbox[2] <= 240
-                )
-                or (
-                    native.bbox[2] <= bbox[0] + 3
-                    and bbox[0] - native.bbox[2] <= 240
-                )
+                (native.bbox[0] >= bbox[2] - 3 and native.bbox[0] - bbox[2] <= 240)
+                or (native.bbox[2] <= bbox[0] + 3 and bbox[0] - native.bbox[2] <= 240)
             )
-            and abs((native.bbox[1] + native.bbox[3]) / 2 - (bbox[1] + bbox[3]) / 2)
-            <= max(14, bbox[3] - bbox[1])
+            and abs((native.bbox[1] + native.bbox[3]) / 2 - (bbox[1] + bbox[3]) / 2) <= max(14, bbox[3] - bbox[1])
             and _is_deterministic_choice_label(native, native_blocks)
         ]
         if not candidates:
@@ -1584,15 +1527,9 @@ def _physical_response_blocks(
 
     def has_internal_grid(bbox: list[float]) -> bool:
         return any(
-            bbox[0] + 3 < x < bbox[2] - 3
-            and y0 <= bbox[1] + 2
-            and y1 >= bbox[3] - 2
-            for x, y0, y1 in verticals
+            bbox[0] + 3 < x < bbox[2] - 3 and y0 <= bbox[1] + 2 and y1 >= bbox[3] - 2 for x, y0, y1 in verticals
         ) or any(
-            bbox[1] + 3 < y < bbox[3] - 3
-            and x0 <= bbox[0] + 2
-            and x1 >= bbox[2] - 2
-            for x0, x1, y in _horizontals
+            bbox[1] + 3 < y < bbox[3] - 3 and x0 <= bbox[0] + 2 and x1 >= bbox[2] - 2 for x0, x1, y in _horizontals
         )
 
     def is_grid_member(bbox: list[float]) -> bool:
@@ -1602,17 +1539,11 @@ def _physical_response_blocks(
         # candidate's opposite edge. A writable rectangle normally has four
         # self-contained edges; a grid needs explicit cell semantics instead.
         if any(
-            abs(x - edge_x) <= 2
-            and y0 <= bbox[3] + 2
-            and y1 >= bbox[1] - 2
-            and (y0 < bbox[1] - 2 or y1 > bbox[3] + 2)
+            abs(x - edge_x) <= 2 and y0 <= bbox[3] + 2 and y1 >= bbox[1] - 2 and (y0 < bbox[1] - 2 or y1 > bbox[3] + 2)
             for x, y0, y1 in verticals
             for edge_x in (bbox[0], bbox[2])
         ) or any(
-            abs(y - edge_y) <= 2
-            and x0 <= bbox[2] + 2
-            and x1 >= bbox[0] - 2
-            and (x0 < bbox[0] - 2 or x1 > bbox[2] + 2)
+            abs(y - edge_y) <= 2 and x0 <= bbox[2] + 2 and x1 >= bbox[0] - 2 and (x0 < bbox[0] - 2 or x1 > bbox[2] + 2)
             for x0, x1, y in _horizontals
             for edge_y in (bbox[1], bbox[3])
         ):
@@ -1748,9 +1679,7 @@ def _physical_response_blocks(
                     break
                 raw_x0, raw_x1 = sorted((float(p0.x), float(p1.x)))
                 y = float((p0.y + p1.y) / 2)
-                if is_rectangle_edge(raw_x0, raw_x1, y) or line_owned_by_writable_box(
-                    raw_x0, raw_x1, y
-                ):
+                if is_rectangle_edge(raw_x0, raw_x1, y) or line_owned_by_writable_box(raw_x0, raw_x1, y):
                     continue
                 signature = line_signature(p0, p1)
                 if signature in seen:
@@ -1765,13 +1694,14 @@ def _physical_response_blocks(
                     for block in native_blocks
                     if block.bbox is not None
                     and block.bbox[1] <= y
-                    and y - block.bbox[3] <= 50
+                    # A short-answer response may be an aligned group of
+                    # lines. Keep the evidence window bounded; the later
+                    # association gate still requires the group before the
+                    # next prompt.
+                    and y - block.bbox[3] <= 120
                     and (
                         # Ordinary overlap with the stroke's horizontal span.
-                        (
-                            block.bbox[2] >= raw_x0 - 24
-                            and block.bbox[0] <= raw_x1 + 12
-                        )
+                        (block.bbox[2] >= raw_x0 - 24 and block.bbox[0] <= raw_x1 + 12)
                         # Left-of-stroke field labels ("Answer:") often end a
                         # few points before an indented blank begins.
                         or (
@@ -1791,13 +1721,11 @@ def _physical_response_blocks(
                 # Choice-list pages are an exception: a choose/select prompt with
                 # nearby A/B or 1/2 options must not mint a text answer_line from
                 # the prompt cue alone, or decorative underlines become writable.
-                explicit_response_label = any(
-                    _is_explicit_response_label_text(block.text) for block in nearby_blocks
-                )
+                explicit_response_label = any(_is_explicit_response_label_text(block.text) for block in nearby_blocks)
                 explicit_prompt_evidence = bool(
                     re.search(
-                        r"\?|\b(answer|response|explain|describe|calculate|solve|"
-                        r"write|record|why|what|how)\b",
+                        r"\?|\b(answer|response|explain|describe|define|identify|list|name|"
+                        r"state|calculate|solve|write|record|why|what|how)\b",
                         nearby_text,
                         re.IGNORECASE,
                     )
@@ -1844,11 +1772,7 @@ def _physical_response_blocks(
                     and (
                         explicit_response_label
                         or explicit_field_label
-                        or (
-                            explicit_prompt_evidence
-                            and not choice_list_context
-                            and prompt_cue_gap_ok
-                        )
+                        or (explicit_prompt_evidence and not choice_list_context and prompt_cue_gap_ok)
                     )
                     # Worksheets often use a 2–3pt answer rule for visual
                     # accessibility. With local response wording or a same-row
@@ -1865,9 +1789,7 @@ def _physical_response_blocks(
                     # stay non-authoritative horizontal_rule candidates so
                     # semantic/UI flows can still see them and fail closed.
                     block_label=(
-                        "answer_line"
-                        if safe_line and not overlaps_source_text
-                        else "horizontal_rule_candidate"
+                        "answer_line" if safe_line and not overlaps_source_text else "horizontal_rule_candidate"
                     ),
                     confidence=0.92 if safe_line and not overlaps_source_text else 0.55,
                     response_area=safe_line and not overlaps_source_text,
@@ -2026,17 +1948,14 @@ def _response_matches_prompt(
     if response.bbox is None or response.page_index != anchor_page_index:
         return False
     if not prompt_blocks or any(
-        prompt.bbox is None or prompt.page_index != anchor_page_index
-        for prompt in prompt_blocks
+        prompt.bbox is None or prompt.page_index != anchor_page_index for prompt in prompt_blocks
     ):
         return False
     selected_response_ids = selected_response_ids or {response.id}
     if any(_prompt_looks_like_a_numeric_choice(prompt, all_blocks) for prompt in prompt_blocks):
         return False
     overlaps_prompt_text = any(
-        _bbox_interiors_overlap(prompt.bbox, response.bbox)
-        for prompt in prompt_blocks
-        if prompt.bbox is not None
+        _bbox_interiors_overlap(prompt.bbox, response.bbox) for prompt in prompt_blocks if prompt.bbox is not None
     )
     if overlaps_prompt_text:
         # An explicit underscore run lives inside the source text line by
@@ -2057,8 +1976,7 @@ def _response_matches_prompt(
                 and block.semantic_role == BlockSemanticRole.response_area
                 and block.bbox is not None
                 and any(
-                    prompt.bbox is not None
-                    and _bbox_interiors_overlap(block.bbox, prompt.bbox)
+                    prompt.bbox is not None and _bbox_interiors_overlap(block.bbox, prompt.bbox)
                     for prompt in prompt_blocks
                 )
                 for block in all_blocks
@@ -2106,11 +2024,7 @@ def _response_matches_prompt(
         same_row_left = (
             block.bbox[2] <= response.bbox[0] + 12
             and response.bbox[0] - block.bbox[2] <= 180
-            and abs(
-                (block.bbox[1] + block.bbox[3]) / 2
-                - (response.bbox[1] + response.bbox[3]) / 2
-            )
-            <= 20
+            and abs((block.bbox[1] + block.bbox[3]) / 2 - (response.bbox[1] + response.bbox[3]) / 2) <= 20
         )
         directly_above = (
             block.bbox[3] <= response.bbox[1] + 8
@@ -2120,16 +2034,13 @@ def _response_matches_prompt(
         )
         return same_row_left or directly_above
 
-    local_explicit_response_label = any(
-        is_local_explicit_response_label(block) for block in all_blocks
-    )
+    local_explicit_response_label = any(is_local_explicit_response_label(block) for block in all_blocks)
 
     same_row_field = any(
         prompt.bbox is not None
         and prompt.text.rstrip().endswith(":")
         and response.bbox[0] >= prompt.bbox[2] - 15
-        and abs((response.bbox[1] + response.bbox[3]) / 2 - (prompt.bbox[1] + prompt.bbox[3]) / 2)
-        <= 20
+        and abs((response.bbox[1] + response.bbox[3]) / 2 - (prompt.bbox[1] + prompt.bbox[3]) / 2) <= 20
         for prompt in prompt_blocks
     )
     if same_row_field:
@@ -2159,9 +2070,7 @@ def _response_matches_prompt(
         return False
 
     has_prompt_horizontal_overlap = any(
-        horizontal_overlap(prompt.bbox, response.bbox) >= 8
-        for prompt in prompt_blocks
-        if prompt.bbox is not None
+        horizontal_overlap(prompt.bbox, response.bbox) >= 8 for prompt in prompt_blocks if prompt.bbox is not None
     )
     if not has_prompt_horizontal_overlap and not local_explicit_response_label:
         # Separate columns are ambiguous without an explicit column linker.
@@ -2190,21 +2099,14 @@ def _response_matches_prompt(
         if block.bbox is None:
             return False
         return (
-            (
-                block.bbox[2] <= response.bbox[0] + 12
-                and response.bbox[0] - block.bbox[2] <= 180
-                and abs(
-                    (block.bbox[1] + block.bbox[3]) / 2
-                    - (response.bbox[1] + response.bbox[3]) / 2
-                )
-                <= 20
-            )
-            or (
-                block.bbox[3] <= response.bbox[1] + 8
-                and response.bbox[1] - block.bbox[3] <= 32
-                and block.bbox[2] >= response.bbox[0] - 24
-                and block.bbox[0] <= response.bbox[2] + 24
-            )
+            block.bbox[2] <= response.bbox[0] + 12
+            and response.bbox[0] - block.bbox[2] <= 180
+            and abs((block.bbox[1] + block.bbox[3]) / 2 - (response.bbox[1] + response.bbox[3]) / 2) <= 20
+        ) or (
+            block.bbox[3] <= response.bbox[1] + 8
+            and response.bbox[1] - block.bbox[3] <= 32
+            and block.bbox[2] >= response.bbox[0] - 24
+            and block.bbox[0] <= response.bbox[2] + 24
         )
 
     for block in all_blocks:
@@ -2320,14 +2222,8 @@ def _choice_source_for_checkbox(
         and block.page_index == checkbox.page_index
         and block.bbox is not None
         and (
-            (
-                block.bbox[0] >= checkbox.bbox[2] - 3
-                and block.bbox[0] - checkbox.bbox[2] <= 240
-            )
-            or (
-                block.bbox[2] <= checkbox.bbox[0] + 3
-                and checkbox.bbox[0] - block.bbox[2] <= 240
-            )
+            (block.bbox[0] >= checkbox.bbox[2] - 3 and block.bbox[0] - checkbox.bbox[2] <= 240)
+            or (block.bbox[2] <= checkbox.bbox[0] + 3 and checkbox.bbox[0] - block.bbox[2] <= 240)
         )
         and abs((block.bbox[1] + block.bbox[3]) / 2 - (checkbox.bbox[1] + checkbox.bbox[3]) / 2)
         <= max(14, checkbox.bbox[3] - checkbox.bbox[1])
@@ -2373,8 +2269,7 @@ def _response_link_role(
             (
                 block.bbox[2] <= response.bbox[0] + 12
                 and response.bbox[0] - block.bbox[2] <= 180
-                and abs((block.bbox[1] + block.bbox[3]) / 2 - (response.bbox[1] + response.bbox[3]) / 2)
-                <= 20
+                and abs((block.bbox[1] + block.bbox[3]) / 2 - (response.bbox[1] + response.bbox[3]) / 2) <= 20
             )
             or (
                 block.bbox[3] <= response.bbox[1] + 8
@@ -2400,10 +2295,7 @@ def selected_response_blocks_are_distinct(
     """Require explicit source labels for multiple non-choice destinations."""
     if len(response_blocks) <= 1:
         return True
-    roles = [
-        _response_link_role(block, prompt_blocks, all_blocks)
-        for block in response_blocks
-    ]
+    roles = [_response_link_role(block, prompt_blocks, all_blocks) for block in response_blocks]
     if all(role == TaskResponseRole.choice for role in roles):
         return True
     if any(role == TaskResponseRole.choice for role in roles):
@@ -2426,13 +2318,28 @@ def selected_response_blocks_are_distinct(
             )
             and roles.count(TaskResponseRole.answer) <= 1
             and (
-                any(
-                    role in {TaskResponseRole.explanation, TaskResponseRole.show_work}
-                    for role in roles
-                )
+                any(role in {TaskResponseRole.explanation, TaskResponseRole.show_work} for role in roles)
                 or roles.count(TaskResponseRole.answer) == 1
             )
         )
+    if all(role == TaskResponseRole.answer for role in roles) and all(
+        block.block_label == "answer_line" and block.bbox is not None for block in response_blocks
+    ):
+        ordered = sorted(response_blocks, key=lambda block: (block.bbox[1], block.bbox[0], block.id))
+        for previous, current in zip(ordered, ordered[1:]):
+            narrower_width = min(
+                previous.bbox[2] - previous.bbox[0],
+                current.bbox[2] - current.bbox[0],
+            )
+            horizontal_overlap = min(previous.bbox[2], current.bbox[2]) - max(previous.bbox[0], current.bbox[0])
+            if (
+                current.bbox[1] < previous.bbox[3]
+                or current.bbox[1] - previous.bbox[3] > 48
+                or narrower_width <= 0
+                or horizontal_overlap < narrower_width * 0.8
+            ):
+                return False
+        return True
     return (
         roles.count(TaskResponseRole.answer) == 1
         and all(
@@ -2458,10 +2365,7 @@ def _prompt_blocks_describe_at_most_one_task(prompt_blocks: list[DocumentBlock])
     if (
         first.bbox is None
         or first.source != SourceKind.native_pdf
-        or not (
-            _is_task_shaped_prompt(first.text)
-            or _is_unnumbered_student_prompt_anchor(first.text)
-        )
+        or not (_is_task_shaped_prompt(first.text) or _is_unnumbered_student_prompt_anchor(first.text))
     ):
         return False
     previous = first
@@ -2511,7 +2415,10 @@ def _build_tasks(
         if not prompt_text:
             raise ValueError("semantic task selected no source prompt text")
         first_prompt = prompt_blocks[0]
-        return (*physical_order(first_prompt), stable_task_id(result.page_index, [block.id for block in prompt_blocks], prompt_text))
+        return (
+            *physical_order(first_prompt),
+            stable_task_id(result.page_index, [block.id for block in prompt_blocks], prompt_text),
+        )
 
     semantic_candidates = [
         (result, candidate)
@@ -2525,9 +2432,7 @@ def _build_tasks(
             blocks,
         )
         response_blocks = ordered_blocks(candidate.response_block_ids, "response")
-        duplicate_response_sources = [
-            block.id for block in response_blocks if block.id in claimed_response_block_ids
-        ]
+        duplicate_response_sources = [block.id for block in response_blocks if block.id in claimed_response_block_ids]
         if duplicate_response_sources:
             raise ValueError("semantic tasks selected the same physical response block")
         candidate_response_blocks: list[DocumentBlock] = []
@@ -2544,20 +2449,40 @@ def _build_tasks(
                 raise ValueError("semantic tasks selected overlapping physical response blocks")
             candidate_response_blocks.append(block)
         prompt_blocks_describe_one_task = _prompt_blocks_describe_at_most_one_task(prompt_blocks)
-        relationship_unambiguous = prompt_blocks_describe_one_task and all(
-            _response_matches_prompt(
-                block,
-                prompt_blocks,
-                blocks,
-                anchor_page_index=result.page_index,
-                selected_response_ids={candidate_block.id for candidate_block in response_blocks},
-            )
-            for block in response_blocks
-        ) and selected_response_blocks_are_distinct(response_blocks, prompt_blocks, blocks)
-        materialized_response_blocks = response_blocks if relationship_unambiguous else []
-        prompt_is_task_shaped = (
+        relationship_unambiguous = (
             prompt_blocks_describe_one_task
-            and _is_task_shaped_prompt(prompt_blocks[0].text)
+            and all(
+                _response_matches_prompt(
+                    block,
+                    prompt_blocks,
+                    blocks,
+                    anchor_page_index=result.page_index,
+                    selected_response_ids={candidate_block.id for candidate_block in response_blocks},
+                )
+                for block in response_blocks
+            )
+            and selected_response_blocks_are_distinct(response_blocks, prompt_blocks, blocks)
+        )
+        materialized_response_blocks = response_blocks if relationship_unambiguous else []
+        responses_have_explicit_labels = bool(materialized_response_blocks) and all(
+            any(
+                source.source == SourceKind.native_pdf
+                and source.bbox is not None
+                and response.bbox is not None
+                and source.page_index == response.page_index
+                and _is_explicit_response_label_text(source.text)
+                and source.bbox[3] >= response.bbox[1] - 16
+                and source.bbox[1] <= response.bbox[3] + 8
+                and source.bbox[0] <= response.bbox[2] + 24
+                and source.bbox[2] >= response.bbox[0] - 180
+                for source in blocks
+            )
+            for response in materialized_response_blocks
+        )
+        prompt_is_task_shaped = prompt_blocks_describe_one_task and (
+            _is_task_shaped_prompt(prompt_blocks[0].text)
+            or prompt_blocks[0].text.rstrip().endswith("?")
+            or (_is_unnumbered_student_prompt_anchor(prompt_blocks[0].text) and responses_have_explicit_labels)
         )
         prompt_evidence_is_native = all(block.source == SourceKind.native_pdf for block in prompt_blocks)
         eligible_response_blocks = [
@@ -2580,8 +2505,7 @@ def _build_tasks(
             and bool(eligible_response_blocks)
             and len(eligible_response_blocks) == len(materialized_response_blocks)
             and all(
-                block.confidence >= config.ANSWER_REGION_AUTO_APPROVE_CONFIDENCE
-                for block in eligible_response_blocks
+                block.confidence >= config.ANSWER_REGION_AUTO_APPROVE_CONFIDENCE for block in eligible_response_blocks
             )
         )
         review_status = ReviewStatus.auto_approved if can_auto_approve else ReviewStatus.needs_review
@@ -2614,9 +2538,7 @@ def _build_tasks(
                     # form a choice relation or a writable destination.
                     continue
                 choice_text = source_prompt_text([choice_source])
-                choice_id = "choice-" + hashlib.sha256(
-                    f"{task_id}:{choice_source.id}".encode("utf-8")
-                ).hexdigest()[:16]
+                choice_id = "choice-" + hashlib.sha256(f"{task_id}:{choice_source.id}".encode("utf-8")).hexdigest()[:16]
                 choices.append(
                     DocumentChoice(
                         id=choice_id,
@@ -2636,9 +2558,7 @@ def _build_tasks(
                 ResponseSafety.approved
                 if can_auto_approve and block in eligible_response_blocks
                 else (
-                    ResponseSafety.needs_review
-                    if block.block_label in _SAFE_RESPONSE_LABELS
-                    else ResponseSafety.unsafe
+                    ResponseSafety.needs_review if block.block_label in _SAFE_RESPONSE_LABELS else ResponseSafety.unsafe
                 )
             )
             region_id = stable_response_region_id(task_id, [block.id])
@@ -2693,6 +2613,7 @@ def parse_document(
     semantic_classifier: SemanticClassifier | None = None,
     review_mode: str = "direct",
     paddle_all_pages: bool = False,
+    semantic_call_budget: int | None = None,
 ) -> IntermediateDocument:
     """Extract physical blocks, classify semantics, and build review-safe tasks."""
     if review_mode not in {"direct", "teacher"}:
@@ -2723,8 +2644,10 @@ def parse_document(
             paddle_block_count = 0
             status = ParseStatus.parsed
             ocr_required = not native_reliable
-            should_run_paddle = paddle_all_pages or ocr_required or (
-                not isinstance(ocr_adapter, NullOCRAdapter) and _page_is_visually_structured(page)
+            should_run_paddle = (
+                paddle_all_pages
+                or ocr_required
+                or (not isinstance(ocr_adapter, NullOCRAdapter) and _page_is_visually_structured(page))
             )
             if should_run_paddle:
                 result = ocr_adapter.extract_page(pdf_bytes, page_index)
@@ -2769,9 +2692,7 @@ def parse_document(
                 width=page_width,
                 height=page_height,
             )
-            if geometry_sanitized or any(
-                block.block_label == "clipped_response_candidate" for block in physical
-            ):
+            if geometry_sanitized or any(block.block_label == "clipped_response_candidate" for block in physical):
                 page_warnings.append("extraction_geometry_clipped_or_omitted")
             page_model = DocumentPage(
                 page_index=page_index,
@@ -2795,6 +2716,15 @@ def parse_document(
             warnings.extend(f"page_{page_index}:{warning}" for warning in page_warnings)
 
         semantic_results = []
+        semantic_provider_calls = 0
+        provider_call_units = int(getattr(semantic_classifier, "provider_call_units", 0))
+        if provider_call_units not in {0, 1}:
+            raise ValueError("semantic classifier provider_call_units must be zero or one")
+        if semantic_call_budget is not None and provider_call_units * len(pages) > semantic_call_budget:
+            raise workload_rejection(
+                "semantic_call_budget_exceeded",
+                semantic_provider_calls=semantic_provider_calls,
+            )
         for page_index, page_model in enumerate(pages):
             page_blocks = pages_blocks[page_index]
             use_image = any(
@@ -2812,6 +2742,17 @@ def parse_document(
                 }
                 for block in page_blocks
             ) or bool(getattr(semantic_classifier, "requires_page_image", False))
+            if provider_call_units:
+                if (
+                    semantic_call_budget is not None
+                    and semantic_provider_calls + provider_call_units > semantic_call_budget
+                ):
+                    raise workload_rejection(
+                        "semantic_call_budget_exceeded",
+                        question_count=sum(len(item.tasks) for item in semantic_results),
+                        semantic_provider_calls=semantic_provider_calls,
+                    )
+                semantic_provider_calls += provider_call_units
             result = semantic_classifier.classify_page(
                 page_model,
                 page_blocks,
@@ -2821,22 +2762,15 @@ def parse_document(
             page_model.page_role = result.page_role
             page_model.role_confidence = result.confidence
             page_model.needs_review = result.confidence < config.TASK_AUTO_APPROVE_CONFIDENCE
-            native_source_blocks = [
-                block for block in page_blocks if block.source == SourceKind.native_pdf
-            ]
-            if (
-                page_index in source_nonstudent_write_pages
-                or page_has_nonstudent_write_cue(native_source_blocks)
-            ):
+            native_source_blocks = [block for block in page_blocks if block.source == SourceKind.native_pdf]
+            if page_index in source_nonstudent_write_pages or page_has_nonstudent_write_cue(native_source_blocks):
                 # Page role is semantic guidance, not authority to overwrite
                 # source material. A deterministic source instruction that
                 # identifies a guide, key, or no-write page always wins.
                 page_model.needs_review = True
                 if "nonstudent_write_cue_targets_side_panel_only" not in page_model.warnings:
                     page_model.warnings.append("nonstudent_write_cue_targets_side_panel_only")
-                    warnings.append(
-                        f"page_{page_index}:nonstudent_write_cue_targets_side_panel_only"
-                    )
+                    warnings.append(f"page_{page_index}:nonstudent_write_cue_targets_side_panel_only")
             roles = {decision.block_id: decision.role for decision in result.blocks}
             for block in page_blocks:
                 # Deterministic native geometry owns response-area evidence.
@@ -2853,6 +2787,13 @@ def parse_document(
                 page_model.warnings.extend(result.warnings)
                 warnings.extend(f"page_{page_index}:{warning}" for warning in result.warnings)
             semantic_results.append(result)
+            observed_question_count = sum(len(item.tasks) for item in semantic_results)
+            if observed_question_count > config.MAX_WORKSHEET_QUESTIONS:
+                raise workload_rejection(
+                    "question_limit_exceeded",
+                    question_count=observed_question_count,
+                    semantic_provider_calls=semantic_provider_calls,
+                )
 
         all_blocks = [block for page_blocks in pages_blocks for block in page_blocks]
         try:
@@ -2870,26 +2811,18 @@ def parse_document(
                 page.needs_review = True
             warnings.append("semantic_task_materialization_rejected")
         unreliable_write_pages = {
-            page.page_index
-            for page in pages
-            if not page_has_reliable_native_write_evidence(page)
+            page.page_index for page in pages if not page_has_reliable_native_write_evidence(page)
         }
         if unreliable_write_pages:
             unreliable_region_ids = {
-                region.id
-                for region in response_regions
-                if region.page_index in unreliable_write_pages
+                region.id for region in response_regions if region.page_index in unreliable_write_pages
             }
             for region in response_regions:
                 if region.id in unreliable_region_ids and region.safety == ResponseSafety.approved:
                     region.safety = ResponseSafety.needs_review
             for task in tasks:
-                if (
-                    task.anchor_page_index in unreliable_write_pages
-                    or any(
-                        link.response_region_id in unreliable_region_ids
-                        for link in task.response_links
-                    )
+                if task.anchor_page_index in unreliable_write_pages or any(
+                    link.response_region_id in unreliable_region_ids for link in task.response_links
                 ):
                     task.side_panel_fallback = True
                     task.review_status = ReviewStatus.needs_review
@@ -2897,31 +2830,22 @@ def parse_document(
                 f"page_{page_index}:unreliable_native_text_targets_side_panel_only"
                 for page_index in sorted(unreliable_write_pages)
             )
-        transformed_page_indexes = {
-            page.page_index for page in pages if page.display_transform_required
-        }
+        transformed_page_indexes = {page.page_index for page in pages if page.display_transform_required}
         if transformed_page_indexes:
             transformed_region_ids = {
-                region.id
-                for region in response_regions
-                if region.page_index in transformed_page_indexes
+                region.id for region in response_regions if region.page_index in transformed_page_indexes
             }
             for region in response_regions:
                 if region.id in transformed_region_ids:
                     region.safety = ResponseSafety.unsafe
             for task in tasks:
-                if any(
-                    link.response_region_id in transformed_region_ids
-                    for link in task.response_links
-                ):
+                if any(link.response_region_id in transformed_region_ids for link in task.response_links):
                     task.side_panel_fallback = True
                     task.review_status = ReviewStatus.needs_review
             for page in pages:
                 if page.page_index in transformed_page_indexes:
                     page.needs_review = True
-                    warnings.append(
-                        f"page_{page.page_index}:transformed_physical_targets_side_panel_only"
-                    )
+                    warnings.append(f"page_{page.page_index}:transformed_physical_targets_side_panel_only")
         if any(page.extraction_status == ParseStatus.requires_ocr for page in pages):
             status = ParseStatus.requires_ocr
         elif any(page.extraction_status == ParseStatus.failed for page in pages):
@@ -2955,6 +2879,7 @@ def parse_document(
             tasks=tasks,
             warnings=list(dict.fromkeys(warnings)),
             processing_ms=(time.perf_counter() - started) * 1000,
+            semantic_provider_calls=semantic_provider_calls,
         )
     finally:
         document.close()
@@ -2962,3 +2887,28 @@ def parse_document(
 
 def document_questions(document: IntermediateDocument, *, approved_only: bool = False) -> list[dict]:
     return document.task_views(include_unapproved=not approved_only, student_safe=True)
+
+
+def parse_supported_worksheet(
+    pdf_bytes: bytes,
+    *,
+    ocr_adapter: OCRAdapter | None = None,
+    semantic_classifier: SemanticClassifier | None = None,
+    paddle_all_pages: bool = False,
+) -> IntermediateDocument:
+    """Return one product-ready worksheet or a controlled whole-upload rejection."""
+    with fitz.open(stream=pdf_bytes, filetype="pdf") as source:
+        if source.page_count > config.MAX_PDF_PAGES:
+            raise workload_rejection("page_limit_exceeded")
+    document = parse_document(
+        pdf_bytes,
+        ocr_adapter=ocr_adapter,
+        semantic_classifier=semantic_classifier,
+        review_mode="direct",
+        paddle_all_pages=paddle_all_pages,
+        semantic_call_budget=config.MAX_SEMANTIC_PROVIDER_CALLS,
+    )
+    classification = classify_supported_worksheet(document)
+    if classification.status.value != "supported":
+        raise UnsupportedWorksheetError(classification)
+    return document.model_copy(update={"worksheet_classification": classification})

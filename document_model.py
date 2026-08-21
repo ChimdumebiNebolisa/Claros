@@ -4,6 +4,7 @@ The document model is intentionally immutable with respect to student work.
 It owns physical evidence and task relationships; draft, confirmation, and
 write state live in ``session_service`` only.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -149,6 +150,34 @@ class AnswerRegionStatus(str, Enum):
     side_panel = "side_panel"
 
 
+class WorksheetSupportStatus(str, Enum):
+    supported = "supported"
+    ambiguous = "ambiguous"
+    unsupported = "unsupported"
+
+
+class WorksheetClassification(BaseModel):
+    """Whole-document decision for the active short-answer product contract."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    contract_version: Literal["sequential-short-answer-v1"] = "sequential-short-answer-v1"
+    status: WorksheetSupportStatus
+    reason_codes: list[str] = Field(default_factory=list)
+    question_count: int = Field(ge=0)
+    semantic_provider_calls: int = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def validate_reasons(self):
+        if self.status == WorksheetSupportStatus.supported and self.reason_codes:
+            raise ValueError("supported worksheets cannot carry rejection reasons")
+        if self.status != WorksheetSupportStatus.supported and not self.reason_codes:
+            raise ValueError("rejected worksheets require at least one reason")
+        if len(self.reason_codes) != len(set(self.reason_codes)):
+            raise ValueError("worksheet classification reason codes must be unique")
+        return self
+
+
 class TaskResponseRole(str, Enum):
     answer = "answer"
     explanation = "explanation"
@@ -182,10 +211,7 @@ def _bbox_contains(container: list[float], candidate: list[float]) -> bool:
 
 def _bboxes_overlap(first: list[float], second: list[float]) -> bool:
     """Treat shared interior as overlap; touching borders are distinct regions."""
-    return (
-        max(first[0], second[0]) < min(first[2], second[2])
-        and max(first[1], second[1]) < min(first[3], second[3])
-    )
+    return max(first[0], second[0]) < min(first[2], second[2]) and max(first[1], second[1]) < min(first[3], second[3])
 
 
 class DocumentBlock(BaseModel):
@@ -380,20 +406,18 @@ class DocumentTask(BaseModel):
         choice_orders = [choice.order for choice in self.choices]
         if len(choice_orders) != len(set(choice_orders)):
             raise ValueError("task choice order must be unique")
-        choice_link_ids = [
-            link.choice_id
-            for link in self.response_links
-            if link.role == TaskResponseRole.choice
-        ]
+        choice_link_ids = [link.choice_id for link in self.response_links if link.role == TaskResponseRole.choice]
         if any(choice_id not in choice_ids for choice_id in choice_link_ids):
             raise ValueError("choice response link references an unknown choice")
         if len(choice_link_ids) != len(set(choice_link_ids)):
             raise ValueError("choice response links must be one-to-one")
         if choice_link_ids and set(choice_link_ids) != set(choice_ids):
             raise ValueError("choice response links must cover every structured choice")
-        if self.response_links and not any(
-            link.role == TaskResponseRole.answer for link in self.response_links
-        ) and not self.side_panel_fallback:
+        if (
+            self.response_links
+            and not any(link.role == TaskResponseRole.answer for link in self.response_links)
+            and not self.side_panel_fallback
+        ):
             raise ValueError("tasks without an answer response link require side_panel_fallback")
         if not self.response_links and not self.side_panel_fallback:
             raise ValueError("zero-response task requires explicit side_panel_fallback")
@@ -411,10 +435,7 @@ class DocumentTask(BaseModel):
 
 def task_has_student_write_role(task: DocumentTask, page: DocumentPage) -> bool:
     """Only an explicitly classified student worksheet may receive a write."""
-    return (
-        page.page_role == PageRole.student_worksheet
-        and task.page_role == PageRole.student_worksheet
-    )
+    return page.page_role == PageRole.student_worksheet and task.page_role == PageRole.student_worksheet
 
 
 def _native_prompt_looks_like_numeric_choice(
@@ -533,13 +554,10 @@ def task_has_native_local_prompt_evidence(
     if not _native_prompt_blocks_describe_one_task(local_prompt_blocks):
         return False
     if any(
-        _native_prompt_looks_like_numeric_choice(block, list(block_by_id.values()))
-        for block in local_prompt_blocks
+        _native_prompt_looks_like_numeric_choice(block, list(block_by_id.values())) for block in local_prompt_blocks
     ):
         return False
-    task_shaped_blocks = [
-        block for block in local_prompt_blocks if _TASK_SHAPED_SOURCE_PROMPT.match(block.text)
-    ]
+    task_shaped_blocks = [block for block in local_prompt_blocks if _TASK_SHAPED_SOURCE_PROMPT.match(block.text)]
     if len(task_shaped_blocks) > 1:
         return False
     if task_shaped_blocks:
@@ -548,11 +566,7 @@ def task_has_native_local_prompt_evidence(
         (
             block.text.rstrip().endswith(":")
             and region.bbox[0] >= block.bbox[2] - 15
-            and abs(
-                (region.bbox[1] + region.bbox[3]) / 2
-                - (block.bbox[1] + block.bbox[3]) / 2
-            )
-            <= 20
+            and abs((region.bbox[1] + region.bbox[3]) / 2 - (block.bbox[1] + block.bbox[3]) / 2) <= 20
         )
         for block in local_prompt_blocks
     )
@@ -570,15 +584,10 @@ def _upgrade_document_payload(payload: dict[str, Any]) -> dict[str, Any]:
     data = dict(payload)
     if "schema_version" not in data:
         current_task_shape = any(
-            (isinstance(task, dict) and "prompt_block_ids" in task)
-            or hasattr(task, "prompt_block_ids")
+            (isinstance(task, dict) and "prompt_block_ids" in task) or hasattr(task, "prompt_block_ids")
             for task in data.get("tasks") or []
         )
-        data["schema_version"] = (
-            CANONICAL_DOCUMENT_VERSION
-            if current_task_shape
-            else int(data.get("version", 1) or 1)
-        )
+        data["schema_version"] = CANONICAL_DOCUMENT_VERSION if current_task_shape else int(data.get("version", 1) or 1)
         data.pop("version", None)
     if int(data["schema_version"]) >= CANONICAL_DOCUMENT_VERSION:
         return data
@@ -615,9 +624,7 @@ def _upgrade_document_payload(payload: dict[str, Any]) -> dict[str, Any]:
             {
                 "id": task_id,
                 "legacy_question_id": (
-                    task["legacy_question_id"]
-                    if task.get("legacy_question_id") is not None
-                    else generated_legacy_id
+                    task["legacy_question_id"] if task.get("legacy_question_id") is not None else generated_legacy_id
                 ),
                 "order": 0,
                 "label": task.get("label"),
@@ -673,6 +680,8 @@ class IntermediateDocument(BaseModel):
     tasks: list[DocumentTask]
     warnings: list[str] = Field(default_factory=list)
     processing_ms: float = Field(default=0.0, ge=0.0)
+    semantic_provider_calls: int = Field(default=0, ge=0)
+    worksheet_classification: WorksheetClassification | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -706,9 +715,7 @@ class IntermediateDocument(BaseModel):
         choice_ids = [choice.id for task in self.tasks for choice in task.choices]
         if len(choice_ids) != len(set(choice_ids)):
             raise ValueError("choice IDs must be unique across the document")
-        attached_region_ids = [
-            link.response_region_id for task in self.tasks for link in task.response_links
-        ]
+        attached_region_ids = [link.response_region_id for task in self.tasks for link in task.response_links]
         if len(attached_region_ids) != len(set(attached_region_ids)):
             raise ValueError("response regions may belong to only one task")
         region_source_owners: dict[str, str] = {}
@@ -716,9 +723,7 @@ class IntermediateDocument(BaseModel):
             for source_block_id in region.source_block_ids:
                 owner = region_source_owners.get(source_block_id)
                 if owner is not None and owner != region.id:
-                    raise ValueError(
-                        "physical response source blocks may belong to only one response region"
-                    )
+                    raise ValueError("physical response source blocks may belong to only one response region")
                 region_source_owners[source_block_id] = region.id
 
         for page in self.pages:
@@ -727,11 +732,7 @@ class IntermediateDocument(BaseModel):
             missing = [block_id for block_id in page.block_ids if block_id not in block_by_id]
             if missing:
                 raise ValueError(f"page {page.page_index} references unknown blocks: {missing}")
-            foreign = [
-                block_id
-                for block_id in page.block_ids
-                if block_by_id[block_id].page_index != page.page_index
-            ]
+            foreign = [block_id for block_id in page.block_ids if block_by_id[block_id].page_index != page.page_index]
             if foreign:
                 raise ValueError(f"page {page.page_index} references blocks on another page: {foreign}")
         for block in self.blocks:
@@ -741,22 +742,17 @@ class IntermediateDocument(BaseModel):
             if block.id not in owning_page.block_ids:
                 raise ValueError(f"block {block.id} is missing from its owning page")
             width_limit = (
-                1.0
-                if owning_page.coordinate_space == CoordinateSpace.normalized_legacy
-                else owning_page.width_points
+                1.0 if owning_page.coordinate_space == CoordinateSpace.normalized_legacy else owning_page.width_points
             )
             height_limit = (
-                1.0
-                if owning_page.coordinate_space == CoordinateSpace.normalized_legacy
-                else owning_page.height_points
+                1.0 if owning_page.coordinate_space == CoordinateSpace.normalized_legacy else owning_page.height_points
             )
             if block.bbox is not None:
                 x0, y0, x1, y1 = block.bbox
                 if x0 < 0 or y0 < 0 or x1 > width_limit or y1 > height_limit:
                     raise ValueError(f"block {block.id} is outside its page bounds")
             if block.polygon is not None and any(
-                x < 0 or y < 0 or x > width_limit or y > height_limit
-                for x, y in block.polygon
+                x < 0 or y < 0 or x > width_limit or y > height_limit for x, y in block.polygon
             ):
                 raise ValueError(f"block {block.id} polygon is outside its page bounds")
         for region in self.response_regions:
@@ -773,9 +769,7 @@ class IntermediateDocument(BaseModel):
                 if block is None:
                     raise ValueError(f"response region {region.id} references unknown source block {block_id}")
                 if block.page_index != region.page_index:
-                    raise ValueError(
-                        f"response region {region.id} source block must be on its own page"
-                    )
+                    raise ValueError(f"response region {region.id} source block must be on its own page")
             if region.safety == ResponseSafety.approved:
                 if page.rotation != 0 or page.display_transform_required:
                     raise ValueError(
@@ -795,26 +789,15 @@ class IntermediateDocument(BaseModel):
                     and block.semantic_role == BlockSemanticRole.response_area
                     and block.block_label in _PHYSICAL_RESPONSE_BLOCK_LABELS
                     and block.bbox is not None
-                    and _RESPONSE_REGION_TYPE_BY_PHYSICAL_LABEL.get(block.block_label)
-                    == region.region_type.value
+                    and _RESPONSE_REGION_TYPE_BY_PHYSICAL_LABEL.get(block.block_label) == region.region_type.value
                 ]
                 if not physical_sources:
-                    raise ValueError(
-                        f"approved response region {region.id} lacks physical response-area evidence"
-                    )
+                    raise ValueError(f"approved response region {region.id} lacks physical response-area evidence")
                 if not any(
-                    _bbox_contains(block.bbox, region.bbox)
-                    for block in physical_sources
-                    if block.bbox is not None
+                    _bbox_contains(block.bbox, region.bbox) for block in physical_sources if block.bbox is not None
                 ):
-                    raise ValueError(
-                        f"approved response region {region.id} does not fit within its physical evidence"
-                    )
-        approved_regions = [
-            region
-            for region in self.response_regions
-            if region.safety == ResponseSafety.approved
-        ]
+                    raise ValueError(f"approved response region {region.id} does not fit within its physical evidence")
+        approved_regions = [region for region in self.response_regions if region.safety == ResponseSafety.approved]
         for index, first in enumerate(approved_regions):
             for second in approved_regions[index + 1 :]:
                 if first.page_index == second.page_index and _bboxes_overlap(first.bbox, second.bbox):
@@ -832,9 +815,7 @@ class IntermediateDocument(BaseModel):
             if task.evidence_status == EvidenceStatus.legacy_unverified and task.prompt_block_ids:
                 raise ValueError(f"task {task.id} has legacy-unverified prompt evidence")
             if task.evidence_status == EvidenceStatus.verified:
-                derived_prompt = source_prompt_text(
-                    [block_by_id[block_id] for block_id in task.prompt_block_ids]
-                )
+                derived_prompt = source_prompt_text([block_by_id[block_id] for block_id in task.prompt_block_ids])
                 if not derived_prompt:
                     raise ValueError(f"task {task.id} has no source-backed prompt text")
                 if task.prompt_text != derived_prompt:
@@ -861,9 +842,7 @@ class IntermediateDocument(BaseModel):
                 if link.role == TaskResponseRole.choice and region.region_type != ResponseRegionType.checkbox:
                     raise ValueError("choice response links require checkbox response regions")
                 if region.safety != ResponseSafety.approved and not task.side_panel_fallback:
-                    raise ValueError(
-                        f"task {task.id} needs side_panel_fallback for non-approved response region"
-                    )
+                    raise ValueError(f"task {task.id} needs side_panel_fallback for non-approved response region")
 
         for task in self.tasks:
             seen: set[str] = set()
@@ -936,8 +915,7 @@ class IntermediateDocument(BaseModel):
                     block.source == SourceKind.pdf_geometry
                     and block.semantic_role == BlockSemanticRole.response_area
                     and block.bbox is not None
-                    and _RESPONSE_REGION_TYPE_BY_PHYSICAL_LABEL.get(block.block_label)
-                    == region.region_type.value
+                    and _RESPONSE_REGION_TYPE_BY_PHYSICAL_LABEL.get(block.block_label) == region.region_type.value
                     and _bbox_contains(block.bbox, region.bbox)
                     for block_id in region.source_block_ids
                     if (block := block_by_id.get(block_id)) is not None
@@ -979,9 +957,7 @@ class IntermediateDocument(BaseModel):
             if visible_region is None and not student_safe and links:
                 visible_region = self.response_region(links[0].response_region_id)
             target_id = visible_region.id if visible_region is not None else f"{task.id}:side-panel"
-            visible_normalized_region = (
-                self.normalized_region(visible_region) if visible_region is not None else None
-            )
+            visible_normalized_region = self.normalized_region(visible_region) if visible_region is not None else None
             if visible_region is None:
                 legacy_region_status = "side_panel" if task.side_panel_fallback else "missing"
             elif visible_region.safety == ResponseSafety.approved:

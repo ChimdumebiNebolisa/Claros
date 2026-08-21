@@ -1,4 +1,5 @@
 """Assignment loading, parsing, and export helpers."""
+
 import logging
 import os
 import re
@@ -40,9 +41,9 @@ from document_pipeline import (
     _page_extraction_dimensions,
     _page_requires_display_transform,
     document_questions,
-    parse_document,
+    parse_supported_worksheet,
 )
-from parser import PDFProcessingError, parse_pdf_with_diagnostics
+from parser import PDFProcessingError
 from semantic_classifier import GeminiSemanticClassifier, NullSemanticClassifier
 from review_service import apply_review_actions
 from observability import record_metric
@@ -179,18 +180,14 @@ def ensure_manifest_source_matches_pdf(
     expected = manifest.document.source_sha256
     actual = hashlib.sha256(pdf_bytes).hexdigest()
     if not expected or not hmac.compare_digest(expected, actual):
-        raise AssignmentSourceMismatchError(
-            "Worksheet source does not match its canonical physical evidence"
-        )
+        raise AssignmentSourceMismatchError("Worksheet source does not match its canonical physical evidence")
     try:
         pdf = fitz.open(stream=pdf_bytes, filetype="pdf")
     except fitz.FileDataError as exc:
         raise AssignmentSourceMismatchError("Worksheet source is not a readable PDF") from exc
     try:
         if pdf.page_count != len(manifest.document.pages):
-            raise AssignmentSourceMismatchError(
-                "Worksheet source does not match its canonical physical evidence"
-            )
+            raise AssignmentSourceMismatchError("Worksheet source does not match its canonical physical evidence")
         for canonical_page in manifest.document.pages:
             page = pdf[canonical_page.page_index]
             width_points, height_points = _page_extraction_dimensions(page)
@@ -198,12 +195,9 @@ def ensure_manifest_source_matches_pdf(
                 abs(canonical_page.width_points - width_points) > 0.5
                 or abs(canonical_page.height_points - height_points) > 0.5
                 or canonical_page.rotation != page.rotation
-                or canonical_page.display_transform_required
-                != _page_requires_display_transform(page)
+                or canonical_page.display_transform_required != _page_requires_display_transform(page)
             ):
-                raise AssignmentSourceMismatchError(
-                    "Worksheet source does not match its canonical physical evidence"
-                )
+                raise AssignmentSourceMismatchError("Worksheet source does not match its canonical physical evidence")
     finally:
         pdf.close()
 
@@ -223,77 +217,27 @@ def _parse_and_build_manifest(
     review_mode: str = "direct",
     assignment_capability_hash: str | None = None,
 ) -> AssignmentManifest:
-    if config.CLAROS_DEMO_MODE:
-        from demo.hero_fixture import manifest_questions
-
-        demo_pdf_bytes = Path(pdf_path).read_bytes()
-        demo_questions = manifest_questions(demo_pdf_bytes)
-        if demo_questions is not None:
-            with fitz.open(pdf_path) as document:
-                return build_manifest(
-                    assignment_id=assignment_id,
-                    title="River Habitat Investigation",
-                    questions=demo_questions,
-                    parse_status="ok",
-                    parse_warnings=["offline_synthetic_semantic_fixture"],
-                    page_count=document.page_count,
-                    ttl_days=config.ASSIGNMENT_TTL_DAYS,
-                    parser="offline-synthetic-fixture-v1",
-                    review_mode=review_mode,
-                    review_status="unreviewed",
-                    assignment_capability_hash=assignment_capability_hash,
-                )
-    document_model = None
-    parser_name = "legacy"
-    if config.PDF_PARSER_MODE == "legacy":
-        title, questions, warnings, parse_status = parse_pdf_with_diagnostics(pdf_path)
-        payload = [
-            {
-                "id": q.id,
-                "label": getattr(q, "label", None),
-                "text": q.text,
-                "page": q.page,
-                "page_index": q.page - 1,
-                "prompt_region": q.prompt_region,
-                "answer_region": q.answer_region,
-                "detected_answer_region": q.detected_answer_region,
-                "layout_confidence": q.layout_confidence,
-                "confidence": q.layout_confidence,
-                "needs_layout_review": q.needs_layout_review,
-                "review_status": "needs_review" if q.needs_layout_review else "auto_approved",
-                "answer_region_status": "detected" if q.answer_region else "side_panel",
-                "approved": not q.needs_layout_review and bool(q.answer_region),
-            }
-            for q in questions
-        ]
-    else:
-        with open(pdf_path, "rb") as pdf_file:
-            pdf_bytes = pdf_file.read()
-        if config.ENABLE_DOCUMENT_SEMANTICS and not config.ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS:
-            logger.warning("Synchronous document semantics are disabled; run classification in a parser worker/service")
-        classifier = NullSemanticClassifier()
-        if config.ENABLE_DOCUMENT_SEMANTICS and config.ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS:
-            if config.DOCUMENT_SEMANTIC_PROVIDER == "gemini":
-                classifier = GeminiSemanticClassifier()
-        try:
-            document_model = parse_document(
-                pdf_bytes,
-                semantic_classifier=classifier,
-                review_mode=review_mode,
-                paddle_all_pages=config.PDF_PARSER_MODE == "paddle",
-            )
-        except fitz.FileDataError as exc:
-            raise PDFProcessingError("PDF could not be opened") from exc
-        parser_name = document_model.parser
-        title = document_model.title
-        payload = document_questions(document_model)
-        warnings = document_model.warnings
-        parse_status = {
-            "parsed": "ok",
-            "low_confidence": "layout_review_required",
-            "requires_ocr": "requires_ocr",
-            "failed": "failed",
-        }[document_model.status.value]
+    with open(pdf_path, "rb") as pdf_file:
+        pdf_bytes = pdf_file.read()
+    if config.ENABLE_DOCUMENT_SEMANTICS and not config.ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS:
+        logger.warning("Synchronous document semantics are disabled; supported uploads will reject")
+    classifier = NullSemanticClassifier()
+    if config.ENABLE_DOCUMENT_SEMANTICS and config.ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS:
+        if config.DOCUMENT_SEMANTIC_PROVIDER == "gemini":
+            classifier = GeminiSemanticClassifier()
+    try:
+        document_model = parse_supported_worksheet(
+            pdf_bytes,
+            semantic_classifier=classifier,
+            paddle_all_pages=config.PDF_PARSER_MODE == "paddle",
+        )
+    except fitz.FileDataError as exc:
+        raise PDFProcessingError("PDF could not be opened") from exc
+    parser_name = document_model.parser
+    title = document_model.title
+    payload = document_questions(document_model)
+    warnings = document_model.warnings
+    parse_status = "ok"
     with fitz.open(pdf_path) as document:
         page_count = document.page_count
     return build_manifest(
@@ -356,9 +300,7 @@ def load_assignment_manifest(assignment_id: str) -> AssignmentManifest:
     if config.USE_MANIFEST:
         raw = download_manifest_from_gcs(assignment_id)
         if raw:
-            return _ensure_manifest_active(
-                _verify_loaded_manifest(assignment_id, parse_manifest_json(raw))
-            )
+            return _ensure_manifest_active(_verify_loaded_manifest(assignment_id, parse_manifest_json(raw)))
 
     pdf_bytes = _download_pdf_bytes(assignment_id)
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
@@ -429,9 +371,7 @@ def get_parse_diagnostics(assignment_id: str) -> dict:
         "num_questions": len(manifest.questions),
         "question_ids": [q.id for q in manifest.questions],
         "page_count": manifest.page_count,
-        "layout_review_question_ids": [
-            q.id for q in manifest.questions if q.needs_layout_review
-        ],
+        "layout_review_question_ids": [q.id for q in manifest.questions if q.needs_layout_review],
         "expires_at": manifest.expires_at,
         "parser": manifest.parser,
         "review_mode": manifest.review_mode,
@@ -460,9 +400,7 @@ def review_assignment(
 
 
 def format_assignment_text(title: str, questions: list[dict]) -> str:
-    return title + "\n\n" + "\n\n".join(
-        f"Question {q.get('label') or q['id']}: {q['text']}" for q in questions
-    )
+    return title + "\n\n" + "\n\n".join(f"Question {q.get('label') or q['id']}: {q['text']}" for q in questions)
 
 
 def load_assignment_text_from_gcs(assignment_id: str) -> str:

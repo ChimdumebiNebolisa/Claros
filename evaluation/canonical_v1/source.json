@@ -32,14 +32,14 @@
           "task_id": "ecosystems-task-3",
           "order": 3,
           "prompt": "Briefly explain how consumers get energy.",
-          "task_type": "long_text",
+          "task_type": "short_text",
           "responses": [{"response_id": "ecosystems-task-3-answer", "response_type": "box", "height": 46}]
         },
         {
           "task_id": "ecosystems-task-4",
           "order": 4,
           "prompt": "Explain why decomposers are important to an ecosystem.",
-          "task_type": "long_text",
+          "task_type": "short_text",
           "responses": [{"response_id": "ecosystems-task-4-answer", "response_type": "box", "height": 46}]
         },
         {

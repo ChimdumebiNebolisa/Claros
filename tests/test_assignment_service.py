@@ -1,4 +1,5 @@
 """Assignment service unit tests."""
+
 import hashlib
 
 import fitz
@@ -20,10 +21,13 @@ from document_model import (
     ReviewStatus,
     SourceKind,
     TaskResponseLink,
+    WorksheetClassification,
+    WorksheetSupportStatus,
 )
 from manifest import build_manifest, parse_manifest_json
 from semantic_classifier import NullSemanticClassifier
 from tests.conftest import TEST_ASSIGNMENT_ID
+from worksheet_contract import UnsupportedWorksheetError
 
 
 def _physical_manifest(pdf_bytes: bytes, *, include_hash: bool = True):
@@ -97,7 +101,7 @@ def test_export_filename_strips_unsafe_characters():
     assert assignment_service._export_filename("550e8400-e29b-41d4-a716-446655440000") == (
         "claros-550e8400-e29b-41d4-a716-446655440000.pdf"
     )
-    assert assignment_service._export_filename('..\\..\\550e8400-e29b-41d4-a716-446655440000') == (
+    assert assignment_service._export_filename("..\\..\\550e8400-e29b-41d4-a716-446655440000") == (
         "claros-550e8400-e29b-41d4-a716-446655440000.pdf"
     )
 
@@ -318,9 +322,7 @@ def test_client_manifest_binding_uses_user_unit_scaled_extraction_bounds(monkeyp
         }
     )
     payload["response_regions"][0]["safety"] = "unsafe"
-    payload["tasks"][0].update(
-        {"side_panel_fallback": True, "review_status": "needs_review"}
-    )
+    payload["tasks"][0].update({"side_panel_fallback": True, "review_status": "needs_review"})
     manifest = build_manifest(
         TEST_ASSIGNMENT_ID,
         "Bound worksheet",
@@ -413,18 +415,60 @@ def test_persist_assignment_writes_manifest(monkeypatch, tmp_pdf_question_format
     monkeypatch.setattr(assignment_service, "upload_pdf_to_gcs", fake_upload_pdf)
     monkeypatch.setattr(assignment_service, "upload_manifest_to_gcs", fake_upload_manifest)
     monkeypatch.setattr(config, "ASSIGNMENT_TTL_DAYS", 30)
-    monkeypatch.setattr(config, "PDF_PARSER_MODE", "legacy")
 
     pdf_bytes = tmp_pdf_question_format.read_bytes()
+    accepted_document = _physical_manifest(pdf_bytes).document
+    monkeypatch.setattr(
+        assignment_service,
+        "parse_supported_worksheet",
+        lambda *_args, **_kwargs: accepted_document,
+    )
     manifest = assignment_service.persist_assignment_from_pdf_bytes("abc-123", pdf_bytes)
-    assert manifest.parse_status == "layout_review_required"
+    assert manifest.parse_status == "ok"
     assert manifest.integrity_hmac
     assert uploaded["pdf"] == pdf_bytes
     restored = parse_manifest_json(uploaded["manifest"])
     assert restored.title == manifest.title
     assert assignment_service._verify_loaded_manifest("abc-123", restored) is restored
-    assert len(restored.questions) >= 2
+    assert len(restored.questions) == 1
     assert restored.page_count >= 1
+
+
+def test_unsupported_pdf_is_not_persisted(monkeypatch, tmp_pdf_question_format):
+    storage_calls = []
+    rejection = UnsupportedWorksheetError(
+        WorksheetClassification(
+            status=WorksheetSupportStatus.unsupported,
+            reason_codes=["choice_task"],
+            question_count=1,
+        )
+    )
+
+    def reject(*_args, **_kwargs):
+        raise rejection
+
+    monkeypatch.setattr(
+        assignment_service,
+        "parse_supported_worksheet",
+        reject,
+    )
+    monkeypatch.setattr(
+        assignment_service,
+        "upload_pdf_to_gcs",
+        lambda *_args, **_kwargs: storage_calls.append("pdf"),
+    )
+    monkeypatch.setattr(
+        assignment_service,
+        "upload_manifest_to_gcs",
+        lambda *_args, **_kwargs: storage_calls.append("manifest"),
+    )
+
+    with pytest.raises(UnsupportedWorksheetError):
+        assignment_service.persist_assignment_from_pdf_bytes(
+            "unsupported",
+            tmp_pdf_question_format.read_bytes(),
+        )
+    assert storage_calls == []
 
 
 def test_load_assignment_manifest_backfill(monkeypatch, tmp_pdf_question_format):
@@ -433,7 +477,12 @@ def test_load_assignment_manifest_backfill(monkeypatch, tmp_pdf_question_format)
 
     monkeypatch.setattr(assignment_service, "_download_pdf_bytes", lambda _id: pdf_bytes)
     monkeypatch.setattr(assignment_service, "download_manifest_from_gcs", lambda _id: None)
-    monkeypatch.setattr(config, "PDF_PARSER_MODE", "legacy")
+    accepted_document = _physical_manifest(pdf_bytes).document
+    monkeypatch.setattr(
+        assignment_service,
+        "parse_supported_worksheet",
+        lambda *_args, **_kwargs: accepted_document,
+    )
 
     def capture_manifest(assignment_id, raw):
         nonlocal manifest_json
@@ -452,7 +501,9 @@ def test_expired_manifest_is_rejected(monkeypatch):
     monkeypatch.setattr(
         assignment_service,
         "download_manifest_from_gcs",
-        lambda _id: b'{"version":1,"assignment_id":"expired","title":"T","questions":[],"expires_at":"2020-01-01T00:00:00+00:00"}',
+        lambda _id: (
+            b'{"version":1,"assignment_id":"expired","title":"T","questions":[],"expires_at":"2020-01-01T00:00:00+00:00"}'
+        ),
     )
     with pytest.raises(assignment_service.AssignmentExpiredError):
         assignment_service.load_assignment_manifest("expired")
@@ -483,7 +534,7 @@ def test_hybrid_semantics_cannot_run_on_upload_without_explicit_worker_gate(
     monkeypatch.setattr(config, "ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS", False)
     monkeypatch.setattr(config, "DOCUMENT_SEMANTIC_PROVIDER", "gemini")
     monkeypatch.setattr(assignment_service, "GeminiSemanticClassifier", _FakeGeminiClassifier)
-    monkeypatch.setattr(assignment_service, "parse_document", fake_parse)
+    monkeypatch.setattr(assignment_service, "parse_supported_worksheet", fake_parse)
 
     assignment_service._parse_and_build_manifest("candidate", str(tmp_pdf_question_format))
     assert isinstance(captured[-1], NullSemanticClassifier)

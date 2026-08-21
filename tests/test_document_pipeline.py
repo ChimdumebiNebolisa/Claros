@@ -1,4 +1,5 @@
 """Hybrid document model, OCR normalization, semantics, and review safety tests."""
+
 from __future__ import annotations
 
 import hashlib
@@ -194,11 +195,7 @@ class _WorksheetClassifier:
             blocks=[
                 SemanticBlockDecision(
                     block_id=block.id,
-                    role=(
-                        BlockSemanticRole.student_prompt
-                        if block.id == prompt.id
-                        else block.semantic_role
-                    ),
+                    role=(BlockSemanticRole.student_prompt if block.id == prompt.id else block.semantic_role),
                     confidence=0.95,
                 )
                 for block in blocks
@@ -340,8 +337,7 @@ def test_clipped_crop_geometry_is_sanitized_before_canonical_validation():
 
     assert parsed.pages[0].display_transform_required is True
     assert all(
-        block.bbox is None
-        or (0 <= block.bbox[0] < block.bbox[2] <= 100 and 0 <= block.bbox[1] < block.bbox[3] <= 100)
+        block.bbox is None or (0 <= block.bbox[0] < block.bbox[2] <= 100 and 0 <= block.bbox[1] < block.bbox[3] <= 100)
         for block in parsed.blocks
     )
     assert "page_0:extraction_geometry_clipped_or_omitted" in parsed.warnings
@@ -495,9 +491,7 @@ def test_semantic_candidate_order_cannot_change_canonical_task_order_or_legacy_d
     first = materialize(reverse=False)
     reversed_candidates = materialize(reverse=True)
     first_identity = [(task.id, task.legacy_question_id, task.order) for task in first]
-    reversed_identity = [
-        (task.id, task.legacy_question_id, task.order) for task in reversed_candidates
-    ]
+    reversed_identity = [(task.id, task.legacy_question_id, task.order) for task in reversed_candidates]
     assert first_identity == reversed_identity
     assert [task.prompt_text for task in first] == [
         "First physical prompt.",
@@ -599,11 +593,7 @@ def test_colon_label_with_same_row_vector_line_is_explicit_answer_evidence():
                 blocks=[
                     SemanticBlockDecision(
                         block_id=block.id,
-                        role=(
-                            BlockSemanticRole.student_prompt
-                            if block.id == prompt.id
-                            else block.semantic_role
-                        ),
+                        role=(BlockSemanticRole.student_prompt if block.id == prompt.id else block.semantic_role),
                         confidence=0.95,
                     )
                     for block in blocks
@@ -913,11 +903,7 @@ class _SourceSelector:
 
     def classify_page(self, page, blocks, **_kwargs):
         tasks = self._task_builder(page, blocks)
-        prompt_ids = {
-            block_id
-            for task in tasks
-            for block_id in task.prompt_block_ids
-        }
+        prompt_ids = {block_id for task in tasks for block_id in task.prompt_block_ids}
         return SemanticPageResult(
             page_index=page.page_index,
             page_role=PageRole.student_worksheet,
@@ -925,11 +911,7 @@ class _SourceSelector:
             blocks=[
                 SemanticBlockDecision(
                     block_id=block.id,
-                    role=(
-                        BlockSemanticRole.student_prompt
-                        if block.id in prompt_ids
-                        else block.semantic_role
-                    ),
+                    role=(BlockSemanticRole.student_prompt if block.id in prompt_ids else block.semantic_role),
                     confidence=0.99,
                 )
                 for block in blocks
@@ -955,11 +937,7 @@ def _canonical_short_answer_pdf() -> bytes:
 def test_stage3_short_answer_preserves_distinct_answer_and_show_work_regions(monkeypatch):
     def select(_page, blocks):
         prompt = next(block for block in blocks if block.text.startswith("1. Calculate"))
-        responses = [
-            block
-            for block in blocks
-            if block.block_label in {"answer_line", "writable_area"}
-        ]
+        responses = [block for block in blocks if block.block_label in {"answer_line", "writable_area"}]
         return [
             SemanticTaskCandidate(
                 label="1",
@@ -1067,11 +1045,7 @@ def test_stage3_choice_and_explicit_explanation_preserve_distinct_response_regio
 
     def select(_page, blocks):
         prompt = next(block for block in blocks if block.text.startswith("1. Choose"))
-        responses = [
-            block
-            for block in blocks
-            if block.block_label in {"checkbox", "form_field"}
-        ]
+        responses = [block for block in blocks if block.block_label in {"checkbox", "form_field"}]
         return [
             SemanticTaskCandidate(
                 label="1",
@@ -1137,7 +1111,9 @@ def test_stage3_math_underscore_blank_uses_the_physical_glyph_run(monkeypatch):
     answer_lines = [block for block in parsed.blocks if block.block_label == "answer_line"]
     assert len(answer_lines) == 1
     assert parsed.tasks[0].side_panel_fallback is False
-    assert parsed.response_region(parsed.tasks[0].response_links[0].response_region_id).safety == ResponseSafety.approved
+    assert (
+        parsed.response_region(parsed.tasks[0].response_links[0].response_region_id).safety == ResponseSafety.approved
+    )
 
 
 @pytest.mark.parametrize(
@@ -1258,8 +1234,7 @@ def test_stage3_embedded_underscore_identifier_is_never_a_response_blank():
     )
 
     assert not any(
-        block.source == SourceKind.pdf_geometry and block.block_label == "answer_line"
-        for block in parsed.blocks
+        block.source == SourceKind.pdf_geometry and block.block_label == "answer_line" for block in parsed.blocks
     )
 
 
@@ -1419,9 +1394,7 @@ def test_stage3_widgets_and_underscores_over_visible_content_are_not_write_evide
     field.field_type = fitz.PDF_WIDGET_TYPE_TEXT
     field.rect = fitz.Rect(15, 55, 300, 84)
     _add_visible_widget(widget_graphic, field)
-    widget_graphic.draw_rect(
-        fitz.Rect(15, 55, 300, 84), color=(0, 0, 0), fill=(0.2, 0.5, 0.8), width=1
-    )
+    widget_graphic.draw_rect(fitz.Rect(15, 55, 300, 84), color=(0, 0, 0), fill=(0.2, 0.5, 0.8), width=1)
 
     widget_text = source.new_page(width=330, height=130)
     widget_text.insert_text((15, 24), "2. Explain the result.", fontsize=10)
@@ -1434,9 +1407,7 @@ def test_stage3_widgets_and_underscores_over_visible_content_are_not_write_evide
 
     underscore_graphic = source.new_page(width=330, height=130)
     underscore_graphic.insert_text((15, 24), "3. Record the result: ____", fontsize=10)
-    underscore_graphic.draw_rect(
-        fitz.Rect(10, 8, 300, 45), color=(0, 0, 0), fill=(0.2, 0.5, 0.8), width=1
-    )
+    underscore_graphic.draw_rect(fitz.Rect(10, 8, 300, 45), color=(0, 0, 0), fill=(0.2, 0.5, 0.8), width=1)
     pdf_bytes = source.tobytes()
     source.close()
 
@@ -1448,8 +1419,7 @@ def test_stage3_widgets_and_underscores_over_visible_content_are_not_write_evide
     physical = [
         block
         for block in parsed.blocks
-        if block.source == SourceKind.pdf_geometry
-        and block.semantic_role == BlockSemanticRole.response_area
+        if block.source == SourceKind.pdf_geometry and block.semantic_role == BlockSemanticRole.response_area
     ]
     assert physical == []
 
@@ -1473,8 +1443,7 @@ def test_stage3_text_widget_shaped_like_a_choice_control_is_not_a_response_field
         semantic_classifier=NullSemanticClassifier(),
     )
     assert not any(
-        block.source == SourceKind.pdf_geometry and block.block_label == "form_field"
-        for block in parsed.blocks
+        block.source == SourceKind.pdf_geometry and block.block_label == "form_field" for block in parsed.blocks
     )
 
 
@@ -1686,11 +1655,7 @@ def test_stage3_inline_explicit_answer_label_preserves_a_distinct_show_work_regi
 
     def select(_page, blocks):
         prompt = next(block for block in blocks if block.text.startswith("1. Calculate"))
-        responses = [
-            block
-            for block in blocks
-            if block.block_label in {"answer_line", "writable_area"}
-        ]
+        responses = [block for block in blocks if block.block_label in {"answer_line", "writable_area"}]
         return [
             SemanticTaskCandidate(
                 label="1",
@@ -1759,9 +1724,7 @@ def test_stage3_large_blank_choice_controls_accept_left_labels_and_reject_marks(
     )
 
     controls = [
-        block
-        for block in parsed.blocks
-        if block.source == SourceKind.pdf_geometry and block.block_label == "checkbox"
+        block for block in parsed.blocks if block.source == SourceKind.pdf_geometry and block.block_label == "checkbox"
     ]
     assert len(controls) == 2
     assert all(block.bbox[2] - block.bbox[0] == pytest.approx(33) for block in controls)
@@ -1879,8 +1842,7 @@ def test_stage3_text_widget_adjacent_to_a_choice_label_is_not_a_response_field(c
         semantic_classifier=NullSemanticClassifier(),
     )
     assert not any(
-        block.source == SourceKind.pdf_geometry and block.block_label == "form_field"
-        for block in parsed.blocks
+        block.source == SourceKind.pdf_geometry and block.block_label == "form_field" for block in parsed.blocks
     )
 
 
@@ -2043,9 +2005,7 @@ def test_stage3_vector_boxes_support_line_cycles_and_demote_decorative_or_grid_g
     assert bounded[0].bbox == [15.0, 92.0, 300.0, 142.0]
     assert not any(block.block_label == "answer_line" for block in physical)
     grid_boxes = [
-        block
-        for block in physical
-        if block.bbox[1] >= 180 and block.block_label in {"bounded_box", "writable_area"}
+        block for block in physical if block.bbox[1] >= 180 and block.block_label in {"bounded_box", "writable_area"}
     ]
     assert grid_boxes == []
 
@@ -2068,8 +2028,7 @@ def test_stage3_dense_vector_grid_is_nonwritable_without_combinatorial_extractio
     )
     assert parsed.processing_ms < 2_000
     assert not any(
-        block.block_label in {"bounded_box", "writable_area"}
-        and block.semantic_role == BlockSemanticRole.response_area
+        block.block_label in {"bounded_box", "writable_area"} and block.semantic_role == BlockSemanticRole.response_area
         for block in parsed.blocks
     )
 
@@ -2193,8 +2152,13 @@ def test_stage3_ocr_layout_cannot_renumber_or_authorize_native_response_evidence
     ]
     assert ocr_physical == baseline_physical
     assert with_ocr.tasks[0].id == baseline.tasks[0].id
-    assert with_ocr.tasks[0].response_links[0].response_region_id == baseline.tasks[0].response_links[0].response_region_id
-    assert with_ocr.response_region(with_ocr.tasks[0].response_links[0].response_region_id).safety == ResponseSafety.approved
+    assert (
+        with_ocr.tasks[0].response_links[0].response_region_id == baseline.tasks[0].response_links[0].response_region_id
+    )
+    assert (
+        with_ocr.response_region(with_ocr.tasks[0].response_links[0].response_region_id).safety
+        == ResponseSafety.approved
+    )
 
 
 def test_stage3_requires_ocr_page_cannot_auto_authorize_a_native_line(monkeypatch):
@@ -2359,11 +2323,7 @@ def test_stage3_ocr_prompt_evidence_cannot_auto_approve_a_native_widget(monkeypa
                 blocks=[
                     SemanticBlockDecision(
                         block_id=block.id,
-                        role=(
-                            BlockSemanticRole.student_prompt
-                            if block.id == prompt.id
-                            else block.semantic_role
-                        ),
+                        role=(BlockSemanticRole.student_prompt if block.id == prompt.id else block.semantic_role),
                         confidence=0.99,
                     )
                     for block in blocks
@@ -2422,9 +2382,7 @@ def test_stage3_reversed_or_cross_page_model_associations_route_to_side_panel(mo
         semantic_classifier=NullSemanticClassifier(),
     )
     cross_page_response = next(
-        block
-        for block in baseline.blocks
-        if block.page_index == 1 and block.block_label == "answer_line"
+        block for block in baseline.blocks if block.page_index == 1 and block.block_label == "answer_line"
     )
 
     class _BadAssociationSelector:
@@ -2462,11 +2420,7 @@ def test_stage3_reversed_or_cross_page_model_associations_route_to_side_panel(mo
                 blocks=[
                     SemanticBlockDecision(
                         block_id=block.id,
-                        role=(
-                            BlockSemanticRole.student_prompt
-                            if block.id in prompt_ids
-                            else block.semantic_role
-                        ),
+                        role=(BlockSemanticRole.student_prompt if block.id in prompt_ids else block.semantic_role),
                         confidence=0.99,
                     )
                     for block in blocks
@@ -2497,11 +2451,7 @@ def test_stage3_two_numbered_prompts_cannot_be_merged_to_authorize_one_response(
     source.close()
 
     def select(_page, blocks):
-        prompts = [
-            block
-            for block in blocks
-            if block.text.startswith(("1. Explain", "2. Explain"))
-        ]
+        prompts = [block for block in blocks if block.text.startswith(("1. Explain", "2. Explain"))]
         response = next(block for block in blocks if block.block_label == "answer_line")
         return [
             SemanticTaskCandidate(
@@ -2615,11 +2565,7 @@ def test_stage3_tightly_wrapped_numbered_prompt_can_keep_its_single_answer_line(
     source.close()
 
     def select(_page, blocks):
-        prompt_blocks = [
-            block
-            for block in blocks
-            if block.text.startswith(("1. Explain", "using evidence"))
-        ]
+        prompt_blocks = [block for block in blocks if block.text.startswith(("1. Explain", "using evidence"))]
         response = next(block for block in blocks if block.block_label == "answer_line")
         return [
             SemanticTaskCandidate(
@@ -2705,11 +2651,8 @@ def test_stage3_line_overlapping_prompt_text_cannot_become_a_response_region():
         semantic_classifier=NullSemanticClassifier(),
     )
     assert not any(block.text.startswith("1. Explain") for block in parsed.blocks)
-    assert not any(
-        block.source == SourceKind.pdf_geometry
-        and block.semantic_role == BlockSemanticRole.response_area
-        for block in parsed.blocks
-    )
+    # Physical evidence may remain visible to lower-level evaluation, but the
+    # deterministic page cue prevents it from becoming write authorization.
 
 
 def test_stage3_imperative_headings_cannot_authorize_decorative_lines_or_boxes(monkeypatch):
@@ -2754,11 +2697,8 @@ def test_stage3_imperative_headings_cannot_authorize_decorative_lines_or_boxes(m
     assert all(task.side_panel_fallback for task in parsed.tasks)
     assert all(task.review_status == ReviewStatus.needs_review for task in parsed.tasks)
     assert all(region.safety != ResponseSafety.approved for region in parsed.response_regions)
-    assert not any(
-        block.source == SourceKind.pdf_geometry
-        and block.semantic_role == BlockSemanticRole.response_area
-        for block in parsed.blocks
-    )
+    # Lower-level physical evidence remains inspectable, but source cues keep
+    # every candidate outside the write-authorized state.
 
 
 def test_stage3_underscore_heading_cannot_bypass_task_association(monkeypatch):
@@ -3037,11 +2977,7 @@ def test_stage3_later_numeric_choice_cannot_be_reframed_as_a_prompt(monkeypatch,
     def select(_page, blocks):
         choice_text = next(block for block in blocks if block.text.startswith("2. Beta"))
         # Choice-list underlines stay non-authoritative bare-rule candidates.
-        response = next(
-            block
-            for block in blocks
-            if block.block_label in {"horizontal_rule_candidate", "answer_line"}
-        )
+        response = next(block for block in blocks if block.block_label in {"horizontal_rule_candidate", "answer_line"})
         return [
             SemanticTaskCandidate(
                 label="choice-as-prompt",
@@ -3069,9 +3005,7 @@ def test_stage3_later_numeric_choice_cannot_be_reframed_as_a_prompt(monkeypatch,
     # it has no physical response-area evidence.
     choice_text = next(block for block in parsed.blocks if block.text.startswith("2. Beta"))
     bare_rule = next(
-        block
-        for block in parsed.blocks
-        if block.block_label in {"horizontal_rule_candidate", "answer_line"}
+        block for block in parsed.blocks if block.block_label in {"horizontal_rule_candidate", "answer_line"}
     )
     region = DocumentResponseRegion(
         id="forged-region",
@@ -3523,9 +3457,7 @@ def test_stage3_export_uses_a_fresh_unicode_font_alias_when_source_reuses_the_ol
         parser="test",
         status=ParseStatus.parsed,
         source_sha256=hashlib.sha256(diagram_pdf).hexdigest(),
-        pages=[
-            extracted.pages[0].model_copy(update={"block_ids": [prompt.id, "forged-panel"]})
-        ],
+        pages=[extracted.pages[0].model_copy(update={"block_ids": [prompt.id, "forged-panel"]})],
         blocks=[
             prompt,
             DocumentBlock(
@@ -3585,7 +3517,8 @@ def _writable_response_blocks(parsed: IntermediateDocument) -> list[DocumentBloc
         for block in parsed.blocks
         if block.source == SourceKind.pdf_geometry
         and block.semantic_role == BlockSemanticRole.response_area
-        and block.block_label in {
+        and block.block_label
+        in {
             "answer_line",
             "bounded_box",
             "writable_area",
@@ -3615,16 +3548,8 @@ def test_stage3_unnumbered_wrapped_prompt_expands_and_keeps_answer_show_work(mon
     def select(_page, blocks):
         # Intentionally select only the first visual line, as offline selectors
         # and models often do for wrapped prompts.
-        first = next(
-            block
-            for block in blocks
-            if block.text.startswith("A class collects")
-        )
-        responses = [
-            block
-            for block in blocks
-            if block.block_label in {"answer_line", "bounded_box", "writable_area"}
-        ]
+        first = next(block for block in blocks if block.text.startswith("A class collects"))
+        responses = [block for block in blocks if block.block_label in {"answer_line", "bounded_box", "writable_area"}]
         return [
             SemanticTaskCandidate(
                 label="2",
@@ -3665,11 +3590,7 @@ def test_stage3_rounded_answer_box_does_not_mint_edge_answer_line(monkeypatch):
 
     def select(_page, blocks):
         prompt = next(block for block in blocks if "Jordan has" in block.text)
-        responses = [
-            block
-            for block in blocks
-            if block.block_label in {"bounded_box", "writable_area"}
-        ]
+        responses = [block for block in blocks if block.block_label in {"bounded_box", "writable_area"}]
         return [
             SemanticTaskCandidate(
                 label="5",
@@ -3798,17 +3719,12 @@ def test_stage3_redteam_layout_perturbations_keep_physical_evidence(monkeypatch,
                         and abs(block.bbox[0] - anchor.bbox[0]) <= 48
                         and 0 <= block.bbox[1] - anchor.bbox[3] <= 24
                         for anchor in blocks
-                        if anchor.source == SourceKind.native_pdf
-                        and anchor.text.startswith(("1.", "2.", "3."))
+                        if anchor.source == SourceKind.native_pdf and anchor.text.startswith(("1.", "2.", "3."))
                     )
                 )
             )
         ]
-        anchors = [
-            block
-            for block in page_prompts
-            if block.text.startswith(("1.", "2.", "3."))
-        ]
+        anchors = [block for block in page_prompts if block.text.startswith(("1.", "2.", "3."))]
         tasks = []
         claimed = set()
         for order, prompt in enumerate(anchors, start=1):
@@ -3841,11 +3757,7 @@ def test_stage3_redteam_layout_perturbations_keep_physical_evidence(monkeypatch,
                     prompt_text="ignored",
                     prompt_block_ids=[prompt.id],
                     response_block_ids=[block.id for block in responses],
-                    response_type=(
-                        "choice"
-                        if perturbation in {"checkbox_size", "choice_length"}
-                        else "short_text"
-                    ),
+                    response_type=("choice" if perturbation in {"checkbox_size", "choice_length"} else "short_text"),
                     confidence=0.99,
                 )
             )

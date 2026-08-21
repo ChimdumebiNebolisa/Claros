@@ -719,7 +719,7 @@
     const form = new FormData();
     form.append('file', file);
     try {
-      const response = await fetch('/upload?review_mode=direct', { method: 'POST', body: form });
+      const response = await fetch('/upload', { method: 'POST', body: form });
       setWorkspaceState('parsing');
       if (!response.ok) {
         const detail = await response.json().catch(function () { return {}; });

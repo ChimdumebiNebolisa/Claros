@@ -26,10 +26,16 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: Ruff lint
-        run: ruff check agent.py assignment_service.py config.py document_model.py document_pipeline.py exporter.py gemini_service.py main.py manifest.py observability.py ocr_adapter.py parser.py parser_layout.py review_service.py semantic_classifier.py schemas.py session_service.py storage.py scripts/benchmark_pdf_pipeline.py scripts/merge_pdf_benchmark_reports.py tests/
+        run: ruff check .
 
       - name: Pytest with coverage gate
         run: pytest tests/ --cov --cov-config=pyproject.toml --cov-report=term-missing -q
+
+      - name: Product contract evaluations
+        run: |
+          python -m evaluation.canonical_v1.evaluate --out /tmp/canonical-v1.json
+          python -m evaluation.worksheet_contract_v1.evaluate --out /tmp/worksheet-contract-v1.json
+          python scripts/verify_demo.py
 
       - uses: actions/setup-node@v4
         with:
@@ -96,8 +102,16 @@ jobs:
             --platform managed \
             --region "$REGION" \
             --allow-unauthenticated \
-            --set-env-vars "APP_ENV=production,GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }},GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }}" \
-            --set-secrets "SESSION_HMAC_SECRET=claros-session-hmac:latest"
+            --service-account "${{ secrets.GCP_RUNTIME_SERVICE_ACCOUNT }}" \
+            --set-env-vars "APP_ENV=production,CLAROS_STORAGE_BACKEND=gcs,DOCUMENT_SEMANTIC_PROVIDER=gemini,GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }},GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }},MAX_PDF_PAGES=8,MAX_WORKSHEET_QUESTIONS=40,MAX_SEMANTIC_PROVIDER_CALLS=8,SEMANTIC_PROVIDER_TIMEOUT_MS=15000,MAX_CONCURRENT_UPLOADS=1" \
+            --set-secrets "SESSION_HMAC_SECRET=claros-session-hmac:latest,GEMINI_API_KEY=claros-gemini-api-key:latest" \
+            --concurrency 1 \
+            --min-instances 0 \
+            --max-instances 2 \
+            --timeout 300 \
+            --deploy-health-check \
+            --startup-probe "httpGet.path=/health,httpGet.port=8080,timeoutSeconds=3,periodSeconds=5,failureThreshold=12" \
+            --liveness-probe "httpGet.path=/health,httpGet.port=8080,timeoutSeconds=3,periodSeconds=30,failureThreshold=3"
 
       - name: Post-deploy smoke check
         if: env.PROJECT_ID != ''

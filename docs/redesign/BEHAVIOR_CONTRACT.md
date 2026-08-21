@@ -10,11 +10,11 @@ observable behavior remains true.
 | --- | --- |
 | Landing load | `/` renders without requiring a session, exposes skip/navigation/CTA links, and keeps its interactive proof non-writing. |
 | Open worksheet | `/app` begins in the empty state with PDF chooser, drop target, official sample choices, and typed-only availability. |
-| Sample choice | A canonical sample is fetched from `/api/samples` and `/samples/{id}.pdf`, then uses the normal `/upload?review_mode=direct` path. No demo-only success state is allowed. |
-| Upload | The client posts the selected PDF and waits through real upload/parse states. It does not fabricate an assignment, task, response target, or coordinate. |
+| Sample choice | A canonical sample is fetched from `/api/samples` and `/samples/{id}.pdf`, then uses the normal `/upload` path. No demo-only success state is allowed. |
+| Upload | The client posts the selected PDF and waits through real upload/parse states. It does not fabricate an assignment, task, response target, or coordinate. Only the sequential short-answer contract may create an assignment. |
 | Processing | The user can see Uploading PDF, Reading pages, Finding student tasks, Checking answer locations, and Preparing worksheet. |
 | Successful parse | The returned assignment ID, title, parse status, page count, document, tasks, and response target map become the workspace source of truth. |
-| Layout review | `needs_layout_review` remains explicit. Unresolved geometry does not become a writable physical target. |
+| Unsupported layout | Ambiguous, unresolved, choice, table, multi-column, OCR-only, cross-page, or non-local answer geometry returns a controlled 422 and creates no writable assignment. |
 | Failure | Parse, upload, capability, or storage failure enters an honest recoverable error with Retry/Replace where supported. No success copy or silent retry replaces it. |
 
 ## 2. Workspace
@@ -54,8 +54,9 @@ These invariants are non-negotiable:
    summarize, truncate, substitute, or re-ask the model for text.
 9. A consumed token cannot write again; changed answer text or target requires
    a new review and confirmation.
-10. An unsafe, missing, invalid, unresolved, or overflowing physical region is
-    never promoted by the client into a safe coordinate write.
+10. An unsafe, missing, invalid, or unresolved physical region rejects the
+    upload. Overflow after an accepted target is never promoted into a guessed
+    coordinate write.
 11. Safe physical writes and labeled side-panel writes remain distinguishable
     in the UI and export.
 12. Original worksheet pages are preserved as the export source.
@@ -102,10 +103,9 @@ removes the token from usable client state.
 
 - Physical placement is based on deterministic server evidence and manifest
   validation, not browser-supplied geometry.
-- `side_panel_fallback` is a safe destination, not an error to hide.
-- Layout review can block a physical write while still allowing the student to
-  preserve the confirmed answer for an export side panel when the server
-  permits it.
+- `side_panel_fallback` is permitted only for deterministic overflow after the
+  worksheet and target passed the production acceptance contract.
+- Parser uncertainty cannot be converted into a side-panel assignment.
 - Side-panel copy includes enough task label/prompt context to be useful and
   does not overwrite the original page.
 - Overflow is handled deterministically; confirmed text is not silently
@@ -138,7 +138,7 @@ The redesign should preserve request/response meaning and names for:
 
 - `GET /api/samples`
 - `GET /samples/{sample_id}.pdf`
-- `POST /upload?review_mode=direct`
+- `POST /upload`
 - `GET /api/session-config/{assignment_id}`
 - `POST /api/session/start`
 - `POST /api/session/{session_id}/confirm`
@@ -175,8 +175,8 @@ baseline implementation:
 - changing a draft after confirmation;
 - attempting write before confirmation;
 - stale/reused/mismatched write token;
-- safe target versus side-panel target;
-- unresolved layout review;
+- safe target versus accepted-target overflow;
+- controlled rejection for an unresolved layout;
 - refresh after partial completion;
 - export before and after a written answer;
 - voice unavailable and typed-only flow;

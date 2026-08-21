@@ -7,9 +7,10 @@ three student-facing worksheets created by Claros:
 - **Multiple Choice** — *Digital Safety Basics*
 - **Math Practice** — *Everyday Math*
 
-These are the official Claros product sample worksheets. The app loads them
-through the normal assignment upload path (`/api/samples` → sample PDF →
-`POST /upload`). Stage 3 evaluation remains independent and does not invent
+The short-answer document is the official product sample. The choice and math
+documents are retained as unsupported evaluation fixtures. The app loads its
+sample through the normal assignment upload path (`/api/samples` → sample PDF
+→ `POST /upload`). Stage 3 evaluation remains independent and does not invent
 geometry.
 
 The first-party source specification is authoritative. These labels are
@@ -53,14 +54,14 @@ tests.
 
 The report includes:
 
-- task-count accuracy and exact-count document rate;
+- task-count agreement and exact-count document rate;
 - normalized prompt-text fidelity;
-- task-order accuracy;
+- task-order agreement;
 - one-to-one response-region detection using at least 50% expected-region
   coverage (one parser region cannot satisfy multiple expected regions);
 - mean response-region IoU, which exposes over-broad regions separately;
-- response-type accuracy against Stage 3 region types;
-- task-to-response association accuracy after deterministic validation;
+- response-type agreement against Stage 3 region types;
+- task-to-response association agreement after deterministic validation;
 - physical-response detection against extracted `pdf_geometry` candidates
   before/alongside task materialization;
 - false-positive task and writable-region counts.

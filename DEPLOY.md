@@ -1,70 +1,34 @@
 # Deploy Claros to Google Cloud Run
 
-## Prerequisites
+The only supported production deployment path is
+`.github/workflows/deploy.yml`. It runs verification, builds an immutable image,
+deploys it to Cloud Run, and probes `/health`, `/`, and `/app` after deployment.
 
-- Google Cloud project with billing enabled
-- `gcloud` CLI installed and authenticated
-- Docker (optional; you can use Cloud Build)
+## Runtime contract
 
-## Build and push image
+The workflow deploys with:
 
-```bash
-# Set your project and region
-export PROJECT_ID=your-project-id
-export REGION=us-central1
-export IMAGE=claros-backend
-export TAG=$(git rev-parse HEAD)
+- `APP_ENV=production`, GCS storage, and Gemini document semantics;
+- an explicit runtime service account;
+- `SESSION_HMAC_SECRET` and `GEMINI_API_KEY` injected from Google Secret Manager;
+- an 8-page, 40-question, 8-provider-call worksheet budget;
+- one request per container, zero minimum instances, and two maximum instances;
+- a five-minute request timeout plus startup and liveness probes on `/health`.
 
-# Build with Cloud Build (no local Docker needed)
-gcloud builds submit --tag gcr.io/${PROJECT_ID}/${IMAGE}:${TAG}
+Production startup fails when its GCS bucket, Google Cloud project, Gemini API
+key, or session HMAC secret is missing. The service accepts only sequential
+short-answer PDFs described in `docs/SUPPORTED_WORKSHEET_CONTRACT.md`.
 
-# Or with Artifact Registry
-gcloud artifacts repositories create claros --repository-format=docker --location=${REGION} 2>/dev/null || true
-gcloud builds submit --tag ${REGION}-docker.pkg.dev/${PROJECT_ID}/claros/${IMAGE}:latest
-```
+## Operator procedure
 
-## Deploy to Cloud Run
+Configure the GitHub and Google Cloud prerequisites in
+`docs/github-actions-deploy.md`, then run the **Deploy to Cloud Run** workflow.
+`deploy.sh` intentionally does not duplicate the workflow's deployment flags.
 
-```bash
-gcloud run deploy claros \
-  --image gcr.io/${PROJECT_ID}/${IMAGE}:${TAG} \
-  --platform managed \
-  --region ${REGION} \
-  --allow-unauthenticated \
-  --set-env-vars "GEMINI_API_KEY=your-key,GCS_BUCKET_NAME=your-bucket,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GEMINI_TEXT_MODEL=gemini-2.5-flash" \
-  --min-instances 1 \
-  --timeout 3600
-```
+## Routes
 
-- **min-instances=1** avoids cold starts during demo.
-- **timeout=3600** keeps WebSocket connections alive (Cloud Run default is 60s).
-- Create a GCS bucket and grant the Cloud Run service account Storage Object Admin (or equivalent) on that bucket.
-
-**Environment variables:** `GEMINI_API_KEY` and `GCS_BUCKET_NAME` are required; `GOOGLE_CLOUD_PROJECT` is required for GCS. `GEMINI_TEXT_MODEL` (default `gemini-2.5-flash`) is optional and used for answer-writing.
-
-## Frontend
-
-- `/` serves `frontend/landing.html` (marketing page)
-- `/app` serves `frontend/app.html` (worksheet + voice UI)
-- `/health` returns a dependency-free container health response (Cloud Run reserves paths ending in `z`, so `/healthz` is intercepted by the Google Front End and must not be used)
-- Shared tokens live in `frontend/styles/tokens.css`
-
-Session credentials returned to the browser are short-lived opaque values. New server-side session records store only a keyed hash of the session secret; legacy records with a plaintext secret remain readable for compatibility and should be rotated by normal session expiry.
-
-No config change needed: when users open the Cloud Run URL, the frontend uses the same host for API calls.
-
-## Stage 12 recommended Cloud Run posture (documentation only)
-
-These are verified product recommendations. They are **not** applied by merging
-code unless an operator intentionally updates Cloud Run:
-
-- Keep `/health` as the dependency-free probe (Cloud Run reserves `/healthz`).
-- Prefer request concurrency that assumes PDF parse/page-render work can briefly
-  occupy a worker thread (`asyncio.to_thread` offloads parse/render from the
-  event loop in Stage 12).
-- Keep session/voice timeouts long enough for Live reconnect budgets; short
-  platform timeouts will look like random voice drops.
-- Rate limits remain in-process prototype safeguards and are **not** shared
-  across multi-instance Cloud Run services.
-
-> Legacy monolithic frontend prototypes were removed after runtime, test, build, and deployment references were audited. The active pages are `frontend/landing.html` and `frontend/app.html`.
+- `/health` is the dependency-free Cloud Run probe.
+- `/` is the marketing page.
+- `/app` is the worksheet application.
+- Capability, session, write, assignment, and export responses use
+  `Cache-Control: private, no-store`.

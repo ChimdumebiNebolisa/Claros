@@ -41,7 +41,7 @@ function DecisionReceipt() {
           className={written ? "success-label" : "confirmed-label"}
         >
           {written ? <CheckIcon aria-hidden="true" /> : <LockKeyholeIcon aria-hidden="true" />}
-          {written ? "Added to export" : "Confirmed, not written"}
+          {written ? "Written to worksheet" : "Confirmed, not written"}
         </Badge>
         <CardTitle>One answer. Two separate decisions.</CardTitle>
       </CardHeader>
@@ -51,11 +51,11 @@ function DecisionReceipt() {
         <dl>
           <div>
             <dt>Worksheet</dt>
-            <dd>{written ? "Original page preserved" : "Unchanged"}</dd>
+            <dd>{written ? "Answer added to export copy" : "Unchanged"}</dd>
           </div>
           <div>
             <dt>Destination</dt>
-            <dd>{written ? "Export side panel" : "Waiting for your choice"}</dd>
+            <dd>{written ? "Verified answer space" : "Waiting for your choice"}</dd>
           </div>
         </dl>
       </CardContent>
@@ -75,7 +75,7 @@ function DecisionReceipt() {
           disabled={written}
         >
           <PanelRightIcon aria-hidden="true" />
-          {written ? "Added" : "Add to export"}
+          {written ? "Written" : "Write answer"}
         </Button>
       </CardFooter>
     </Card>
@@ -86,12 +86,12 @@ const FAQ_ITEMS = [
   {
     question: "Does Claros grade the answer?",
     answer:
-      "No. Claros helps the student shape and review an answer. It does not present AI correctness grading.",
+      "No. Claros helps the student shape and review an answer. It does not present AI grading.",
   },
   {
     question: "Which PDFs work best?",
     answer:
-      "Worksheets with selectable text and clearly numbered tasks work best. Image-only scans may need OCR first.",
+      "Sequential short-answer worksheets with a blank line or box directly under every question. Ambiguous, multiple-choice, table, and remote-answer layouts are rejected.",
   },
   {
     question: "When does the microphone turn on?",
@@ -171,7 +171,7 @@ export function App() {
               <PanelRightIcon aria-hidden="true" />
               <div>
                 <h3>Choose the destination</h3>
-                <p>Write only after confirmation, with a safe side panel when placement is uncertain.</p>
+                <p>Write only after confirmation, and reject the worksheet when placement is uncertain.</p>
               </div>
             </li>
           </ol>
@@ -182,7 +182,7 @@ export function App() {
             <h2 id="decision-title">Ready does not mean written.</h2>
             <p>
               Confirmation locks the exact answer. A separate action decides
-              whether it reaches a verified line or the export side panel.
+              whether it reaches the verified answer space.
             </p>
             <div className="decision-facts">
               <span>
@@ -211,7 +211,7 @@ export function App() {
               <ShieldCheckIcon aria-hidden="true" />
               <div>
                 <h3>Placement follows evidence</h3>
-                <p>Verified regions can receive confirmed answers. Everything else uses the side panel.</p>
+                <p>Verified regions can receive confirmed answers. Unsupported or ambiguous layouts are rejected.</p>
               </div>
             </article>
             <article>

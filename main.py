@@ -2,6 +2,7 @@
 Claros backend: FastAPI app with PDF upload, session config (ephemeral token), and write/export.
 Real-time voice uses Gemini Live directly from the browser.
 """
+
 import asyncio
 import json
 import logging
@@ -10,7 +11,7 @@ import uuid
 from uuid import UUID
 
 import fitz
-from fastapi import FastAPI, File, Header, HTTPException, Query, Request, UploadFile
+from fastapi import FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from starlette.middleware.gzip import GZipMiddleware
 
@@ -40,6 +41,7 @@ import storage
 from observability import record_metric
 from parser import PDFProcessingError
 from rate_limit import SlidingWindowRateLimiter
+from worksheet_contract import UnsupportedWorksheetError
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +94,19 @@ async def add_security_headers(request: Request, call_next):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-    response.headers.setdefault("Permissions-Policy", "camera=(), geolocation=(), payment=(), usb=(), microphone=(self)")
+    response.headers.setdefault(
+        "Permissions-Policy", "camera=(), geolocation=(), payment=(), usb=(), microphone=(self)"
+    )
+    private_prefixes = (
+        "/upload",
+        "/api/session",
+        "/api/write",
+        "/api/assignments/",
+        "/api/teacher/",
+        "/export/",
+    )
+    if request.url.path.startswith(private_prefixes):
+        response.headers["Cache-Control"] = "private, no-store"
     return response
 
 
@@ -102,6 +116,20 @@ async def storage_conflict_handler(_request, _exc):
     return JSONResponse(
         status_code=409,
         content={"code": "SESSION_WRITE_CONFLICT", "detail": "Session changed. Refresh and try again."},
+    )
+
+
+@app.exception_handler(UnsupportedWorksheetError)
+async def unsupported_worksheet_handler(_request, exc: UnsupportedWorksheetError):
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": "UNSUPPORTED_WORKSHEET_FORMAT",
+            "detail": exc.user_message,
+            "classification": exc.classification.status.value,
+            "reason_codes": exc.classification.reason_codes,
+        },
+        headers={"Cache-Control": "private, no-store"},
     )
 
 
@@ -471,7 +499,6 @@ def delete_assignment_route(
 async def upload_assignment(
     request: Request,
     file: UploadFile = File(...),
-    review_mode: str = Query("direct", pattern="^(direct|teacher)$"),
 ):
     """Accept PDF, parse once, persist manifest + PDF, and return its safe canonical view."""
     if not file.filename or not file.filename.lower().endswith(".pdf"):
@@ -485,21 +512,12 @@ async def upload_assignment(
     started = time.perf_counter()
     try:
         capability_hash = assignment_service.assignment_capability_digest(assignment_capability)
-        if review_mode == "teacher":
-            manifest = await asyncio.to_thread(
-                persist_assignment_from_pdf_bytes,
-                assignment_id,
-                content,
-                review_mode=review_mode,
-                assignment_capability_hash=capability_hash,
-            )
-        else:
-            manifest = await asyncio.to_thread(
-                persist_assignment_from_pdf_bytes,
-                assignment_id,
-                content,
-                assignment_capability_hash=capability_hash,
-            )
+        manifest = await asyncio.to_thread(
+            persist_assignment_from_pdf_bytes,
+            assignment_id,
+            content,
+            assignment_capability_hash=capability_hash,
+        )
         payload = manifest.to_questions_dict()
         duration_ms = int((time.perf_counter() - started) * 1000)
         record_metric(
@@ -539,6 +557,8 @@ async def upload_assignment(
             status_code=400,
             detail="This PDF could not be processed as a supported worksheet.",
         )
+    except UnsupportedWorksheetError:
+        raise
     except Exception:
         logger.exception("PDF parse/upload failed for assignment %s", assignment_id)
         raise HTTPException(status_code=500, detail="Could not read that PDF. Please try another file.")

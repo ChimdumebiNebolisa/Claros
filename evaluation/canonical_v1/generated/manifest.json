@@ -121,7 +121,7 @@
             {
               "task_id": "ecosystems-task-3",
               "order": 3,
-              "task_type": "long_text",
+              "task_type": "short_text",
               "prompt_text": "Briefly explain how consumers get energy.",
               "prompt_region": {
                 "region_id": "ecosystems-task-3-prompt",
@@ -171,7 +171,7 @@
             {
               "task_id": "ecosystems-task-4",
               "order": 4,
-              "task_type": "long_text",
+              "task_type": "short_text",
               "prompt_text": "Explain why decomposers are important to an ecosystem.",
               "prompt_region": {
                 "region_id": "ecosystems-task-4-prompt",

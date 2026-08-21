@@ -1,9 +1,4 @@
-"""Official Claros product sample worksheets (canonical_v1).
-
-Samples are the three first-party selectable-text PDFs from
-``evaluation/canonical_v1``. They are served for the normal upload flow and
-never use the offline demo parser shortcut.
-"""
+"""Official Claros samples that satisfy the active worksheet contract."""
 from __future__ import annotations
 
 import json
@@ -18,6 +13,7 @@ _SAMPLES_ROOT = config.ROOT / "evaluation" / "canonical_v1"
 _SOURCE_PATH = _SAMPLES_ROOT / "source.json"
 _PDF_DIR = _SAMPLES_ROOT / "generated" / "pdfs"
 _RENDERED_DIR = _SAMPLES_ROOT / "generated" / "rendered"
+_SUPPORTED_SAMPLE_IDS = {DEFAULT_SAMPLE_ID}
 
 
 @dataclass(frozen=True)
@@ -68,6 +64,8 @@ def list_product_samples() -> tuple[ProductSample, ...]:
     samples: list[ProductSample] = []
     for document in payload["documents"]:
         canonical_id = document["canonical_id"]
+        if canonical_id not in _SUPPORTED_SAMPLE_IDS:
+            continue
         pdf_path = _PDF_DIR / f"{canonical_id}.pdf"
         if not pdf_path.exists():
             raise FileNotFoundError(f"Missing product sample PDF: {pdf_path}")

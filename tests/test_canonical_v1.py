@@ -38,11 +38,7 @@ def test_source_pdf_and_manifest_remain_consistent(tmp_path: Path):
         assert generated_document.canonical_id == source_document.canonical_id
         assert 1 <= len(generated_document.pages) <= 2
         generated_tasks = sorted(
-            (
-                task
-                for page in generated_document.pages
-                for task in page.tasks
-            ),
+            (task for page in generated_document.pages for task in page.tasks),
             key=lambda task: task.order,
         )
         assert len(generated_tasks) == len(source_document.tasks) == 5
@@ -52,9 +48,7 @@ def test_source_pdf_and_manifest_remain_consistent(tmp_path: Path):
         pdf = fitz.open(pdf_path)
         try:
             assert pdf.page_count == len(generated_document.pages)
-            selectable_text = _normalized_text(
-                " ".join(page.get_text("text", sort=True) for page in pdf)
-            )
+            selectable_text = _normalized_text(" ".join(page.get_text("text", sort=True) for page in pdf))
             assert source_document.title in selectable_text
             for source_task in source_document.tasks:
                 assert _normalized_text(source_task.prompt) in selectable_text
@@ -73,16 +67,14 @@ def test_source_pdf_and_manifest_remain_consistent(tmp_path: Path):
             assert [region.region_id for region in generated_task.response_regions] == [
                 response.response_id for response in source_task.responses
             ]
-            assert [
-                region.response_type for region in generated_task.response_regions
-            ] == [response.response_type for response in source_task.responses]
-            assert [
-                region.response_safety for region in generated_task.response_regions
-            ] == [response.response_safety for response in source_task.responses]
+            assert [region.response_type for region in generated_task.response_regions] == [
+                response.response_type for response in source_task.responses
+            ]
+            assert [region.response_safety for region in generated_task.response_regions] == [
+                response.response_safety for response in source_task.responses
+            ]
             assert len(generated_task.relations) == len(generated_task.response_regions)
-            assert {
-                relation.to_region_id for relation in generated_task.relations
-            } == {
+            assert {relation.to_region_id for relation in generated_task.relations} == {
                 region.region_id for region in generated_task.response_regions
             }
             assert all(
@@ -137,15 +129,16 @@ def test_canonical_baseline_reports_required_metrics(tmp_path: Path):
     assert len(report["documents"]) == 3
     assert (output / "baseline.json").is_file()
     assert "parse_document" in report["parser"]
+    assert report["report_schema_version"] == "canonical-agreement-v2"
     required_metrics = {
-        "task_count_accuracy",
+        "task_count_agreement",
         "prompt_text_fidelity",
-        "task_order_accuracy",
+        "task_order_agreement",
         "response_region_detection",
-        "response_type_accuracy",
-        "task_to_response_association_accuracy",
+        "response_type_agreement",
+        "task_to_response_association_agreement",
         "physical_response_detection",
-        "physical_response_type_accuracy",
+        "physical_response_type_agreement",
         "false_positive_tasks",
         "false_positive_writable_regions",
     }

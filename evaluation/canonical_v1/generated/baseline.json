@@ -1,4 +1,5 @@
 {
+  "report_schema_version": "canonical-agreement-v2",
   "suite": "canonical_v1",
   "expected_labels_kind": "deterministic_first_party",
   "parser": "stage3 document_pipeline.parse_document (hybrid physical IR)",
@@ -16,16 +17,16 @@
     "physical_detected_response_regions": 36
   },
   "metrics": {
-    "task_count_accuracy": 1.0,
+    "task_count_agreement": 1.0,
     "task_count_exact_document_rate": 1.0,
     "prompt_text_fidelity": 1.0,
-    "task_order_accuracy": 1.0,
+    "task_order_agreement": 1.0,
     "response_region_detection": 1.0,
     "response_region_mean_iou": 0.917697,
-    "response_type_accuracy": 1.0,
-    "task_to_response_association_accuracy": 1.0,
+    "response_type_agreement": 1.0,
+    "task_to_response_association_agreement": 1.0,
     "physical_response_detection": 1.0,
-    "physical_response_type_accuracy": 1.0,
+    "physical_response_type_agreement": 1.0,
     "false_positive_tasks": 0,
     "false_positive_writable_regions": 0
   },
@@ -33,7 +34,7 @@
     {
       "canonical_id": "canonical-short-answer-ecosystems",
       "pdf": "pdfs/canonical-short-answer-ecosystems.pdf",
-      "parse_status": "low_confidence",
+      "parse_status": "parsed",
       "parse_warnings": [
         "page_0:canonical_v1_evidence_selector"
       ],
@@ -42,15 +43,15 @@
       "expected_task_count": 5,
       "predicted_task_count": 5,
       "task_count_exact": true,
-      "task_count_accuracy": 1.0,
+      "task_count_agreement": 1.0,
       "prompt_text_fidelity": 1.0,
-      "task_order_accuracy": 1.0,
+      "task_order_agreement": 1.0,
       "response_region_detection": 1.0,
       "response_region_mean_iou": 0.777783,
-      "response_type_accuracy": 1.0,
-      "task_to_response_association_accuracy": 1.0,
+      "response_type_agreement": 1.0,
+      "task_to_response_association_agreement": 1.0,
       "physical_response_detection": 1.0,
-      "physical_response_type_accuracy": 1.0,
+      "physical_response_type_agreement": 1.0,
       "false_positive_tasks": 0,
       "false_positive_writable_regions": 0,
       "physical_candidate_count": 5,
@@ -63,7 +64,7 @@
           "expected_prompt": "Identify one living part of an ecosystem.",
           "predicted_prompt": "Identify one living part of an ecosystem.",
           "prompt_text_fidelity": 1.0,
-          "side_panel_fallback": true,
+          "side_panel_fallback": false,
           "responses": [
             {
               "response_id": "ecosystems-task-1-answer",
@@ -103,7 +104,7 @@
           "expected_prompt": "Define a producer in your own words.",
           "predicted_prompt": "Define a producer in your own words.",
           "prompt_text_fidelity": 1.0,
-          "side_panel_fallback": true,
+          "side_panel_fallback": false,
           "responses": [
             {
               "response_id": "ecosystems-task-2-answer",
@@ -143,7 +144,7 @@
           "expected_prompt": "Briefly explain how consumers get energy.",
           "predicted_prompt": "Briefly explain how consumers get energy.",
           "prompt_text_fidelity": 1.0,
-          "side_panel_fallback": true,
+          "side_panel_fallback": false,
           "responses": [
             {
               "response_id": "ecosystems-task-3-answer",
@@ -183,7 +184,7 @@
           "expected_prompt": "Explain why decomposers are important to an ecosystem.",
           "predicted_prompt": "Explain why decomposers are important to an ecosystem.",
           "prompt_text_fidelity": 1.0,
-          "side_panel_fallback": true,
+          "side_panel_fallback": false,
           "responses": [
             {
               "response_id": "ecosystems-task-4-answer",
@@ -223,7 +224,7 @@
           "expected_prompt": "Name two nonliving factors found in an ecosystem.",
           "predicted_prompt": "Name two nonliving factors found in an ecosystem.",
           "prompt_text_fidelity": 1.0,
-          "side_panel_fallback": true,
+          "side_panel_fallback": false,
           "responses": [
             {
               "response_id": "ecosystems-task-5-answer",
@@ -270,15 +271,15 @@
       "expected_task_count": 5,
       "predicted_task_count": 5,
       "task_count_exact": true,
-      "task_count_accuracy": 1.0,
+      "task_count_agreement": 1.0,
       "prompt_text_fidelity": 1.0,
-      "task_order_accuracy": 1.0,
+      "task_order_agreement": 1.0,
       "response_region_detection": 1.0,
       "response_region_mean_iou": 0.967795,
-      "response_type_accuracy": 1.0,
-      "task_to_response_association_accuracy": 1.0,
+      "response_type_agreement": 1.0,
+      "task_to_response_association_agreement": 1.0,
       "physical_response_detection": 1.0,
-      "physical_response_type_accuracy": 1.0,
+      "physical_response_type_agreement": 1.0,
       "false_positive_tasks": 0,
       "false_positive_writable_regions": 0,
       "physical_candidate_count": 23,
@@ -956,7 +957,7 @@
     {
       "canonical_id": "canonical-numeric-everyday-math",
       "pdf": "pdfs/canonical-numeric-everyday-math.pdf",
-      "parse_status": "low_confidence",
+      "parse_status": "parsed",
       "parse_warnings": [
         "page_0:canonical_v1_evidence_selector",
         "page_1:canonical_v1_evidence_selector"
@@ -966,15 +967,15 @@
       "expected_task_count": 5,
       "predicted_task_count": 5,
       "task_count_exact": true,
-      "task_count_accuracy": 1.0,
+      "task_count_agreement": 1.0,
       "prompt_text_fidelity": 1.0,
-      "task_order_accuracy": 1.0,
+      "task_order_agreement": 1.0,
       "response_region_detection": 1.0,
       "response_region_mean_iou": 0.861114,
-      "response_type_accuracy": 1.0,
-      "task_to_response_association_accuracy": 1.0,
+      "response_type_agreement": 1.0,
+      "task_to_response_association_agreement": 1.0,
       "physical_response_detection": 1.0,
-      "physical_response_type_accuracy": 1.0,
+      "physical_response_type_agreement": 1.0,
       "false_positive_tasks": 0,
       "false_positive_writable_regions": 0,
       "physical_candidate_count": 8,
@@ -987,7 +988,7 @@
           "expected_prompt": "Maya has 18 library books to place equally on 3 shelves. How many books go on each shelf?",
           "predicted_prompt": "Maya has 18 library books to place equally on 3 shelves. How many books go on each shelf?",
           "prompt_text_fidelity": 1.0,
-          "side_panel_fallback": true,
+          "side_panel_fallback": false,
           "responses": [
             {
               "response_id": "everyday-math-task-1-answer",
@@ -1027,7 +1028,7 @@
           "expected_prompt": "A class collects 27 cans on Monday and 16 cans on Tuesday. How many cans do they collect in all?",
           "predicted_prompt": "A class collects 27 cans on Monday and 16 cans on Tuesday. How many cans do they collect in\nall?",
           "prompt_text_fidelity": 1.0,
-          "side_panel_fallback": true,
+          "side_panel_fallback": false,
           "responses": [
             {
               "response_id": "everyday-math-task-2-answer",
@@ -1093,7 +1094,7 @@
           "expected_prompt": "A notebook costs $4. Lena buys 5 notebooks. What is the total cost?",
           "predicted_prompt": "A notebook costs $4. Lena buys 5 notebooks. What is the total cost?",
           "prompt_text_fidelity": 1.0,
-          "side_panel_fallback": true,
+          "side_panel_fallback": false,
           "responses": [
             {
               "response_id": "everyday-math-task-3-answer",
@@ -1133,7 +1134,7 @@
           "expected_prompt": "A 48-minute practice is divided into 6 equal activities. How many minutes does each activity last?",
           "predicted_prompt": "A 48-minute practice is divided into 6 equal activities. How many minutes does each activity\nlast?",
           "prompt_text_fidelity": 1.0,
-          "side_panel_fallback": true,
+          "side_panel_fallback": false,
           "responses": [
             {
               "response_id": "everyday-math-task-4-answer",
@@ -1199,7 +1200,7 @@
           "expected_prompt": "Jordan has $30 and spends $12 on a museum ticket. How much money remains?",
           "predicted_prompt": "Jordan has $30 and spends $12 on a museum ticket. How much money remains?",
           "prompt_text_fidelity": 1.0,
-          "side_panel_fallback": true,
+          "side_panel_fallback": false,
           "responses": [
             {
               "response_id": "everyday-math-task-5-answer",

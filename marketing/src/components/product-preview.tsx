@@ -140,14 +140,14 @@ export function ProductPreview() {
                   <>
                     <Badge className="state-label success-label">
                       <CheckIcon aria-hidden="true" />
-                      Added to export
+                      Written to worksheet
                     </Badge>
                     <p className="exact-answer">{EXACT_ANSWER}</p>
                     <div className="destination-line">
                       <PanelRightIcon aria-hidden="true" />
                       <span>
                         <strong>Destination</strong>
-                        Export side panel
+                        Verified answer space
                       </span>
                     </div>
                     <Button
@@ -182,7 +182,7 @@ export function ProductPreview() {
                         onClick={() => setState("written")}
                       >
                         <PanelRightIcon aria-hidden="true" />
-                        Add to export
+                        Write answer
                       </Button>
                     </div>
                   </>

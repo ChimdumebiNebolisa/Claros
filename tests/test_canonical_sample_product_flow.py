@@ -1,4 +1,5 @@
 """Stage 4 product-flow coverage for official canonical sample worksheets."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -43,21 +44,24 @@ def local_storage(monkeypatch, tmp_path):
 
 def _install_sample_classifier(monkeypatch, sample_id: str):
     expected = EXPECTED_BY_ID[sample_id]
-    classifier = _CatalogEvidenceClassifier(expected)
 
-    def fake_parse_document(pdf_bytes, *, semantic_classifier=None, **kwargs):
+    def fake_parse_supported_worksheet(pdf_bytes, *, semantic_classifier=None, **kwargs):
         del semantic_classifier
-        from document_pipeline import parse_document
+        from document_pipeline import parse_supported_worksheet
         from ocr_adapter import NullOCRAdapter
 
-        return parse_document(
+        return parse_supported_worksheet(
             pdf_bytes,
             ocr_adapter=NullOCRAdapter(),
-            semantic_classifier=classifier,
+            semantic_classifier=_CatalogEvidenceClassifier(expected),
             **kwargs,
         )
 
-    monkeypatch.setattr(assignment_service, "parse_document", fake_parse_document)
+    monkeypatch.setattr(
+        assignment_service,
+        "parse_supported_worksheet",
+        fake_parse_supported_worksheet,
+    )
 
 
 def _upload_sample(client: TestClient, sample_id: str) -> dict:
@@ -78,9 +82,7 @@ def _upload_sample(client: TestClient, sample_id: str) -> dict:
 
 def _writable_targets(payload: dict) -> list[dict]:
     return [
-        question
-        for question in payload["questions"]
-        if question.get("response_target_id") and question.get("task_id")
+        question for question in payload["questions"] if question.get("response_target_id") and question.get("task_id")
     ]
 
 
@@ -95,9 +97,7 @@ def test_official_sample_catalog_and_pdf_routes(sample_id):
         assert catalog.status_code == 200
         body = catalog.json()
         assert body["default_sample_id"] == DEFAULT_SAMPLE_ID
-        assert {entry["id"] for entry in body["samples"]} == {
-            item.canonical_id for item in list_product_samples()
-        }
+        assert {entry["id"] for entry in body["samples"]} == {item.canonical_id for item in list_product_samples()}
 
         pdf = client.get(sample.to_public_dict()["pdf_url"])
         assert pdf.status_code == 200

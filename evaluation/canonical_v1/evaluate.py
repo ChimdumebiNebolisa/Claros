@@ -11,6 +11,7 @@ by source-text containment of the expected prompt; response blocks are chosen
 by coverage of expected geometry. No coordinates, region IDs, or prompt text
 are invented.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -88,9 +89,7 @@ def _intersection_area(first: dict[str, float], second: dict[str, float]) -> flo
 
 def _iou(first: dict[str, float], second: dict[str, float]) -> float:
     intersection = _intersection_area(first, second)
-    union = (first["width"] * first["height"]) + (
-        second["width"] * second["height"]
-    ) - intersection
+    union = (first["width"] * first["height"]) + (second["width"] * second["height"]) - intersection
     return intersection / union if union else 0.0
 
 
@@ -118,9 +117,7 @@ def _physical_response_blocks(blocks: list[DocumentBlock]) -> list[DocumentBlock
     return [
         block
         for block in blocks
-        if block.source == SourceKind.pdf_geometry
-        and block.block_label in _RESPONSE_LABELS
-        and block.bbox is not None
+        if block.source == SourceKind.pdf_geometry and block.block_label in _RESPONSE_LABELS and block.bbox is not None
     ]
 
 
@@ -152,9 +149,7 @@ class _CanonicalEvidenceSelector:
         native_prompts = [
             block
             for block in blocks
-            if block.source == SourceKind.native_pdf
-            and block.bbox is not None
-            and block.text.strip()
+            if block.source == SourceKind.native_pdf and block.bbox is not None and block.text.strip()
         ]
         response_blocks = _physical_response_blocks(blocks)
         selected_prompt_ids: set[str] = set()
@@ -166,8 +161,7 @@ class _CanonicalEvidenceSelector:
                 (
                     block
                     for block in native_prompts
-                    if expected_prompt in _normalize_text(block.text)
-                    or _normalize_text(block.text) in expected_prompt
+                    if expected_prompt in _normalize_text(block.text) or _normalize_text(block.text) in expected_prompt
                 ),
                 None,
             )
@@ -208,11 +202,7 @@ class _CanonicalEvidenceSelector:
             blocks=[
                 SemanticBlockDecision(
                     block_id=block.id,
-                    role=(
-                        BlockSemanticRole.student_prompt
-                        if block.id in selected_prompt_ids
-                        else block.semantic_role
-                    ),
+                    role=(BlockSemanticRole.student_prompt if block.id in selected_prompt_ids else block.semantic_role),
                     confidence=0.99,
                 )
                 for block in blocks
@@ -304,10 +294,7 @@ def _document_result(
     )
     expected_tasks = _flatten_tasks(expected_document)
     predicted_by_order = _task_lookup(parsed)
-    page_sizes = {
-        page.page_index: (page.width_points, page.height_points)
-        for page in expected_document.pages
-    }
+    page_sizes = {page.page_index: (page.width_points, page.height_points) for page in expected_document.pages}
 
     physical_candidates = []
     for block in _physical_response_blocks(parsed.blocks):
@@ -423,9 +410,7 @@ def _document_result(
                 "expected_prompt": expected.prompt_text,
                 "predicted_prompt": predicted.prompt_text if predicted is not None else None,
                 "prompt_text_fidelity": round(prompt_fidelity, 6),
-                "side_panel_fallback": (
-                    predicted.side_panel_fallback if predicted is not None else None
-                ),
+                "side_panel_fallback": (predicted.side_panel_fallback if predicted is not None else None),
                 "responses": response_rows,
                 "physical_extraction": physical_rows,
             }
@@ -444,9 +429,7 @@ def _document_result(
 
     counts_equal = len(parsed.tasks) == len(expected_tasks)
     task_count_score = (
-        1.0
-        if counts_equal
-        else min(len(parsed.tasks), len(expected_tasks)) / max(len(expected_tasks), 1)
+        1.0 if counts_equal else min(len(parsed.tasks), len(expected_tasks)) / max(len(expected_tasks), 1)
     )
     totals = {
         "expected_tasks": float(len(expected_tasks)),
@@ -476,12 +459,12 @@ def _document_result(
         "expected_task_count": len(expected_tasks),
         "predicted_task_count": len(parsed.tasks),
         "task_count_exact": counts_equal,
-        "task_count_accuracy": round(task_count_score, 6),
+        "task_count_agreement": round(task_count_score, 6),
         "prompt_text_fidelity": round(
             prompt_fidelity_sum / len(expected_tasks) if expected_tasks else 0.0,
             6,
         ),
-        "task_order_accuracy": round(order_matches / len(expected_tasks), 6),
+        "task_order_agreement": round(order_matches / len(expected_tasks), 6),
         "response_region_detection": round(
             detected_response_count / expected_response_count if expected_response_count else 0.0,
             6,
@@ -490,11 +473,11 @@ def _document_result(
             response_iou_sum / expected_response_count if expected_response_count else 0.0,
             6,
         ),
-        "response_type_accuracy": round(
+        "response_type_agreement": round(
             response_type_matches / expected_response_count if expected_response_count else 0.0,
             6,
         ),
-        "task_to_response_association_accuracy": round(
+        "task_to_response_association_agreement": round(
             association_matches / expected_response_count if expected_response_count else 0.0,
             6,
         ),
@@ -502,7 +485,7 @@ def _document_result(
             physical_detected / expected_response_count if expected_response_count else 0.0,
             6,
         ),
-        "physical_response_type_accuracy": round(
+        "physical_response_type_agreement": round(
             physical_type_matches / expected_response_count if expected_response_count else 0.0,
             6,
         ),
@@ -549,7 +532,7 @@ def evaluate(
     expected_task_count = aggregate["expected_tasks"]
     expected_response_count = aggregate["expected_responses"]
     metrics = {
-        "task_count_accuracy": round(
+        "task_count_agreement": round(
             aggregate["task_count_score_sum"] / document_count,
             6,
         ),
@@ -561,52 +544,39 @@ def evaluate(
             aggregate["prompt_fidelity_sum"] / expected_task_count if expected_task_count else 0.0,
             6,
         ),
-        "task_order_accuracy": round(
+        "task_order_agreement": round(
             aggregate["order_matches"] / expected_task_count if expected_task_count else 0.0,
             6,
         ),
         "response_region_detection": round(
-            aggregate["detected_responses"] / expected_response_count
-            if expected_response_count
-            else 0.0,
+            aggregate["detected_responses"] / expected_response_count if expected_response_count else 0.0,
             6,
         ),
         "response_region_mean_iou": round(
-            aggregate["response_iou_sum"] / expected_response_count
-            if expected_response_count
-            else 0.0,
+            aggregate["response_iou_sum"] / expected_response_count if expected_response_count else 0.0,
             6,
         ),
-        "response_type_accuracy": round(
-            aggregate["response_type_matches"] / expected_response_count
-            if expected_response_count
-            else 0.0,
+        "response_type_agreement": round(
+            aggregate["response_type_matches"] / expected_response_count if expected_response_count else 0.0,
             6,
         ),
-        "task_to_response_association_accuracy": round(
-            aggregate["association_matches"] / expected_response_count
-            if expected_response_count
-            else 0.0,
+        "task_to_response_association_agreement": round(
+            aggregate["association_matches"] / expected_response_count if expected_response_count else 0.0,
             6,
         ),
         "physical_response_detection": round(
-            aggregate["physical_detected_responses"] / expected_response_count
-            if expected_response_count
-            else 0.0,
+            aggregate["physical_detected_responses"] / expected_response_count if expected_response_count else 0.0,
             6,
         ),
-        "physical_response_type_accuracy": round(
-            aggregate["physical_type_matches"] / expected_response_count
-            if expected_response_count
-            else 0.0,
+        "physical_response_type_agreement": round(
+            aggregate["physical_type_matches"] / expected_response_count if expected_response_count else 0.0,
             6,
         ),
         "false_positive_tasks": int(aggregate["false_positive_tasks"]),
-        "false_positive_writable_regions": int(
-            aggregate["false_positive_writable_regions"]
-        ),
+        "false_positive_writable_regions": int(aggregate["false_positive_writable_regions"]),
     }
     report: dict[str, Any] = {
+        "report_schema_version": "canonical-agreement-v2",
         "suite": manifest.suite,
         "expected_labels_kind": manifest.expected_labels_kind,
         "parser": "stage3 document_pipeline.parse_document (hybrid physical IR)",
@@ -632,9 +602,7 @@ def evaluate(
             "expected_response_regions": int(expected_response_count),
             "detected_response_regions": int(aggregate["detected_responses"]),
             "physical_candidate_regions": int(aggregate["physical_candidate_count"]),
-            "physical_detected_response_regions": int(
-                aggregate["physical_detected_responses"]
-            ),
+            "physical_detected_response_regions": int(aggregate["physical_detected_responses"]),
         },
         "metrics": metrics,
         "documents": document_results,

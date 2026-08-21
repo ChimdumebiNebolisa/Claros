@@ -1,4 +1,5 @@
 """Integration tests for main FastAPI app (static/export routes only; no GCS/Gemini)."""
+
 from pathlib import Path
 
 import pytest
@@ -9,14 +10,17 @@ from fastapi.testclient import TestClient
 import assignment_service
 import main as main_module
 import session_service
+from document_model import WorksheetClassification, WorksheetSupportStatus
 from manifest import build_manifest
 from rate_limit import SlidingWindowRateLimiter
 from tests.conftest import TEST_ASSIGNMENT_ID
+from worksheet_contract import UnsupportedWorksheetError
 
 
 @pytest.fixture(autouse=True)
 def bypass_assignment_capability(monkeypatch):
     monkeypatch.setattr(main_module, "_require_assignment_capability", lambda *_args: None)
+
 
 client = TestClient(main_module.app)
 
@@ -121,15 +125,75 @@ def test_session_start_is_rate_limited_before_allocating_another_durable_session
 def test_landing_has_no_app_workspace():
     """GET / serves marketing landing without functional upload workspace."""
     response = client.get("/")
-    landing_source = (
-        Path(__file__).resolve().parent.parent / "marketing" / "src" / "App.tsx"
-    ).read_text(encoding="utf-8")
+    landing_source = (Path(__file__).resolve().parent.parent / "marketing" / "src" / "App.tsx").read_text(
+        encoding="utf-8"
+    )
     assert response.status_code == 200
-    assert b"id=\"uploadZone\"" not in response.content
-    assert b"id=\"micBtn\"" not in response.content
+    assert b'id="uploadZone"' not in response.content
+    assert b'id="micBtn"' not in response.content
     assert b'src="/landing-app.js"' in response.content
-    assert "Think it through. You decide." in landing_source
+    preview_source = (
+        Path(__file__).resolve().parent.parent / "marketing" / "src" / "components" / "product-preview.tsx"
+    ).read_text(encoding="utf-8")
+    assert "<ProductPreview" in landing_source
+    assert "Interactive Claros answer preview" in preview_source
+    assert "/upload" not in landing_source
+    assert "/api/write" not in landing_source
     assert landing_source.count('href="/app?sample=canonical-short-answer-ecosystems"') == 1
+
+
+def test_capability_and_session_routes_are_private_no_store(monkeypatch):
+    def missing_assignment(*_args, **_kwargs):
+        raise ValueError("missing test assignment")
+
+    monkeypatch.setattr(main_module, "create_session_config", missing_assignment)
+    monkeypatch.setattr(main_module, "render_assignment_page", missing_assignment)
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest_for_client", missing_assignment)
+
+    protected_responses = [
+        client.post(
+            "/upload",
+            files={"file": ("not-a-pdf.pdf", b"not a pdf", "application/pdf")},
+        ),
+        client.get("/api/session-config/00000000-0000-0000-0000-000000000000"),
+        client.get("/api/assignments/00000000-0000-0000-0000-000000000000/pages/1.png"),
+        client.get("/api/teacher/assignments/00000000-0000-0000-0000-000000000000"),
+    ]
+
+    assert all(response.headers.get("cache-control") == "private, no-store" for response in protected_responses)
+    assert client.get("/health").headers.get("cache-control") != "private, no-store"
+
+
+def test_unsupported_upload_returns_controlled_private_rejection(monkeypatch):
+    classification = WorksheetClassification(
+        status=WorksheetSupportStatus.unsupported,
+        reason_codes=["choice_task"],
+        question_count=1,
+    )
+
+    def reject(*_args, **_kwargs):
+        raise UnsupportedWorksheetError(classification)
+
+    monkeypatch.setattr(main_module, "persist_assignment_from_pdf_bytes", reject)
+    document = fitz.open()
+    document.new_page()
+    response = client.post(
+        "/upload",
+        files={"file": ("choice.pdf", document.tobytes(), "application/pdf")},
+    )
+    document.close()
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "code": "UNSUPPORTED_WORKSHEET_FORMAT",
+        "detail": (
+            "This worksheet format is unsupported. Claros supports sequential short-answer "
+            "questions with a blank line or box directly beneath each question."
+        ),
+        "classification": "unsupported",
+        "reason_codes": ["choice_task"],
+    }
+    assert response.headers["cache-control"] == "private, no-store"
 
 
 def test_app_sample_query_param_hint():
@@ -157,7 +221,7 @@ def test_app_returns_html():
     response = client.get("/app")
     assert response.status_code == 200
     assert "text/html" in response.headers.get("content-type", "")
-    assert b"id=\"uploadBtn\"" in response.content
+    assert b'id="uploadBtn"' in response.content
 
 
 def test_styles_css_served():
