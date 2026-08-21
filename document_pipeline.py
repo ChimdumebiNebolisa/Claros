@@ -2400,6 +2400,9 @@ def _build_tasks(
     def ordered_blocks(block_ids: list[str], label: str) -> list[DocumentBlock]:
         if len(block_ids) != len(set(block_ids)):
             raise ValueError(f"semantic task has duplicate {label} block IDs")
+        unknown_ids = [block_id for block_id in block_ids if block_id not in block_by_id]
+        if unknown_ids:
+            raise ValueError(f"semantic task references unknown {label} block IDs")
         return sorted((block_by_id[block_id] for block_id in block_ids), key=physical_order)
 
     tasks: list[DocumentTask] = []

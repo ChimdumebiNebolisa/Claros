@@ -19,6 +19,7 @@ MANIFEST = CanonicalManifest.model_validate_json(
     Path("evaluation/canonical_v1/generated/manifest.json").read_text(encoding="utf-8")
 )
 EXPECTED_BY_ID = {document.canonical_id: document for document in MANIFEST.documents}
+SUPPORTED_SAMPLE_IDS = {"canonical-short-answer-ecosystems"}
 
 
 class _CatalogEvidenceClassifier:
@@ -31,6 +32,16 @@ class _CatalogEvidenceClassifier:
 
     def classify_page(self, page, blocks, **kwargs):
         return self._selector.classify_page(page, blocks, **kwargs)
+
+
+def test_product_catalog_contains_only_contract_supported_fixture():
+    assert {sample.canonical_id for sample in list_product_samples()} == SUPPORTED_SAMPLE_IDS
+    assert get_product_sample(None).canonical_id == "canonical-short-answer-ecosystems"
+    assert get_product_sample("1").canonical_id == "canonical-short-answer-ecosystems"
+    with pytest.raises(KeyError):
+        get_product_sample("canonical-choice-digital-safety")
+    with pytest.raises(KeyError):
+        get_product_sample("canonical-numeric-everyday-math")
 
 
 @pytest.fixture

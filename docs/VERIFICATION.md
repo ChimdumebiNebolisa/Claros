@@ -3,6 +3,38 @@
 This file points to current verification evidence. Local deterministic evidence
 is not provider or production evidence.
 
+## Worksheet contract evidence
+
+The accepted document boundary is defined in
+[`SUPPORTED_WORKSHEET_CONTRACT.md`](SUPPORTED_WORKSHEET_CONTRACT.md). The
+deterministic first-party contract corpus and stable agreement report live in
+`evaluation/worksheet_contract_v1`. They are local AI-adjudicated silver
+evidence; they do not establish live-provider or universal PDF support.
+
+### 2026-08-21 narrow-contract release evidence
+
+- Mainline baseline: `7200b078a43fca581f9f3cd94fc59274bbd7372a`.
+- Expanded corpus: 29 deterministic first-party PDFs; 10 supported and 19
+  rejected expectations; all 29 decisions agree; unsafe acceptances and
+  supported rejections are zero.
+- Supported geometry: question count/order agree for all 10 supported PDFs;
+  response detection, association, and response type agree for all 76 tasks.
+- Canonical-v1: all primary agreement metrics are 1.0, mean response-region IoU
+  is 0.917697, and false-positive task/writable-region counts are zero.
+- Focused hardening: 100 tests passed.
+- Python release gate: 441 passed, 1 live-provider test skipped, 83.98 percent
+  coverage (72 percent required).
+- Frontend release gate: `npm run ci:frontend` passed, including lockfile
+  installs, client/SSR builds, prerender, lint, typecheck, JS contract tests,
+  frontend validation, and the Gemini browser bundle build.
+- Demo: `test_demo_hero_fixture.py` and `test_demo_hero_export.py` passed.
+- Local Docker: not run because the Docker Desktop Linux daemon was unavailable;
+  this is not local container evidence. Both initial PR #35 remote
+  `Docker image build` jobs passed for implementation commit `5503cd2`, and
+  GitHub `main` protection keeps that context required before merge.
+- Live provider and production runtime behavior were not exercised by this
+  local pass.
+
 ## Current frontend evidence
 
 The current landing evidence record is:

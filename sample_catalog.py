@@ -43,12 +43,6 @@ _SAMPLE_DESCRIPTIONS = {
     "canonical-short-answer-ecosystems": (
         "Five short-answer science questions with answer lines and boxes."
     ),
-    "canonical-choice-digital-safety": (
-        "Five multiple-choice questions with checkbox choices and explanations."
-    ),
-    "canonical-numeric-everyday-math": (
-        "Five numeric word problems with answer fields and show-your-work areas."
-    ),
 }
 
 

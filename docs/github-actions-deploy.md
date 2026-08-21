@@ -41,8 +41,9 @@ and keeps Cloud Run's deploy-time health check enabled. Secret values are bound
 from Secret Manager rather than embedded in command-line environment values.
 
 The current supported upload shape is documented in
-`docs/SUPPORTED_WORKSHEET_CONTRACT.md`. Unsupported PDFs return a controlled 422
-response and do not create a writable assignment.
+[`SUPPORTED_WORKSHEET_CONTRACT.md`](SUPPORTED_WORKSHEET_CONTRACT.md).
+Unsupported PDFs return a controlled 422 response and do not create a writable
+assignment.
 
 ## Deploy and verify
 
@@ -58,6 +59,11 @@ production Docker build pass. After deployment it probes:
 For a functional production check, upload a supported short-answer worksheet,
 confirm an answer, and verify the exported PDF writes the exact confirmed text
 inside the deterministic answer region.
+
+As of 2026-08-21, `main` branch protection requires strict, up-to-date
+`Python tests & lint`, `Frontend contract & bundle`, and `Docker image build`
+contexts. This is a GitHub repository setting, not a checked-in deployment
+substitute.
 
 ## Failure diagnosis
 

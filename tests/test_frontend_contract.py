@@ -44,6 +44,15 @@ def test_response_states_keep_confirmation_and_write_separate():
     assert "Review and confirm the exact answer again." in js
 
 
+def test_official_sample_controls_expose_only_supported_short_answer_fixture():
+    html = _read("app.html")
+
+    assert html.count('class="text-action sample-choice"') == 1
+    assert html.count('data-sample-id="canonical-short-answer-ecosystems"') == 1
+    assert "canonical-choice-digital-safety" not in html
+    assert "canonical-numeric-everyday-math" not in html
+
+
 def test_landing_uses_shadcn_live_states_instead_of_workspace_images():
     html = _read("landing.html")
     app = (ROOT / "marketing" / "src" / "App.tsx").read_text(encoding="utf-8")

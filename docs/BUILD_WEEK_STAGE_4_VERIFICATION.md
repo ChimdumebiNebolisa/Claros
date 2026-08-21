@@ -13,6 +13,10 @@
 
 ## Official sample catalog
 
+> Historical note: Stage 4 exposed all three canonical fixtures. The current
+> production contract supersedes that catalog and advertises only
+> `canonical-short-answer-ecosystems`; the other two remain evaluation fixtures.
+
 | Sample | `canonical_id` | Product entry |
 | --- | --- | --- |
 | Short Answer | `canonical-short-answer-ecosystems` | App chooser + `/app?sample=…` + landing CTA |

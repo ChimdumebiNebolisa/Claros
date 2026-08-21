@@ -324,3 +324,26 @@ def test_semantic_provider_client_has_one_bounded_attempt(monkeypatch):
     options = captured["http_options"]
     assert options.timeout == 12_345
     assert options.retry_options.attempts == 1
+
+
+def test_unknown_semantic_response_id_is_a_controlled_rejection(monkeypatch):
+    class _FabricatingClassifier(_SequentialClassifier):
+        def classify_page(self, page, blocks, **kwargs):
+            result = super().classify_page(page, blocks, **kwargs)
+            result.tasks[0].response_block_ids.append("fabricated-response-id")
+            return result
+
+    monkeypatch.setattr(config, "ENABLE_DOCUMENT_TASK_AUTO_APPROVE", True)
+    with pytest.raises(UnsupportedWorksheetError) as rejected:
+        parse_supported_worksheet(
+            _worksheet_pdf([("1. Explain the result.", 1)]),
+            ocr_adapter=NullOCRAdapter(),
+            semantic_classifier=_FabricatingClassifier(),
+        )
+
+    assert rejected.value.classification.reason_codes == [
+        "no_questions",
+        "page_requires_review",
+        "page_without_question",
+        "unclaimed_writable_space",
+    ]
