@@ -142,7 +142,14 @@ def test_landing_has_no_app_workspace():
     assert landing_source.count('href="/app?sample=canonical-short-answer-ecosystems"') == 1
 
 
-def test_capability_and_session_routes_are_private_no_store():
+def test_capability_and_session_routes_are_private_no_store(monkeypatch):
+    def missing_assignment(*_args, **_kwargs):
+        raise ValueError("missing test assignment")
+
+    monkeypatch.setattr(main_module, "create_session_config", missing_assignment)
+    monkeypatch.setattr(main_module, "render_assignment_page", missing_assignment)
+    monkeypatch.setattr(assignment_service, "load_assignment_manifest_for_client", missing_assignment)
+
     protected_responses = [
         client.post(
             "/upload",
