@@ -13,8 +13,8 @@ if (!html.includes(rootMarker)) {
   throw new Error("Built landing root marker was not found")
 }
 
-writeFileSync(
-  landingPath,
-  html.replace(rootMarker, `<div id="root">${render()}</div>`),
-  "utf8"
-)
+const renderedHtml = html
+  .replace(rootMarker, `<div id="root">${render()}</div>`)
+  .replace(/\r\n?/g, "\n")
+
+writeFileSync(landingPath, `${renderedHtml.replace(/\n*$/, "")}\n`, "utf8")

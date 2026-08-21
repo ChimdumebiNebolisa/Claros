@@ -8,7 +8,7 @@
 > see banners on those docs. Canonical technical boundary:
 > [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-**An AI agent primarily for students with typing difficulties — it understands structured worksheet PDFs, guides reasoning through voice or typing, and writes the student-confirmed answer into a safe response region (or the labeled side panel) only after the student has stated or approved that exact answer.**
+**An AI agent primarily for students with typing difficulties — it accepts sequential short-answer PDFs with one deterministic blank directly below each question, guides reasoning through voice or typing, and writes the exact student-confirmed answer only after explicit confirmation.**
 
 ## Demo
 
@@ -26,12 +26,12 @@ Claros closes this gap. It operates directly on the worksheet: guiding the stude
 
 ## How Claros Works
 
-1. **Upload a worksheet PDF or open an official sample** — Claros builds deterministic physical evidence, keeps page geometry, and projects tasks and response regions onto the original worksheet pages.
+1. **Upload a supported worksheet PDF or open the official sample** — Claros accepts only sequential short-answer pages where each question has one deterministic blank line group, box, writable area, or text field directly below it. Other layouts return a controlled rejection.
 2. **Use voice and/or typing** — Voice (Gemini Live) is optional. Typed interaction always works; microphone access is never required.
 3. **Discuss a task** — Claros guides the student through the problem using Socratic questioning. Guided reasoning first, not answer generation.
 4. **State and confirm the exact final answer** — The student states or edits their answer, then explicitly confirms that exact text for that task.
-5. **Write only after confirmation** — Confirmation and writing are distinct. After confirm, deterministic code stamps the exact confirmed text into a validated region (or the labeled side panel when placement is unsafe).
-6. **Export as PDF** — Export writes confirmed answers onto the **original worksheet PDF** at approved regions; uncertain or overflow content goes to appended side-panel pages.
+5. **Write only after confirmation** — Confirmation and writing are distinct. After confirm, deterministic code stamps the exact confirmed text into the validated region.
+6. **Export as PDF** — Export writes confirmed answers onto the **original worksheet PDF** at approved regions; only deterministic overflow after an accepted target may use an appended side-panel page.
 
 ## Core Product Rule
 
@@ -51,16 +51,16 @@ This is not about making assignments easier. It is about making them accessible 
 
 ## Features
 
-- **PDF assignment ingestion** - Upload a PDF worksheet. Claros detects numbered questions, page geometry, and proposed answer regions for overlay editing.
-- **Layout-preserving worksheet view** - Original page previews are shown with accessible answer fields positioned on the page. Unsafe or low-confidence placement routes confirmed answers to a labeled side panel instead of guessing coordinates; the student app does not offer free-form region editing.
-- **PDF safety limits** - Uploads are bounded by byte size, page count, and extracted-text size; malformed or unsupported PDFs return a recoverable validation error.
+- **Narrow PDF assignment ingestion** - Upload a sequential short-answer worksheet with a local blank directly below each question. The whole upload rejects if any question cannot be mapped deterministically.
+- **Layout-preserving worksheet view** - Accepted original pages are shown with accessible answer fields positioned on verified targets; the student app does not offer free-form region editing.
+- **PDF safety limits** - Uploads are bounded by byte size, 8 pages, 40 questions, 8 provider calls, and extracted-text size; malformed, ambiguous, or unsupported PDFs return a recoverable 422 validation error.
 - **OCR-required detection and candidate adapter** - Image-only/scanned pages are marked `requires_ocr` without fake questions. PP-StructureV3 is available only through an optional, feature-flagged adapter pending corpus and Cloud Run promotion evidence.
 - **Real-time voice conversation** - Bidirectional audio through Gemini Live. The student speaks and hears Claros respond with natural voice.
 - **Socratic guidance** - Claros defaults to teaching mode, asking guiding questions rather than stating answers.
 - **Per-question answer readiness tracking** - The frontend tracks whether the student has stated a final answer for each question before allowing a write.
 - **Controlled answer writing** - After explicit student confirmation, the frontend calls the backend write API with an answer-bound, single-use token. The backend stamps that exact confirmed text; no model rewrites it, including LaTeX-style `$...$` delimiters.
 - **Live transcript** - Both sides of the conversation are transcribed and displayed in real time (from Gemini Live in the browser).
-- **PDF export onto the original worksheet** - Export inserts answers only into approved regions on the original PDF. Confirmed answers without safe coordinates are preserved on appended side-panel pages instead of being silently skipped, truncated, or written to a guessed location. Export requires at least one confirmed written answer.
+- **PDF export onto the original worksheet** - Export inserts answers only into approved regions on the original PDF. Deterministic overflow after an accepted target can use an appended side-panel page; parser uncertainty cannot. Export requires at least one confirmed written answer.
 - **Answer-stated indicator** - The UI shows a visual badge when the student (or Claros) has indicated the answer for a given question.
 - **Barge-in / interruption** - If the student starts speaking while Claros is talking, Claros’ audio playback is stopped and the app returns to listening. An **Interrupt** button (visible during a session) stops Claros's speech immediately so the student can talk without speaking first.
 - **Voice-enabled PDF export** - Saying phrases like “export pdf” or “export this as pdf” from within the voice session triggers the same PDF export as the button, including the same “at least one written answer” requirement.
@@ -72,9 +72,11 @@ flowchart LR
   Browser[Browser] --> Landing[GET / → landing.html]
   Browser --> App[GET /app → app.html]
   App --> Upload[POST /upload]
-  Upload --> Parser[Hybrid physical IR (default) / legacy or paddle flags]
+  Upload --> Parser[Deterministic physical IR]
   Parser --> Semantics[Gemini structured semantic classification]
-  Parser --> Storage[(Google Cloud Storage)]
+  Semantics --> Contract[Whole-document short-answer contract]
+  Contract -->|supported| Storage[(Google Cloud Storage)]
+  Contract -->|unsupported or ambiguous| Reject[Controlled 422]
   App --> Session[Session start / restore / confirm]
   Session --> Storage
   App --> Live[Direct Gemini Live]
@@ -104,7 +106,7 @@ FastAPI backend (main.py + service modules)
   ├── schemas.py — request validation
   ├── Ephemeral token creation (auth_tokens.create) for browser-Gemini Live
   ├── Gemini structured page/block/task classification
-  ├── PDF parser (parser.py + parser_layout.py - PyMuPDF geometry; default PDF_PARSER_MODE=hybrid)
+  ├── PDF parser (PyMuPDF physical evidence + production supported-worksheet gate)
   ├── Hybrid document model + optional PP-StructureV3 adapter (ENABLE_PADDLEOCR flagged; not required)
   ├── Gemini structured page/block/task classification
   ├── PDF exporter (exporter.py - layout-preserving primary, ReportLab legacy fallback)
@@ -121,7 +123,7 @@ FastAPI backend (main.py + service modules)
 
 **Answer confirmation** is required before any worksheet stamp: the student must confirm the exact candidate for that task. Models may propose tutoring actions from supplied evidence; deterministic code owns write tokens, geometry validation, authorization, overflow, and PDF changes.
 
-**PDF pipeline**: Uploaded PDFs are stored in Google Cloud Storage under `assignments/{uuid}/assignment.pdf`, parsed into the versioned canonical document contract (see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and `LAYOUT.md`), previewed as page images, and exported by writing answers into the original PDF regions when safe.
+**PDF pipeline**: An upload first passes the whole-document contract in [`docs/SUPPORTED_WORKSHEET_CONTRACT.md`](docs/SUPPORTED_WORKSHEET_CONTRACT.md). Only then is it stored in Google Cloud Storage under `assignments/{uuid}/assignment.pdf`, projected from the versioned canonical document, and exported by writing answers into verified original-PDF regions.
 
 Current runtime architecture is [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Parser mode defaults to **`PDF_PARSER_MODE=hybrid`**. July 2026 PDF-understanding investigation notes (legacy-default experiments, optional teacher-review sketches) are historical: [`docs/pdf-understanding-architecture.md`](docs/pdf-understanding-architecture.md).
 
@@ -130,7 +132,7 @@ Current runtime architecture is [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). 
 The backend and frontend include guardrails to reduce common failure modes:
 
 - **Upload abuse**: chunked reads with max byte limit (`MAX_UPLOAD_BYTES`, default 10 MiB) plus tolerant `%PDF-` signature validation (leading whitespace/BOM allowed).
-- **API correctness**: dependency failures return 5xx; 404 is reserved for genuinely missing assignments.
+- **API status semantics**: dependency failures return 5xx; 404 is reserved for genuinely missing assignments.
 - **Input contracts**: write payloads use strict conversation schema (speaker enum, bounded text); long histories are trimmed to the most recent `CONVERSATION_TRIM_TURNS` (default 200) instead of failing mid-session. Hard cap: `MAX_CONVERSATION_TURNS` (default 400).
 - **Storage determinism**: uploads always use canonical `assignment.pdf`; legacy multi-blob prefixes fall back to sorted `.pdf` selection.
 - **Privacy-aware logging**: operational logs avoid assignment titles and question text.
@@ -151,31 +153,11 @@ Claros is deployed on **Google Cloud Run** as a containerized service.
 - **Gemini API**: The backend holds the Gemini API key for (1) ephemeral browser-Gemini Live tokens and (2) closed-world document semantics. The browser never receives the API key; it uses a short-lived token for Live only.
 - Cloud Run provides automatic HTTPS, scaling, and a public URL for the frontend.
 
-**Deploying:**
-
-1. **Ensure the Gemini SDK bundle exists** (no runtime CDN). From project root, run once (requires Node 18+):
-
-   ```bash
-   npm install && npm run build:genai
-   ```
-
-   This writes `frontend/genai.bundle.js`. Commit it so the Docker image includes it. If the bundle is missing, the app will return 503 when the frontend requests it.
-
-2. **Build and push the container** (from project root):
-
-```bash
-gcloud builds submit --tag gcr.io/<PROJECT_ID>/claros
-
-# Deploy to Cloud Run
-gcloud run deploy claros \
-  --image gcr.io/<PROJECT_ID>/claros \
-  --platform managed \
-  --region <REGION> \
-  --allow-unauthenticated \
-  --set-env-vars GEMINI_API_KEY=<key>,GCS_BUCKET_NAME=<bucket>,GOOGLE_CLOUD_PROJECT=<project>
-```
-
-Replace `<PROJECT_ID>`, `<REGION>`, `<key>`, `<bucket>`, and `<project>` with your values.
+**Deploying:** `.github/workflows/deploy.yml` is the only production deployment
+definition. See [`DEPLOY.md`](DEPLOY.md) and
+[`docs/github-actions-deploy.md`](docs/github-actions-deploy.md). Gemini and
+session secrets are injected from Google Secret Manager; they are not embedded
+in a deploy command.
 
 ## Tech Stack
 
@@ -219,9 +201,10 @@ python test_assignment.py
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Open `http://localhost:8000` in a browser. Upload a PDF, or from `/app` choose
-one of the official samples (Short Answer, Multiple Choice, or Math Practice).
-Samples use the same upload and session path as a student worksheet.
+Open `http://localhost:8000` in a browser. Upload a supported PDF, or from
+`/app` open the official Short Answer sample. It uses the same upload and
+session path as a student worksheet. Choice and multi-region math fixtures are
+retained only to prove controlled rejection.
 
 **Gemini SDK bundle:** The frontend loads the Gemini SDK from `/genai.bundle.js` (same origin). That file is produced by `npm run build:genai` and checked in under `frontend/genai.bundle.js`. There is no runtime dependency on esm.sh or any other CDN.
 
@@ -242,7 +225,11 @@ GEMINI_TEXT_MODEL=gemini-2.5-flash
 # ALLOW_SYNCHRONOUS_PADDLEOCR=false
 # ENABLE_DOCUMENT_SEMANTICS=true
 # ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS=true
-# ENABLE_DOCUMENT_TASK_AUTO_APPROVE=false
+# ENABLE_DOCUMENT_TASK_AUTO_APPROVE=true
+# MAX_PDF_PAGES=8
+# MAX_WORKSHEET_QUESTIONS=40
+# MAX_SEMANTIC_PROVIDER_CALLS=8
+# SEMANTIC_PROVIDER_TIMEOUT_MS=15000
 ```
 
 | Variable | Description |
@@ -256,12 +243,16 @@ GEMINI_TEXT_MODEL=gemini-2.5-flash
 | `DOCUMENT_SEMANTIC_PROVIDER` | `gemini` (default) or `none` for document semantics |
 | `APP_ENV` | Canonical environment name (`development` or `production`); if legacy `CLAROS_ENV` is also set, both values must match |
 | `MAX_SESSION_STARTS_PER_MINUTE` | Maximum durable session creations per caller in the sliding window (production default: 30) |
-| `PDF_PARSER_MODE` | `hybrid` (default), `legacy`, or `paddle`; hybrid builds deterministic physical evidence before Gemini selection |
+| `PDF_PARSER_MODE` | Lower-level extraction mode; production assignment creation always passes through the supported-worksheet gate |
 | `ENABLE_PADDLEOCR` | Enable the local PP-StructureV3 adapter (default: false) |
 | `ALLOW_SYNCHRONOUS_PADDLEOCR` | Development-only worker escape hatch; keep false on the upload service (default: false) |
 | `ENABLE_DOCUMENT_SEMANTICS` | Enable strict closed-world document classification (default: true) |
 | `ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS` | Run the configured compiler during upload (default: true) |
-| `ENABLE_DOCUMENT_TASK_AUTO_APPROVE` | Allow high-confidence hybrid tasks to bypass review; keep false until benchmark promotion (default: false) |
+| `ENABLE_DOCUMENT_TASK_AUTO_APPROVE` | Operational kill switch for deterministic task materialization; model confidence never bypasses the whole-document gate (default: true) |
+| `MAX_PDF_PAGES` | Production worksheet page ceiling (default: 8) |
+| `MAX_WORKSHEET_QUESTIONS` | Production question ceiling (default: 40) |
+| `MAX_SEMANTIC_PROVIDER_CALLS` | Provider-call ceiling per upload (default: 8) |
+| `SEMANTIC_PROVIDER_TIMEOUT_MS` | Timeout for each semantic provider request (default: 15000) |
 | `PADDLEOCR_DPI` | Page render DPI for the candidate adapter (default: 150) |
 | `PADDLEOCR_CPU_THREADS` | CPU inference thread count (default: 4) |
 

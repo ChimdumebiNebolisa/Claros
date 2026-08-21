@@ -1,4 +1,5 @@
 """Environment and shared configuration."""
+
 import logging
 import os
 import secrets
@@ -28,7 +29,10 @@ LIVE_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025"
 _DEFAULT_MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MiB
 _DEFAULT_MAX_CONVERSATION_TURNS = 400  # hard validation cap
 _DEFAULT_CONVERSATION_TRIM_TURNS = 200  # soft cap sent to Gemini (keeps most recent)
-_DEFAULT_MAX_PDF_PAGES = 100
+_DEFAULT_MAX_PDF_PAGES = 8
+_DEFAULT_MAX_WORKSHEET_QUESTIONS = 40
+_DEFAULT_MAX_SEMANTIC_PROVIDER_CALLS = 8
+_DEFAULT_SEMANTIC_PROVIDER_TIMEOUT_MS = 15_000
 _DEFAULT_MAX_EXTRACTED_TEXT_CHARS = 500_000
 _DEFAULT_MAX_UPLOADS_PER_MINUTE = 6 if APP_ENV in {"production", "prod"} else 60
 _DEFAULT_MAX_PROVIDER_SESSIONS_PER_MINUTE = 20 if APP_ENV in {"production", "prod"} else 120
@@ -36,7 +40,7 @@ _DEFAULT_MAX_WRITES_PER_MINUTE = 30 if APP_ENV in {"production", "prod"} else 18
 _DEFAULT_MAX_MUTATIONS_PER_MINUTE = 30 if APP_ENV in {"production", "prod"} else 180
 _DEFAULT_MAX_SESSION_STARTS_PER_MINUTE = 30 if APP_ENV in {"production", "prod"} else 180
 _DEFAULT_MAX_PAGE_RENDERS_PER_MINUTE = 120 if APP_ENV in {"production", "prod"} else 600
-_DEFAULT_MAX_CONCURRENT_UPLOADS = 2
+_DEFAULT_MAX_CONCURRENT_UPLOADS = 1 if APP_ENV in {"production", "prod"} else 2
 _DEFAULT_PREVIEW_DPI = 120
 _DEFAULT_MAX_PREVIEW_DPI = 200
 _DEFAULT_PADDLEOCR_DPI = 150
@@ -61,6 +65,9 @@ MAX_UPLOAD_BYTES = _int_env("MAX_UPLOAD_BYTES", _DEFAULT_MAX_UPLOAD_BYTES)
 MAX_CONVERSATION_TURNS = _int_env("MAX_CONVERSATION_TURNS", _DEFAULT_MAX_CONVERSATION_TURNS)
 CONVERSATION_TRIM_TURNS = _int_env("CONVERSATION_TRIM_TURNS", _DEFAULT_CONVERSATION_TRIM_TURNS)
 MAX_PDF_PAGES = _int_env("MAX_PDF_PAGES", _DEFAULT_MAX_PDF_PAGES)
+MAX_WORKSHEET_QUESTIONS = _int_env("MAX_WORKSHEET_QUESTIONS", _DEFAULT_MAX_WORKSHEET_QUESTIONS)
+MAX_SEMANTIC_PROVIDER_CALLS = _int_env("MAX_SEMANTIC_PROVIDER_CALLS", _DEFAULT_MAX_SEMANTIC_PROVIDER_CALLS)
+SEMANTIC_PROVIDER_TIMEOUT_MS = _int_env("SEMANTIC_PROVIDER_TIMEOUT_MS", _DEFAULT_SEMANTIC_PROVIDER_TIMEOUT_MS)
 MAX_EXTRACTED_TEXT_CHARS = _int_env("MAX_EXTRACTED_TEXT_CHARS", _DEFAULT_MAX_EXTRACTED_TEXT_CHARS)
 MAX_UPLOADS_PER_MINUTE = _int_env("MAX_UPLOADS_PER_MINUTE", _DEFAULT_MAX_UPLOADS_PER_MINUTE)
 MAX_PROVIDER_SESSIONS_PER_MINUTE = _int_env(
@@ -68,9 +75,7 @@ MAX_PROVIDER_SESSIONS_PER_MINUTE = _int_env(
 )
 MAX_WRITES_PER_MINUTE = _int_env("MAX_WRITES_PER_MINUTE", _DEFAULT_MAX_WRITES_PER_MINUTE)
 MAX_MUTATIONS_PER_MINUTE = _int_env("MAX_MUTATIONS_PER_MINUTE", _DEFAULT_MAX_MUTATIONS_PER_MINUTE)
-MAX_SESSION_STARTS_PER_MINUTE = _int_env(
-    "MAX_SESSION_STARTS_PER_MINUTE", _DEFAULT_MAX_SESSION_STARTS_PER_MINUTE
-)
+MAX_SESSION_STARTS_PER_MINUTE = _int_env("MAX_SESSION_STARTS_PER_MINUTE", _DEFAULT_MAX_SESSION_STARTS_PER_MINUTE)
 MAX_PAGE_RENDERS_PER_MINUTE = _int_env("MAX_PAGE_RENDERS_PER_MINUTE", _DEFAULT_MAX_PAGE_RENDERS_PER_MINUTE)
 MAX_CONCURRENT_UPLOADS = _int_env("MAX_CONCURRENT_UPLOADS", _DEFAULT_MAX_CONCURRENT_UPLOADS)
 PREVIEW_DPI = _int_env("PREVIEW_DPI", _DEFAULT_PREVIEW_DPI)
@@ -119,17 +124,11 @@ def is_production() -> bool:
 
 
 def is_debug_gemini_enabled() -> bool:
-    return (
-        not is_production()
-        and os.environ.get("ENABLE_DEBUG_GEMINI", "").strip().lower() in ("1", "true", "yes")
-    )
+    return not is_production() and os.environ.get("ENABLE_DEBUG_GEMINI", "").strip().lower() in ("1", "true", "yes")
 
 
 def is_debug_routes_enabled() -> bool:
-    return (
-        not is_production()
-        and os.environ.get("ENABLE_DEBUG_ROUTES", "").strip().lower() in ("1", "true", "yes")
-    )
+    return not is_production() and os.environ.get("ENABLE_DEBUG_ROUTES", "").strip().lower() in ("1", "true", "yes")
 
 
 def _bool_env(name: str, default: bool) -> bool:
@@ -152,11 +151,12 @@ ENABLE_DOCUMENT_SEMANTICS = _bool_env("ENABLE_DOCUMENT_SEMANTICS", True)
 ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS = _bool_env("ALLOW_SYNCHRONOUS_DOCUMENT_SEMANTICS", True)
 # Promotion gate: semantic confidence alone is not sufficient until the corpus
 # demonstrates acceptable task precision and answer-region accuracy.
-ENABLE_DOCUMENT_TASK_AUTO_APPROVE = _bool_env("ENABLE_DOCUMENT_TASK_AUTO_APPROVE", False)
+# A supported worksheet still needs deterministic geometry and association.
+# This switch is an operational kill switch; model confidence alone never
+# authorizes a response region.
+ENABLE_DOCUMENT_TASK_AUTO_APPROVE = _bool_env("ENABLE_DOCUMENT_TASK_AUTO_APPROVE", True)
 CLAROS_DEMO_MODE = _bool_env("CLAROS_DEMO_MODE", False)
-STORAGE_BACKEND = os.environ.get(
-    "CLAROS_STORAGE_BACKEND", "local" if CLAROS_DEMO_MODE else "gcs"
-).strip().lower()
+STORAGE_BACKEND = os.environ.get("CLAROS_STORAGE_BACKEND", "local" if CLAROS_DEMO_MODE else "gcs").strip().lower()
 LOCAL_STORAGE_DIR = os.environ.get("CLAROS_LOCAL_STORAGE_DIR", ".claros-data").strip() or ".claros-data"
 if STORAGE_BACKEND not in {"local", "gcs"}:
     raise RuntimeError("CLAROS_STORAGE_BACKEND must be 'local' or 'gcs'")
@@ -164,6 +164,8 @@ if is_production() and STORAGE_BACKEND != "gcs":
     raise RuntimeError("Production requires CLAROS_STORAGE_BACKEND=gcs")
 if is_production() and not os.environ.get("GCS_BUCKET_NAME", "").strip():
     raise RuntimeError("GCS_BUCKET_NAME must be set when APP_ENV=production")
+if is_production() and not os.environ.get("GOOGLE_CLOUD_PROJECT", "").strip():
+    raise RuntimeError("GOOGLE_CLOUD_PROJECT must be set when APP_ENV=production")
 DOCUMENT_SEMANTIC_PROVIDER = os.environ.get("DOCUMENT_SEMANTIC_PROVIDER", "gemini").strip().lower()
 if DOCUMENT_SEMANTIC_PROVIDER not in {"gemini", "none"}:
     raise RuntimeError("DOCUMENT_SEMANTIC_PROVIDER must be 'gemini' or 'none'")

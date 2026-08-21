@@ -12,7 +12,7 @@ Students with typing difficulties — motor impairments, dyslexia, injury, or si
 
 ## Product Purpose
 
-Claros is a human-free worksheet-understanding and tutoring product for structured PDF worksheets. Students upload a worksheet (or open an official sample), work through each task with optional Gemini Live voice **or** typed interaction, and Claros writes only the student-confirmed exact answer into a validated response region — or a labeled side panel when placement is unsafe. Completed worksheets export as the original PDF plus any side-panel pages.
+Claros is a human-free worksheet-understanding and tutoring product for sequential short-answer PDF worksheets. Each question must have one deterministic blank line group, box, writable area, or text field directly below it on the same page. Unsupported or ambiguous layouts reject during upload. Students work through accepted tasks with optional Gemini Live voice **or** typed interaction, and Claros writes only the student-confirmed exact answer into the validated response region. A labeled side panel is reserved for overflow after a target was accepted.
 
 Success looks like: a student completes a structured worksheet by thinking out loud or typing, without the tool inventing answers or coordinates, and without requiring a microphone.
 

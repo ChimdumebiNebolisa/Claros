@@ -1,4 +1,5 @@
 """Production session-secret configuration tests."""
+
 import os
 import subprocess
 import sys
@@ -8,6 +9,7 @@ def test_production_startup_rejects_missing_session_hmac_secret():
     env = os.environ.copy()
     env["APP_ENV"] = "production"
     env["GCS_BUCKET_NAME"] = "claros-test-bucket"
+    env["GOOGLE_CLOUD_PROJECT"] = "claros-test-project"
     env.pop("SESSION_HMAC_SECRET", None)
     result = subprocess.run(
         [sys.executable, "-c", "import config"],
@@ -26,6 +28,7 @@ def test_production_startup_rejects_missing_gemini_credentials():
     env = os.environ.copy()
     env["APP_ENV"] = "production"
     env["GCS_BUCKET_NAME"] = "claros-test-bucket"
+    env["GOOGLE_CLOUD_PROJECT"] = "claros-test-project"
     env["SESSION_HMAC_SECRET"] = "test-session-hmac-secret"
     env["GEMINI_API_KEY"] = ""
     result = subprocess.run(
@@ -79,6 +82,7 @@ def test_production_startup_rejects_non_gemini_text_model():
     env = os.environ.copy()
     env["APP_ENV"] = "production"
     env["GCS_BUCKET_NAME"] = "claros-test-bucket"
+    env["GOOGLE_CLOUD_PROJECT"] = "claros-test-project"
     env["SESSION_HMAC_SECRET"] = "test-session-hmac-secret"
     env["GEMINI_API_KEY"] = "test-key"
     env["GEMINI_TEXT_MODEL"] = "other-provider-model"
@@ -99,6 +103,7 @@ def test_production_hides_interactive_api_documentation():
     env = os.environ.copy()
     env["APP_ENV"] = "production"
     env["GCS_BUCKET_NAME"] = "claros-test-bucket"
+    env["GOOGLE_CLOUD_PROJECT"] = "claros-test-project"
     env["SESSION_HMAC_SECRET"] = "test-session-hmac-secret"
     env["GEMINI_API_KEY"] = "test-key"
     result = subprocess.run(
@@ -116,3 +121,23 @@ def test_production_hides_interactive_api_documentation():
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip().endswith("404")
+
+
+def test_production_startup_rejects_missing_google_cloud_project():
+    env = os.environ.copy()
+    env["APP_ENV"] = "production"
+    env["GCS_BUCKET_NAME"] = "claros-test-bucket"
+    env["SESSION_HMAC_SECRET"] = "test-session-hmac-secret"
+    env["GEMINI_API_KEY"] = "test-key"
+    env["GOOGLE_CLOUD_PROJECT"] = ""
+    result = subprocess.run(
+        [sys.executable, "-c", "import config"],
+        cwd=os.getcwd(),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=15,
+        check=False,
+    )
+    assert result.returncode != 0
+    assert "GOOGLE_CLOUD_PROJECT must be set" in result.stderr

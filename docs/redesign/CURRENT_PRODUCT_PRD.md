@@ -87,7 +87,7 @@ manifests and write validation are authoritative.
    sample links.
 2. A sample link fetches `/api/samples`, downloads the selected first-party PDF,
    and passes it through the same upload path as a user file.
-3. Upload posts to `/upload?review_mode=direct`.
+3. Upload posts to `/upload`.
 4. The UI exposes Uploading PDF, Reading pages, Finding student tasks,
    Checking answer locations, and Preparing worksheet.
 5. A successful response applies the assignment manifest and enters `ready`,

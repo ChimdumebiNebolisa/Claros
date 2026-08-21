@@ -1,12 +1,12 @@
 """Unit tests for deterministic GCS PDF selection in load_assignment_from_gcs."""
-from types import SimpleNamespace
+
 from unittest.mock import MagicMock
 
 import fitz
 import pytest
 
 import assignment_service
-import config
+from manifest import build_manifest
 from storage import assignment_pdf_path
 from tests.conftest import TEST_ASSIGNMENT_ID
 
@@ -28,18 +28,12 @@ class _FakeBlob:
             document.close()
 
 
-def _fake_parse_with_diagnostics(_path):
-    question = SimpleNamespace(
-        id=1,
-        text="Q?",
-        page=1,
-        prompt_region=None,
-        answer_region=None,
-        detected_answer_region=None,
-        layout_confidence=0.0,
-        needs_layout_review=True,
+def _fake_parse_and_build(assignment_id, _path, **_kwargs):
+    return build_manifest(
+        assignment_id,
+        "Title",
+        questions=[{"id": 1, "text": "Q?", "needs_layout_review": True}],
     )
-    return ("Title", [question], [], "ok")
 
 
 def test_load_assignment_prefers_canonical_assignment_pdf(monkeypatch):
@@ -50,9 +44,8 @@ def test_load_assignment_prefers_canonical_assignment_pdf(monkeypatch):
 
     monkeypatch.setattr(assignment_service, "get_gcs_bucket", lambda: bucket)
     monkeypatch.setattr(assignment_service, "download_manifest_from_gcs", lambda _id: None)
-    monkeypatch.setattr(assignment_service, "parse_pdf_with_diagnostics", _fake_parse_with_diagnostics)
+    monkeypatch.setattr(assignment_service, "_parse_and_build_manifest", _fake_parse_and_build)
     monkeypatch.setattr(assignment_service, "upload_manifest_to_gcs", lambda *_a, **_k: "gs://x")
-    monkeypatch.setattr(config, "PDF_PARSER_MODE", "legacy")
 
     title, questions = assignment_service.load_assignment_from_gcs(TEST_ASSIGNMENT_ID)
 
@@ -81,9 +74,8 @@ def test_load_assignment_falls_back_to_sorted_pdf(monkeypatch):
 
     monkeypatch.setattr(assignment_service, "get_gcs_bucket", lambda: bucket)
     monkeypatch.setattr(assignment_service, "download_manifest_from_gcs", lambda _id: None)
-    monkeypatch.setattr(assignment_service, "parse_pdf_with_diagnostics", _fake_parse_with_diagnostics)
+    monkeypatch.setattr(assignment_service, "_parse_and_build_manifest", _fake_parse_and_build)
     monkeypatch.setattr(assignment_service, "upload_manifest_to_gcs", lambda *_a, **_k: "gs://x")
-    monkeypatch.setattr(config, "PDF_PARSER_MODE", "legacy")
 
     title, questions = assignment_service.load_assignment_from_gcs(TEST_ASSIGNMENT_ID)
 

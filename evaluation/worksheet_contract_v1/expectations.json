@@ -1,0 +1,8 @@
+{
+  "suite": "worksheet-contract-v1",
+  "documents": {
+    "canonical-short-answer-ecosystems": "supported",
+    "canonical-choice-digital-safety": "unsupported",
+    "canonical-numeric-everyday-math": "unsupported"
+  }
+}

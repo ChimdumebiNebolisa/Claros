@@ -1,4 +1,5 @@
 """Regression tests for Unicode worksheet text (parser, upload path, export)."""
+
 import re
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
@@ -7,9 +8,8 @@ from fastapi.testclient import TestClient
 
 from exporter import build_export_pdf
 from parser import normalize_worksheet_text, parse_pdf
+from manifest import build_manifest
 
-import assignment_service
-import config
 import main as main_module
 
 
@@ -27,7 +27,7 @@ def _write_unicode_minus_pdf(path) -> None:
 def test_normalize_worksheet_text_unicode_punctuation():
     raw = "Solve x \u2212 3 = 5 \u201cquick\u201d \u2018check\u2019 dash\u2014here"
     norm = normalize_worksheet_text(raw)
-    assert norm == 'Solve x - 3 = 5 "quick" \'check\' dash-here'
+    assert norm == "Solve x - 3 = 5 \"quick\" 'check' dash-here"
     assert "\u2212" not in norm
     assert "\u2014" not in norm
     assert "\u00a0" not in normalize_worksheet_text("a\u00a0b")
@@ -57,11 +57,15 @@ def test_upload_unicode_pdf_does_not_fail_charmap(monkeypatch, tmp_path):
     path = tmp_path / "upload_unicode.pdf"
     _write_unicode_minus_pdf(path)
 
-    # persist_assignment_from_pdf_bytes imports these names into the assignment_service
-    # namespace, so patch them there (patching storage.* would not affect the bound names).
-    monkeypatch.setattr(assignment_service, "upload_pdf_to_gcs", lambda *args, **kwargs: "gs://fake/b.pdf")
-    monkeypatch.setattr(assignment_service, "upload_manifest_to_gcs", lambda *args, **kwargs: None)
-    monkeypatch.setattr(config, "PDF_PARSER_MODE", "legacy")
+    def persist(assignment_id, _pdf_bytes, **kwargs):
+        return build_manifest(
+            assignment_id,
+            "Unicode Sheet",
+            questions=[{"id": 1, "text": "Question 1: Solve x - 3 = 5"}],
+            assignment_capability_hash=kwargs["assignment_capability_hash"],
+        )
+
+    monkeypatch.setattr(main_module, "persist_assignment_from_pdf_bytes", persist)
 
     client = TestClient(main_module.app)
     response = client.post(

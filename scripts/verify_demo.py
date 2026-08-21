@@ -1,4 +1,4 @@
-"""Verify the synthetic hero artifact without provider access."""
+"""Verify the historical hero artifact remains isolated from production."""
 from __future__ import annotations
 
 import sys
@@ -22,9 +22,10 @@ def main() -> None:
     questions = manifest_questions(pdf)
     if questions is None or len(questions) != 4:
         raise SystemExit("hero task graph was not materialized")
-    if sum(item["answer_region_status"] == "side_panel" for item in questions) < 2:
-        raise SystemExit("hero worksheet lacks intentional side-panel routing")
-    print("hero demo fixture verified")
+    assignment_source = Path("assignment_service.py").read_text(encoding="utf-8")
+    if "manifest_questions" in assignment_source or "offline-synthetic-fixture" in assignment_source:
+        raise SystemExit("historical hero replay still bypasses the production worksheet gate")
+    print("historical hero fixture verified and isolated from production")
 
 
 if __name__ == "__main__":

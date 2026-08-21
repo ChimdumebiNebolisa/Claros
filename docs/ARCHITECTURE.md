@@ -2,13 +2,15 @@
 
 ## Product boundary
 
-Claros helps a student understand a structured worksheet, propose an answer,
+Claros helps a student understand a sequential short-answer worksheet, propose an answer,
 and write it into the original PDF only after that student explicitly confirms
 the answer. Normal use has no teacher or human-adjudication dependency.
 
-Supported documents have reproducible physical evidence: PDF pages, point
-dimensions, source blocks, reading order, and supplied response candidates.
-Uncertain or unsafe placements route to a deterministic side panel.
+Supported documents have reproducible physical evidence and exactly one local
+answer destination directly below every question on the same page. The
+production `parse_supported_worksheet` boundary rejects the entire upload when
+the layout is uncertain, unsupported, or exceeds its workload ceiling. A side
+panel may handle only answer overflow after an approved target exists.
 
 ## Authority boundary
 
@@ -26,7 +28,9 @@ flowchart LR
   U[Browser] -->|PDF upload| A[Assignment service]
   A --> P[Deterministic physical IR]
   P --> C[Gemini closed-world classifier]
-  C --> M[Canonical document v2 + lifecycle manifest / GCS]
+  C --> V[Whole-document support classifier]
+  V -->|supported only| M[Canonical document v2 + lifecycle manifest / GCS]
+  V -->|ambiguous or unsupported| REJ[Controlled 422; no assignment]
   U -->|start/confirm/write| S[Session service]
   U <-->|audio/transcript| G[Gemini Live]
   S --> W[Deterministic write contract]
@@ -48,10 +52,9 @@ flowchart LR
   PDF[PDF] --> PHY[Deterministic physical IR]
   PHY -->|page image + supplied IDs| C[Gemini closed-world classifier]
   C --> V[Deterministic validator/materializer]
-  V -->|safe candidate| R[Verified physical answer region]
-  V -->|uncertain or unsafe| SP[Side-panel route]
+  V -->|all tasks safe and local| R[Verified physical answer regions]
+  V -->|any uncertainty| REJ[Reject whole upload]
   R --> CONF[Student confirmation]
-  SP --> CONF
   CONF --> TOK[Capability + single-use write token]
   TOK --> OUT[Deterministic PDF export]
 ```
@@ -65,13 +68,25 @@ ordered source blocks and derives geometry only from validated candidates.
 
 ## Canonical document contract
 
-One versioned `IntermediateDocument` is the persisted source of truth for a
-worksheet. It contains document identity, pages and roles, source blocks,
+`parse_document` remains the lower-level physical and evaluation pipeline.
+Production assignment creation calls only `parse_supported_worksheet`, which
+adds a versioned whole-document classification and workload accounting. A
+rejected document is never persisted as a writable assignment.
+
+The supported contract is limited to at most 8 pages, 40 questions, and 8
+semantic-provider page calls. Each provider request has a 15-second timeout and
+one attempt. Question-to-answer mapping must be same-page, below the prompt,
+physically ordered, and unambiguous. Choices, tables, complex columns, essays,
+drawing/show-work tasks, answer keys, scans/OCR-only targets, transformed
+geometry, extra unclaimed writable spaces, and remote answer sections reject.
+
+One versioned `IntermediateDocument` is the persisted source of truth for an
+accepted worksheet. It contains document identity, pages and roles, source blocks,
 stable tasks with explicit order and parent/subpart relations, structured
 choices, and independently identified response regions. A task links to zero,
 one, or many regions; each link has a role such as answer, explanation, show
-work, or choice. A task with no safe physical target carries an explicit
-side-panel fallback.
+work, or choice. A task with no safe physical target may exist in lower-level
+evaluation output, but cannot cross the production acceptance boundary.
 
 An approved response region is fully contained in one eligible physical
 `response_area` source block. Response sources cannot be reused, approved
@@ -98,16 +113,17 @@ text layers, near-transparent/white text, and graphic-overlapped content.
 Typed fields, underscore blanks, vector boxes, and vector lines are likewise
 excluded when their proposed writable interiors contain printed text, graphics,
 or a choice-like control. A deterministic source cue for a teacher guide,
-answer key, or no-write page forces that page to the side panel even if semantic
-output otherwise calls it student-facing.
+answer key, or no-write page makes the production document unsupported even if
+semantic output otherwise calls it student-facing.
 
 Task-to-region association is validated deterministically after the semantic
 classifier selects supplied IDs: a target must be on the same page, not overlap
 prompt text (except an explicit underscore run), and cannot skip a competing
 numbered prompt. A task may use multiple physical areas only when their roles
-are deterministic (answer plus explicit show-work/explanation); otherwise it
-routes to the side panel. Ambiguous, cross-page, OCR-only, clipped, table-grid,
-and unsupported relationships route to the side panel. Choice labels are
+are deterministic (answer plus explicit show-work/explanation) in lower-level
+evaluation; multi-role tasks are outside the production contract. Ambiguous,
+cross-page, OCR-only, clipped, table-grid, and unsupported relationships reject
+the production upload. Choice labels are
 preserved as source-backed `DocumentChoice` records. Checkboxes remain
 selection evidence and side-panel-only until a deterministic PDF mark renderer
 exists; neither the review path nor the exporter may turn one into a text
@@ -115,7 +131,7 @@ overlay.
 
 `rotation`, non-default crop, or `/UserUnit` scale marks a page as requiring a
 display transform. Until an explicit deterministic transform exists, native
-physical targets on such pages are unsafe and route to the side panel. Paddle
+physical targets on such pages make the production document unsupported. Paddle
 OCR geometry on those pages is omitted; any retained OCR text is semantic
 evidence only, never a physical target.
 
@@ -126,12 +142,14 @@ write targets. Historical flat `questions[]` manifests are migrated
 in memory to the canonical contract as quarantined legacy evidence. They do
 not become a second persisted production model.
 
-Safe projection and original-page export both require an approved task and
-region, explicit `student_worksheet` roles for the task and page, a parsed
+Safe projection and original-page export both require an accepted supported
+worksheet, an approved task and region, explicit `student_worksheet` roles for
+the task and page, a parsed
 non-OCR page with reliable native evidence and no pending page review, plus a
 local native task-shaped prompt (or directly adjacent colon-ended field label).
-If any gate fails, geometry is suppressed and the confirmed answer uses the
-side panel.
+If any gate fails before assignment creation, the upload rejects. After
+assignment creation, deterministic text overflow may use the labeled side
+panel without changing the accepted task-to-region association.
 
 Session state is separate and mutable. It is keyed by canonical task and
 response-target IDs, records drafts/confirmation/tokens/writes, and binds every
@@ -187,7 +205,8 @@ approved answer characters.
 
 ## Evaluation boundary
 
-The reliability package is an AI-adjudicated silver benchmark, not human gold.
+The reliability package is an AI-adjudicated silver benchmark; no human
+adjudication is claimed.
 It reports agreement, adjudication/abstention, validation failures, safety,
 latency, and cost. Any F1 is explicitly provisional silver-relative agreement.
 
@@ -204,5 +223,7 @@ parser behavior.
 The 20-document external acceptance corpus and preserved 17-page pilot are
 later real-world/stress suites. They remain available for broader layout, OCR,
 packet, table, visual, and outside-context testing, but they are not gates for
-the first milestone. Canonical success must not be generalized to arbitrary
-real-world PDFs.
+the first milestone. The production boundary is evaluated separately in
+`evaluation/worksheet_contract_v1`: the first-party short-answer document must
+be accepted and the choice and multi-region documents must reject. Canonical
+success must not be generalized to arbitrary real-world PDFs.

@@ -370,3 +370,32 @@ The local benchmark run ledger derives approximately `$3.636345` in estimated
 cost from completed usage metadata under the versioned 2026-07-18 pricing
 table. New requests are gated by `SILVER_BENCHMARK_MAX_COST_USD` (default
 `$5.00`) before they are sent; provider cost was not claimed as reported.
+
+## Sequential short-answer product contraction (2026-08-21)
+
+- Baseline: `399a9b8514d8800ddbce2a9f053a16f5ed044d4e` on `main`.
+- Change: production assignment creation now accepts only sequential
+  short-answer PDFs with one deterministic line group, box, writable area, or
+  text field directly below each question on the same page. Any unsupported or
+  ambiguous feature rejects the whole upload with a controlled 422; it cannot
+  become a side-panel assignment.
+- Architecture: `parse_document` remains the lower-level physical/evaluation
+  pipeline. `parse_supported_worksheet` is the only production assignment seam
+  and records the versioned classification, question count, and semantic-call
+  count. The offline hero replay no longer bypasses that seam.
+- Workload: 8 pages, 40 questions, and 8 semantic calls per upload; one attempt
+  and a 15-second timeout per semantic request. Production Cloud Run uses one
+  request per instance and at most two instances.
+- Safety: worksheet content is delimited as untrusted prompt data; capability,
+  session, write, assignment, and export responses are private/no-store; Secret
+  Manager supplies runtime credentials; the container runs as a non-root user.
+- Evaluation: canonical output keys now use agreement terminology and a
+  versioned report schema. `evaluation/worksheet_contract_v1` requires the
+  short-answer fixture to pass and the choice/multi-region fixtures to reject,
+  with zero unsafe acceptances.
+- Deployment: `.github/workflows/deploy.yml` is the single production source of
+  truth and explicitly configures storage/provider mode, runtime identity,
+  workload ceilings, scaling, timeout, and `/health` startup/liveness probes.
+- Evidence: focused contract and product-path tests passed during
+  implementation. Full release verification and final commit SHA are recorded
+  only after the complete suite finishes.

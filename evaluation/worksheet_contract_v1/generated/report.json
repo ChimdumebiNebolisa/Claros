@@ -1,0 +1,57 @@
+{
+  "report_schema_version": "worksheet-contract-evaluation-v1",
+  "suite": "worksheet-contract-v1",
+  "contract": "sequential-short-answer-v1",
+  "counts": {
+    "documents": 3,
+    "expected_supported": 1,
+    "expected_unsupported": 2,
+    "unsafe_acceptances": 0
+  },
+  "metrics": {
+    "decision_agreement": 1.0,
+    "supported_acceptance": 1.0,
+    "unsupported_rejection": 1.0
+  },
+  "documents": [
+    {
+      "canonical_id": "canonical-short-answer-ecosystems",
+      "expected_decision": "supported",
+      "actual_decision": "supported",
+      "decision_matches": true,
+      "reason_codes": [],
+      "question_count": 5,
+      "semantic_provider_calls": 0
+    },
+    {
+      "canonical_id": "canonical-choice-digital-safety",
+      "expected_decision": "unsupported",
+      "actual_decision": "unsupported",
+      "decision_matches": true,
+      "reason_codes": [
+        "ambiguous_answer_region_group",
+        "choice_task",
+        "multiple_response_roles",
+        "side_panel_parse_fallback",
+        "task_requires_review",
+        "unapproved_answer_region",
+        "unsupported_answer_geometry",
+        "unsupported_response_type"
+      ],
+      "question_count": 5,
+      "semantic_provider_calls": 0
+    },
+    {
+      "canonical_id": "canonical-numeric-everyday-math",
+      "expected_decision": "unsupported",
+      "actual_decision": "unsupported",
+      "decision_matches": true,
+      "reason_codes": [
+        "ambiguous_answer_region_group",
+        "multiple_response_roles"
+      ],
+      "question_count": 5,
+      "semantic_provider_calls": 0
+    }
+  ]
+}

@@ -2,11 +2,11 @@
 
 ## Mission and supported boundary
 
-Claros is a human-free worksheet-understanding and tutoring system. It
-supports structured PDF worksheets with deterministic physical evidence. For
-uncertain layouts, Claros routes answers to a safe side panel rather than
-guessing a location. It does not require teacher, administrator, or annotator
-review during normal use.
+Claros is a human-free worksheet-understanding and tutoring system for
+sequential short-answer PDFs. Every question must have one deterministic blank
+line group, box, writable area, or text field directly below it on the same
+page. Uncertain or unsupported layouts are rejected during upload. It does not
+require teacher, administrator, or annotator review during normal use.
 
 ## Non-negotiable safety boundaries
 
@@ -18,8 +18,9 @@ review during normal use.
 - Never write an answer until the student explicitly confirms the exact
   proposed answer.
 - Keep a typed, accessible fallback. Microphone access must never be required.
-- Preserve original worksheet pages. Use the side panel when a physical region
-  is missing, uncertain, invalid, or cannot fit a confirmed answer.
+- Preserve original worksheet pages. A missing, uncertain, or invalid physical
+  region rejects the upload; use the side panel only for deterministic overflow
+  after a supported target has been accepted.
 
 ## Privacy, secrets, and documents
 
@@ -79,5 +80,6 @@ read [`docs/agents/engineering.md`](docs/agents/engineering.md).
 
 - Preserve the behavior contract in `docs/redesign/BEHAVIOR_CONTRACT.md` before changing presentation.
 - Use the active OpenSpec change for substantive requirement, architecture, and task changes.
-- Keep typed operation, explicit answer confirmation, safe placement, and side-panel fallback intact.
+- Keep typed operation, explicit answer confirmation, fail-closed placement,
+  and post-acceptance overflow handling intact.
 - Route visual invention for this experiment through the locked `image-to-code` authority; keep other visual skills inactive unless a bounded diagnostic is explicitly justified.
