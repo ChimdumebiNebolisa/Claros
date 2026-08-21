@@ -12,6 +12,11 @@ production `parse_supported_worksheet` boundary rejects the entire upload when
 the layout is uncertain, unsupported, or exceeds its workload ceiling. A side
 panel may handle only answer overflow after an approved target exists.
 
+The concise, user-testable boundary is canonicalized in
+[`SUPPORTED_WORKSHEET_CONTRACT.md`](SUPPORTED_WORKSHEET_CONTRACT.md). This
+architecture document explains implementation ownership and does not define a
+broader accepted layout class.
+
 ## Authority boundary
 
 | Owner | May decide | Must not decide |
@@ -224,6 +229,7 @@ The 20-document external acceptance corpus and preserved 17-page pilot are
 later real-world/stress suites. They remain available for broader layout, OCR,
 packet, table, visual, and outside-context testing, but they are not gates for
 the first milestone. The production boundary is evaluated separately in
-`evaluation/worksheet_contract_v1`: the first-party short-answer document must
-be accepted and the choice and multi-region documents must reject. Canonical
-success must not be generalized to arbitrary real-world PDFs.
+`evaluation/worksheet_contract_v1`: its deterministic first-party corpus
+exercises realistic supported variation and deliberate rejection cases, while
+the original three canonical fixtures remain the recorded before baseline.
+Corpus agreement must not be generalized to arbitrary real-world PDFs.

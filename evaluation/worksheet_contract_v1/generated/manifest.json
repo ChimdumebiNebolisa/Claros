@@ -1,0 +1,309 @@
+{
+  "schema_version": "worksheet-contract-fixtures-v2",
+  "fixture_count": 29,
+  "fixtures": [
+    {
+      "fixture_id": "supported-numbered-lines-5",
+      "tags": [
+        "supported",
+        "numbered",
+        "lines",
+        "five_questions"
+      ],
+      "page_count": 1,
+      "question_count": 5,
+      "sha256": "c146d63de2988346be0ea7093b500fb0fa269dbe8a1739d46dddfddbcc4aee0b"
+    },
+    {
+      "fixture_id": "supported-command-boxes-5",
+      "tags": [
+        "supported",
+        "command_style",
+        "boxes"
+      ],
+      "page_count": 1,
+      "question_count": 5,
+      "sha256": "5932fd75b0d1dab9ccb821d1b8f5c8b4ea774ad04386b7b79fa83c8c71bc9aca"
+    },
+    {
+      "fixture_id": "supported-wrapped-prompts-6",
+      "tags": [
+        "supported",
+        "wrapped_prompts"
+      ],
+      "page_count": 2,
+      "question_count": 6,
+      "sha256": "e70c7a202c0343fe98303f1b0bdf41ea89ff894d0fef6b20c3b4ae75d97e1fb6"
+    },
+    {
+      "fixture_id": "supported-aligned-line-groups-5",
+      "tags": [
+        "supported",
+        "aligned_line_groups"
+      ],
+      "page_count": 1,
+      "question_count": 5,
+      "sha256": "3047f822f70dd7130da7eec716fc04bc2b1a9ae483b122cb7451e26326509603"
+    },
+    {
+      "fixture_id": "supported-text-fields-5",
+      "tags": [
+        "supported",
+        "text_fields",
+        "multiple_pages"
+      ],
+      "page_count": 2,
+      "question_count": 5,
+      "sha256": "19a6915a4aa5944e930dda97fdde200d1e2645b57033af62d34a1c38491dd42b"
+    },
+    {
+      "fixture_id": "supported-font-margin-indent-7",
+      "tags": [
+        "supported",
+        "font_variation",
+        "margin_variation",
+        "indentation"
+      ],
+      "page_count": 1,
+      "question_count": 7,
+      "sha256": "f18731a62ea59ecdf5281a3a604cade03f248c1d1848c586871fb81b06050fc1"
+    },
+    {
+      "fixture_id": "supported-local-gaps-8",
+      "tags": [
+        "supported",
+        "local_vertical_gaps",
+        "multiple_pages"
+      ],
+      "page_count": 2,
+      "question_count": 8,
+      "sha256": "5e8d4d6992b43386df8ee9fff942fe801730afc73a2f53cec1d4d5cbd55c06fb"
+    },
+    {
+      "fixture_id": "supported-multipage-10",
+      "tags": [
+        "supported",
+        "multiple_pages",
+        "ten_questions"
+      ],
+      "page_count": 2,
+      "question_count": 10,
+      "sha256": "cdcdd061f9bb838dd09690019283e36b21b34594e88df9280650784f487fcadb"
+    },
+    {
+      "fixture_id": "supported-page-edge-5",
+      "tags": [
+        "supported",
+        "page_edge"
+      ],
+      "page_count": 1,
+      "question_count": 5,
+      "sha256": "f7df27b88374a3a0e53d4fddf0fe4d91d0fd10b8ec8bd982466c2ace80afabef"
+    },
+    {
+      "fixture_id": "supported-numeric-20",
+      "tags": [
+        "supported",
+        "numeric",
+        "twenty_questions"
+      ],
+      "page_count": 4,
+      "question_count": 20,
+      "sha256": "bcd47041d1a68b49ad1bb9ee47dfebd7d14cdb7e2a1bc56f65ad7f2f182cbaf2"
+    },
+    {
+      "fixture_id": "rejected-multiple-choice",
+      "tags": [
+        "rejected",
+        "multiple_choice",
+        "choice_numbering"
+      ],
+      "page_count": 1,
+      "question_count": 1,
+      "sha256": "f06f7d5e4fcd30b60d87e33bb7a27641219016439542a6fdaa46d3c56d350918"
+    },
+    {
+      "fixture_id": "rejected-checkboxes",
+      "tags": [
+        "rejected",
+        "checkboxes"
+      ],
+      "page_count": 1,
+      "question_count": 1,
+      "sha256": "4a8dc4c036e74336380159375abd7e084dcd34c5cbb7e67c8325980ca655cbd5"
+    },
+    {
+      "fixture_id": "rejected-table-entry",
+      "tags": [
+        "rejected",
+        "table_entry"
+      ],
+      "page_count": 1,
+      "question_count": 1,
+      "sha256": "330f8a253c724488f7e325568da4a9cc7d825806b64e165d1479417e882ad18c"
+    },
+    {
+      "fixture_id": "rejected-answer-key",
+      "tags": [
+        "rejected",
+        "answer_key"
+      ],
+      "page_count": 1,
+      "question_count": 1,
+      "sha256": "c96ffec600e1f325bb9c8fc46ccbe5db435ce1f1840a84173d007e7c33022b2d"
+    },
+    {
+      "fixture_id": "rejected-teacher-guide",
+      "tags": [
+        "rejected",
+        "teacher_guide"
+      ],
+      "page_count": 1,
+      "question_count": 1,
+      "sha256": "147a25113ac803fffe233ba6bab145ff667658687924c9e3683d02d7a81b3685"
+    },
+    {
+      "fixture_id": "rejected-essay-area",
+      "tags": [
+        "rejected",
+        "essay_area"
+      ],
+      "page_count": 1,
+      "question_count": 1,
+      "sha256": "df0bb7c88dfea5ca3f04cd1e47f1cd3d29f2e71cfee634ab510bc043d6ba046e"
+    },
+    {
+      "fixture_id": "rejected-remote-answer",
+      "tags": [
+        "rejected",
+        "remote_answer"
+      ],
+      "page_count": 1,
+      "question_count": 1,
+      "sha256": "6e7bf297419bf387bdd67227e7a40bef4223865e72cbd30fd69d82442993939b"
+    },
+    {
+      "fixture_id": "rejected-end-collected-answers",
+      "tags": [
+        "rejected",
+        "end_collected_answers"
+      ],
+      "page_count": 1,
+      "question_count": 3,
+      "sha256": "c30473cdd9936cf4228aae3727fd2c7a34b2d82f691fda807d5817041ece16c0"
+    },
+    {
+      "fixture_id": "rejected-multi-column",
+      "tags": [
+        "rejected",
+        "multi_column",
+        "staggered_columns"
+      ],
+      "page_count": 1,
+      "question_count": 2,
+      "sha256": "0fc2ff00aabb793db9f02952d6bd140aa97a163cdf4988bfac3dcb7ebf95bf3f"
+    },
+    {
+      "fixture_id": "rejected-competing-spaces",
+      "tags": [
+        "rejected",
+        "competing_spaces",
+        "line_group_red_team"
+      ],
+      "page_count": 1,
+      "question_count": 1,
+      "sha256": "f96d06dedfb85a4df3bf60866440ff38739ccfff88de1f80357c0420abe683ca"
+    },
+    {
+      "fixture_id": "rejected-unclaimed-space",
+      "tags": [
+        "rejected",
+        "unclaimed_space",
+        "decorative_line"
+      ],
+      "page_count": 1,
+      "question_count": 1,
+      "sha256": "38e4c18149b5cb3372b7890b913a9925dd70202c108b10169e2ada84d27867e6"
+    },
+    {
+      "fixture_id": "rejected-cross-page",
+      "tags": [
+        "rejected",
+        "cross_page"
+      ],
+      "page_count": 2,
+      "question_count": 1,
+      "sha256": "f0ced90649e8f0cd7b3888a87aedc0e0a0c4cd8ccdc5535d2316891fe7615faf"
+    },
+    {
+      "fixture_id": "rejected-transformed-page",
+      "tags": [
+        "rejected",
+        "unsupported_transform"
+      ],
+      "page_count": 1,
+      "question_count": 1,
+      "sha256": "bded223ef2199e863d6c84ea3c8d0fd5a34b138f2aeaa739e320ab4fc23fdd58"
+    },
+    {
+      "fixture_id": "rejected-image-only-scan",
+      "tags": [
+        "rejected",
+        "image_only_scan"
+      ],
+      "page_count": 1,
+      "question_count": 0,
+      "sha256": "328ef441603e02e978e6bd1e919be5361725cba3cc015c592b4b35e20580bad3"
+    },
+    {
+      "fixture_id": "rejected-questionless-page",
+      "tags": [
+        "rejected",
+        "questionless_page"
+      ],
+      "page_count": 2,
+      "question_count": 1,
+      "sha256": "120567700e97e12d47d518d3b66b068e41f8f8ed1901e6f3ce04210a7da868b3"
+    },
+    {
+      "fixture_id": "rejected-unmappable-diagram",
+      "tags": [
+        "rejected",
+        "unmappable_diagram"
+      ],
+      "page_count": 1,
+      "question_count": 1,
+      "sha256": "3879254a88e5a02174d4af0d9b675c253e01cd535aad6918c64cfeaa42fcf57f"
+    },
+    {
+      "fixture_id": "rejected-overlapping-graphic",
+      "tags": [
+        "rejected",
+        "overlapping_graphic"
+      ],
+      "page_count": 1,
+      "question_count": 1,
+      "sha256": "3593d3b16eaaae83818a07ea055a6eddcdfeeac97d13fdd630ae16377a16d1d3"
+    },
+    {
+      "fixture_id": "rejected-shifted-association",
+      "tags": [
+        "rejected",
+        "adjacent_association"
+      ],
+      "page_count": 1,
+      "question_count": 2,
+      "sha256": "4fa3654d358ca0f3a4fa0e760b24623f883124c454384834f8b34d680967ee5f"
+    },
+    {
+      "fixture_id": "rejected-semantic-promotion",
+      "tags": [
+        "rejected",
+        "unauthorized_semantic_promotion"
+      ],
+      "page_count": 1,
+      "question_count": 1,
+      "sha256": "ae9f7527cb1f74950c3819432dcea238801a360e505f81ff82bc67a876033c2e"
+    }
+  ]
+}

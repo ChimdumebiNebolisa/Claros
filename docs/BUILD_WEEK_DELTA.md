@@ -399,3 +399,44 @@ table. New requests are gated by `SILVER_BENCHMARK_MAX_COST_USD` (default
 - Evidence: focused contract and product-path tests passed during
   implementation. Full release verification and final commit SHA are recorded
   only after the complete suite finishes.
+
+## Narrow contract validation and corpus expansion (2026-08-21)
+
+- Mainline baseline/current SHA at start:
+  `7200b078a43fca581f9f3cd94fc59274bbd7372a`.
+- Working branch: `codex/validate-narrow-worksheet-contract`.
+- Product surface: the API catalog, static worksheet chooser, default alias,
+  and official deep link expose only `canonical-short-answer-ecosystems`.
+  Choice and multi-region math PDFs remain evaluation fixtures.
+- Corpus: 29 distinct deterministic first-party PDFs generated from checked-in
+  source definitions; 10 are adjudicated supported and 19 deliberately exercise
+  rejection/red-team behavior. Repeated generation produced identical fixture
+  IDs and SHA-256 values.
+- Expanded evaluation: 29/29 decision agreement, 10/10 supported-document
+  acceptance, 19/19 unsupported-document rejection, and 76/76 agreement for
+  response-region detection, question-to-response association, and response
+  type. Question count/order agree for all 10 supported documents. Unsafe
+  acceptances and supported rejections are both zero.
+- Red-team triage: two initial layouts were corrected because their source
+  definitions did not match the intended expectation. A fabricated semantic
+  response ID exposed one in-contract parser defect; unknown supplied IDs now
+  enter the existing controlled whole-document rejection path. Geometry and
+  write authority were not relaxed.
+- Hardening evidence: 100 focused capability, lifecycle, session, write-token,
+  rate-limit, privacy-header, container, and deployment-contract tests passed.
+  Full Python verification passed 441 tests with one live-provider test skipped
+  and 83.98 percent coverage. Frontend CI and two deterministic demo checks
+  passed. Canonical-v1 retained full agreement on its primary metrics, with
+  response-region mean IoU 0.917697 and zero false-positive tasks or writable
+  regions.
+- Docker: the local Docker Desktop Linux daemon was unavailable, so no local
+  image claim is made. The pull-request `Docker image build` context is required
+  before merge.
+- Repository policy: GitHub `main` protection is enabled with strict required
+  contexts `Python tests & lint`, `Frontend contract & bundle`, and
+  `Docker image build`; force pushes and deletion are disabled. No prior branch
+  protection object existed.
+- Attribution: implementation and evidence were produced in the current Codex
+  task. No Codex session ID is present in repository evidence, so none is
+  fabricated. The implementation commit and merge SHA are recorded after they
+  exist.

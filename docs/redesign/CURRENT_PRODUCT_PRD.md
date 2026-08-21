@@ -7,6 +7,11 @@ Baseline source: `origin/main` at `63f8b0f611903f64dc5c4fa7b62390c83da5c452`
 This document describes the reachable product as implemented at the baseline.
 It is not the redesign brief and does not prescribe a visual system.
 
+The active document boundary is defined by
+[`../SUPPORTED_WORKSHEET_CONTRACT.md`](../SUPPORTED_WORKSHEET_CONTRACT.md).
+Where this historical redesign baseline describes broader parser states, the
+canonical contract governs the current production upload path.
+
 ## Product summary
 
 Claros is a human-free worksheet-understanding and tutoring workspace. A
@@ -43,7 +48,7 @@ legible.
 - Optionally start a Gemini Live voice session when credentials and browser
   audio support are available.
 - Draft, edit, review, confirm, and explicitly write answers task by task.
-- Route uncertain or unsafe placement to a labeled export side panel.
+- Reject uncertain or unsafe placement before assignment creation.
 - Resume a durable browser session when restore data remains valid.
 - Export the original worksheet with deterministic answer stamping and any
   side-panel pages.
@@ -60,12 +65,11 @@ legible.
 
 ## Task and response-target model
 
-The parser produces a document manifest with stable task IDs, source blocks,
-task prompt text, choices where applicable, and zero or more response-region
-links. A task can have multiple response targets such as an answer field and an
-explanation field. Each target has a stable `response_region_id`, label, page
-and geometry evidence owned by the server, safety status, and a side-panel
-fallback when placement cannot be verified.
+The accepted production parser produces a document manifest with stable task
+IDs, source blocks, prompt text, and exactly one approved local response area
+for each sequential short-answer question. Each target has a stable
+`response_region_id`, page, and geometry evidence owned by the server. The side
+panel is available only for deterministic overflow after a target is accepted.
 
 The browser may select a task and response target, but it must not provide
 geometry to authorize a write. Client state is advisory; server-loaded
@@ -83,8 +87,8 @@ manifests and write validation are authoritative.
 
 ### Entry and processing
 
-1. `/app` starts in `empty` with PDF file chooser, drop zone, and three official
-   sample links.
+1. `/app` starts in `empty` with a PDF file chooser, drop zone, and the single
+   supported `canonical-short-answer-ecosystems` official sample.
 2. A sample link fetches `/api/samples`, downloads the selected first-party PDF,
    and passes it through the same upload path as a user file.
 3. Upload posts to `/upload`.
@@ -120,13 +124,13 @@ confirmation or server write authorization. If provider loading, credentials,
 microphone access, or the live connection fails, Claros reveals a typed fallback
 and leaves the core flow usable.
 
-### Unsafe placement and layout review
+### Unsafe placement and overflow
 
-If a response region is absent, unresolved, low-confidence, invalid, overflowed,
-or otherwise unsafe, the document enters a layout-review or safe-side-panel
-state. The UI must explain that the worksheet page remains unchanged and that a
-confirmed answer can be included on the labeled export side panel. It must not
-invent or silently repair coordinates.
+If any response region is absent, unresolved, low-confidence, invalid, or
+otherwise unsafe, the whole upload is rejected and no writable assignment is
+created. The UI must explain the supported shape and must not invent or silently
+repair coordinates. Only text overflow after an approved target may use the
+labeled export side panel.
 
 ### Persistence and export
 
