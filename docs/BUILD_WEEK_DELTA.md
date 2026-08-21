@@ -430,13 +430,13 @@ table. New requests are gated by `SILVER_BENCHMARK_MAX_COST_USD` (default
   response-region mean IoU 0.917697 and zero false-positive tasks or writable
   regions.
 - Docker: the local Docker Desktop Linux daemon was unavailable, so no local
-  image claim is made. The pull-request `Docker image build` context is required
-  before merge.
+  image claim is made. Both initial PR #35 `Docker image build` jobs passed for
+  implementation commit `5503cd2`; the context remains required before merge.
 - Repository policy: GitHub `main` protection is enabled with strict required
   contexts `Python tests & lint`, `Frontend contract & bundle`, and
   `Docker image build`; force pushes and deletion are disabled. No prior branch
   protection object existed.
 - Attribution: implementation and evidence were produced in the current Codex
-  task. No Codex session ID is present in repository evidence, so none is
-  fabricated. The implementation commit and merge SHA are recorded after they
-  exist.
+  task at implementation commit `5503cd2`. No Codex session ID is present in
+  repository evidence, so none is fabricated. The merge SHA is reported only
+  after it exists.

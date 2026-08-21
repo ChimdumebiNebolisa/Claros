@@ -29,8 +29,9 @@ evidence; they do not establish live-provider or universal PDF support.
   frontend validation, and the Gemini browser bundle build.
 - Demo: `test_demo_hero_fixture.py` and `test_demo_hero_export.py` passed.
 - Local Docker: not run because the Docker Desktop Linux daemon was unavailable;
-  this is not container evidence. GitHub `main` protection requires the remote
-  `Docker image build` context before merge.
+  this is not local container evidence. Both initial PR #35 remote
+  `Docker image build` jobs passed for implementation commit `5503cd2`, and
+  GitHub `main` protection keeps that context required before merge.
 - Live provider and production runtime behavior were not exercised by this
   local pass.
 

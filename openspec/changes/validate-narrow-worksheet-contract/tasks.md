@@ -25,4 +25,4 @@
 
 - [x] 5.1 Re-run hardening coverage for geometry authority, confirmation/write tokens, provider limits, privacy headers, non-root container execution, and single-instance deployment assumptions, then verify no safeguard regresses
 - [x] 5.2 Inspect `main` branch protection and, if authorized, require strict `Python tests & lint`, `Frontend contract & bundle`, and `Docker image build` checks while preserving other settings; otherwise record the exact manual GitHub setting
-- [ ] 5.3 Update architecture, verification, and Build Week evidence with the final corpus/result provenance and run ruff, full pytest with coverage, frontend CI, canonical and expanded evaluations, demo validation, Docker build, and `git diff --check`; verify generated outputs are stable and the worktree contains no unintended files
+- [x] 5.3 Update architecture, verification, and Build Week evidence with the final corpus/result provenance and run ruff, full pytest with coverage, frontend CI, canonical and expanded evaluations, demo validation, Docker build, and `git diff --check`; verify generated outputs are stable and the worktree contains no unintended files

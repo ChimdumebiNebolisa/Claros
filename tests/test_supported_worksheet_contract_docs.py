@@ -31,7 +31,7 @@ def test_current_docs_link_to_canonical_contract():
         "docs/ARCHITECTURE.md": "SUPPORTED_WORKSHEET_CONTRACT.md",
         "docs/github-actions-deploy.md": "SUPPORTED_WORKSHEET_CONTRACT.md",
         "docs/redesign/CURRENT_PRODUCT_PRD.md": "../SUPPORTED_WORKSHEET_CONTRACT.md",
-        "docs/verification.md": "SUPPORTED_WORKSHEET_CONTRACT.md",
+        "docs/VERIFICATION.md": "SUPPORTED_WORKSHEET_CONTRACT.md",
     }
 
     for relative_path, link in expected_links.items():
