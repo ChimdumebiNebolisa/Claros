@@ -1,0 +1,9 @@
+@import "tailwindcss/theme.css";
+@import "tailwindcss/utilities.css";
+@import "tw-animate-css";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-glacier: #e2e7fc;
+  --color-obsidian: #111318;
+}
