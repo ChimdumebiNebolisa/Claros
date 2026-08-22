@@ -89,6 +89,25 @@ jobs:
         with:
           project_id: ${{ env.PROJECT_ID }}
 
+      - name: Rotate Gemini runtime key into Secret Manager
+        run: |
+          set -euo pipefail
+          KEY_RESOURCE=$(gcloud services api-keys create \
+            --display-name="Claros production runtime ${GITHUB_RUN_ID}" \
+            --api-target="service=generativelanguage.googleapis.com" \
+            --format="value(name)")
+          KEY_VALUE=$(gcloud services api-keys get-key-string "$KEY_RESOURCE" \
+            --location=global \
+            --format="value(keyString)")
+          if gcloud secrets describe claros-gemini-api-key >/dev/null 2>&1; then
+            printf '%s' "$KEY_VALUE" | gcloud secrets versions add claros-gemini-api-key --data-file=-
+          else
+            printf '%s' "$KEY_VALUE" | gcloud secrets create claros-gemini-api-key \
+              --replication-policy=automatic \
+              --data-file=-
+          fi
+          unset KEY_VALUE
+
       - name: Build and push image
         run: |
           IMAGE="gcr.io/${PROJECT_ID}/${SERVICE_NAME}:${GITHUB_SHA}"
