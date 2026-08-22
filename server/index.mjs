@@ -107,6 +107,10 @@ function safeEqual(a, b) {
 }
 
 async function handleApi(request, response, pathname) {
+  if (request.method === "GET" && pathname === "/health") {
+    json(response, 200, { status: "ok" });
+    return true;
+  }
   if (request.method === "GET" && pathname === "/api/v1/demo.pdf") {
     response.writeHead(200, { "content-type": "application/pdf", "content-disposition": 'attachment; filename="ecosystems-worksheet.pdf"' });
     response.end(demoPdf);

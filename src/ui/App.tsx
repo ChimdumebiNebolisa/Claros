@@ -71,8 +71,6 @@ function Landing() {
               <div className="review-fit"><Check size={14} /> Fits in answer area</div>
               <div className="review-action">Confirm &amp; add <ArrowRight size={15} /></div>
             </div>
-
-            <div className="collage-index" aria-hidden="true"><strong>3</strong><span>Placement checked<br />directly below Question 2</span></div>
           </div>
         </div>
       </section>

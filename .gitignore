@@ -36,3 +36,6 @@ evaluation/pdf_silver_benchmark/agent_outputs/
 evaluation/pdf_silver_benchmark/adjudications/
 evaluation/pdf_silver_benchmark/local_runs/
 evaluation/pdf_silver_benchmark/reports/
+
+.vercel
+.env*.local

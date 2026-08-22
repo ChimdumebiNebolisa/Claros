@@ -65,9 +65,6 @@ button:focus-visible, a:focus-visible, textarea:focus-visible { outline: 2px sol
 .voice-bars i:nth-child(1), .voice-bars i:nth-child(5) { height: 5px; }
 .voice-bars i:nth-child(2), .voice-bars i:nth-child(4) { height: 12px; animation-delay: -.25s; }
 .voice-bars i:nth-child(3) { height: 18px; animation-delay: -.5s; }
-.collage-index { position: absolute; z-index: 6; bottom: 28px; left: 0; display: flex; align-items: flex-end; gap: 9px; color: var(--color-graphite); }
-.collage-index strong { font-size: 44px; line-height: .8; letter-spacing: -.04em; }
-.collage-index span { font-size: 9px; font-weight: 700; letter-spacing: .08em; line-height: 1.35; text-transform: uppercase; }
 .journey { display: grid; grid-template-columns: .72fr 1.28fr; gap: 100px; padding-top: 112px; padding-bottom: 120px; }
 .journey-heading h2 { max-width: 470px; margin: 0; font-size: clamp(44px, 5vw, 70px); line-height: .96; letter-spacing: -.04em; }
 .journey-heading p { max-width: 390px; margin: 28px 0 0; color: var(--color-iron); font-size: 15px; line-height: 1.55; }
@@ -226,8 +223,6 @@ textarea:focus { border-color: var(--color-pure-black); }
   .review-card h2 { margin: 18px 0 20px; font-size: 23px; }
   .review-answer { min-height: 74px; font-size: 12px; }
   .voice-chip { position: relative; top: auto; right: auto; width: max-content; min-height: 44px; margin-top: 2px; padding: 0 13px 0 8px; }
-  .collage-index { position: relative; bottom: auto; left: auto; align-items: center; margin: 4px 0 0 24px; padding: 12px 0 0; border-top: 1px solid var(--color-ash); }
-  .collage-index strong { font-size: 34px; }
   .journey-heading h2, .supported-editorial h2 { font-size: 44px; }
   .journey-list li { grid-template-columns: 58px 1fr; gap: 16px; }
   .journey-list li > span { font-size: 30px; }
