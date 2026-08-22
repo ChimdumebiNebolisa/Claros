@@ -92,21 +92,38 @@ jobs:
       - name: Rotate Gemini runtime key into Secret Manager
         run: |
           set -euo pipefail
-          KEY_RESOURCE=$(gcloud services api-keys create \
-            --display-name="Claros production runtime ${GITHUB_RUN_ID}" \
-            --api-target="service=generativelanguage.googleapis.com" \
-            --format="value(name)")
-          KEY_VALUE=$(gcloud services api-keys get-key-string "$KEY_RESOURCE" \
-            --location=global \
-            --format="value(keyString)")
+          ACCESS_TOKEN=$(gcloud auth print-access-token)
+          CREATE_PAYLOAD=$(jq -nc \
+            --arg display_name "Claros production runtime ${GITHUB_RUN_ID}" \
+            '{displayName: $display_name, restrictions: {apiTargets: [{service: "generativelanguage.googleapis.com"}]}}')
+          CREATE_RESPONSE=$(curl -fsS -X POST \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "$CREATE_PAYLOAD" \
+            "https://apikeys.googleapis.com/v2/projects/${PROJECT_ID}/locations/global/keys")
+          OPERATION_NAME=$(jq -er '.name' <<<"$CREATE_RESPONSE")
+          for _ in $(seq 1 30); do
+            OPERATION_RESPONSE=$(curl -fsS \
+              -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+              "https://apikeys.googleapis.com/v2/${OPERATION_NAME}")
+            if [[ $(jq -r '.done // false' <<<"$OPERATION_RESPONSE") == "true" ]]; then
+              break
+            fi
+            sleep 2
+          done
+          KEY_VALUE=$(jq -er '.response.keyString' <<<"$OPERATION_RESPONSE")
           if gcloud secrets describe claros-gemini-api-key >/dev/null 2>&1; then
-            printf '%s' "$KEY_VALUE" | gcloud secrets versions add claros-gemini-api-key --data-file=-
+            printf '%s' "$KEY_VALUE" | gcloud secrets versions add claros-gemini-api-key --data-file=- >/dev/null
           else
             printf '%s' "$KEY_VALUE" | gcloud secrets create claros-gemini-api-key \
               --replication-policy=automatic \
-              --data-file=-
+              --data-file=- >/dev/null
           fi
-          unset KEY_VALUE
+          gcloud secrets add-iam-policy-binding claros-gemini-api-key \
+            --member="serviceAccount:${{ secrets.GCP_RUNTIME_SERVICE_ACCOUNT }}" \
+            --role="roles/secretmanager.secretAccessor" \
+            --quiet >/dev/null
+          unset ACCESS_TOKEN CREATE_PAYLOAD CREATE_RESPONSE OPERATION_RESPONSE KEY_VALUE
 
       - name: Build and push image
         run: |
