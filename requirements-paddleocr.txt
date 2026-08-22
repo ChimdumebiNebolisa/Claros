@@ -1,5 +1,0 @@
-# Optional isolated parser-service / benchmark dependencies.
-# Do not add this file to the user-facing Cloud Run image until corpus and
-# resource benchmarks meet the promotion criteria.
-paddlepaddle==3.3.1
-paddleocr[doc-parser]==3.7.0

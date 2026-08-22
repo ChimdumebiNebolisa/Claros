@@ -1,85 +1,20 @@
-# Claros working agreement
+# Claros working agreements
 
-## Mission and supported boundary
-
-Claros is a human-free worksheet-understanding and tutoring system for
-sequential short-answer PDFs. Every question must have one deterministic blank
-line group, box, writable area, or text field directly below it on the same
-page. Uncertain or unsupported layouts are rejected during upload. It does not
-require teacher, administrator, or annotator review during normal use.
-
-## Non-negotiable safety boundaries
-
-- Never invent source text, source-block IDs, response-candidate IDs, or PDF
-  coordinates.
-- Models may select from supplied physical evidence and propose tutoring
-  actions; deterministic code owns geometry, validation, student confirmation,
-  write-token issuance, authorization, overflow handling, and PDF changes.
-- Never write an answer until the student explicitly confirms the exact
-  proposed answer.
-- Keep a typed, accessible fallback. Microphone access must never be required.
-- Preserve original worksheet pages. A missing, uncertain, or invalid physical
-  region rejects the upload; use the side panel only for deterministic overflow
-  after a supported target has been accepted.
-
-## Privacy, secrets, and documents
-
-- Do not read, print, commit, or log secret values. `.env` files and browser
-  profiles are local-only.
-- Do not commit external PDFs, private worksheets, raw provider payloads, or
-  generated corpus output without explicit rights and privacy confirmation.
-- Avoid content logging. Record hashes, sizes, latency, cost, and reason codes
-  instead.
-- Document logical versus physical retention honestly; do not claim automatic
-  deletion without verified lifecycle configuration.
-
-## Evaluation language
-
-All document labels are AI-adjudicated silver. Never call them human gold,
-ground truth, expert labels, human-verified, accuracy, or correctness.
-Metrics must use agreement, adjudication, abstention, validator-catch, and
-unsafe-placement language. Any F1 must be labelled "silver-relative agreement
-/ provisional F1 against AI-adjudicated silver".
-
-## Change and test expectations
-
-- Make the smallest focused change; preserve unrelated local work.
-- Add a regression test for each confirmed defect.
-- Update architecture, Build Week delta, and verification documentation when a
-  product boundary, provider, storage policy, evaluation method, or deployment
-  requirement changes.
-- Run the narrowest relevant tests first. Before a release, run:
-
-  ```powershell
-  python -m ruff check .
-  python -m pytest tests/ --cov --cov-config=pyproject.toml --cov-report=term-missing
-  npm run ci:frontend
-  docker build -t claros:final .
-  git diff --check
-  ```
-
-- Run benchmark validation/freezing, compiler evaluation, browser, PDF,
-  security, and provider-mock suites whenever their related code changes.
-- Do not claim provider or production verification without the corresponding
-  live evidence.
-
-## Build Week provenance and commits
-
-- Record the baseline SHA, current SHA, contributors/co-authors, and evidence
-  for each Build Week claim. Do not fabricate a Codex session ID or attribute
-  all contest-period work to Codex.
-- Keep commit staging intentional. Never include secrets, private documents,
-  `output/`, local corpus data, or browser state.
-- Keep this file and `docs/BUILD_WEEK_DELTA.md` current as the implementation
-  changes.
+Claros helps students with typing barriers complete validated short-answer PDFs
+with one deterministic answer area per question. The active reconstruction is
+planned in `openspec/changes/claros-reconstruction/` and is governed by the
+supplied PRD and `docs/CLAROS_DESIGN.md`.
 
 ## Engineering
 
-Before non-trivial code, architecture, schema, integration, or refactoring work,
-read [`docs/agents/engineering.md`](docs/agents/engineering.md).
+Before non-trivial code, architecture, schema, integration, or refactoring,
+read `docs/agents/engineering.md`.
 
-- Preserve the behavior contract in `docs/redesign/BEHAVIOR_CONTRACT.md` before changing presentation.
-- Use the active OpenSpec change for substantive requirement, architecture, and task changes.
-- Keep typed operation, explicit answer confirmation, fail-closed placement,
-  and post-acceptance overflow handling intact.
-- Route visual invention for this experiment through the locked `image-to-code` authority; keep other visual skills inactive unless a bounded diagnostic is explicitly justified.
+- Keep exact-answer confirmation, deterministic placement, immutable source
+  pages, and server-owned export invariants intact.
+- Keep typed input complete when voice is unavailable; microphone access is
+  optional and voice cannot commit, export, or control geometry.
+- Use the active OpenSpec design as the source of truth for substantive
+  requirement, architecture, and surface-authority changes.
+- Preserve the supplied design system; do not introduce a competing token or
+  component foundation.
