@@ -4,12 +4,32 @@ import AxeBuilder from "@axe-core/playwright";
 test("landing page exposes the supported worksheet promise", async ({ page }, testInfo) => {
   test.setTimeout(120_000);
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Your worksheet, one safe answer at a time." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /The answer is yours\.\s*Getting it onto the page can be easier\./ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Open workspace/ }).first()).toBeVisible();
+  await expect(page.getByText("One clear answer space", { exact: true }).last()).toBeVisible();
   const accessibility = await new AxeBuilder({ page }).analyze();
   expect(accessibility.violations).toEqual([]);
+  await page.locator(".review-card").evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)));
   const screenshot = testInfo.outputPath("landing-desktop.png");
   await page.screenshot({ path: screenshot, fullPage: true });
   await testInfo.attach("landing-desktop", { path: screenshot, contentType: "image/png" });
+});
+
+test("mobile landing keeps the answer story in a readable sequence", async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+
+  await expect(page.locator(".voice-chip strong")).toHaveText("Talk it through");
+  await expect(page.locator(".voice-chip strong")).toBeVisible();
+  await expect(page.getByRole("img", { name: /Question 2 moves from optional voice discussion/ })).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+  const accessibility = await new AxeBuilder({ page }).analyze();
+  expect(accessibility.violations).toEqual([]);
+  const screenshot = testInfo.outputPath("landing-mobile.png");
+  await page.screenshot({ path: screenshot, fullPage: true });
+  await testInfo.attach("landing-mobile", { path: screenshot, contentType: "image/png" });
 });
 
 test("desktop workspace keeps export gated and exposes a worksheet transcript", async ({ page }, testInfo) => {
