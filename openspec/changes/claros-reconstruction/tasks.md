@@ -38,8 +38,8 @@
 - [x] 4.2 Run focused Vitest contract, placement, and state-machine suites.
 - [x] 4.3 Exercise demo load, upload hash gate, plan, commit, and PDF export over
   the running HTTP server.
-- [x] 4.4a Add Storybook state stories with the Storybook accessibility addon,
-  MSW browser handlers, and the Playwright/axe test harness.
+- [x] 4.4a Add Storybook state stories with the Storybook accessibility addon
+  and the Playwright/axe test harness.
 - [x] 4.4 Add browser-rendered desktop/mobile screenshots and accessibility
   automation before making production-quality claims.
 - [ ] 4.5 Replace the authored sample-only extractor with evidence-backed native
