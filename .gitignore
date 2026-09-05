@@ -6,6 +6,7 @@ coverage/
 .env
 .env.*
 !.env.example
+gha-creds-*.json
 .venv/
 *.pyc
 __pycache__/
