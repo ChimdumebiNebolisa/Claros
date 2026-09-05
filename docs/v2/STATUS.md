@@ -8,11 +8,11 @@
 - **Gate 0 content checkpoint:** `0c15404b87edbbe19b03de93d81ad95aa1e897fd`
 - **Gate 1 content checkpoint:** `59cbc509650cc4a65b139a7db23012ead74efb3c`
 - **Gate 2 content checkpoint:** `0723303ef718bb28594d519da31ec0a55226fa45`
-- **Gate 3 accepted runtime checkpoint:** `2afcdbb92fce3b1d055bc4bf3e4efbaec60c3ce7`
+- **Gate 3 accepted clean checkpoint:** `88cda664f55abf698a1d56567e814e024708ad0a`
 
 ## Current milestone
 
-- **Milestone:** Gate 3 passed at accepted runtime checkpoint `2afcdbb`.
+- **Milestone:** Gate 3 passed at accepted clean checkpoint `88cda66`.
 - **Changed:** Added the FastAPI `/api/v2` service, signed anonymous ownership,
   filesystem/GCS adapters, generation-CAS manifests, generated browser types,
   deterministic physical IR and placement, immutable-source inline/appendix
@@ -22,7 +22,7 @@
   Terraform validation, authority hashes, Chrome/pikepdf/Acrobat reopening,
   Ubuntu production-container restart, Cloud Build, and live GCS/Cloud Run
   revision replacement all passed.
-- **Remote evidence:** GitHub run `33938914646` retained privacy-safe logs and
+- **Remote evidence:** GitHub run `33941739290` retained privacy-safe logs and
   both synthetic PDFs. Cloud Build `8bcf24be-5be9-4e81-a8e5-fc2947d39754`
   produced digest `sha256:b4058b7bb22210a82690db7859354dad4fdf354441d57ee46a79deea6d7d5b66`;
   revision `claros-00075-xtv` serves it at 100 percent after live persistence,
@@ -52,20 +52,20 @@
 - [x] Inspect dependency and production-source diffs; both are unchanged.
 - [x] Run and record `git diff --check`.
 - [x] Complete an independent read-only authority/OpenSpec contract review with
-  no blocking contradiction found.
+      no blocking contradiction found.
 - [x] Commit the Gate 0 planning-only checkpoint.
 
 ## Prior baseline evidence
 
 The following passed on the unmodified baseline before the V2 authority delta:
 
-| Evidence | Result |
-|---|---|
-| `npm run build` | Pass |
-| `npm test` | Pass — 7 tests |
-| `npm run test:e2e` | Pass — 4 Playwright tests |
-| `npm run build-storybook` | Pass |
-| Pre-V2 `openspec validate claros-reconstruction --strict` | Pass |
+| Evidence                                                  | Result                    |
+| --------------------------------------------------------- | ------------------------- |
+| `npm run build`                                           | Pass                      |
+| `npm test`                                                | Pass — 7 tests            |
+| `npm run test:e2e`                                        | Pass — 4 Playwright tests |
+| `npm run build-storybook`                                 | Pass                      |
+| Pre-V2 `openspec validate claros-reconstruction --strict` | Pass                      |
 
 The existing browser evidence is in `test-results/`: landing desktop/mobile,
 workspace desktop, and mobile worksheet/answer states. It is retained only as
@@ -74,19 +74,19 @@ the V1 baseline. Gate 2 produces the full V2 matrix under
 
 ## Fresh Gate 0 verification — 2026-09-04
 
-| Command/evidence | Result |
-|---|---|
-| `npm ci` | Exit 0; 357 packages installed; install audit reported 0 vulnerabilities |
-| `npm run ci` | Exit 0; production build passed and 7/7 Vitest tests passed |
-| `npm run build-storybook` | Exit 0; static Storybook build completed |
-| `npm run test:e2e` | Exit 0; 4/4 Chromium Playwright tests passed |
-| `npm audit --audit-level=high` | Exit 0; 0 vulnerabilities |
-| `openspec validate claros-reconstruction --strict` | Exit 0; change valid |
-| Authority SHA-256 checks | All three exact expected hashes matched |
-| `Get-ChildItem -Recurse .\test-results -Filter *.png` | Existing V1 browser screenshots present |
-| Production/dependency diff | Empty for `package.json`, lockfile, `src`, and `server` |
-| Authored-file `git diff --check` | Exit 0; no whitespace errors |
-| Independent read-only contract review | No blocking authority, governance, or OpenSpec contradiction found |
+| Command/evidence                                      | Result                                                                   |
+| ----------------------------------------------------- | ------------------------------------------------------------------------ |
+| `npm ci`                                              | Exit 0; 357 packages installed; install audit reported 0 vulnerabilities |
+| `npm run ci`                                          | Exit 0; production build passed and 7/7 Vitest tests passed              |
+| `npm run build-storybook`                             | Exit 0; static Storybook build completed                                 |
+| `npm run test:e2e`                                    | Exit 0; 4/4 Chromium Playwright tests passed                             |
+| `npm audit --audit-level=high`                        | Exit 0; 0 vulnerabilities                                                |
+| `openspec validate claros-reconstruction --strict`    | Exit 0; change valid                                                     |
+| Authority SHA-256 checks                              | All three exact expected hashes matched                                  |
+| `Get-ChildItem -Recurse .\test-results -Filter *.png` | Existing V1 browser screenshots present                                  |
+| Production/dependency diff                            | Empty for `package.json`, lockfile, `src`, and `server`                  |
+| Authored-file `git diff --check`                      | Exit 0; no whitespace errors                                             |
+| Independent read-only contract review                 | No blocking authority, governance, or OpenSpec contradiction found       |
 
 The verbatim authority imports contain ten intentional Markdown hard-break
 lines with trailing double spaces. `git show --check 0c15404` reports those
@@ -97,21 +97,21 @@ byte-for-byte hashes; all authored Gate 0 files pass the whitespace check.
 
 All commands in this table used Node `v22.23.2` where Node was involved.
 
-| Command/evidence | Result |
-|---|---|
-| `npm ci` | Exit 0; clean install of 763 packages; install audit reported 0 vulnerabilities |
-| `npm run ci` | Exit 0; format, lint, typecheck, dependency/license contract, 27/27 Vitest tests, Storybook build, Storybook axe, production build, and bundle closure passed |
-| `npm run test:e2e` | Exit 0; 7/7 Chromium tests passed against fresh development and production servers |
-| `npm audit --audit-level=high` | Exit 0; 0 vulnerabilities |
-| `npm run check:dependencies` | Verified 17 exact versions/licenses, seven approved Untitled primitives, Node 22 engine, and retained legacy dependencies |
-| `npm run check:bundles` | Verified four marketing entry chunks exclude PDF/Realtime and all lazy boundaries exist |
-| Authentic document evidence | `renderPageRect` crop and full EmbedPDF viewer rendered the checked-in PDF through byte Range requests |
-| Accessibility/keyboard evidence | Seven V2 Storybook states passed axe; upload and modal flows passed keyboard, focus restoration, 44px target, and mobile-overflow assertions |
-| CSP/WASM/worker evidence | Built app loaded PDFium WASM and worker under production CSP; `/` made no PDF/Realtime request |
-| `openspec validate claros-reconstruction --strict` | Exit 0; change valid |
-| Authority SHA-256 checks | All three exact expected hashes still match |
-| `git diff --check` | Exit 0; no whitespace errors |
-| Independent read-only Gate 1 review | Approved with no critical/blocking finding; vendor-upgrade risk retained in `RISKS.md` |
+| Command/evidence                                   | Result                                                                                                                                                        |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm ci`                                           | Exit 0; clean install of 763 packages; install audit reported 0 vulnerabilities                                                                               |
+| `npm run ci`                                       | Exit 0; format, lint, typecheck, dependency/license contract, 27/27 Vitest tests, Storybook build, Storybook axe, production build, and bundle closure passed |
+| `npm run test:e2e`                                 | Exit 0; 7/7 Chromium tests passed against fresh development and production servers                                                                            |
+| `npm audit --audit-level=high`                     | Exit 0; 0 vulnerabilities                                                                                                                                     |
+| `npm run check:dependencies`                       | Verified 17 exact versions/licenses, seven approved Untitled primitives, Node 22 engine, and retained legacy dependencies                                     |
+| `npm run check:bundles`                            | Verified four marketing entry chunks exclude PDF/Realtime and all lazy boundaries exist                                                                       |
+| Authentic document evidence                        | `renderPageRect` crop and full EmbedPDF viewer rendered the checked-in PDF through byte Range requests                                                        |
+| Accessibility/keyboard evidence                    | Seven V2 Storybook states passed axe; upload and modal flows passed keyboard, focus restoration, 44px target, and mobile-overflow assertions                  |
+| CSP/WASM/worker evidence                           | Built app loaded PDFium WASM and worker under production CSP; `/` made no PDF/Realtime request                                                                |
+| `openspec validate claros-reconstruction --strict` | Exit 0; change valid                                                                                                                                          |
+| Authority SHA-256 checks                           | All three exact expected hashes still match                                                                                                                   |
+| `git diff --check`                                 | Exit 0; no whitespace errors                                                                                                                                  |
+| Independent read-only Gate 1 review                | Approved with no critical/blocking finding; vendor-upgrade risk retained in `RISKS.md`                                                                        |
 
 The production and Storybook builds report two accepted pinned-EmbedPDF
 warnings: browser externalization of a package `crypto` import and large lazy
@@ -125,21 +125,21 @@ All Node commands in this table used Node `v22.23.2`. Browser evidence and the
 visual scorecard are bound to content checkpoint
 `0723303ef718bb28594d519da31ec0a55226fa45`.
 
-| Command/evidence | Result |
-|---|---|
-| `npm run ci` | Exit 0; format, lint, typecheck, dependency/license contract, 63/63 Vitest tests, Storybook build, all-story axe, production build, and bundle closure passed |
-| Storybook browser sweep | 36/36 V2 stories rendered; zero automated accessibility violations |
-| `playwright test` | Exit 0; 22/22 serialized Chromium tests passed against fresh Vite/API servers in 3.1 minutes |
-| Direct and guided workflows | Exact review remained mandatory; casual voice agreement could not confirm; typed fallback, captions, interruption, rephrase selection, revision, and reconfirmation passed |
-| Partial export and recovery | Export became available after one confirmed answer; unanswered questions remained blank; failure retry and authenticated fixture download passed |
-| Authentic document evidence | Question-bound Q1/Q2/Q3 EmbedPDF crops, completed-copy preview, byte-Range source, decoded mobile full viewer, and source-preservation copy passed |
-| Responsive/accessibility evidence | Task-first DOM order, 1440x1000/1024x1366/390x844 layouts, keyboard-only completion, focus restoration, 200-percent-equivalent reflow, reduced motion, no overflow, and principal-route axe passed |
-| `node scripts/verify-gate2-screenshots.mjs` | Verified 36 exact captures, dimensions, SHA-256 values, checkpoint SHA, and zero external requests |
-| Lead and independent visual score | 95/100; every authority-rubric category at least 90 percent; zero critical accessibility defects and zero anti-reference violations |
-| `npm audit --audit-level=high` | Exit 0; 0 vulnerabilities |
-| `openspec validate claros-reconstruction --strict` | Exit 0; change valid |
-| Authority SHA-256 checks | All three exact expected hashes still match |
-| `git diff --check` | Exit 0; no authored whitespace errors |
+| Command/evidence                                   | Result                                                                                                                                                                                             |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run ci`                                       | Exit 0; format, lint, typecheck, dependency/license contract, 63/63 Vitest tests, Storybook build, all-story axe, production build, and bundle closure passed                                      |
+| Storybook browser sweep                            | 36/36 V2 stories rendered; zero automated accessibility violations                                                                                                                                 |
+| `playwright test`                                  | Exit 0; 22/22 serialized Chromium tests passed against fresh Vite/API servers in 3.1 minutes                                                                                                       |
+| Direct and guided workflows                        | Exact review remained mandatory; casual voice agreement could not confirm; typed fallback, captions, interruption, rephrase selection, revision, and reconfirmation passed                         |
+| Partial export and recovery                        | Export became available after one confirmed answer; unanswered questions remained blank; failure retry and authenticated fixture download passed                                                   |
+| Authentic document evidence                        | Question-bound Q1/Q2/Q3 EmbedPDF crops, completed-copy preview, byte-Range source, decoded mobile full viewer, and source-preservation copy passed                                                 |
+| Responsive/accessibility evidence                  | Task-first DOM order, 1440x1000/1024x1366/390x844 layouts, keyboard-only completion, focus restoration, 200-percent-equivalent reflow, reduced motion, no overflow, and principal-route axe passed |
+| `node scripts/verify-gate2-screenshots.mjs`        | Verified 36 exact captures, dimensions, SHA-256 values, checkpoint SHA, and zero external requests                                                                                                 |
+| Lead and independent visual score                  | 95/100; every authority-rubric category at least 90 percent; zero critical accessibility defects and zero anti-reference violations                                                                |
+| `npm audit --audit-level=high`                     | Exit 0; 0 vulnerabilities                                                                                                                                                                          |
+| `openspec validate claros-reconstruction --strict` | Exit 0; change valid                                                                                                                                                                               |
+| Authority SHA-256 checks                           | All three exact expected hashes still match                                                                                                                                                        |
+| `git diff --check`                                 | Exit 0; no authored whitespace errors                                                                                                                                                              |
 
 The first expanded Playwright replay exposed five test-harness defects: lazy
 cold-start timing, two ambiguous text locators, an assertion applied to the
@@ -152,25 +152,25 @@ The final visual review is recorded in
 ## Fresh Gate 3 verification — 2026-09-04
 
 The complete record is in `artifacts/v2/gate3/verification.md` and is bound to
-accepted runtime checkpoint `2afcdbb92fce3b1d055bc4bf3e4efbaec60c3ce7`.
+accepted clean checkpoint `88cda664f55abf698a1d56567e814e024708ad0a`.
 
-| Command/evidence | Result |
-|---|---|
+| Command/evidence                   | Result                                                                                                                                                                      |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run ci` under Node `v22.22.0` | Exit 0; format, lint, typecheck, dependency/license contract, OpenAPI drift, 73/73 Vitest tests, Storybook build and axe sweep, production build, and bundle closure passed |
-| `npm run test:e2e` | Exit 0; 22/22 fixture Chromium flows passed |
-| `npm run test:e2e:gate3` | Exit 0; the real FastAPI typed/partial-export flow survived a service restart |
-| Gate-3-only pytest | 392 tracked tests passed with 92-percent branch coverage; 23 third-party deprecation warnings |
-| Focused reviewer replay | 90 API/storage/PDF/security tests passed; all critical code findings were fixed |
-| Ruff format/lint | All tracked Python sources formatted correctly and lint-clean |
-| Dependency audits | `npm audit --audit-level=high` reported 0 vulnerabilities; `pip-audit -r requirements-server.txt` found none |
-| Terraform | Format, lockfile-readonly initialization, and validation passed with Terraform 1.15.2 and Google provider 7.46.0 |
-| Document corpus | Twelve checksum-pinned categories plus all required negative classes passed determinism, exact-text, placement, and failure-code checks |
-| Manual PDF reopening | The same SHA-bound inline/appendix export opened correctly in Chrome and Adobe Acrobat 64-bit with source content intact and no appendix truncation |
-| Authority/OpenSpec/whitespace | Authority hashes matched; strict OpenSpec and diff checks passed |
-| Production container | GitHub Ubuntu run `33938914646` passed for head `2afcdbb`; artifact `9961138256` retains both privacy-checked logs and parser-reopened inline/appendix PDFs |
-| Remote source build | Cloud Build `8bcf24be-5be9-4e81-a8e5-fc2947d39754` built the clean committed archive and published immutable digest `sha256:b4058b7b…d5b66` |
-| Live GCS/Cloud Run replacement | Revisions `claros-00074-kxl` → `claros-00075-xtv` passed live GCS persistence, ownership isolation, forged-proxy identity, inline/appendix export, and parser reopen |
-| Deployed privacy | 69 Cloud Logging entries scanned with zero worksheet, answer, cookie/token, or credential canary matches |
+| `npm run test:e2e`                 | Exit 0; 22/22 fixture Chromium flows passed                                                                                                                                 |
+| `npm run test:e2e:gate3`           | Exit 0; the real FastAPI typed/partial-export flow survived a service restart                                                                                               |
+| Gate-3-only pytest                 | 392 tracked tests passed with 92-percent branch coverage; 23 third-party deprecation warnings                                                                               |
+| Focused reviewer replay            | 90 API/storage/PDF/security tests passed; all critical code findings were fixed                                                                                             |
+| Ruff format/lint                   | All tracked Python sources formatted correctly and lint-clean                                                                                                               |
+| Dependency audits                  | `npm audit --audit-level=high` reported 0 vulnerabilities; `pip-audit -r requirements-server.txt` found none                                                                |
+| Terraform                          | Format, lockfile-readonly initialization, and validation passed with Terraform 1.15.2 and Google provider 7.46.0                                                            |
+| Document corpus                    | Twelve checksum-pinned categories plus all required negative classes passed determinism, exact-text, placement, and failure-code checks                                     |
+| Manual PDF reopening               | The same SHA-bound inline/appendix export opened correctly in Chrome and Adobe Acrobat 64-bit with source content intact and no appendix truncation                         |
+| Authority/OpenSpec/whitespace      | Authority hashes matched; strict OpenSpec and diff checks passed                                                                                                            |
+| Production container               | GitHub Ubuntu run `33941739290` passed for clean head `88cda66`; artifact `9962065063` retains both privacy-checked logs and parser-reopened inline/appendix PDFs           |
+| Remote source build                | Cloud Build `8bcf24be-5be9-4e81-a8e5-fc2947d39754` built the clean committed archive and published immutable digest `sha256:b4058b7b…d5b66`                                 |
+| Live GCS/Cloud Run replacement     | Revisions `claros-00074-kxl` → `claros-00075-xtv` passed live GCS persistence, ownership isolation, forged-proxy identity, inline/appendix export, and parser reopen        |
+| Deployed privacy                   | 69 Cloud Logging entries scanned with zero worksheet, answer, cookie/token, or credential canary matches                                                                    |
 
 The implementation reserves 30 seconds beneath the 300-second Cloud Run
 request ceiling, bounds GCS RPCs and retries, persists owner-recoverable
@@ -207,16 +207,16 @@ finding or unavailable npm audit keeps Gate 1 blocked.
 
 ## Delivery gates
 
-| Gate | Deliverable | Blocking evidence | State |
-|---|---|---|---|
-| 0 | Authorities, synthesis, in-place OpenSpec, dependency/ownership plan | Hashes, baseline regressions, npm audit, strict OpenSpec, clean production diff, planning commit | Passed at `0c15404` |
-| 1 | Untitled foundation, V2 routes/providers, scoped legacy, authentic EmbedPDF spike, MSW | Build/tests, route and keyboard smoke, CSP/WASM/worker proof, no PDF request from `/` | Passed at `59cbc50` |
-| 2 | Fixture-complete V2 UI and fake Realtime | Unit/component/Storybook/Playwright/axe, keyboard/focus/zoom/motion, full screenshot matrix, visual score ≥90 | Passed at `0723303` — 95/100 |
-| 3 | FastAPI, GCS adapters, physical IR, placement/export, gold corpus | Python/API/PDF integration, deterministic IR, exact Unicode, immutable source, container/revision smoke | Passed at `2afcdbb` |
-| 4 | Responses semantic mapping and rephrase | Recorded/live corpus evaluation, zero invalid IDs, exact reconstruction, safe failure and provenance | Not started |
-| 5 | Realtime direct and guided paths | Fake browser suite and manual live voice/recovery/security evidence | Not started |
-| 6 | Cutover, hardening, deployment | Full accumulated CI/security/a11y/visual/performance/staging evidence | Not started |
-| 7 | Repeatable demo and release bundle | Clean-browser replay, final PDF, deployed smoke, honest submission copy, complete `artifacts/v2` | Not started |
+| Gate | Deliverable                                                                            | Blocking evidence                                                                                             | State                        |
+| ---- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| 0    | Authorities, synthesis, in-place OpenSpec, dependency/ownership plan                   | Hashes, baseline regressions, npm audit, strict OpenSpec, clean production diff, planning commit              | Passed at `0c15404`          |
+| 1    | Untitled foundation, V2 routes/providers, scoped legacy, authentic EmbedPDF spike, MSW | Build/tests, route and keyboard smoke, CSP/WASM/worker proof, no PDF request from `/`                         | Passed at `59cbc50`          |
+| 2    | Fixture-complete V2 UI and fake Realtime                                               | Unit/component/Storybook/Playwright/axe, keyboard/focus/zoom/motion, full screenshot matrix, visual score ≥90 | Passed at `0723303` — 95/100 |
+| 3    | FastAPI, GCS adapters, physical IR, placement/export, gold corpus                      | Python/API/PDF integration, deterministic IR, exact Unicode, immutable source, container/revision smoke       | Passed at `88cda66`          |
+| 4    | Responses semantic mapping and rephrase                                                | Recorded/live corpus evaluation, zero invalid IDs, exact reconstruction, safe failure and provenance          | Not started                  |
+| 5    | Realtime direct and guided paths                                                       | Fake browser suite and manual live voice/recovery/security evidence                                           | Not started                  |
+| 6    | Cutover, hardening, deployment                                                         | Full accumulated CI/security/a11y/visual/performance/staging evidence                                         | Not started                  |
+| 7    | Repeatable demo and release bundle                                                     | Clean-browser replay, final PDF, deployed smoke, honest submission copy, complete `artifacts/v2`              | Not started                  |
 
 ## Gate command contract
 
@@ -271,8 +271,8 @@ semantic model, or live WebRTC; those boundaries remain blocked behind Gates
 
 ## Gate 3 exit statement
 
-Gate 3 passed at accepted runtime checkpoint
-`2afcdbb92fce3b1d055bc4bf3e4efbaec60c3ce7`. Local contract, storage,
+Gate 3 passed at accepted clean checkpoint
+`88cda664f55abf698a1d56567e814e024708ad0a`. Local contract, storage,
 document, browser, security, corpus, audit, and manual PDF evidence passed. The
 head-associated Ubuntu workflow tested the immutable pull-request merge
 revision containing that checkpoint, built and restarted the production

@@ -2,12 +2,16 @@
 
 - **Recorded:** 2026-09-04 CDT / 2026-09-05 UTC
 - **Branch:** `codex/claros-v2-nerdy`
-- **Accepted runtime checkpoint:** `2afcdbb92fce3b1d055bc4bf3e4efbaec60c3ce7`
+- **Accepted clean checkpoint:** `88cda664f55abf698a1d56567e814e024708ad0a`
 - **Pull request:** `https://github.com/ChimdumebiNebolisa/Claros/pull/40`
 - **Gate result:** Passed
 
 Gate 3 is accepted without a local Docker Desktop dependency. The accepted
-checkpoint contains the FastAPI service, filesystem and GCS adapters, signed
+checkpoint re-baselines the complete Gate 0–3 tracked tree into one clean pull
+request commit after replacing secret-like synthetic test fixtures. Its tree is
+byte-identical to pre-scrub head `5235afca4a264a8dee00d02cbbe531f9930a352b`,
+and GitGuardian passes without an exclusion or dashboard override. The checkpoint
+contains the FastAPI service, filesystem and GCS adapters, signed
 ownership, generated OpenAPI client, deterministic physical IR and placement,
 immutable-source export, checksum-pinned corpus, remote build/deployment
 assets, and the real typed browser integration. The untracked
@@ -51,10 +55,10 @@ cleanup.
 ## Ubuntu production-container evidence
 
 GitHub Actions run
-[`33938914646`](https://github.com/ChimdumebiNebolisa/Claros/actions/runs/33938914646)
-completed successfully for head SHA `2afcdbb92fce3b1d055bc4bf3e4efbaec60c3ce7`.
+[`33941739290`](https://github.com/ChimdumebiNebolisa/Claros/actions/runs/33941739290)
+completed successfully for head SHA `88cda664f55abf698a1d56567e814e024708ad0a`.
 Its Ubuntu `container-smoke` job checked out immutable pull-request merge SHA
-`786e1515c5cdfe9b3b260278a9c8962ca3499a7a`, which contains that accepted
+`5bed4cfb8cc8e97caa843a628d511d37af7f9b63`, which contains that accepted
 head, validated the container/deployment contracts, ran source/IaC/secret
 scanning, built the production Dockerfile, started the non-root container,
 waited for `/health`, exercised `/`, `/app`, authorized Range reads, uploaded
@@ -62,8 +66,8 @@ the checked-in gold worksheet, confirmed answers, exported PDFs, replaced the
 real FastAPI container while retaining only its test volume, and reopened the
 persisted exports with pikepdf.
 
-The retained seven-day artifact is ID `9961138256`, named
-`gate3-container-smoke-786e1515c5cdfe9b3b260278a9c8962ca3499a7a-1`,
+The retained seven-day artifact is ID `9962065063`, named
+`gate3-container-smoke-5bed4cfb8cc8e97caa843a628d511d37af7f9b63-1`,
 and expires on 2026-09-12 UTC. It contains only privacy-checked logs, a safe
 result summary, and the two synthetic completed PDFs:
 
@@ -91,7 +95,8 @@ Desktop error 1920 remains only bypassed host diagnostics.
 - Cloud Build ID: `8bcf24be-5be9-4e81-a8e5-fc2947d39754`; status `SUCCESS`.
 - Production image:
   `us-central1-docker.pkg.dev/claro-490122/cloud-run-source-deploy/claros@sha256:b4058b7bb22210a82690db7859354dad4fdf354441d57ee46a79deea6d7d5b66`.
-- The build used a clean `git archive` of the accepted checkpoint and the
+- The build used a clean `git archive` of runtime checkpoint
+  `2afcdbb92fce3b1d055bc4bf3e4efbaec60c3ce7` and the
   repository's digest-pinned BuildKit Cloud Build configuration. No `.env`,
   credential, or future-gate draft file entered the upload.
 
@@ -154,6 +159,6 @@ not removed speculatively.
 ## Gate disposition
 
 OpenSpec tasks 3.1 through 3.10 are complete. Gate 3 passes on the accepted
-runtime checkpoint and the evidence above. Gates 4 and 5 remain separate work:
+clean checkpoint and the evidence above. Gates 4 and 5 remain separate work:
 no semantic or Realtime provider implementation was integrated, committed, or
 counted as Gate 3 progress.

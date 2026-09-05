@@ -74,7 +74,13 @@ Every mutation includes `assignment_version`. Responses return the effective
 version and `ETag`. Errors use:
 
 ```json
-{ "error": { "code": "stable_code", "message": "student-safe text", "recoverable": true } }
+{
+  "error": {
+    "code": "stable_code",
+    "message": "student-safe text",
+    "recoverable": true
+  }
+}
 ```
 
 ### D-007 — State ownership
@@ -356,8 +362,8 @@ or fit failure falls through to the next lower-priority class and ultimately to
 appendix. It never relaxes bounds, collision, transform, 10pt, or exact-text
 requirements to preserve an inline result.
 
-Gate 3 production code is frozen at accepted runtime checkpoint
-`2afcdbb92fce3b1d055bc4bf3e4efbaec60c3ce7`. The checkpoint contains no semantic
+Gate 3 production code is frozen at accepted clean checkpoint
+`88cda664f55abf698a1d56567e814e024708ad0a`. The checkpoint contains no semantic
 or Realtime provider implementation. Its rephrase and Realtime routes remain
 the frozen, recoverable `provider_unavailable` boundary required before Gates 4
 and 5.
@@ -406,6 +412,12 @@ identity are removed only after the owner-gated Gate 6 WIF deployment proof.
 These two follow-ups are recorded risks, not missing Gate 3 durability
 evidence.
 
+The Gate 0–3 feature history was re-baselined into one clean pull-request
+commit after three secret-like synthetic test values were replaced. The clean
+checkpoint has the exact tracked tree of the verified pre-scrub head, and both
+GitGuardian and the Ubuntu container workflow pass on the re-baselined pull
+request without weakening secret detection.
+
 ## Dependency plan
 
 The lead alone edits dependency manifests and lockfiles. Pin current compatible
@@ -413,15 +425,15 @@ versions and retain a single lockfile per ecosystem.
 
 ### Add in Gate 1
 
-| Purpose | Packages |
-|---|---|
-| Untitled foundation | `@untitledui/icons`, `react-aria-components`, `tailwindcss-react-aria-components`, `tailwindcss-animate`; vendored Untitled UI v8 source |
-| PDF rendering | `@embedpdf/react-pdf-viewer`, `@embedpdf/core`, `@embedpdf/engines`, `@embedpdf/pdfium`, `@embedpdf/models`, `@embedpdf/plugin-document-manager`, `@embedpdf/plugin-render`, all `2.15.0` |
-| Server/workflow state | `@tanstack/react-query`, `openapi-fetch` |
-| Bounded animation | `motion` |
-| Deterministic UI tests | `msw`, `msw-storybook-addon`, Testing Library, `user-event`, `jsdom`, Storybook/Vitest browser integration |
-| Generated API | `openapi-typescript` as a development dependency |
-| Quality | ESLint flat config, TypeScript ESLint, React Hooks, JSX accessibility plugins |
+| Purpose                | Packages                                                                                                                                                                                  |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Untitled foundation    | `@untitledui/icons`, `react-aria-components`, `tailwindcss-react-aria-components`, `tailwindcss-animate`; vendored Untitled UI v8 source                                                  |
+| PDF rendering          | `@embedpdf/react-pdf-viewer`, `@embedpdf/core`, `@embedpdf/engines`, `@embedpdf/pdfium`, `@embedpdf/models`, `@embedpdf/plugin-document-manager`, `@embedpdf/plugin-render`, all `2.15.0` |
+| Server/workflow state  | `@tanstack/react-query`, `openapi-fetch`                                                                                                                                                  |
+| Bounded animation      | `motion`                                                                                                                                                                                  |
+| Deterministic UI tests | `msw`, `msw-storybook-addon`, Testing Library, `user-event`, `jsdom`, Storybook/Vitest browser integration                                                                                |
+| Generated API          | `openapi-typescript` as a development dependency                                                                                                                                          |
+| Quality                | ESLint flat config, TypeScript ESLint, React Hooks, JSX accessibility plugins                                                                                                             |
 
 Retain the current compatible React 19 and TypeScript lines unless the reviewed
 vendored Untitled source demonstrates a concrete incompatibility. Preserve
@@ -460,13 +472,13 @@ run it only on the V2 branch and review its entire diff before acceptance.
 
 ## Gate 1 ownership
 
-| Owner | Exclusive write scope |
-|---|---|
-| Lead | Dependency manifests/locks; routing; providers; semantic tokens; XState/domain contracts; API/OpenAPI types; shared configuration |
-| Untitled integrator | Vendored base components selected in D-009, after lead freezes dependency/theme paths |
-| Document-viewer integrator | EmbedPDF adapter and its isolated tests, after lead freezes source/context interfaces |
-| Feature-screen integrator | Feature presentation and stories against frozen fixtures; no shared contracts or tokens |
-| Review agents | Read-only evidence, contract, accessibility, security, and visual review |
+| Owner                      | Exclusive write scope                                                                                                             |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Lead                       | Dependency manifests/locks; routing; providers; semantic tokens; XState/domain contracts; API/OpenAPI types; shared configuration |
+| Untitled integrator        | Vendored base components selected in D-009, after lead freezes dependency/theme paths                                             |
+| Document-viewer integrator | EmbedPDF adapter and its isolated tests, after lead freezes source/context interfaces                                             |
+| Feature-screen integrator  | Feature presentation and stories against frozen fixtures; no shared contracts or tokens                                           |
+| Review agents              | Read-only evidence, contract, accessibility, security, and visual review                                                          |
 
 Implementation scopes must remain disjoint. A requested cross-boundary change
 returns to the lead before either agent edits it.
