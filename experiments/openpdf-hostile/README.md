@@ -90,6 +90,8 @@ OpenPDF rejects incremental stamping when `PdfReader.isRebuilt()` is true. The d
 
 Encrypted sources are opened with the owner password. Incremental stamping retains the source encryption dictionary and permissions; the derivative is independently reopened with the user password and inspected with qpdf.
 
+For non-RTL text the harness explicitly disables OpenPDF's FOP-backed glyph substitution. The default substitution path collapses Noto Sans `ff`, `fi`, and `ffi` sequences to one glyph but writes only the first source character into the glyph's ToUnicode mapping. The isolated `office` investigation and regression test prove the defect and the configuration; RTL probes retain substitution because shaping requires it.
+
 ## Validation layers
 
 The harness uses engines independent of OpenPDF so a single implementation cannot certify itself:
@@ -128,5 +130,13 @@ mvn exec:java "-Dexec.args=run"
 node scripts/validate-pdfjs.mjs target/evidence/pdfjs-cases.json target/evidence/pdfjs-results.json
 mvn exec:java "-Dexec.args=report"
 ```
+
+The focused extraction investigation is reproducible separately and does not add corpus cases:
+
+```powershell
+.\scripts\investigate-office.ps1
+```
+
+It produces PDFBox structure/extraction JSON, PDF.js extraction JSON, qpdf checks, QDF-expanded source/derivative files, and the A/B/C/D comparison under `target/office-investigation/`. The minimum deployment isolation for untrusted inputs is specified in `security-boundary.md`; it is design-only and is not implemented by this experiment.
 
 The results are an engine capability investigation, not authorization to route production exports through OpenPDF.

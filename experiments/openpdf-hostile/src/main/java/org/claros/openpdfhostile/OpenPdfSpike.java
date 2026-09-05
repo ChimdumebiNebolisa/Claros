@@ -130,6 +130,10 @@ public final class OpenPdfSpike {
             }
         }
         PdfContentByte canvas = stamper.getOverContent(placement.pageNumber());
+        // OpenPDF's FOP-backed Latin ligature substitution writes one Unicode
+        // scalar to ToUnicode for a multi-character glyph. Keep exact text
+        // semantics for ordinary overlays; RTL retains substitution for shaping.
+        canvas.getPdfDocument().setGlyphSubstitutionEnabled(placement.rtl());
         drawCoordinateMarker(canvas, geometry, placement.xPt(), placement.baselineFromTopPt());
         CoordinateTransforms.TextMatrix matrix = CoordinateTransforms.uprightTextMatrix(
                 geometry,
@@ -191,6 +195,7 @@ public final class OpenPdfSpike {
     private byte[] createContinuationPdf() throws DocumentException, IOException {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         Document document = new Document(PageSize.LETTER, 54, 54, 64, 54);
+        document.setGlyphSubstitutionEnabled(false);
         PdfWriter writer = PdfWriter.getInstance(document, output);
         BaseFont regular = BaseFont.createFont(
                 fonts.get(FontKind.NOTO_SANS).toString(),

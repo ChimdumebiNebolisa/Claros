@@ -27,7 +27,15 @@ public final class HarnessMain {
             case "generate" -> generate(experimentRoot, targetRoot);
             case "run" -> run(experimentRoot, targetRoot);
             case "report" -> report(targetRoot);
-            default -> throw new IllegalArgumentException("Expected generate, run, or report");
+            case "office-investigation" -> {
+                OfficeExtractionInvestigation.InvestigationResult result =
+                        OfficeExtractionInvestigation.run(experimentRoot, targetRoot);
+                System.out.println("Wrote " + result.cases().size()
+                        + " office extraction cases to "
+                        + targetRoot.resolve("office-investigation/pdfbox-structure-results.json"));
+            }
+            default -> throw new IllegalArgumentException(
+                    "Expected generate, run, report, or office-investigation");
         }
     }
 
