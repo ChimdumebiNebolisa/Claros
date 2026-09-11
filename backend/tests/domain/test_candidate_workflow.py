@@ -18,7 +18,7 @@ from backend.domain.models import (
     StudentAttribution,
     StudentEditInteraction,
 )
-from backend.domain.workflow import replace_candidate
+from backend.domain.workflow import record_rephrase, replace_candidate
 from backend.tests.domain.conftest import NOW
 
 
@@ -202,3 +202,39 @@ def test_selected_rephrase_requires_matching_server_record(manifest_factory) -> 
             interaction=interaction,
             now=NOW,
         )
+
+
+def test_record_rephrase_preserves_current_candidate_and_requires_explicit_selection(
+    manifest_factory,
+) -> None:
+    with_candidate, candidate = replace_candidate(
+        manifest_factory(),
+        question_id="q_1",
+        assignment_version=1,
+        exact_text="Plants need sunlight to make food.",
+        origin=CandidateOrigin.STUDENT_VERBATIM,
+        interaction=DirectTypedInteraction(),
+        now=NOW,
+        candidate_id_factory=lambda: "cand_original",
+    )
+
+    updated, record = record_rephrase(
+        with_candidate,
+        question_id="q_1",
+        assignment_version=with_candidate.version,
+        candidate_id=candidate.candidate_id,
+        candidate_version=candidate.candidate_version,
+        suggestion_text="Plants use sunlight to produce food.",
+        now=NOW,
+        rephrase_id_factory=lambda: "rph_recorded",
+        candidate_id_factory=lambda: "cand_suggestion",
+    )
+
+    question = updated.questions[0]
+    assert updated.version == 3
+    assert question.current_candidate == candidate
+    assert question.candidate_sequence == candidate.candidate_version
+    assert question.rephrases == (record,)
+    assert record.original_candidate_id == candidate.candidate_id
+    assert record.suggestion_candidate_version == candidate.candidate_version + 1
+    assert record.factual_delta_safe is True

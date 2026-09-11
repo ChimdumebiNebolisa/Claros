@@ -75,7 +75,7 @@ class RenderedExport:
     manifest_bytes: bytes
 
 
-JobValue: TypeAlias = str | int | list[dict[str, object]] | dict[str, int]
+JobValue: TypeAlias = str | int | bool | list[dict[str, object]] | dict[str, int]
 Job = dict[str, JobValue]
 
 
@@ -106,10 +106,12 @@ class DocumentProcessExecutor:
         *,
         limits: PreflightLimits,
         timeout_seconds: float,
+        derive_questions: bool = True,
     ) -> AnalysisResult:
         outputs = await self._run_job(
             job={
                 "operation": "analyze",
+                "derive_questions": derive_questions,
                 "limits": {
                     "max_upload_bytes": limits.max_upload_bytes,
                     "max_pages": limits.max_pages,
@@ -397,7 +399,10 @@ def _worker_analyze(job_root: Path, source_pdf: bytes, job: dict[str, object]) -
     )
     preflight = preflight_pdf(source_pdf, limits=limits)
     physical_ir = extract_physical_ir(source_pdf, preflight=preflight)
-    questions = ground_questions(physical_ir, limits=limits)
+    derive_questions = job.get("derive_questions", True)
+    if not isinstance(derive_questions, bool):
+        raise ValueError("invalid question derivation policy")
+    questions = ground_questions(physical_ir, limits=limits) if derive_questions else ()
     (job_root / "physical-ir.json").write_bytes(physical_ir.canonical_bytes())
     (job_root / "questions.json").write_bytes(
         _json_bytes([question.model_dump(mode="json") for question in questions])

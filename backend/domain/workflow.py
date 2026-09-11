@@ -37,6 +37,7 @@ from backend.domain.models import (
     ObjectReference,
     Placement,
     QuestionState,
+    RephraseRecord,
     ReviewTokenRecord,
     RevisionDraft,
     SelectedRephraseInteraction,
@@ -152,6 +153,51 @@ def replace_candidate(
         update={"version": manifest.version + 1}
     )
     return updated, candidate
+
+
+def record_rephrase(
+    manifest: AssignmentManifest,
+    *,
+    question_id: str,
+    assignment_version: int,
+    candidate_id: str,
+    candidate_version: int,
+    suggestion_text: str,
+    now: datetime | None = None,
+    rephrase_id_factory: Callable[[], str] | None = None,
+    candidate_id_factory: Callable[[], str] | None = None,
+) -> tuple[AssignmentManifest, RephraseRecord]:
+    """Persist a safe optional suggestion without selecting it as the answer."""
+
+    require_active(manifest, now=now)
+    require_current_version(manifest, assignment_version)
+    if manifest.status != AssignmentStatus.READY:
+        raise InvalidCandidate("The worksheet is not ready for an answer.")
+    validate_exact_text(suggestion_text)
+    index, question = _find_question(manifest, question_id)
+    candidate = _require_candidate(question, candidate_id, candidate_version)
+    rephrase_id = (
+        rephrase_id_factory() if rephrase_id_factory is not None else new_identifier("rph")
+    )
+    suggestion_candidate_id = (
+        candidate_id_factory() if candidate_id_factory is not None else new_identifier("cand")
+    )
+    validate_identifier(rephrase_id, label="rephrase_id")
+    validate_identifier(suggestion_candidate_id, label="candidate_id")
+    record = RephraseRecord(
+        rephrase_id=rephrase_id,
+        original_candidate_id=candidate.candidate_id,
+        original_candidate_version=candidate.candidate_version,
+        suggestion_candidate_id=suggestion_candidate_id,
+        suggestion_candidate_version=question.candidate_sequence + 1,
+        suggestion_text=suggestion_text,
+        factual_delta_safe=True,
+    )
+    updated_question = question.model_copy(update={"rephrases": (*question.rephrases, record)})
+    updated = _replace_question(manifest, index, updated_question).model_copy(
+        update={"version": manifest.version + 1}
+    )
+    return updated, record
 
 
 def issue_review(

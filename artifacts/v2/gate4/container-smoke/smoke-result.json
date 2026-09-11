@@ -1,0 +1,28 @@
+{
+  "assignments": 2,
+  "exports": {
+    "appendix": {
+      "filename": "completed-appendix.pdf",
+      "pages": 2,
+      "sha256": "168acdb4921ced0e7e8c3fb1fc33466cd832ac356ce22929a156a2ff088b5ede"
+    },
+    "inline": {
+      "filename": "completed-inline.pdf",
+      "pages": 1,
+      "sha256": "04cd740ccf0dbd85c41e8d2780b5e9d941a1703c4caaed71edcb8cf7c14c9be6"
+    }
+  },
+  "health": "ok",
+  "image": "claros-v2:gate4-semantic-20260911",
+  "image_user": "10001:10001",
+  "ownership_isolation": "ok",
+  "placements": [
+    "appendix",
+    "inline"
+  ],
+  "privacy_logs": "ok",
+  "restart_persistence": "ok",
+  "runtime_uid": "10001",
+  "status": "passed",
+  "typed_flow": "ok"
+}

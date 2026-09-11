@@ -9,12 +9,24 @@ import pikepdf
 from fastapi.testclient import TestClient
 
 from backend.config import Settings
+from backend.document import extract_physical_ir
 from backend.main import create_app
+from backend.semantic import FakeSemanticProvider, ProviderResult, SemanticMapper
+from backend.semantic.models import (
+    RephraseOutput,
+    SemanticMappingOutput,
+    SemanticQuestionOutput,
+)
+from backend.service import AssignmentApplicationService
+from backend.storage import LocalObjectStore
 
 ORIGIN = "http://testserver"
 MUTATION_HEADERS = {"Origin": ORIGIN, "Sec-Fetch-Site": "same-origin"}
 OWNER_TEST_SECRET = "integration-owner-secret-with-sufficient-entropy"  # noqa: S105
 REVIEW_TEST_SECRET = "integration-review-secret-with-sufficient-entropy"  # noqa: S105
+SAMPLE_PDF = (
+    Path(__file__).resolve().parents[3] / "public" / "fixtures" / "claros-biology-short-answer.pdf"
+)
 
 
 def _settings(storage_root: Path) -> Settings:
@@ -236,3 +248,242 @@ def test_stale_mutation_returns_current_version(tmp_path: Path) -> None:
         assert stale.status_code == 409
         assert stale.json()["error"]["code"] == "assignment_version_conflict"
         assert stale.json()["version"] == first.json()["version"]
+
+
+def test_recorded_semantic_mapping_supports_both_typed_paths_rephrase_and_export(
+    tmp_path: Path,
+) -> None:
+    source = SAMPLE_PDF.read_bytes()
+    physical_ir = extract_physical_ir(source)
+
+    def block_id(exact_text: str) -> str:
+        return next(
+            block.id
+            for page in physical_ir.pages
+            for block in page.blocks
+            if block.text == exact_text
+        )
+
+    mapping = SemanticMappingOutput(
+        document_id=physical_ir.document_id,
+        complete=True,
+        questions=(
+            SemanticQuestionOutput(
+                question_key="q_001",
+                prompt_block_ids=(block_id("Why do plants need sunlight?"),),
+                context_block_ids=(
+                    block_id("Use evidence from the lesson in one or two sentences."),
+                ),
+                question_type="short_answer",
+                grounding="grounded",
+                visual_context_dependency=False,
+            ),
+            SemanticQuestionOutput(
+                question_key="q_002",
+                prompt_block_ids=(block_id("How does sunlight help a plant make food?"),),
+                context_block_ids=(
+                    block_id("Describe the role of sunlight in your own words."),
+                ),
+                question_type="short_answer",
+                grounding="grounded",
+                visual_context_dependency=False,
+            ),
+            SemanticQuestionOutput(
+                question_key="q_003",
+                prompt_block_ids=(
+                    block_id("How can photosynthesis support other living things?"),
+                ),
+                context_block_ids=(
+                    block_id("Give one clear connection to another living thing."),
+                ),
+                question_type="short_answer",
+                grounding="grounded",
+                visual_context_dependency=False,
+            ),
+        ),
+    )
+    provider = FakeSemanticProvider(
+        mapping_results=(ProviderResult(parsed=mapping),),
+        rephrase_results=(
+            ProviderResult(
+                parsed=RephraseOutput(
+                    suggestion="Plants use sunlight to make food through photosynthesis.",
+                    meaning_preserved=True,
+                )
+            ),
+        ),
+    )
+    settings = _settings(tmp_path / "semantic-objects")
+    service = AssignmentApplicationService(
+        settings=settings,
+        store=LocalObjectStore(settings.local_storage_path),
+        semantic_mapper=SemanticMapper(provider, "gpt-5.6-luna"),
+    )
+
+    with TestClient(create_app(settings=settings, assignment_service=service)) as client:
+        assignment = _create_sample(client)
+        assignment_id = str(assignment["assignment_id"])
+        first_question = assignment["questions"][0]
+        second_question = assignment["questions"][1]
+        assert [question["question_id"] for question in assignment["questions"]] == [
+            "q_001",
+            "q_002",
+            "q_003",
+        ]
+        assert provider.mapping_calls[0][0] == "gpt-5.6-luna"
+        assert all(
+            set(block.model_dump())
+            == {"id", "exact_text", "kind", "page_number", "reading_order", "relation_hints"}
+            for block in provider.mapping_calls[0][1].blocks
+        )
+
+        direct = client.post(
+            f"/api/v2/assignments/{assignment_id}/questions/q_001/candidates",
+            json={
+                "assignment_version": assignment["version"],
+                "text": "Plants need sunlight to make food.",
+                "origin": "student_verbatim",
+                "interaction": {"kind": "direct_typed"},
+            },
+            headers=MUTATION_HEADERS,
+        )
+        assert direct.status_code == 200, direct.text
+        direct_payload = direct.json()
+        rephrase = client.post(
+            f"/api/v2/assignments/{assignment_id}/questions/q_001/rephrase",
+            json={
+                "assignment_version": direct_payload["version"],
+                "candidate_id": direct_payload["candidate"]["candidate_id"],
+                "candidate_version": direct_payload["candidate"]["candidate_version"],
+            },
+            headers=MUTATION_HEADERS,
+        )
+        assert rephrase.status_code == 200, rephrase.text
+        comparison = rephrase.json()
+        assert comparison["original"]["text"] == "Plants need sunlight to make food."
+        assert comparison["suggestion"]["attribution"] == "Suggested wording"
+        assert comparison["selected_candidate_id"] is None
+        persisted = service.manifests.load(assignment_id).manifest.questions[0]
+        assert persisted.current_candidate is not None
+        assert persisted.current_candidate.exact_text == comparison["original"]["text"]
+
+        selected = client.post(
+            f"/api/v2/assignments/{assignment_id}/questions/q_001/candidates",
+            json={
+                "assignment_version": comparison["version"],
+                "text": comparison["suggestion"]["text"],
+                "origin": "claros_rephrase",
+                "interaction": {
+                    "kind": "selected_rephrase",
+                    "rephrase_id": comparison["rephrase_id"],
+                    "suggestion_candidate_id": comparison["suggestion"]["candidate_id"],
+                },
+            },
+            headers=MUTATION_HEADERS,
+        )
+        assert selected.status_code == 200, selected.text
+        selected_payload = selected.json()
+
+        guided = client.post(
+            f"/api/v2/assignments/{assignment_id}/questions/q_002/candidates",
+            json={
+                "assignment_version": selected_payload["version"],
+                "text": "Sunlight provides the energy a plant uses to make food.",
+                "origin": "student_after_guidance",
+                "interaction": {
+                    "kind": "guided_final",
+                    "realtime_session_id": "rt_recorded_typed",
+                    "source_turn_ids": ["turn_1", "turn_2"],
+                    "input": "typed",
+                },
+            },
+            headers=MUTATION_HEADERS,
+        )
+        assert guided.status_code == 200, guided.text
+
+        version = guided.json()["version"]
+        confirmed = []
+        for question, candidate in (
+            (first_question, selected_payload["candidate"]),
+            (second_question, guided.json()["candidate"]),
+        ):
+            review = client.post(
+                f"/api/v2/assignments/{assignment_id}/questions/{question['question_id']}/review",
+                json={
+                    "assignment_version": version,
+                    "candidate_id": candidate["candidate_id"],
+                    "candidate_version": candidate["candidate_version"],
+                },
+                headers=MUTATION_HEADERS,
+            )
+            assert review.status_code == 200, review.text
+            review_payload = review.json()
+            confirmation = client.post(
+                f"/api/v2/assignments/{assignment_id}/questions/{question['question_id']}/confirm",
+                json={
+                    "assignment_version": review_payload["version"],
+                    "review_token": review_payload["review_token"],
+                    "candidate_id": candidate["candidate_id"],
+                    "candidate_version": candidate["candidate_version"],
+                },
+                headers=MUTATION_HEADERS,
+            )
+            assert confirmation.status_code == 200, confirmation.text
+            version = confirmation.json()["version"]
+            confirmed.append(confirmation.json()["confirmed_answer"])
+
+        exported = client.post(
+            f"/api/v2/assignments/{assignment_id}/exports",
+            json={
+                "assignment_version": version,
+                "idempotency_key": "semantic-recorded-export-0001",
+            },
+            headers=MUTATION_HEADERS,
+        )
+        assert exported.status_code == 201, exported.text
+        download = client.get(exported.json()["download_url"])
+        with pikepdf.open(BytesIO(download.content)):
+            pass
+        assert [answer["origin"] for answer in confirmed] == [
+            "claros_rephrase",
+            "student_after_guidance",
+        ]
+        assert len(provider.mapping_calls) == 1
+        assert len(provider.rephrase_calls) == 1
+
+
+def test_semantic_provider_failure_preserves_safe_assignment_state_and_logs(
+    tmp_path: Path,
+    caplog,
+) -> None:
+    private_detail = "private worksheet answer from provider payload"
+    provider = FakeSemanticProvider(mapping_results=(RuntimeError(private_detail),))
+    settings = _settings(tmp_path / "semantic-failure-objects")
+    service = AssignmentApplicationService(
+        settings=settings,
+        store=LocalObjectStore(settings.local_storage_path),
+        semantic_mapper=SemanticMapper(provider, "gpt-5.6-luna"),
+    )
+
+    with TestClient(create_app(settings=settings, assignment_service=service)) as client:
+        response = client.post(
+            "/api/v2/assignments",
+            data={"sample_id": "biology-short-answer"},
+            headers=MUTATION_HEADERS,
+        )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["status"] == "analysis_failed"
+    assert payload["warnings"] == [
+        {
+            "code": "semantic_provider_unavailable",
+            "message": "Claros could not safely check this worksheet. Try another PDF.",
+        }
+    ]
+    persisted = service.manifests.load(payload["assignment_id"]).manifest
+    assert persisted.questions == ()
+    assert persisted.physical_ir is None
+    assert service.store.read(persisted.source.key).data.startswith(b"%PDF-")
+    assert private_detail not in response.text
+    assert private_detail not in caplog.text

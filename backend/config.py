@@ -123,6 +123,13 @@ class Settings(BaseSettings):
     upload_rate_window_seconds: int = Field(default=3_600, ge=1, le=86_400)
     realtime_rate_limit: int = Field(default=20, ge=1, le=1_000)
     realtime_rate_window_seconds: int = Field(default=60, ge=1, le=3_600)
+    semantic_engine: Literal["current", "openai"] = "current"
+    semantic_model: Literal["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"] = (
+        "gpt-5.6-luna"
+    )
+    semantic_timeout_seconds: int = Field(default=30, ge=1, le=60)
+    semantic_max_output_tokens: int = Field(default=8_192, ge=1, le=16_384)
+    openai_api_key: SecretStr | None = None
     pdf_engine: Literal["current", "openpdf"] = "current"
     openpdf_jar_path: Path = (
         _REPOSITORY_ROOT
@@ -163,6 +170,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_boundaries(self) -> Settings:
+        if self.semantic_engine == "openai" and self.openai_api_key is None:
+            raise ValueError("OpenAI semantic mapping requires CLAROS_OPENAI_API_KEY")
         if self.environment == "production":
             if self.storage_backend != "gcs":
                 raise ValueError("production requires GCS storage")

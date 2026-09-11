@@ -292,6 +292,14 @@ def test_remote_container_smoke_is_dispatchable_and_persists_safe_artifacts() ->
     assert "gha-creds-*.json" in dockerignore
 
 
+def test_container_smoke_decodes_docker_output_as_utf8() -> None:
+    smoke = SMOKE_PATH.read_text(encoding="utf-8")
+
+    docker_helper = smoke.split("def docker(", 1)[1].split("def require_docker", 1)[0]
+    assert 'encoding="utf-8"' in docker_helper
+    assert 'errors="replace"' in docker_helper
+
+
 def test_deployment_remains_single_cloud_run_and_gcs_architecture() -> None:
     deployment_text = "\n".join(
         path.read_text(encoding="utf-8")

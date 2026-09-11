@@ -73,6 +73,7 @@ from backend.document import (
 )
 from backend.document.errors import SAFE_MESSAGES as DOCUMENT_SAFE_MESSAGES
 from backend.document.models import CanonicalBox, PhysicalDocumentIR
+from backend.document.preflight import validate_question_count
 from backend.document_execution import (
     DocumentExecutionFailure,
     DocumentExecutionTimeout,
@@ -98,6 +99,7 @@ from backend.domain import (
     confirmed_answers_for_export,
     fail_export,
     issue_review,
+    record_rephrase,
     replace_candidate,
     start_export,
 )
@@ -142,6 +144,12 @@ from backend.security import (
     owner_hash,
     require_assignment_owner,
     verify_owner_session,
+)
+from backend.semantic import (
+    OpenAIResponsesSemanticProvider,
+    SemanticFailure,
+    SemanticMapper,
+    ValidatedMapping,
 )
 from backend.storage import (
     GCSObjectStore,
@@ -270,6 +278,7 @@ class AssignmentApplicationService:
         now: Any = _utc_now,
         rate_limiter: SlidingWindowRateLimiter | None = None,
         document_executor: DocumentProcessExecutor | None = None,
+        semantic_mapper: SemanticMapper | None = None,
         document_timeout_seconds: float | None = None,
         storage_timeout_seconds: float | None = None,
         request_timeout_seconds: float | None = None,
@@ -280,6 +289,7 @@ class AssignmentApplicationService:
         self.manifests = ManifestRepository(store)
         self._now = now
         self.document_executor = document_executor or DocumentProcessExecutor()
+        self.semantic_mapper = semantic_mapper
         self._document_timeout_seconds = (
             float(document_timeout_seconds)
             if document_timeout_seconds is not None
@@ -397,11 +407,20 @@ class AssignmentApplicationService:
             ) from error
 
         try:
-            analysis = await self.document_executor.analyze(
-                source_bytes,
-                limits=limits,
-                timeout_seconds=budget.remaining(self._document_timeout_seconds),
-            )
+            analysis_timeout = budget.remaining(self._document_timeout_seconds)
+            if self.semantic_mapper is not None:
+                analysis = await self.document_executor.analyze(
+                    source_bytes,
+                    limits=limits,
+                    timeout_seconds=analysis_timeout,
+                    derive_questions=False,
+                )
+            else:
+                analysis = await self.document_executor.analyze(
+                    source_bytes,
+                    limits=limits,
+                    timeout_seconds=analysis_timeout,
+                )
         except (DocumentExecutionTimeout, _RequestBudgetExpired):
             failed = await self._record_analysis_failure(
                 analyzing,
@@ -420,13 +439,37 @@ class AssignmentApplicationService:
             )
             return self._assignment_response(failed.manifest, None), returned_cookie
 
+        questions = analysis.questions
+        if self.semantic_mapper is not None:
+            try:
+                mapping = await self.semantic_mapper.map_document(analysis.physical_ir)
+                questions = _questions_from_semantic_mapping(
+                    analysis.physical_ir,
+                    mapping,
+                    limits=limits,
+                )
+            except SemanticFailure as error:
+                failed = await self._record_analysis_failure(
+                    analyzing,
+                    error.code,
+                    budget=budget,
+                )
+                return self._assignment_response(failed.manifest, None), returned_cookie
+            except DocumentEngineError as error:
+                failed = await self._record_analysis_failure(
+                    analyzing,
+                    error.code,
+                    budget=budget,
+                )
+                return self._assignment_response(failed.manifest, None), returned_cookie
+
         try:
             ready = await self._run_storage(
                 partial(
                     self._finish_analysis,
                     analyzing,
                     analysis.physical_ir,
-                    analysis.questions,
+                    questions,
                 ),
                 version=analyzing.manifest.version,
                 timeout_seconds=budget.remaining(self._storage_timeout_seconds),
@@ -609,12 +652,64 @@ class AssignmentApplicationService:
                 "That answer changed. Review the current answer and try again.",
                 manifest.version,
             )
-        raise ClarosError(
-            code="provider_unavailable",
-            message="Suggested wording is temporarily unavailable. Keep your wording or try again.",
-            recoverable=True,
-            status_code=503,
-            version=manifest.version,
+        if self.semantic_mapper is None:
+            raise ClarosError(
+                code="provider_unavailable",
+                message=(
+                    "Suggested wording is temporarily unavailable. "
+                    "Keep your wording or try again."
+                ),
+                recoverable=True,
+                status_code=503,
+                version=manifest.version,
+            )
+        physical_ir = await self._run_storage(
+            partial(self._load_ir, manifest), version=manifest.version
+        )
+        try:
+            suggestion = await self.semantic_mapper.rephrase(
+                ir=physical_ir,
+                question_key=f"q_{question.index:03d}",
+                exact_question=question.exact_prompt,
+                exact_candidate=candidate.exact_text,
+                exact_allowed_context=question.instruction,
+            )
+        except SemanticFailure as error:
+            raise _semantic_rephrase_api_error(error, version=manifest.version) from error
+
+        created_at = self._now().astimezone(UTC)
+        try:
+            updated, record = record_rephrase(
+                manifest,
+                question_id=question_id,
+                assignment_version=body.assignment_version,
+                candidate_id=body.candidate_id,
+                candidate_version=body.candidate_version,
+                suggestion_text=suggestion.exact_suggestion,
+                now=created_at,
+            )
+            saved = await self._run_storage(
+                partial(self._save, observed, updated),
+                version=manifest.version,
+                mutation=True,
+            )
+        except DomainError as error:
+            raise _domain_api_error(error) from error
+        return RephraseResponse(
+            version=saved.manifest.version,
+            rephrase_id=record.rephrase_id,
+            original=_candidate_response(question_id, candidate),
+            suggestion=Candidate(
+                candidate_id=record.suggestion_candidate_id,
+                candidate_version=record.suggestion_candidate_version,
+                question_id=question_id,
+                text=record.suggestion_text,
+                origin=CandidateOrigin.CLAROS_REPHRASE,
+                attribution=StudentAttribution.SUGGESTED_WORDING,
+                created_at=created_at,
+            ),
+            selected_candidate_id=None,
+            factual_delta_safe=True,
         )
 
     async def create_review(
@@ -1704,10 +1799,23 @@ def build_assignment_service(settings: Settings) -> AssignmentApplicationService
             jvm_heap_mib=settings.openpdf_jvm_heap_mib,
         ),
     )
+    semantic_mapper = None
+    if settings.semantic_engine == "openai":
+        if settings.openai_api_key is None:  # defensive; Settings already validates this
+            raise ValueError("OpenAI semantic mapping requires CLAROS_OPENAI_API_KEY")
+        semantic_mapper = SemanticMapper(
+            provider=OpenAIResponsesSemanticProvider.from_api_key(
+                settings.openai_api_key.get_secret_value(),
+                max_output_tokens=settings.semantic_max_output_tokens,
+            ),
+            model=settings.semantic_model,
+            timeout_seconds=settings.semantic_timeout_seconds,
+        )
     return AssignmentApplicationService(
         settings=settings,
         store=store,
         document_executor=document_executor,  # type: ignore[arg-type]
+        semantic_mapper=semantic_mapper,
     )
 
 
@@ -1718,6 +1826,42 @@ def _question_evidence(question: QuestionState) -> QuestionEvidence:
         prompt_block_ids=question.prompt_block_ids,
         context_block_ids=question.context_block_ids,
     )
+
+
+def _questions_from_semantic_mapping(
+    physical_ir: PhysicalDocumentIR,
+    mapping: ValidatedMapping,
+    *,
+    limits: PreflightLimits,
+) -> tuple[QuestionState, ...]:
+    validate_question_count(len(mapping.questions), limits)
+    questions: list[QuestionState] = []
+    for index, mapped in enumerate(mapping.questions, start=1):
+        evidence = QuestionEvidence(
+            question_id=mapped.question_key,
+            display_identifier=str(index),
+            prompt_block_ids=mapped.prompt_block_ids,
+            context_block_ids=mapped.context_block_ids,
+        )
+        plan = resolve_placement(physical_ir, evidence, "Sample answer")
+        questions.append(
+            QuestionState(
+                question_id=mapped.question_key,
+                index=index,
+                display_identifier=str(index),
+                exact_prompt=mapped.exact_prompt,
+                prompt_block_ids=mapped.prompt_block_ids,
+                context_block_ids=mapped.context_block_ids,
+                instruction=mapped.exact_context,
+                page_number=mapped.page_number,
+                placement_capability=(
+                    DomainPlacementCapability.INLINE_POSSIBLE
+                    if plan.outcome == "inline"
+                    else DomainPlacementCapability.APPENDIX_ONLY
+                ),
+            )
+        )
+    return tuple(questions)
 
 
 def _canonical_review_plan(
@@ -1944,5 +2088,23 @@ def _document_api_error(error: DocumentEngineError, *, version: int | None = Non
         message=error.safe_message,
         recoverable=error.recoverable,
         status_code=status_code,
+        version=version,
+    )
+
+
+def _semantic_rephrase_api_error(error: SemanticFailure, *, version: int) -> ClarosError:
+    if error.code == "semantic_unsafe_rephrase":
+        return ClarosError(
+            code=error.code,
+            message="That suggestion may change the meaning. Keep your wording or try again.",
+            recoverable=True,
+            status_code=422,
+            version=version,
+        )
+    return ClarosError(
+        code=error.code,
+        message="Suggested wording is temporarily unavailable. Keep your wording or try again.",
+        recoverable=True,
+        status_code=503,
         version=version,
     )

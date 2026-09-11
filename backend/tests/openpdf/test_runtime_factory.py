@@ -70,6 +70,36 @@ def test_current_engine_remains_the_default_without_openpdf_fallback(tmp_path: P
 
     assert settings.pdf_engine == "current"
     assert isinstance(service.document_executor, DocumentProcessExecutor)
+    assert service.semantic_mapper is None
+
+
+def test_application_factory_selects_configured_semantic_model(tmp_path: Path) -> None:
+    service = build_assignment_service(
+        _settings(
+            tmp_path,
+            semantic_engine="openai",
+            semantic_model="gpt-5.6-terra",
+            semantic_timeout_seconds=19,
+            semantic_max_output_tokens=4_096,
+            openai_api_key="test-key-not-used",
+        )
+    )
+
+    assert service.semantic_mapper is not None
+    assert service.semantic_mapper.model == "gpt-5.6-terra"
+    assert service.semantic_mapper.timeout_seconds == 19
+
+
+def test_semantic_selection_requires_key_and_supported_model(tmp_path: Path) -> None:
+    with pytest.raises(ValidationError, match="CLAROS_OPENAI_API_KEY"):
+        _settings(tmp_path, semantic_engine="openai")
+    with pytest.raises(ValidationError):
+        _settings(
+            tmp_path,
+            semantic_engine="openai",
+            semantic_model="gpt-unmeasured",
+            openai_api_key="test-key-not-used",
+        )
 
 
 def test_application_factory_selects_the_real_openpdf_engine(
