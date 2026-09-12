@@ -224,6 +224,9 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
       "filled-in sentence frames, quoted templates",
     );
     expect(factoryOptions[0].instructions).toContain(
+      "never offer a sentence starter, partial answer, fill-in-the-blank",
+    );
+    expect(factoryOptions[0].instructions).toContain(
       "make the tool call as your first output with no spoken or written preamble",
     );
   });
