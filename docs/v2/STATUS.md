@@ -4,7 +4,7 @@
 - **Branch:** `codex/claros-v2-nerdy`
 - **Baseline:** `5fb217715e4b3278f21a882b2652d928f2cca628`
 - **Current phase:** Gate 5 in progress — preserved Realtime draft is under integration review
-- **Gate state:** Gates 0–4 passed; Gate 5 is 0/8 tasks complete
+- **Gate state:** Gates 0–4 passed; Gate 5 is 1/8 tasks complete
 - **Gate 0 content checkpoint:** `0c15404b87edbbe19b03de93d81ad95aa1e897fd`
 - **Gate 1 content checkpoint:** `59cbc509650cc4a65b139a7db23012ead74efb3c`
 - **Gate 2 content checkpoint:** `0723303ef718bb28594d519da31ec0a55226fa45`
@@ -22,6 +22,11 @@
   no remaining P0–P3 issue after verifying source/tree binding, corpus and
   prompt/schema fingerprints, adversarial prompt separation, provenance,
   stale-rephrase prevention, output redaction, and report consistency.
+- **Gate 5 credential boundary:** The preserved server-side Realtime draft is
+  integrated. Credential issuance now validates the signed owner session,
+  assignment expiry, active question, requested mode, exact assignment version,
+  and rate limit before returning only a 60-second `ek_` client credential.
+  Focused policy, provider, lifecycle, authorization, and service tests pass.
 
 - **OpenPDF promotion:** The validated Java renderer is integrated behind
   explicit `CLAROS_PDF_ENGINE=openpdf` selection in the real `/api/v2` service.
@@ -239,7 +244,7 @@ finding or unavailable npm audit keeps Gate 1 blocked.
 | 2    | Fixture-complete V2 UI and fake Realtime                                               | Unit/component/Storybook/Playwright/axe, keyboard/focus/zoom/motion, full screenshot matrix, visual score ≥90 | Passed at `0723303` — 95/100 |
 | 3    | FastAPI, GCS adapters, physical IR, placement/export, gold corpus                      | Python/API/PDF integration, deterministic IR, exact Unicode, immutable source, container/revision smoke       | Passed at `88cda66`          |
 | 4    | Responses semantic mapping and rephrase                                                | Recorded/live corpus evaluation, zero invalid IDs, exact reconstruction, safe failure and provenance          | Passed at `976e176`          |
-| 5    | Realtime direct and guided paths                                                       | Fake browser suite and manual live voice/recovery/security evidence                                           | In progress — 0/8 tasks      |
+| 5    | Realtime direct and guided paths                                                       | Fake browser suite and manual live voice/recovery/security evidence                                           | In progress — 1/8 tasks      |
 | 6    | Cutover, hardening, deployment                                                         | Full accumulated CI/security/a11y/visual/performance/staging evidence                                         | Not started                  |
 | 7    | Repeatable demo and release bundle                                                     | Clean-browser replay, final PDF, deployed smoke, honest submission copy, complete `artifacts/v2`              | Not started                  |
 

@@ -136,6 +136,15 @@ from backend.domain import (
 from backend.domain.identifiers import new_identifier
 from backend.openpdf import OpenPdfRuntime, select_pdf_engine
 from backend.rate_limit import RateLimitExceeded, SlidingWindowRateLimiter
+from backend.realtime import (
+    CandidateBinding as RealtimeCandidateBinding,
+)
+from backend.realtime import (
+    OpenAIRealtimeCredentialProvider,
+    RealtimeCredentialIssuer,
+    RealtimeError,
+    RealtimeSessionContext,
+)
 from backend.security import (
     AssignmentAccessDenied,
     OwnerSession,
@@ -279,6 +288,7 @@ class AssignmentApplicationService:
         rate_limiter: SlidingWindowRateLimiter | None = None,
         document_executor: DocumentProcessExecutor | None = None,
         semantic_mapper: SemanticMapper | None = None,
+        realtime_credential_issuer: RealtimeCredentialIssuer | None = None,
         document_timeout_seconds: float | None = None,
         storage_timeout_seconds: float | None = None,
         request_timeout_seconds: float | None = None,
@@ -290,6 +300,7 @@ class AssignmentApplicationService:
         self._now = now
         self.document_executor = document_executor or DocumentProcessExecutor()
         self.semantic_mapper = semantic_mapper
+        self.realtime_credential_issuer = realtime_credential_issuer
         self._document_timeout_seconds = (
             float(document_timeout_seconds)
             if document_timeout_seconds is not None
@@ -656,8 +667,7 @@ class AssignmentApplicationService:
             raise ClarosError(
                 code="provider_unavailable",
                 message=(
-                    "Suggested wording is temporarily unavailable. "
-                    "Keep your wording or try again."
+                    "Suggested wording is temporarily unavailable. Keep your wording or try again."
                 ),
                 recoverable=True,
                 status_code=503,
@@ -1158,13 +1168,53 @@ class AssignmentApplicationService:
                 "The assignment changed. Reload it and try again.",
                 versioned.manifest.version,
             )
-        _find_question(versioned.manifest, body.question_id)
-        raise ClarosError(
-            code="provider_unavailable",
-            message="Voice is unavailable right now. Continue by typing.",
-            recoverable=True,
-            status_code=503,
+        question = _find_question(versioned.manifest, body.question_id)
+        if self.realtime_credential_issuer is None:
+            raise ClarosError(
+                code="realtime_provider_unavailable",
+                message="Voice is unavailable right now. Continue by typing.",
+                recoverable=True,
+                status_code=503,
+                version=versioned.manifest.version,
+            )
+        candidate = question.current_candidate
+        context = RealtimeSessionContext(
+            assignment_id=versioned.manifest.assignment_id,
+            assignment_version=versioned.manifest.version,
+            question_id=question.question_id,
+            mode=body.mode.value,
+            phase="candidate_ready" if candidate is not None else "answering",
+            exact_question=question.exact_prompt,
+            relevant_context=((question.instruction,) if question.instruction else ()),
+            current_candidate=(
+                RealtimeCandidateBinding(
+                    candidate_id=candidate.candidate_id,
+                    candidate_version=candidate.candidate_version,
+                    exact_text=candidate.exact_text,
+                )
+                if candidate is not None
+                else None
+            ),
+        )
+        try:
+            credential = await self.realtime_credential_issuer.issue(
+                context=context,
+                safety_subject=session.owner_id,
+            )
+        except RealtimeError as error:
+            raise ClarosError(
+                code=error.code,
+                message=error.safe_message,
+                recoverable=error.recoverable,
+                status_code=503,
+                version=versioned.manifest.version,
+            ) from error
+        return RealtimeCredentialResponse(
             version=versioned.manifest.version,
+            session_id=credential.session_id,
+            client_secret=credential.client_secret,
+            expires_at=credential.expires_at,
+            model=credential.model,
         )
 
     async def _run_storage(
@@ -1811,11 +1861,19 @@ def build_assignment_service(settings: Settings) -> AssignmentApplicationService
             model=settings.semantic_model,
             timeout_seconds=settings.semantic_timeout_seconds,
         )
+    realtime_credential_issuer = None
+    if settings.realtime_engine == "openai":
+        if settings.openai_api_key is None:  # defensive; Settings already validates this
+            raise ValueError("OpenAI Realtime requires CLAROS_OPENAI_API_KEY")
+        realtime_credential_issuer = RealtimeCredentialIssuer(
+            OpenAIRealtimeCredentialProvider(api_key=settings.openai_api_key)
+        )
     return AssignmentApplicationService(
         settings=settings,
         store=store,
         document_executor=document_executor,  # type: ignore[arg-type]
         semantic_mapper=semantic_mapper,
+        realtime_credential_issuer=realtime_credential_issuer,
     )
 
 

@@ -562,7 +562,7 @@ def test_candidate_review_confirmation_revision_and_provider_matrix(
         json=realtime_body,
         headers=MUTATION_HEADERS,
     )
-    _assert_error(realtime, 503, "provider_unavailable")
+    _assert_error(realtime, 503, "realtime_provider_unavailable")
     assert realtime.headers["etag"] == f'"assignment-version-{version}"'
     _assert_error(
         harness.client.post(

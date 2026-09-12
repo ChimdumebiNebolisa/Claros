@@ -240,7 +240,7 @@ Terra and Sol were not rerun after Luna passed.
 ### D-019 — Realtime
 
 Use `@openai/agents/realtime` over WebRTC with
-`OPENAI_REALTIME_MODEL=gpt-realtime-2.1`. A short-lived credential is issued
+`CLAROS_REALTIME_MODEL=gpt-realtime-2.1`. A short-lived credential is issued
 only after assignment/question/mode/version validation. Both typed and voice
 turns enter the same adapter/candidate boundary. Realtime may fetch context,
 set a candidate, request rephrase, enter review, or report a voice issue; it
