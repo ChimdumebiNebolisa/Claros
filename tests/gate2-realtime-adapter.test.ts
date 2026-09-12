@@ -46,6 +46,7 @@ describe("Gate 2 fake Realtime adapter", () => {
       questionId: "q_01",
       assignmentVersion: 2,
       mode: "direct",
+      exactQuestion: "How does sunlight help a plant make food?",
     });
     adapter.startListening();
 
@@ -67,6 +68,7 @@ describe("Gate 2 fake Realtime adapter", () => {
       questionId: "q_01",
       assignmentVersion: 2,
       mode: "direct",
+      exactQuestion: "How does sunlight help a plant make food?",
     });
     const listen = adapter.startListening();
 

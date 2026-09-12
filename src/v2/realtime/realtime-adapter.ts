@@ -41,7 +41,11 @@ export type RealtimeEvent =
       type: "candidate";
       text: string;
       input: "typed" | "voice";
+      sessionId?: string;
+      sourceTurnIds?: readonly string[];
     }
+  | { id: string; type: "request_rephrase"; candidateId: string }
+  | { id: string; type: "enter_exact_review"; candidateId: string }
   | { id: string; type: "confirmation_phrase"; phrase: string }
   | {
       id: string;
@@ -86,20 +90,29 @@ export type RealtimeConnectOptions = {
   questionId: string;
   assignmentVersion: number;
   mode: AnswerPath;
+  exactQuestion: string;
+  relevantContext?: readonly string[];
+  currentCandidate?: {
+    id: string;
+    version: number;
+    exactText: string;
+  };
 };
 
 export type RealtimeListener = (event: RealtimeEvent) => void;
 
 export interface RealtimeAdapter {
   subscribe(listener: RealtimeListener): () => void;
-  connect(options: RealtimeConnectOptions): RealtimeOperation;
+  connect(
+    options: RealtimeConnectOptions,
+  ): RealtimeOperation | Promise<RealtimeOperation>;
   startListening(): RealtimeOperation;
   stopListening(): RealtimeOperation;
   interrupt(): RealtimeOperation;
   setMuted(muted: boolean): RealtimeOperation;
   sendTypedTurn(text: string): RealtimeOperation;
   hearExact(exactText: string): RealtimeOperation;
-  retry(): RealtimeOperation;
+  retry(): RealtimeOperation | Promise<RealtimeOperation>;
   destroy(): RealtimeOperation;
 }
 
@@ -266,6 +279,8 @@ export function createFakeRealtimeScript({
     type: "candidate",
     text,
     input: "voice",
+    sessionId: `fixture-session-${runId}`,
+    sourceTurnIds: [id("student-caption")],
   });
   const script: FakeRealtimeScriptItem[] = [
     listening,

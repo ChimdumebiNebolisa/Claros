@@ -15,6 +15,7 @@ const required = {
   "@embedpdf/plugin-document-manager": ["2.15.0", "MIT"],
   "@embedpdf/plugin-render": ["2.15.0", "MIT"],
   "@embedpdf/react-pdf-viewer": ["2.15.0", "MIT"],
+  "@openai/agents": ["0.18.0", "MIT"],
   "@tanstack/react-query": ["5.102.8", "MIT"],
   "@untitledui/file-icons": ["0.0.9", "MIT"],
   "@untitledui/icons": ["0.0.22", "MIT"],

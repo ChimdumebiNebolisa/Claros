@@ -576,6 +576,8 @@ export default function WorkspaceShell({
         questionId: currentQuestion.id,
         assignmentVersion: currentAssignment.version,
         mode: answerPath,
+        exactQuestion: currentQuestion.prompt,
+        relevantContext: [currentQuestion.instruction],
       });
       if (current.muted) adapter.setMuted(true);
       realtimeAdapterRef.current = adapter;

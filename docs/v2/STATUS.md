@@ -3,8 +3,8 @@
 - **As of:** 2026-09-11
 - **Branch:** `codex/claros-v2-nerdy`
 - **Baseline:** `5fb217715e4b3278f21a882b2652d928f2cca628`
-- **Current phase:** Gate 5 in progress — preserved Realtime draft is under integration review
-- **Gate state:** Gates 0–4 passed; Gate 5 is 1/8 tasks complete
+- **Current phase:** Gate 5 in progress — direct and guided browser binding is next
+- **Gate state:** Gates 0–4 passed; Gate 5 is 2/8 tasks complete
 - **Gate 0 content checkpoint:** `0c15404b87edbbe19b03de93d81ad95aa1e897fd`
 - **Gate 1 content checkpoint:** `59cbc509650cc4a65b139a7db23012ead74efb3c`
 - **Gate 2 content checkpoint:** `0723303ef718bb28594d519da31ec0a55226fa45`
@@ -27,6 +27,13 @@
   assignment expiry, active question, requested mode, exact assignment version,
   and rate limit before returning only a 60-second `ek_` client credential.
   Focused policy, provider, lifecycle, authorization, and service tests pass.
+- **Gate 5 browser adapter:** `@openai/agents` 0.18.0 is pinned and isolated
+  behind the existing Realtime lazy boundary. The WebRTC adapter accepts only
+  the server-issued `ek_` credential, maps provider events to visible voice
+  states and captions, validates narrow tool inputs against trusted turn IDs,
+  supports typed turns, mute, stop, interrupt, and exact playback, deduplicates
+  provider events, closes SDK-owned media on replacement/exit, and permits one
+  automatic reconnect. The existing fake adapter remains deterministic.
 
 - **OpenPDF promotion:** The validated Java renderer is integrated behind
   explicit `CLAROS_PDF_ENGINE=openpdf` selection in the real `/api/v2` service.
@@ -56,10 +63,10 @@
   produced digest `sha256:b4058b7bb22210a82690db7859354dad4fdf354441d57ee46a79deea6d7d5b66`;
   revision `claros-00075-xtv` serves it at 100 percent after live persistence,
   ownership-isolation, and proxy-identity checks.
-- **Next action:** Preserve and integrate the existing untracked Realtime draft
-  deliberately for Gate 5, starting with its already-passing backend policy,
-  credential, and lifecycle tests. Add the pinned browser adapter dependency
-  and real WebRTC integration without committing unrelated Docker artifacts.
+- **Next action:** Bind the real lazy-loaded adapter into the direct and guided
+  workspace paths, preserving authenticated candidate origin/source-turn
+  evidence and typed fallback. Then verify exact-review voice confirmation and
+  recovery without committing unrelated Docker artifacts.
 
 ## Gate 0 checklist
 

@@ -17,6 +17,7 @@ export type ApiConfirmation = ApiSchemas["ConfirmResponse"];
 export type ApiRevision = ApiSchemas["BeginRevisionResponse"];
 export type ApiExport = ApiSchemas["ExportResponse"];
 export type ApiRephrase = ApiSchemas["RephraseResponse"];
+export type ApiRealtimeCredential = ApiSchemas["RealtimeCredentialResponse"];
 
 export class ClarosApiError extends Error {
   readonly detail: RecoverableError;
@@ -221,6 +222,14 @@ export const requestRephrase = (
     `/api/v2/assignments/${encodeURIComponent(assignmentId)}/questions/${encodeURIComponent(questionId)}/rephrase`,
     { method: "POST", body: JSON.stringify(body) },
   );
+
+export const issueRealtimeCredential = (
+  body: ApiSchemas["RealtimeCredentialRequest"],
+) =>
+  requestJson<ApiRealtimeCredential>("/api/v2/realtime/client-secret", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 
 export async function createReview(
   assignmentId: string,
