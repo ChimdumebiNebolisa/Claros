@@ -709,7 +709,9 @@ export default function WorkspaceShell({
           : null;
       };
       const handleBoundRealtimeEvent = (event: RealtimeEvent) => {
-        if (latestBoundContext()) handleRealtimeEvent(event);
+        if (event.type === "playback_complete" || latestBoundContext()) {
+          handleRealtimeEvent(event);
+        }
       };
       if (usesRealApi) {
         let adapter: RealtimeAdapter;

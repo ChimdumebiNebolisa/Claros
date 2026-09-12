@@ -329,6 +329,117 @@ describe("Gate 3 runtime boundaries", () => {
     ).toHaveValue("");
   });
 
+  it("finishes typed-only exact-review playback after persistence advances the version", async () => {
+    const adapters: Array<{
+      listener?: RealtimeListener;
+      hearExact: ReturnType<typeof vi.fn>;
+    }> = [];
+    const createAdapter = () => {
+      const state: (typeof adapters)[number] = {
+        hearExact: vi.fn((exactText: string) => {
+          queueMicrotask(() => {
+            state.listener?.({
+              id: "typed-playback-complete",
+              type: "playback_complete",
+              exactText,
+            });
+          });
+        }),
+      };
+      const adapter = {
+        subscribe: vi.fn((next: RealtimeListener) => {
+          state.listener = next;
+          return vi.fn();
+        }),
+        connect: vi.fn(async () => ({ id: "connect", command: "connect" })),
+        startListening: vi.fn(),
+        stopListening: vi.fn(),
+        interrupt: vi.fn(),
+        setMuted: vi.fn(),
+        sendTypedTurn: vi.fn(),
+        registerTypedCandidate: vi.fn(() => ({
+          sessionId: "sess_typed_review",
+          sourceTurnIds: ["typed_review_turn"],
+          input: "typed" as const,
+          normalization: "none" as const,
+        })),
+        hearExact: state.hearExact,
+        retry: vi.fn(),
+        destroy: vi.fn(),
+      };
+      adapters.push(state);
+      return adapter;
+    };
+    realtimeMocks.loadOpenAI.mockResolvedValue({
+      createOpenAIRealtimeAdapter: createAdapter,
+    });
+    const exactText = "Plants use 1.5 units of light energy to make food.";
+    const candidate = {
+      candidate_id: "cand_typed_review",
+      candidate_version: 1,
+      question_id: "q_runtime",
+      text: exactText,
+      origin: "student_verbatim",
+      attribution: "Your words",
+      created_at: "2026-09-12T12:00:00Z",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.endsWith("/candidates")) {
+          return new Response(JSON.stringify({ version: 4, candidate }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        if (url.endsWith("/review")) {
+          return new Response(
+            JSON.stringify({
+              version: 4,
+              question_id: "q_runtime",
+              candidate,
+              attribution: "Your words",
+              review_token: "review_typed_only",
+              expires_at: "2040-01-01T00:00:00Z",
+              placement: "appendix",
+              preview_context_url: "/context",
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+        return new Response(JSON.stringify(assignment), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={["/app/asgn_runtime"]}>
+        <AppProviders>
+          <RootApp />
+        </AppProviders>
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", {
+      name: "What is the runtime question?",
+    });
+    await user.type(
+      screen.getByRole("textbox", { name: "Proposed answer" }),
+      exactText,
+    );
+    await user.click(screen.getByRole("button", { name: "Review answer" }));
+    await screen.findByRole("heading", { name: "Review your exact answer" });
+
+    const hearButton = screen.getByRole("button", { name: "Hear it" });
+    await user.click(hearButton);
+    await waitFor(() => expect(hearButton).toBeEnabled());
+    expect(adapters).toHaveLength(1);
+    expect(adapters[0].hearExact).toHaveBeenCalledWith(exactText);
+  });
+
   it("reuses a healthy audio session when the student sends a typed turn", async () => {
     const liveAdapter = {
       subscribe: vi.fn(() => vi.fn()),
