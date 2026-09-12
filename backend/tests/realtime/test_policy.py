@@ -13,6 +13,7 @@ from backend.realtime import (
     CandidateBinding,
     DraftCandidateIntent,
     EnterExactReviewIntent,
+    NavigateQuestionIntent,
     RealtimeError,
     RealtimeSessionContext,
     RephraseIntent,
@@ -45,21 +46,22 @@ def test_prompt_treats_bounded_worksheet_content_as_untrusted_data(
     assert instructions.index("Security boundary:") < instructions.index(encoded_question)
 
 
-def test_session_configuration_exposes_only_three_intent_tools(
+def test_session_configuration_exposes_only_bounded_intent_tools(
     context_factory: Callable[..., RealtimeSessionContext],
 ) -> None:
-    request = build_client_secret_request(context_factory(mode="direct"))
+    request = build_client_secret_request(context_factory(mode="conversation"))
     definitions = realtime_tool_definitions()
     expected = (
         "create_draft_candidate",
         "request_rephrase",
+        "navigate_question",
         "enter_exact_review",
     )
 
     assert request.session.model == "gpt-realtime-2.1"
     assert request.session.output_modalities == ("audio",)
     assert request.session.parallel_tool_calls is False
-    assert request.session.reasoning.effort == "minimal"
+    assert request.session.reasoning.effort == "low"
     assert request.expires_after.seconds == 60
     assert tuple(tool.name for tool in request.session.tools) == expected
     assert tuple(tool["name"] for tool in definitions) == expected
@@ -76,22 +78,21 @@ def test_session_configuration_exposes_only_three_intent_tools(
         assert forbidden not in serialized
 
 
-def test_direct_and_guided_prompts_keep_their_distinct_student_authority(
+def test_all_compatibility_modes_use_one_adaptive_conversation_policy(
     context_factory: Callable[..., RealtimeSessionContext],
 ) -> None:
-    direct = build_realtime_instructions(context_factory(mode="direct"))
-    guided = build_realtime_instructions(context_factory(mode="guided"))
+    prompts = tuple(
+        build_realtime_instructions(context_factory(mode=mode))
+        for mode in ("conversation", "direct", "guided")
+    )
 
-    assert "Direct-answer mode:" in direct
-    assert "Capture what the student intended with minimal interruption" in direct
-    assert "Do not tutor unless asked" in direct
-    assert "Guided-reasoning mode:" not in direct
-
-    assert "Guided-reasoning mode:" in guided
-    assert "Ask one focused question at a time" in guided
-    assert "Do not give the final answer immediately" in guided
-    assert "ask them to state one final answer" in guided
-    assert "Direct-answer mode:" not in guided
+    assert len(set(prompts)) == 1
+    assert "One adaptive conversation:" in prompts[0]
+    assert "Capture a known answer with minimal interruption" in prompts[0]
+    assert "tutor only when asked" in prompts[0]
+    assert "Do not turn discussion, commands, or ambiguous fragments into an answer" in prompts[0]
+    assert "Direct-answer mode:" not in prompts[0]
+    assert "Guided-reasoning mode:" not in prompts[0]
 
 
 def test_typed_and_audio_drafts_produce_narrow_bound_intents(
@@ -103,7 +104,6 @@ def test_typed_and_audio_drafts_produce_narrow_bound_intents(
             name="create_draft_candidate",
             arguments={
                 "exact_text": "Light energy helps the plant make glucose.",
-                "source_turn_ids": [f"turn-{modality}"],
             },
             context=context,
             trusted_input_modality=modality,
@@ -115,6 +115,42 @@ def test_typed_and_audio_drafts_produce_narrow_bound_intents(
         assert intent.question_id == context.question_id
         assert intent.input_modality == modality
         assert intent.exact_text == "Light energy helps the plant make glucose."
+        assert intent.source_turn_ids == (f"turn-{modality}",)
+
+
+def test_navigation_is_bound_to_an_application_supplied_question(
+    context_factory: Callable[..., RealtimeSessionContext],
+) -> None:
+    context = context_factory(
+        available_questions=(
+            {
+                "question_id": "q_photosynthesis",
+                "question_index": 1,
+                "exact_question": "How does sunlight help a plant make food?",
+            },
+            {
+                "question_id": "q_respiration",
+                "question_index": 2,
+                "exact_question": "Why do cells need oxygen?",
+            },
+        )
+    )
+
+    intent = parse_realtime_tool_call(
+        name="navigate_question",
+        arguments={"question_index": 2},
+        context=context,
+    )
+
+    assert isinstance(intent, NavigateQuestionIntent)
+    assert intent.question_id == "q_respiration"
+    with pytest.raises(RealtimeError) as unknown:
+        parse_realtime_tool_call(
+            name="navigate_question",
+            arguments={"question_index": 3},
+            context=context,
+        )
+    assert unknown.value.code == "realtime_tool_payload_invalid"
 
 
 def test_candidate_actions_require_current_candidate_and_candidate_ready_phase(
@@ -308,15 +344,10 @@ def test_draft_modality_and_source_turns_are_application_authority(
 ) -> None:
     arguments = {
         "exact_text": "Light energy helps the plant make glucose.",
-        "source_turn_ids": ["turn-student"],
     }
     for call_kwargs in (
         {},
         {"trusted_input_modality": "audio"},
-        {
-            "trusted_input_modality": "audio",
-            "trusted_source_turn_ids": {"turn-someone-else"},
-        },
     ):
         with pytest.raises(RealtimeError) as raised:
             parse_realtime_tool_call(
@@ -327,15 +358,19 @@ def test_draft_modality_and_source_turns_are_application_authority(
             )
         assert raised.value.code == "realtime_tool_payload_invalid"
 
-    with pytest.raises(RealtimeError) as model_claims_modality:
+    with pytest.raises(RealtimeError) as model_claims_application_metadata:
         parse_realtime_tool_call(
             name="create_draft_candidate",
-            arguments={**arguments, "input_modality": "audio"},
+            arguments={
+                **arguments,
+                "input_modality": "audio",
+                "source_turn_ids": ["turn-student"],
+            },
             context=context_factory(),
             trusted_input_modality="text",
             trusted_source_turn_ids={"turn-student"},
         )
-    assert model_claims_modality.value.code == "realtime_tool_payload_invalid"
+    assert model_claims_application_metadata.value.code == "realtime_tool_payload_invalid"
 
 
 def test_context_rejects_unbounded_or_inconsistent_review_state(

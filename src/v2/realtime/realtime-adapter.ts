@@ -35,6 +35,9 @@ export type RealtimeEvent =
       speaker: "student" | "claros";
       text: string;
       final: boolean;
+      sourceTurnId?: string;
+      sessionId?: string;
+      input?: "typed" | "voice";
     }
   | {
       id: string;
@@ -47,6 +50,7 @@ export type RealtimeEvent =
     }
   | { id: string; type: "request_rephrase"; candidateId: string }
   | { id: string; type: "enter_exact_review"; candidateId: string }
+  | { id: string; type: "navigate_question"; questionIndex: number }
   | { id: string; type: "confirmation_phrase"; phrase: string }
   | {
       id: string;
@@ -98,6 +102,16 @@ export type RealtimeConnectOptions = {
     version: number;
     exactText: string;
   };
+  conversationHistory?: readonly {
+    speaker: "student" | "claros";
+    text: string;
+    questionId?: string;
+  }[];
+  availableQuestions?: readonly {
+    id: string;
+    index: number;
+    prompt: string;
+  }[];
   microphone?: boolean;
 };
 

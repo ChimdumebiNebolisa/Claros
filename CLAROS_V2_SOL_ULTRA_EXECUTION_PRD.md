@@ -17,7 +17,7 @@ The task is to turn the current Claros repository into a runnable, visually prem
 
 ```text
 understand the exact worksheet question
--> let the student answer directly or think it through
+-> let the student talk naturally with one adaptive agent
 -> preserve the student's final choice
 -> place only the approved answer into a usable completed PDF
 ```
@@ -242,7 +242,7 @@ A milestone is not complete when verification is still pending.
 
 ## 8. Product sentence
 
-Claros helps students who find typing difficult answer a worksheet directly or talk through a difficult question, review the exact final wording, and place only the approved answer into a completed PDF.
+Claros helps students who find typing difficult talk naturally with one worksheet agent, review the exact final wording, and place only the approved answer into a completed PDF.
 
 ## 9. Product category
 
@@ -279,44 +279,29 @@ Trust line:
 
 ```text
 worksheet context
--> direct answer or guided reasoning
+-> one continuous conversation that adapts to the student's intent
 -> reviewable final wording
 -> explicit student approval
 -> reliable PDF completion
 ```
 
-## 13. Two equal entry paths
+## 13. One adaptive conversation
 
-Every unanswered question begins with two equally weighted options.
-
-### Path A: Say my answer
-
-Use when the student already knows the answer.
+Every unanswered question opens in one persistent conversational workspace. The
+student does not select a mode. The same agent infers whether the student is
+dictating an answer, asking for concise grounded help, requesting a revision, or
+navigating to another application-validated question. Ambiguous intent is
+clarified before a draft or navigation action is created.
 
 ```text
-speak or type
--> normalized draft
+speak or type naturally
+-> discuss, dictate, revise, or navigate without restarting
+-> application-bound editable draft when answer intent is clear
 -> optional visible rephrasing
 -> exact review
 -> explicit approval
 -> place approved text
 ```
-
-### Path B: Help me think it through
-
-Use when the student wants guidance.
-
-```text
-state uncertainty
--> one focused guiding question
--> develop the idea
--> student states final answer
--> exact review
--> explicit approval
--> place approved text
-```
-
-Neither path is labeled recommended. Difficulty typing must not be equated with difficulty understanding.
 
 ## 14. Answer provenance
 
@@ -366,9 +351,9 @@ P0 must work end to end in the deployed application:
 4. Map source blocks into ordered short-answer questions.
 5. Render the actual source PDF.
 6. Navigate question by question.
-7. Choose either direct answer or guided reasoning.
-8. Use typed input through the complete flow.
-9. Use live voice through both answer paths.
+7. Enter one persistent conversation without mandatory mode selection.
+8. Move naturally between dictation, concise help, revision, and grounded question navigation.
+9. Use typed or live voice input through the same conversation.
 10. Display live captions and explicit voice states.
 11. Create and edit an answer candidate.
 12. Request an optional visible rephrasing.
@@ -436,7 +421,7 @@ Suggested schedule from September 4:
 | Sep 5-6 | Gates 1-2, design-system foundation and complete fixture-driven UI |
 | Sep 7-10 | Gate 3, FastAPI, GCS, deterministic PDF engine, gold corpus |
 | Sep 11 | Gate 4, semantic mapping and rephrasing |
-| Sep 12-13 | Gate 5, Realtime direct and guided paths |
+| Sep 12-13 | Gate 5, unified Realtime conversation |
 | Sep 14-15 | Gate 6, integration, accessibility, visual QA, deployment |
 | Sep 16 | Record demo and produce submission assets |
 | Sep 17 | Independent replay, bug buffer, final submission review |
@@ -450,12 +435,12 @@ When schedule pressure appears, cut P1 and visual ornament before cutting the co
 
 Use a fictional high-school student completing a biology worksheet. The student understands some questions and needs guidance on others. The demonstration must show competence, not helplessness.
 
-## 20. Journey 1: Direct answer
+## 20. Journey 1: Dictate in the conversation
 
 1. Student opens the app and selects the official biology sample.
 2. Claros verifies the worksheet and reports the number of supported questions.
 3. Question 1 appears with the exact prompt and source context.
-4. Student chooses **Say my answer**.
+4. The conversational workspace opens without a mode choice.
 5. Student speaks a complete answer.
 6. Claros displays the transcript under **Your words**.
 7. The student edits one word or keeps the normalized version.
@@ -464,15 +449,15 @@ Use a fictional high-school student completing a biology worksheet. The student 
 10. The answer appears in the validated region on the worksheet preview.
 11. Claros advances only after showing the saved state.
 
-## 21. Journey 2: Guided reasoning
+## 21. Journey 2: Ask for help in the same conversation
 
-1. Student opens Question 2 and chooses **Help me think it through**.
+1. Student opens Question 2 in the existing conversation and says they need help.
 2. Claros asks one focused question grounded in the worksheet prompt.
 3. The student responds by voice.
 4. Claros asks a second question only if needed.
 5. Claros asks the student to state the final answer.
 6. The student states it.
-7. The transcript does not become final automatically.
+7. Discussion turns do not become a draft automatically.
 8. The final candidate appears under **Your words** or **Your answer after guidance**.
 9. The student may request **Make it clearer**.
 10. The UI displays original and suggested wording side by side.
@@ -548,7 +533,7 @@ Claros
 |-- OpenAI Realtime
 |   |-- browser WebRTC
 |   |-- short-lived credential from FastAPI
-|   `-- direct answering and contextual tutoring
+|   `-- one adaptive conversation
 |
 `-- OpenAI Responses
     |-- block-ID grouping and semantic classification
@@ -834,10 +819,10 @@ Explain the accessibility problem and prove the full transformation in under one
 1. Navigation: Claros, How it works, Accessibility, Try Claros.
 2. Hero headline and supporting copy from this PRD.
 3. One real browser screenshot or live product preview from the implemented app.
-4. Two paths section.
+4. One-agent conversation section.
 5. From speech or typing to exact review to PDF placement.
 6. Dark trust section with four guarantees:
-   - Choose your route.
+   - Talk naturally or type.
    - See every wording change.
    - Approve the exact text.
    - Keep the source pages.
@@ -894,34 +879,23 @@ Show:
 
 Do not expose model confidence or geometry data.
 
-## 43. Question-choice state
+## 43. Persistent conversation state
 
 Primary hierarchy:
 
 1. `Question N of M` and progress.
 2. Exact source question text.
 3. Optional concise instruction or source-context note.
-4. Two equal path cards.
-5. Typed input fallback.
-6. Source context.
+4. One continuous student-and-Claros conversation.
+5. Voice and typed input controls.
+6. Editable proposed-answer field when answer intent is established.
+7. Source context.
 
-Path cards:
+The student never has to select direct or guided mode. The agent adapts from the
+conversation and asks a concise clarification before creating a draft or
+navigating when intent is ambiguous.
 
-### Say my answer
-
-> Speak or type what you already know.
-
-Action: **Start answering**
-
-### Help me think it through
-
-> Work through the question with Claros, one step at a time.
-
-Action: **Start a guided conversation**
-
-Do not preselect a path.
-
-## 44. Direct-answer state
+## 44. Answer capture within the conversation
 
 Required UI:
 
@@ -936,7 +910,7 @@ Required UI:
 
 The transcript and editable answer must not become divergent sources. There is one current candidate.
 
-## 45. Guided-reasoning state
+## 45. Contextual help within the conversation
 
 Required UI:
 
@@ -946,7 +920,7 @@ Required UI:
 - student and Claros turns with restrained visual distinction;
 - live captions;
 - start, stop, interrupt, mute, and type controls;
-- **I am ready to answer** action;
+- answer-intent clarification when needed;
 - no endless chatbot composer detached from the task.
 
 Conversation behavior:
@@ -1064,9 +1038,9 @@ The browser must download a real derivative PDF returned by the backend.
 
 - upload workflow state;
 - document-check state;
-- current question and path selection;
-- direct-answer substate;
-- guided-reasoning substate;
+- current question and conversation state;
+- microphone capture and speaker playback substates;
+- bounded conversation and editable draft;
 - candidate review and comparison;
 - confirmation state;
 - answer-added transition;
@@ -1116,8 +1090,7 @@ src/
     assignment-upload/
     document-check/
     question-workspace/
-    direct-answer/
-    guided-reasoning/
+    conversation/
     exact-review/
     worksheet-review/
     export/
@@ -1631,28 +1604,26 @@ select_arbitrary_question()
 
 The final confirm operation remains an explicit application action. A voice command may trigger it only in the exact-review state and must pass the same server checks as a button.
 
-## 74. Direct-answer agent policy
+## 74. One-agent conversation policy
 
-In direct mode:
+In the single conversation:
 
-- listen and transcribe;
-- minimize conversational interruption;
-- do not tutor unless asked;
-- do not turn a fragment into a materially more complete answer without permission;
-- ask a concise clarification only when needed to capture what the student intended;
-- transfer the student's candidate into the deterministic review flow.
+- listen and transcribe while preserving application-owned turn identity;
+- infer whether the student is dictating, asking for help, revising, or requesting grounded navigation;
+- minimize interruption when the student already knows the answer;
+- provide concise, question-grounded help when asked;
+- do not turn discussion, a command, or an ambiguous fragment into an answer;
+- ask one concise clarification when answer or navigation intent is ambiguous;
+- create a draft only from student-intended answer content and transfer it into the deterministic review flow;
+- never treat conversation, including casual agreement, as approval.
 
-## 75. Guided-reasoning agent policy
+## 75. Conversation continuity policy
 
-In guided mode:
-
-- ground every turn in the active question and provided context;
-- ask one focused question at a time;
-- prefer eliciting the student's knowledge over lecturing;
-- do not give the final answer immediately;
-- do not continue tutoring after the student indicates readiness;
-- ask the student to state one final answer;
-- transfer that answer into review without treating the conversation as approval.
+Changing intent or input method MUST NOT restart a healthy session. Necessary
+reconnects preserve bounded conversation context, the active question binding,
+completed transcripts, and the current draft. Question navigation occurs only
+through application-validated actions with explicit question and answer
+bindings.
 
 ## 76. Voice states
 
@@ -1789,9 +1760,9 @@ For every accepted fixture:
 
 ### Browser tests
 
-- direct typed path;
-- guided path with fake Realtime events;
-- live direct voice path where environment permits;
+- unified typed conversation path;
+- unified conversation with actual adapter-to-workspace events;
+- live voice path where environment permits;
 - wording comparison;
 - inline placement;
 - attached answer page;
@@ -1821,10 +1792,10 @@ Capture from the running app, not design software:
 | Upload | yes | no | yes |
 | Document checking | yes | no | yes |
 | Worksheet ready | yes | no | yes |
-| Question choice | yes | yes | yes |
-| Direct listening | yes | no | yes |
-| Direct captured | yes | no | yes |
-| Guided conversation | yes | yes | yes |
+| Conversation ready | yes | yes | yes |
+| Conversation listening | yes | no | yes |
+| Editable draft | yes | no | yes |
+| Contextual help | yes | yes | yes |
 | Wording comparison | yes | no | yes |
 | Exact review inline | yes | no | yes |
 | Exact review appendix | yes | no | yes |
@@ -1875,7 +1846,7 @@ Initial P0 targets:
 - app shell interactive before a document is loaded;
 - PDF viewer loaded only on app routes or when needed;
 - no giant PDF or Realtime bundle in the landing-page entry chunk;
-- direct typed workflow works without OpenAI Realtime loading;
+- typed workflow remains usable when OpenAI Realtime is unavailable;
 - page transitions remain responsive on a mid-range laptop;
 - no unbounded conversation DOM growth;
 - PDF analysis exposes timeout and cancellation behavior;
@@ -2036,8 +2007,7 @@ Required:
 
 - implement ephemeral credential endpoint;
 - implement `RealtimeAgent` and `RealtimeSession` adapter;
-- connect direct mode;
-- connect guided mode;
+- connect the unified conversation;
 - connect captions and interruptions;
 - connect narrow tools;
 - implement exact-state voice confirmation;
@@ -2048,8 +2018,8 @@ Required:
 
 Required:
 
-- direct voice answer works;
-- guided reasoning works;
+- spoken dictation and concise help work in one continuous session;
+- intent changes do not restart the conversation;
 - transcript and candidate cannot diverge silently;
 - exact review still mandatory;
 - casual agreement cannot confirm;
@@ -2173,8 +2143,8 @@ The product is done only when all of these are true:
 
 - a student can upload or open a supported real PDF;
 - Claros grounds questions to exact source evidence;
-- the student can answer directly by voice or typing;
-- the student can use guided reasoning by voice or typing;
+- the student can dictate, type, or ask for concise help in one conversation;
+- the student can change intent or input method without losing context;
 - the student can request and compare a clearer wording suggestion;
 - exact review is mandatory;
 - voice confirmation works only in exact review with the exact command;

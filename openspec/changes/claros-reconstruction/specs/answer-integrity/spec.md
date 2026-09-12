@@ -16,8 +16,8 @@ replace that string after the student has selected or edited it.
 - **THEN** every later review and confirmed-answer projection contains that exact edited string
 
 #### Scenario: Voice transcript updates the draft
-- **WHEN** a direct voice turn produces student text
-- **THEN** the editable field and transcript label project the same candidate version rather than divergent copies
+- **WHEN** a completed voice turn is identified as intended answer content
+- **THEN** the application binds the editable field and draft to the same completed source turn and candidate version rather than divergent copies
 
 ### Requirement: Validated candidate provenance
 Every candidate MUST have exactly one internal origin from

@@ -108,7 +108,7 @@ test("built FastAPI app preserves an authenticated partial export across restart
     await expect(
       page.getByRole("heading", { level: 2, name: "01-biology-polished" }),
     ).toBeVisible();
-    await page.getByRole("button", { name: "Start Question 1" }).click();
+    await page.getByRole("button", { name: "Start session" }).click();
     await expect(page).toHaveURL(`${origin}/app/${created.assignment_id}`);
     await expect(
       page.getByRole("heading", {

@@ -30,6 +30,7 @@ def _settings(tmp_path: Path, **overrides: object) -> Settings:
         "storage_backend": "local",
         "local_storage_path": tmp_path / "objects",
         "semantic_engine": "current",
+        "realtime_engine": "current",
         "openai_api_key": None,
     }
     values.update(overrides)
@@ -120,6 +121,53 @@ def test_application_factory_selects_the_real_openpdf_engine(
 
     assert isinstance(service.document_executor, OpenPdfWorkerExportEngine)
     assert service.document_executor.engine_name == "openpdf"
+
+
+@pytest.mark.anyio
+async def test_openpdf_accepts_multiblock_source_question_newlines(
+    tmp_path: Path,
+    openpdf_worker_jar: Path,
+    qpdf_executable: Path,
+) -> None:
+    source = worksheet_pdf(answer_regions="none")
+    physical_ir = extract_physical_ir(source)
+    prompts = tuple(
+        block
+        for block in physical_ir.pages[0].blocks
+        if block.kind == "text" and block.text and block.text.endswith("?")
+    )
+    evidence = QuestionEvidence(
+        "question-test-multiblock",
+        "Question 1",
+        (prompts[0].id, prompts[1].id),
+    )
+    text = "Plants use light energy to make food."
+    plan = resolve_placement(physical_ir, evidence, text, force_appendix=True)
+    answer = ConfirmedAnswerForExport(
+        evidence.question_id,
+        evidence.display_identifier,
+        evidence.prompt_block_ids,
+        (),
+        text,
+        plan.placement_hash,
+    )
+    engine = OpenPdfWorkerExportEngine(
+        runtime=OpenPdfRuntime(
+            jar_path=openpdf_worker_jar,
+            qpdf_path=qpdf_executable,
+            work_root=tmp_path,
+        )
+    )
+
+    rendered = await engine.export(
+        source,
+        physical_ir,
+        "Worksheet",
+        (answer,),
+        timeout_seconds=30,
+    )
+
+    assert rendered.pdf_bytes.startswith(b"%PDF-")
 
 
 def test_pdf_engine_setting_rejects_unknown_values() -> None:

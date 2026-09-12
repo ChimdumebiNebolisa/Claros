@@ -43,7 +43,7 @@ const copyForState = (state: IntakeViewState) => {
       eyebrow: "Ready to answer",
       title: "Your worksheet is ready.",
       description:
-        "Choose how you want to answer each question. You will review every word before anything reaches the completed PDF.",
+        "Start one conversation with Claros. You will review every word before anything reaches the completed PDF.",
     };
   }
 

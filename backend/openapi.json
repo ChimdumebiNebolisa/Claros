@@ -993,6 +993,7 @@
       },
       "RealtimeMode": {
         "enum": [
+          "conversation",
           "direct",
           "guided"
         ],

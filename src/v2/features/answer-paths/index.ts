@@ -7,6 +7,10 @@ export {
   GuidedReasoningPanel,
   type GuidedReasoningPanelProps,
 } from "./GuidedReasoningPanel";
+export {
+  ConversationWorkspace,
+  type ConversationWorkspaceProps,
+} from "./ConversationWorkspace";
 export { QuestionHeader, type QuestionHeaderProps } from "./QuestionHeader";
 export {
   VoiceStateControl,

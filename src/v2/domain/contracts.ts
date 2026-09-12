@@ -10,7 +10,7 @@ export const CANONICAL_CONFIRMATION_PHRASE = "Use this exact answer";
 
 export type CandidateOrigin = (typeof candidateOrigins)[number];
 export type StudentAttribution = "Your words" | "Suggested wording";
-export type AnswerPath = "direct" | "guided";
+export type AnswerPath = "conversation" | "direct" | "guided";
 export type PlacementKind = "inline" | "appendix";
 export type VoiceState =
   | "ready"
@@ -53,6 +53,10 @@ export type ConversationTurn = {
   id: string;
   speaker: "student" | "claros";
   text: string;
+  questionId?: string;
+  sourceTurnId?: string;
+  sessionId?: string;
+  input?: "typed" | "voice";
 };
 
 export type ReviewSnapshot = {

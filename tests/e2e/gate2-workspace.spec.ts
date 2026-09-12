@@ -519,7 +519,7 @@ test("keyboard-only sample journey reaches and downloads a completed PDF", async
   await page.keyboard.press("Enter");
   await expectFocusedHeading(page, "Your worksheet is ready.");
 
-  const startQuestion = page.getByRole("button", { name: "Start Question 1" });
+  const startQuestion = page.getByRole("button", { name: "Start session" });
   await tabTo(page, startQuestion);
   await page.keyboard.press("Enter");
   await expectFocusedHeading(page, "Why do plants need sunlight?");

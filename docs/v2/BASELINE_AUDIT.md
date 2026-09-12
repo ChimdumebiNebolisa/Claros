@@ -21,14 +21,16 @@ Authority order:
 6. Git history as an implementation reference
 7. Old generated visual artifacts as anti-references only
 
-The three repository-root authority copies are byte-identical to the supplied
-files:
+The authority hashes were rebaselined on 2026-09-11 after the product owner
+explicitly replaced mandatory direct/guided paths with one adaptive
+conversation. This interaction-only correction preserves all PDF, approval,
+authorization, and validation invariants:
 
 | Authority | SHA-256 |
 |---|---|
-| Execution PRD | `B8A3DF1D316D7FDC3A59D1503A17095AFBBF566F43102745436EDA1166E52FCA` |
-| Product contract | `A511D27655D06BB7AF8887CA3D30A87626405C4B8FBA7ADFFC9595A0BDE959D8` |
-| Design system | `9412CEAB312686BB4420C658ED3BB398BC781E2EB31FBF3ADA16E0353CFB4D61` |
+| Execution PRD | `28BDCF6D3DADE6577AA8D216F4AFC0DED95976A4C33E82B0A26D3A7D3940019A` |
+| Product contract | `CF273D0F0562BF535868E4EE7689A9AB085A4ECC539CD2A0E548A2EF8C5B5B2D` |
+| Design system | `B10D6930F017834C59891A6A6C1D3BE9D4B25377616CBA601D85E218A1EA35D3` |
 
 ## Current implementation baseline
 

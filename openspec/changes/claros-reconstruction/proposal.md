@@ -2,8 +2,8 @@
 
 Claros must replace its sample-only V1 reconstruction with a production-capable,
 accessibility-first worksheet workflow before the Nerdy AI Hackathon deadline.
-The V2 authorities require exact source grounding, equal direct and guided answer
-paths, mandatory exact review, deterministic PDF placement, durable anonymous
+The V2 authorities require exact source grounding, one adaptive conversational
+workspace, mandatory exact review, deterministic PDF placement, durable anonymous
 assignments, and evidence from the running product rather than mockups.
 
 ## What Changes
@@ -18,8 +18,9 @@ assignments, and evidence from the running product rather than mockups.
 - Accept native-text sequential short-answer PDFs within explicit limits,
   derive deterministic physical evidence, and use model-selected block IDs to
   construct exact ordered questions without model-owned geometry.
-- Give every unanswered question two equally weighted paths—direct answering
-  and guided reasoning—with a complete typed path at every voice state.
+- Give every unanswered question one persistent conversation that adapts among
+  dictation, concise help, revision, and grounded navigation, with typed input
+  available at every voice state and no mandatory mode selection.
 - Preserve candidate provenance, make rephrasing opt-in and visibly
   comparative, and require exact-text review before any answer is confirmed.
 - Resolve placement deterministically to inline, attached answer page, or safe
@@ -52,8 +53,9 @@ assignments, and evidence from the running product rather than mockups.
   readable fitting, appendix fallback, and safe rejection.
 - `assignment-lifecycle`: Define `/api/v2`, signed anonymous ownership, durable
   GCS state, versioning, TTL, concurrency, and privacy/security behavior.
-- `voice-guidance`: Define direct and guided Realtime behavior, captions,
-  narrow mutation boundaries, exact-state voice confirmation, and recovery.
+- `voice-guidance`: Define the unified Realtime conversation, application-owned
+  turn/draft bindings, independent input/output controls, narrow mutation
+  boundaries, exact-state voice confirmation, and recovery.
 
 ### Modified Capabilities
 

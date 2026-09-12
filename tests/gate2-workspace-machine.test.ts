@@ -20,7 +20,7 @@ describe("Claros V2 workspace machine", () => {
     actor.send({ type: "TYPE_INSTEAD" });
     actor.send({ type: "CANDIDATE_CHANGED", value: exact });
     actor.send({ type: "CONFIRM" });
-    expect(actor.getSnapshot().matches({ direct: "captured" })).toBe(true);
+    expect(actor.getSnapshot().matches("conversation")).toBe(true);
     expect(actor.getSnapshot().context.confirmedAnswers).toEqual({});
     expect(actor.getSnapshot().context.candidate?.text).toBe(exact);
 
@@ -329,7 +329,7 @@ describe("Claros V2 workspace machine", () => {
     actor.send({ type: "OPEN_WORKSHEET_REVIEW" });
     actor.send({ type: "EDIT_ANSWER", questionId: "q_01" });
 
-    expect(actor.getSnapshot().matches({ direct: "captured" })).toBe(true);
+    expect(actor.getSnapshot().matches("conversation")).toBe(true);
     expect(actor.getSnapshot().context.confirmedAnswers.q_01.revision).toBe(1);
     actor.send({
       type: "CANDIDATE_CHANGED",

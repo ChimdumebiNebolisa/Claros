@@ -16,7 +16,7 @@ def context_factory() -> Callable[..., RealtimeSessionContext]:
             "assignment_id": "asn_realtime_test",
             "assignment_version": 7,
             "question_id": "q_photosynthesis",
-            "mode": "guided",
+            "mode": "conversation",
             "phase": "answering",
             "exact_question": "How does sunlight help a plant make food?",
             "relevant_context": (

@@ -84,6 +84,7 @@ class FunctionToolRequest(CredentialModel):
         "create_draft_candidate",
         "request_rephrase",
         "enter_exact_review",
+        "navigate_question",
     ]
     description: str = Field(min_length=1, max_length=1_000)
     parameters: dict[str, Any]
@@ -97,7 +98,7 @@ class SessionRequest(CredentialModel):
     output_modalities: tuple[Literal["audio"], ...] = ("audio",)
     max_output_tokens: int = Field(default=600, ge=1, le=4_096)
     reasoning: ReasoningRequest
-    tools: tuple[FunctionToolRequest, ...] = Field(min_length=3, max_length=3)
+    tools: tuple[FunctionToolRequest, ...] = Field(min_length=4, max_length=4)
     tool_choice: Literal["auto"] = "auto"
     parallel_tool_calls: Literal[False] = False
     tracing: None = None
@@ -115,6 +116,7 @@ class EffectiveTool(CredentialModel):
         "create_draft_candidate",
         "request_rephrase",
         "enter_exact_review",
+        "navigate_question",
     ]
 
 
@@ -163,7 +165,7 @@ class EffectiveSession(CredentialModel):
     max_output_tokens: Literal[600]
     reasoning: EffectiveReasoning
     tool_choice: Literal["auto"]
-    tools: tuple[EffectiveTool, ...] = Field(min_length=3, max_length=3)
+    tools: tuple[EffectiveTool, ...] = Field(min_length=4, max_length=4)
     tracing: None
     truncation: Literal["auto"]
 
@@ -279,7 +281,7 @@ def build_client_secret_request(context: RealtimeSessionContext) -> ClientSecret
         return ClientSecretRequest(
             session=SessionRequest(
                 instructions=build_realtime_instructions(context),
-                reasoning=ReasoningRequest(effort="minimal" if context.mode == "direct" else "low"),
+                reasoning=ReasoningRequest(effort="low"),
                 tools=tools,
             )
         )

@@ -27,8 +27,9 @@ and unsupported question documents fail with stable reason codes.
 
 ## Invariants
 
-- Direct answering and guided reasoning are equal entry paths; typed input
-  remains complete beneath both.
+- One persistent conversation adapts among dictation, concise help, revision,
+  and grounded navigation without mandatory mode selection; typed input remains
+  complete at every voice state.
 - Draft, optional rephrase comparison, exact review, and confirmation are
   separate states. A revision invalidates its old confirmation.
 - The only voice confirmation phrase is `Use this exact answer`, and it is

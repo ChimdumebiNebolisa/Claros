@@ -63,9 +63,15 @@ describe("V2 route shell", () => {
   });
 
   it.each([
-    ["/app/assignment_123", "Why do plants need sunlight?"],
-    ["/app/assignment_123/review", "Review answers"],
-    ["/app/assignment_123/export/export_456", "Your completed PDF is ready"],
+    [
+      "/app/assignment_123?fixture=question-choice",
+      "Why do plants need sunlight?",
+    ],
+    ["/app/assignment_123/review?fixture=worksheet-review", "Review answers"],
+    [
+      "/app/assignment_123/export/export_456?fixture=export-complete",
+      "Your completed PDF is ready",
+    ],
   ])("renders %s as a V2 workspace route", async (path, heading) => {
     renderRoute(path);
 

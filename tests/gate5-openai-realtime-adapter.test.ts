@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { createActor } from "xstate";
 import {
   OpenAIRealtimeAdapter,
   type RealtimeSessionLike,
@@ -6,6 +7,8 @@ import {
   type SpeechPlayback,
 } from "../src/v2/realtime/openai-realtime-adapter";
 import type { RealtimeEvent } from "../src/v2/realtime/realtime-adapter";
+import { fixtureAssignment } from "../src/v2/domain/fixtures";
+import { workspaceMachine } from "../src/v2/domain/workspaceMachine";
 
 type FactoryOptions = Parameters<SessionFactory>[0];
 type EventName =
@@ -28,6 +31,7 @@ class FakeSession {
   readonly connect = vi.fn(async () => undefined);
   readonly sendMessage = vi.fn();
   readonly mute = vi.fn();
+  readonly setOutputMuted = vi.fn();
   readonly interrupt = vi.fn();
   readonly close = vi.fn();
   private readonly listeners = new Map<
@@ -85,7 +89,7 @@ const connectOptions = {
   assignmentId: "asn_1",
   assignmentVersion: 7,
   questionId: "q_1",
-  mode: "guided" as const,
+  mode: "conversation" as const,
   exactQuestion: "How does sunlight help a plant make food?",
   relevantContext: ["Plants use light energy during photosynthesis."],
   currentCandidate: { id: "cand_1", version: 2, exactText: "My answer." },
@@ -102,7 +106,7 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
       assignment_id: "asn_1",
       assignment_version: 7,
       question_id: "q_1",
-      mode: "guided",
+      mode: "conversation",
     });
     expect(sessions[0].connect).toHaveBeenCalledWith({
       apiKey: "ek_ephemeral_1",
@@ -124,15 +128,16 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
 
     await adapter.connect({
       ...connectOptions,
-      mode: "direct",
       microphone: false,
     });
 
     expect(factoryOptions[0].microphone).toBe(false);
-    expect(factoryOptions[0].reasoning).toBe("minimal");
-    expect(factoryOptions[0].instructions).toContain("Direct-answer mode:");
+    expect(factoryOptions[0].reasoning).toBe("low");
     expect(factoryOptions[0].instructions).toContain(
-      "Do not turn a fragment into a materially more complete answer without permission.",
+      "One adaptive conversation:",
+    );
+    expect(factoryOptions[0].instructions).toContain(
+      "Do not turn discussion, commands, or ambiguous fragments into an answer",
     );
   });
 
@@ -240,7 +245,7 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
     );
   });
 
-  it("accepts candidate tools only when every source turn is trusted", async () => {
+  it("binds candidate tools to matching application-owned student turns", async () => {
     const { adapter, events, factoryOptions, sessions } = setup();
     await adapter.connect(connectOptions);
     sessions[0].emit("transport_event", {
@@ -252,20 +257,17 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
 
     expect(
       factoryOptions[0].onCandidate({
-        exact_text: "Plants use sunlight as energy.",
-        source_turn_ids: ["missing_turn"],
+        exact_text: "No completed student turn says this.",
       }),
     ).toContain("Rejected");
     expect(
       factoryOptions[0].onCandidate({
         exact_text: "Plants need water instead.",
-        source_turn_ids: ["turn_voice_1"],
       }),
-    ).toContain("changed the student's words");
+    ).toContain("no matching completed student turn");
     expect(
       factoryOptions[0].onCandidate({
         exact_text: "Plants use sunlight as energy.",
-        source_turn_ids: ["turn_voice_1"],
       }),
     ).toContain("sent");
     expect(events).toContainEqual(
@@ -279,16 +281,34 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
     );
   });
 
+  it("binds a draft after removing only an explicit student answer lead-in", async () => {
+    const { adapter, events, factoryOptions } = setup();
+    await adapter.connect(connectOptions);
+    adapter.sendTypedTurn(
+      "My answer is: Plants need sunlight because it provides energy.",
+    );
+
+    expect(
+      factoryOptions[0].onCandidate({
+        exact_text: "Plants need sunlight because it provides energy.",
+      }),
+    ).toContain("sent");
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "candidate",
+        text: "Plants need sunlight because it provides energy.",
+        input: "typed",
+      }),
+    );
+  });
+
   it("routes typed turns and candidate-scoped application intents", async () => {
-    const { adapter, events, factoryOptions, sessions } = setup();
+    const { adapter, events, factoryOptions } = setup();
     await adapter.connect(connectOptions);
 
     adapter.sendTypedTurn("Plants use light energy.");
-    const typedEventId = sessions[0].sendMessage.mock.calls[0][1]
-      .event_id as string;
     factoryOptions[0].onCandidate({
       exact_text: "Plants use light energy.",
-      source_turn_ids: [typedEventId],
     });
     expect(adapter.registerTypedCandidate("My typed final answer.")).toEqual({
       sessionId: "sess_1",
@@ -317,6 +337,33 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
     );
   });
 
+  it("emits only application-grounded question navigation", async () => {
+    const { adapter, events, factoryOptions } = setup();
+    await adapter.connect({
+      ...connectOptions,
+      availableQuestions: [
+        { id: "q_1", index: 1, prompt: "Question one" },
+        { id: "q_2", index: 2, prompt: "Question two" },
+      ],
+    });
+
+    expect(
+      factoryOptions[0].onNavigateQuestion({ question_index: 3 }),
+    ).toContain("Rejected");
+    expect(
+      factoryOptions[0].onNavigateQuestion({ question_index: 2 }),
+    ).toContain("sent");
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "navigate_question",
+        questionIndex: 2,
+      }),
+    );
+    expect(
+      events.filter((event) => event.type === "navigate_question"),
+    ).toHaveLength(1);
+  });
+
   it("supports mute, stop, interrupt, exact playback, and teardown", async () => {
     const complete = vi.fn();
     const playback: SpeechPlayback = {
@@ -336,7 +383,8 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
     complete();
     adapter.destroy();
 
-    expect(sessions[0].mute.mock.calls).toEqual([[false], [true], [true]]);
+    expect(sessions[0].mute.mock.calls).toEqual([[false], [true]]);
+    expect(sessions[0].setOutputMuted).toHaveBeenCalledWith(true);
     expect(sessions[0].interrupt).toHaveBeenCalledOnce();
     expect(sessions[0].close).toHaveBeenCalledOnce();
     expect(playback.cancel).toHaveBeenCalledOnce();
@@ -368,6 +416,96 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
       expect.objectContaining({
         type: "error",
         code: "realtime_disconnected",
+      }),
+    );
+  });
+
+  it("preserves recent conversation in the automatic reconnect prompt", async () => {
+    const { adapter, factoryOptions, sessions } = setup();
+    await adapter.connect({
+      ...connectOptions,
+      conversationHistory: [
+        {
+          speaker: "student",
+          text: "Can you help me think about sunlight?",
+          questionId: "q_1",
+        },
+        {
+          speaker: "claros",
+          text: "What does sunlight provide?",
+          questionId: "q_1",
+        },
+      ],
+    });
+
+    sessions[0].emit("transport_event", {
+      type: "conversation.item.input_audio_transcription.completed",
+      event_id: "evt_answer",
+      item_id: "turn_voice_answer",
+      transcript: "It gives the plant energy.",
+    });
+    sessions[0].emitConnection("disconnected");
+    await vi.waitFor(() => expect(factoryOptions).toHaveLength(2));
+
+    expect(factoryOptions[1].instructions).toContain(
+      "Can you help me think about sunlight?",
+    );
+    expect(factoryOptions[1].instructions).toContain(
+      "It gives the plant energy.",
+    );
+  });
+
+  it("drives the real adapter transcript and draft through the conversation machine after ready", async () => {
+    const { adapter, factoryOptions, sessions } = setup();
+    const actor = createActor(workspaceMachine).start();
+    actor.send({ type: "START_ANALYSIS" });
+    actor.send({ type: "ANALYSIS_READY", assignment: fixtureAssignment });
+    actor.send({ type: "START_QUESTION" });
+    adapter.subscribe((event) => {
+      if (event.type === "voice_state") {
+        actor.send({ type: "VOICE_STATE_CHANGED", state: event.state });
+      } else if (
+        event.type === "transcript" &&
+        event.final &&
+        event.speaker === "student"
+      ) {
+        actor.send({
+          type: "GUIDED_STUDENT_TURN",
+          text: event.text,
+          sourceTurnId: event.sourceTurnId,
+          sessionId: event.sessionId,
+          input: event.input,
+        });
+      } else if (event.type === "candidate") {
+        actor.send({ type: "VOICE_CAPTURED", text: event.text });
+      }
+    });
+
+    await adapter.connect({ ...connectOptions, currentCandidate: undefined });
+    expect(actor.getSnapshot().matches("conversation")).toBe(true);
+    expect(actor.getSnapshot().context.voiceState).toBe("ready");
+
+    sessions[0].emit("transport_event", {
+      type: "conversation.item.input_audio_transcription.completed",
+      event_id: "evt_final_answer",
+      item_id: "turn_voice_final",
+      transcript: "Plants use sunlight as energy.",
+    });
+    factoryOptions[0].onCandidate({
+      exact_text: "Plants use sunlight as energy.",
+    });
+
+    const snapshot = actor.getSnapshot();
+    expect(snapshot.matches("conversation")).toBe(true);
+    expect(snapshot.context.candidate?.text).toBe(
+      "Plants use sunlight as energy.",
+    );
+    expect(snapshot.context.guidedTurns.at(-1)).toEqual(
+      expect.objectContaining({
+        speaker: "student",
+        sourceTurnId: "turn_voice_final",
+        sessionId: "sess_1",
+        input: "voice",
       }),
     );
   });

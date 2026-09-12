@@ -90,8 +90,19 @@ export type WorkspaceEvent =
   | { type: "INTERRUPT" }
   | { type: "CANDIDATE_CHANGED"; value: string }
   | { type: "CANDIDATE_PERSISTED"; candidate: Candidate; version: number }
-  | { type: "GUIDED_STUDENT_TURN"; text: string }
-  | { type: "GUIDED_REPLY"; text: string }
+  | {
+      type: "GUIDED_STUDENT_TURN";
+      text: string;
+      sourceTurnId?: string;
+      sessionId?: string;
+      input?: "typed" | "voice";
+    }
+  | {
+      type: "GUIDED_REPLY";
+      text: string;
+      sourceTurnId?: string;
+      sessionId?: string;
+    }
   | { type: "GUIDED_READY_TO_ANSWER" }
   | { type: "REQUEST_REPHRASE" }
   | {
@@ -440,6 +451,11 @@ export const workspaceMachine = setup({
             ],
       error: () => null,
     }),
+    chooseConversation: assign({
+      path: () => "conversation" as const,
+      voiceState: () => "ready" as const,
+      error: () => null,
+    }),
     setVoiceReady: assign({
       voiceState: () => "ready" as const,
       error: () => null,
@@ -544,6 +560,12 @@ export const workspaceMachine = setup({
                 id: `turn_${context.guidedTurns.length + 1}`,
                 speaker: "student" as const,
                 text: event.text,
+                questionId:
+                  context.assignment?.questions[context.activeQuestionIndex]
+                    ?.id,
+                sourceTurnId: event.sourceTurnId,
+                sessionId: event.sessionId,
+                input: event.input,
               },
             ],
           }
@@ -558,6 +580,11 @@ export const workspaceMachine = setup({
                 id: `turn_${context.guidedTurns.length + 1}`,
                 speaker: "claros" as const,
                 text: event.text,
+                questionId:
+                  context.assignment?.questions[context.activeQuestionIndex]
+                    ?.id,
+                sourceTurnId: event.sourceTurnId,
+                sessionId: event.sessionId,
               },
             ],
             voiceState: "ready" as const,
@@ -659,13 +686,12 @@ export const workspaceMachine = setup({
         context.activeQuestionIndex + 1,
         Math.max((context.assignment?.questions.length ?? 1) - 1, 0),
       ),
-      path: null,
+      path: "conversation" as const,
       candidate: null,
       originalCandidate: null,
       suggestion: null,
       rephraseId: null,
       review: null,
-      guidedTurns: [],
       voiceState: "ready" as const,
       muted: false,
       error: null,
@@ -680,13 +706,12 @@ export const workspaceMachine = setup({
         ? {}
         : {
             activeQuestionIndex: index,
-            path: null,
+            path: "conversation" as const,
             candidate: null,
             originalCandidate: null,
             suggestion: null,
             rephraseId: null,
             review: null,
-            guidedTurns: [],
             voiceState: "ready" as const,
             error: null,
           };
@@ -701,7 +726,7 @@ export const workspaceMachine = setup({
       if (index < 0 || !answer) return {};
       return {
         activeQuestionIndex: index,
-        path: "direct" as const,
+        path: "conversation" as const,
         candidate: candidateFor(
           event.questionId,
           answer.text,
@@ -712,7 +737,6 @@ export const workspaceMachine = setup({
         suggestion: null,
         rephraseId: null,
         review: null,
-        guidedTurns: [],
         voiceState: "captured" as const,
         error: null,
       };
@@ -727,7 +751,7 @@ export const workspaceMachine = setup({
       if (index < 0 || !answer) return {};
       return {
         activeQuestionIndex: index,
-        path: "direct" as const,
+        path: "conversation" as const,
         candidate: candidateFor(
           event.questionId,
           event.editSeed,
@@ -741,7 +765,6 @@ export const workspaceMachine = setup({
         suggestion: null,
         rephraseId: null,
         review: null,
-        guidedTurns: [],
         voiceState: "captured" as const,
         error: null,
       };
@@ -788,13 +811,12 @@ export const workspaceMachine = setup({
       ...context,
       assignment: context.assignment ?? cloneAssignment(),
       activeQuestionIndex: context.assignment ? context.activeQuestionIndex : 0,
-      path: null,
+      path: "conversation" as const,
       candidate: null,
       originalCandidate: null,
       suggestion: null,
       rephraseId: null,
       review: null,
-      guidedTurns: [],
       voiceState: "ready" as const,
       error: null,
       exportResult: null,
@@ -815,7 +837,7 @@ export const workspaceMachine = setup({
   on: {
     RESET: { target: ".upload", actions: "clearForAnalysis" },
     OPEN_ASSIGNMENT_ROUTE: {
-      target: ".questionChoice",
+      target: ".conversation",
       actions: "openAssignmentRoute",
     },
     OPEN_REVIEW_ROUTE: {
@@ -831,7 +853,7 @@ export const workspaceMachine = setup({
     CANDIDATE_PERSISTED: { actions: "setPersistedCandidate" },
     REVIEW_READY: { target: ".exactReview", actions: "setServerReview" },
     REVISION_READY: {
-      target: ".direct.captured",
+      target: ".conversation",
       actions: "applyServerRevision",
     },
     EXPORT_RESTORED: {
@@ -870,7 +892,45 @@ export const workspaceMachine = setup({
     },
     ready: {
       id: "claros-v2-ready",
-      on: { START_QUESTION: "questionChoice" },
+      on: {
+        START_QUESTION: {
+          target: "conversation",
+          actions: "chooseConversation",
+        },
+      },
+    },
+    conversation: {
+      id: "claros-v2-conversation",
+      on: {
+        CHOOSE_DIRECT: { target: "direct.ready", actions: "chooseDirect" },
+        CHOOSE_GUIDED: { target: "guided.ready", actions: "chooseGuided" },
+        VOICE_START: { actions: "setVoiceListening" },
+        VOICE_CAPTURED: { actions: "captureVoiceCandidate" },
+        VOICE_STATE_CHANGED: { actions: "setReportedVoiceState" },
+        VOICE_SPEAKING: { actions: "setVoiceSpeaking" },
+        GUIDED_STUDENT_TURN: {
+          actions: ["appendStudentTurn", "setVoiceThinking"],
+        },
+        GUIDED_REPLY: { actions: "appendClarosTurn" },
+        CANDIDATE_CHANGED: { actions: "updateCandidate" },
+        GO_TO_QUESTION: { target: "conversation", actions: "goToQuestion" },
+        MICROPHONE_UNAVAILABLE: { actions: "setMicrophoneUnavailable" },
+        VOICE_DISCONNECTED: { actions: "setVoiceDisconnected" },
+        RETRY_VOICE: { actions: "setVoiceReady" },
+        CONTINUE_BY_TYPING: { actions: "setVoiceReady" },
+        TOGGLE_MUTE: { actions: "toggleMute" },
+        INTERRUPT: { actions: "setVoiceInterrupted" },
+        REQUEST_REPHRASE: {
+          guard: "hasCandidate",
+          target: "rephrasing",
+        },
+        REQUEST_REVIEW: {
+          guard: "hasCandidate",
+          target: "exactReview",
+          actions: "createCurrentReview",
+        },
+        OPEN_WORKSHEET_REVIEW: "worksheetReview",
+      },
     },
     questionChoice: {
       id: "claros-v2-question-choice",
@@ -1105,7 +1165,7 @@ export const workspaceMachine = setup({
             target: "guided.finalizing",
             actions: "clearReview",
           },
-          { target: "direct.captured", actions: "clearReview" },
+          { target: "conversation", actions: "clearReview" },
         ],
       },
     },
@@ -1118,7 +1178,7 @@ export const workspaceMachine = setup({
             target: "guided.finalizing",
             actions: "clearReview",
           },
-          { target: "direct.captured", actions: "clearReview" },
+          { target: "conversation", actions: "clearReview" },
         ],
         CONFIRM: { guard: "hasCurrentReview", target: "confirming" },
         VOICE_CONFIRMATION: {
@@ -1142,7 +1202,7 @@ export const workspaceMachine = setup({
         CONTINUE_TO_NEXT: [
           {
             guard: "hasNextQuestion",
-            target: "questionChoice",
+            target: "conversation",
             actions: "continueToNext",
           },
           { target: "worksheetReview" },
@@ -1153,7 +1213,7 @@ export const workspaceMachine = setup({
             target: "guided.finalizing",
             actions: "clearReview",
           },
-          { target: "direct.captured", actions: "clearReview" },
+          { target: "conversation", actions: "clearReview" },
         ],
         OPEN_WORKSHEET_REVIEW: "worksheetReview",
       },
@@ -1161,8 +1221,8 @@ export const workspaceMachine = setup({
     worksheetReview: {
       id: "claros-v2-worksheet-review",
       on: {
-        GO_TO_QUESTION: { target: "questionChoice", actions: "goToQuestion" },
-        EDIT_ANSWER: { target: "direct.captured", actions: "beginRevision" },
+        GO_TO_QUESTION: { target: "conversation", actions: "goToQuestion" },
+        EDIT_ANSWER: { target: "conversation", actions: "beginRevision" },
         CREATE_EXPORT: {
           guard: "hasConfirmedAnswer",
           target: "exporting",

@@ -27,7 +27,7 @@ TurnIdentifier = Annotated[
     ),
 ]
 
-RealtimeMode = Literal["direct", "guided"]
+RealtimeMode = Literal["conversation", "direct", "guided"]
 RealtimePhase = Literal["answering", "candidate_ready", "exact_review"]
 InputModality = Literal["audio", "text"]
 TranscriptSpeaker = Literal["student", "claros"]
@@ -48,6 +48,17 @@ class CandidateBinding(StrictModel):
         return self
 
 
+class AvailableQuestionBinding(StrictModel):
+    question_id: Identifier
+    question_index: int = Field(ge=1, le=40)
+    exact_question: Annotated[str, StringConstraints(min_length=1, max_length=4_000)]
+
+    @model_validator(mode="after")
+    def validate_question(self) -> AvailableQuestionBinding:
+        _validate_content(self.exact_question, label="question")
+        return self
+
+
 class RealtimeSessionContext(StrictModel):
     """Server-authorized context for exactly one active assignment question."""
 
@@ -58,6 +69,9 @@ class RealtimeSessionContext(StrictModel):
     phase: RealtimePhase = "answering"
     exact_question: Annotated[str, StringConstraints(min_length=1, max_length=4_000)]
     relevant_context: tuple[ContextText, ...] = Field(default=(), max_length=8)
+    available_questions: tuple[AvailableQuestionBinding, ...] = Field(
+        default=(), max_length=40
+    )
     current_candidate: CandidateBinding | None = None
     exact_text_visible: bool = False
     hear_it_offered: bool = False
@@ -69,6 +83,9 @@ class RealtimeSessionContext(StrictModel):
             _validate_content(item, label="context", allow_empty=True)
         if sum(len(item) for item in self.relevant_context) > 8_000:
             raise ValueError("relevant context is too large")
+        indices = tuple(item.question_index for item in self.available_questions)
+        if len(indices) != len(set(indices)):
+            raise ValueError("available question indices must be unique")
         if self.phase in {"candidate_ready", "exact_review"} and self.current_candidate is None:
             raise ValueError("the current phase requires a candidate")
         if self.phase == "exact_review" and not (self.exact_text_visible and self.hear_it_offered):
@@ -113,6 +130,14 @@ class EnterExactReviewIntent(StrictModel):
     candidate_version: int = Field(ge=1)
 
 
+class NavigateQuestionIntent(StrictModel):
+    kind: Literal["navigate_question"] = "navigate_question"
+    assignment_id: Identifier
+    assignment_version: int = Field(ge=1)
+    question_id: Identifier
+    question_index: int = Field(ge=1, le=40)
+
+
 class VoiceConfirmationIntent(StrictModel):
     """A request for the normal confirmation API, never confirmation itself."""
 
@@ -125,7 +150,12 @@ class VoiceConfirmationIntent(StrictModel):
     trigger: Literal["exact_voice_phrase"] = "exact_voice_phrase"
 
 
-RealtimeActionIntent = DraftCandidateIntent | RephraseIntent | EnterExactReviewIntent
+RealtimeActionIntent = (
+    DraftCandidateIntent
+    | RephraseIntent
+    | EnterExactReviewIntent
+    | NavigateQuestionIntent
+)
 
 
 def _validate_content(value: str, *, label: str, allow_empty: bool = False) -> None:

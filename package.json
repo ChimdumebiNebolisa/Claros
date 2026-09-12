@@ -17,7 +17,7 @@
     "check:dependencies": "node scripts/verify-gate1-dependencies.mjs",
     "check:bundles": "node scripts/verify-gate1-bundles.mjs",
     "preview": "vite preview",
-    "start": "node server/index.mjs",
+    "start": "node scripts/start-local.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "storybook": "storybook dev -p 6006",

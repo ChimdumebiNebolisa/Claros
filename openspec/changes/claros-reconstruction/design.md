@@ -22,7 +22,7 @@ requirement. Production code does not begin until Gate 0 is recorded as passed.
 
 **Goals:**
 
-- Deliver one complete question-grounding, direct/guided answer, exact-review,
+- Deliver one complete question-grounding, adaptive conversation, exact-review,
   deterministic-placement, and derivative-export loop.
 - Make source evidence, approval, geometry, and export authority server-owned
   while keeping the visible workflow accessible and recoverable.
@@ -75,8 +75,9 @@ and controlled page-region crops. The full viewer is read-only and disables
 annotation, forms, redaction, print, export, capture, document-open, and
 document-close controls. A headless `renderPageRect` adapter renders only a
 backend-authorized region; the browser never selects or changes placement.
-Marketing loads neither PDF nor Realtime code, and direct typed answering loads
-neither Realtime nor its audio dependencies.
+Marketing loads neither PDF nor Realtime code. The ordinary `/app` route uses
+the real FastAPI and provider adapters; fixtures and fake Realtime remain
+explicit test/preview inputs only.
 
 The desktop shell has a 64px header, a primary task column capped near 760px,
 and a fixed 400–440px source pane. Tablet stacks source after task. Mobile puts
@@ -88,17 +89,17 @@ the mobile sheet, with an immediate announced reduced-motion result.
 
 ### 3. Separate visible workflow, server state, transport, and disclosure state
 
-XState owns upload/check/readiness, active question, equal path selection,
-direct/guided substates, comparison, exact review, confirmation, answer-added,
+XState owns upload/check/readiness, active question, one conversation with
+capture/playback substates, comparison, exact review, confirmation, answer-added,
 worksheet review, and export/error states. TanStack Query owns all `/api/v2`
 fetches/mutations and cache invalidation. The Realtime adapter owns WebRTC,
 tracks, captions, turns, interruptions, and reconnect. Local React state owns
 only focus-neutral disclosure and animation details.
 
-The direct transcript and editor are one candidate source, not parallel truths.
-Guided transcript turns never become the final candidate automatically. Both
-paths converge on the same review and confirmation mutations. MSW and a fake
-Realtime adapter exercise every state before live providers are connected.
+Completed transcripts and the editor have explicit application-owned bindings;
+discussion and command turns never become the final candidate automatically.
+The conversation converges on the same review and confirmation mutations. MSW
+and a fake Realtime adapter remain explicit preview/test inputs only.
 
 ### 4. Make FastAPI OpenAPI the transport authority
 
@@ -226,9 +227,9 @@ resource failure preserves confirmed state and publishes no derivative.
 
 Use `@openai/agents/realtime` with WebRTC and `gpt-realtime-2.1`. FastAPI issues
 a short-lived credential only after validating owner, assignment, active
-question, mode, and version. Direct mode captures the student's words with
-minimal interruption; guided mode asks one focused grounded question at a time
-and requires the student to state a final answer.
+question, and version. One mode-free policy infers dictation, concise help,
+revision, and grounded navigation intent; it clarifies ambiguity and requires
+student-intended answer content before creating a draft.
 
 Permitted actions can fetch active context, set a student-derived candidate,
 request clearer wording, enter exact review, and report a voice issue. Voice
@@ -238,11 +239,14 @@ authenticated confirmation endpoint only while exact review is active; casual
 agreement is ignored.
 
 Expose Ready, Listening, Thinking, Speaking, Interrupted, Connection lost, and
-Microphone unavailable as text. Provide captions, stop, interrupt, mute, retry,
-and typing. On failure preserve candidate and bounded relevant turns, make one
-automatic reconnect attempt, and keep typed completion immediate. Deduplicate
-replayed events. `Hear it` reads the displayed candidate on demand but playback
-success never gates button confirmation.
+Microphone unavailable as text. Listening reflects active microphone capture.
+Provide captions, capture start/stop, output interrupt, speaker mute, retry, and
+typing as independent controls. Interruption does not destroy a healthy session.
+On failure preserve candidate and bounded application-owned turns, make one
+automatic reconnect attempt with context, and keep typed completion immediate.
+The model is never asked to guess private source-turn IDs. Deduplicate replayed
+events. `Hear it` reads the displayed candidate on demand but playback success
+never gates button confirmation.
 
 ### 9. Verification and evidence are gate outputs
 
@@ -285,7 +289,7 @@ area. No more than three implementation agents run concurrently after Gate 0.
 - [Cloud Run concurrency] → GCS generation CAS, versioned mutations, immutable
   objects, idempotent operations, and persistence-across-revision tests.
 - [Large frontend bundles] → Route-level splits and assertions that `/` omits
-  PDF/Realtime while direct typed flow omits Realtime.
+  PDF/Realtime while fixture adapters stay outside the ordinary runtime.
 - [Legacy style leakage] → Route-scope V1 styles and delete the route and old
   component dependencies only after cutover evidence exists.
 - [Synchronous request limits] → Enforce input bounds, explicit timeout/error
@@ -297,8 +301,9 @@ area. No more than three implementation agents run concurrently after Gate 0.
    this OpenSpec rebaseline, dependency plan, and clean baseline verification.
 2. Add the V2 design-system/provider shell and authentic PDF spike while V1
    remains reachable at `/legacy`; roll back by routing `/app` to V1.
-3. Complete every fixture-driven state and its evidence before enabling real
-   persistence, PDF, Responses, or Realtime integrations.
+3. Keep fixture-driven states for deterministic previews and tests while the
+   ordinary application uses real persistence, PDF, Responses, and Realtime
+   integrations and reports actual service failures.
 4. Freeze `/api/v2` and domain contracts, then integrate FastAPI/GCS/document
    work and generated frontend types in bounded slices.
 5. Add Responses and Realtime behind environment-controlled adapters only after

@@ -26,9 +26,11 @@ from backend.realtime.lifecycle import (
     apply_voice_event,
 )
 from backend.realtime.models import (
+    AvailableQuestionBinding,
     CandidateBinding,
     DraftCandidateIntent,
     EnterExactReviewIntent,
+    NavigateQuestionIntent,
     RealtimeActionIntent,
     RealtimeSessionContext,
     RephraseIntent,
@@ -49,6 +51,7 @@ __all__ = [
     "REALTIME_MODEL",
     "VOICE_CONFIRMATION_PHRASE",
     "WEBRTC_CALLS_URL",
+    "AvailableQuestionBinding",
     "CandidateBinding",
     "CandidateSynchronizedEvent",
     "CaptionEvent",
@@ -62,6 +65,7 @@ __all__ = [
     "FakeRealtimeCredentialProvider",
     "IssuedRealtimeCredential",
     "MuteChangedEvent",
+    "NavigateQuestionIntent",
     "OpenAIRealtimeCredentialProvider",
     "RealtimeActionIntent",
     "RealtimeCredentialIssuer",

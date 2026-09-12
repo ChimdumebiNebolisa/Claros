@@ -48,8 +48,8 @@ The product is organized around the student’s current question, not a permanen
 
 1. Question progress
 2. Exact question text
-3. Two entry paths or the currently selected path
-4. Current answer or tutoring turn
+3. One continuous conversation with independent voice controls
+4. Current answer draft or help turn
 5. Exact-answer review
 6. Source context
 
@@ -64,43 +64,32 @@ The product is organized around the student’s current question, not a permanen
 
 ---
 
-## 3. Core screen: question choice
+## 3. Core screen: conversational worksheet workspace
 
-Every unanswered question starts with two equally weighted choices.
-
-### Say my answer
-
-**Description:** Already know it? Speak or type the answer directly. Claros handles transcription and placement.
-
-**Visual treatment:**
-
-- Microphone/speech icon
-- White card
-- Blue-tinted icon container
-- Strong title
-- One-sentence explanation
-- Text action: **Start answering →**
-
-### Help me think it through
-
-**Description:** Not sure how to explain it? Work through the idea with Claros before choosing final wording.
-
-**Visual treatment:**
-
-- Guidance/spark icon
-- Same size and visual weight as direct-answer card
-- Text action: **Start a guided conversation →**
-
-Neither card is labeled recommended. The product must not assume that typing difficulty implies lack of understanding.
-
----
-
-## 4. Core screen: direct-answer path
+Every unanswered question opens directly into the same persistent workspace. The
+student does not select a mode. They may speak or type an answer, ask for concise
+help, request a revision, or move to another grounded question in natural
+language. Claros infers the conversational intent and clarifies ambiguity.
 
 ### Required components
 
 - Pinned exact question text
-- Explicit voice state: Ready, Listening, or Captured
+- One Start/Stop listening control
+- Independent Interrupt and Mute speaker controls
+- Bounded student and Claros conversation turns
+- Editable proposed-answer field in the same workspace
+- **Make it clearer** only after a draft exists
+- **Review answer →** only after a draft exists
+- **View worksheet** without leaving or resetting the conversation
+
+---
+
+## 4. Answer capture in the conversation
+
+### Required components
+
+- Pinned exact question text
+- Explicit voice state based on actual capture/playback state: Ready, Listening, Thinking, Speaking, Interrupted, or unavailable
 - Live/finished transcript labeled **Your words**
 - Editable typed field
 - Secondary actions:
@@ -122,7 +111,7 @@ The selected card has a clear border and background change. The final-answer pre
 
 ---
 
-## 5. Core screen: guided-reasoning path
+## 5. Contextual help in the same conversation
 
 ### Required components
 
@@ -130,8 +119,8 @@ The selected card has a clear border and background change. The final-answer pre
 - Student and Claros turns with distinct but restrained surfaces
 - One focused Claros prompt at a time
 - Live captions and interruption controls in the functional product
-- **I am ready to answer →** action
-- Exact-answer review after the student states a final response
+- An editable answer proposal only when the student intends answer content
+- Exact-answer review after the student states or types an intended final response
 
 ### Conversation styling
 
@@ -221,15 +210,16 @@ Do not show sign-in, pricing, integrations, educator portals, or compliance page
 
 The hero should contain one concrete application mockup, not abstract AI imagery.
 
-### Two-path section
+### One-agent section
 
-Explain the direct and guided paths side by side and show that they converge on exact review.
+Explain that the same conversation accepts dictation, offers concise grounded
+help, handles revisions, and navigates questions without a mode selector.
 
 ### Dark trust section
 
 Use one high-contrast section for four guarantees:
 
-- Choose your route
+- Talk naturally or type
 - See every wording change
 - Approve the exact text
 - Keep the source pages
@@ -351,11 +341,9 @@ Use an 8 px base rhythm with larger 12/20/28/40 px working increments. Question 
 - `SourceContextPane`
 - `QuestionHeader`
 
-### Entry paths
+### Conversation workspace
 
-- `EntryPathChoice`
-- `DirectAnswerCard`
-- `GuidedReasoningCard`
+- `ConversationWorkspace`
 - `VoiceStateControl`
 - `LiveTranscript`
 - `ConversationTurn`

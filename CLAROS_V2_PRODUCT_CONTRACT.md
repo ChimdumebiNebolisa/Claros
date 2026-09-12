@@ -2,7 +2,7 @@
 
 **Status:** Build contract for the Nerdy AI Hackathon submission  
 **Product category:** Accessibility-first, voice-first worksheet completion workspace  
-**Primary product sentence:** Claros helps students who find typing difficult answer a worksheet directly or talk through a difficult question, review the exact final wording, and place only the approved answer into a completed PDF.
+**Primary product sentence:** Claros helps students who find typing difficult talk naturally with one worksheet agent, review the exact final wording, and place only the approved answer into a completed PDF.
 
 ---
 
@@ -14,7 +14,7 @@ Claros closes that loop:
 
 ```text
 worksheet context
-→ direct answer or guided reasoning
+→ one continuous conversation that adapts to the student's intent
 → reviewable final wording
 → explicit student approval
 → reliable PDF completion
@@ -138,9 +138,9 @@ Tutor behavior:
 - Ask the student to state the final answer in their own words.
 - When offering suggested wording, label it clearly as a Claros suggestion.
 
-### 3.3 The two paths converge
+### 3.3 The conversation reaches mandatory review
 
-Both paths end at the same mandatory review state:
+Dictation, contextual help, and typed input all reach the same mandatory review state:
 
 ```text
 FINAL ANSWER
@@ -151,7 +151,7 @@ This exact text will be added to Question N.
 [ Change answer ]   [ Use this answer ]
 ```
 
-No path bypasses exact review and approval.
+No conversational intent bypasses exact review and approval.
 
 ---
 
@@ -365,8 +365,7 @@ upload
 → document check
 → worksheet ready
 → question focus
-→ choose answer path
-→ direct answer or guided reasoning
+→ persistent conversation and editable draft
 → exact review
 → answer added
 → next question / all-answer review
@@ -380,8 +379,8 @@ During learning, the active question is the primary unit. The interface shows:
 - exact question text;
 - a crop or compact view of relevant source context;
 - a link/button to view the full original page;
-- the two entry paths;
-- the current draft or tutoring state.
+- the continuous conversation;
+- the current editable draft or help state.
 
 A full PDF and dense inspector may appear in review/debug contexts, but a resizable PDF/editor split is not required for normal student use.
 
@@ -390,13 +389,13 @@ A full PDF and dense inspector may appear in review/debug contexts, but a resiza
 Required actions:
 
 ```text
-Say my answer
-Help me think it through
-Type instead
+Start listening / Stop listening
+Type a message or answer
+Mute speaker / Interrupt
 View worksheet
 ```
 
-The two paths must be understandable without onboarding or tooltips.
+The conversation and draft controls must be understandable without onboarding or tooltips.
 
 ### 7.4 Exact-review screen
 
@@ -430,7 +429,7 @@ Do not expose raw X/Y coordinates, font telemetry, character metrics, vector ter
 
 Examples:
 
-- Choose a path
+- Start session
 - Stop speaking
 - Use this answer
 - Continue to Question N
@@ -481,7 +480,7 @@ Secondary actions remain visible but visually subordinate.
 
 - Accessibility-first worksheet workspace
 - Voice-first, not voice-only
-- Direct answering or guided reasoning
+- One agent that adapts between dictation and concise help
 - Exact student approval
 - Original PDF preserved
 - Completed PDF returned
@@ -589,7 +588,7 @@ Claros
 ├── OpenAI Realtime
 │   ├── browser WebRTC
 │   ├── short-lived credential from backend
-│   └── direct answering + contextual tutoring
+│   └── one adaptive conversation
 │
 └── OpenAI Responses
     ├── semantic source-block grouping
@@ -618,15 +617,11 @@ idle
         ├── rejected
         └── ready
             └── question.focus
-                ├── path.select
-                │   ├── direct.ready
-                │   │   ├── direct.listening
-                │   │   └── direct.drafting
-                │   └── guided.ready
-                │       ├── guided.listening
-                │       ├── guided.thinking
-                │       ├── guided.speaking
-                │       └── guided.finalizing
+                ├── conversation.ready
+                │   ├── conversation.listening
+                │   ├── conversation.thinking
+                │   ├── conversation.speaking
+                │   └── conversation.drafting
                 ├── candidate.review
                 │   ├── candidate.compare
                 │   ├── candidate.edit
@@ -657,8 +652,8 @@ idle
 
 ### 13.2 Required end-to-end demonstrations
 
-1. Direct voice answer.
-2. Guided reasoning answer.
+1. One real conversation that moves naturally between dictation and concise help.
+2. Spoken and typed turns that preserve context and produce an editable intended-answer draft only when warranted.
 3. Optional visible rephrasing comparison.
 4. Exact answer approval.
 5. Inline answer placement.
@@ -685,11 +680,11 @@ idle
 ## 14. Build order
 
 1. Freeze this contract and the state machine.
-2. Build all interface states in Storybook with fixtures and no live model calls.
+2. Build interface states in Storybook with fixtures while keeping fixtures outside the ordinary application runtime.
 3. Implement the PDF engine against the gold corpus.
 4. Connect upload, assignment, confirmation, placement, revision, and export APIs.
 5. Add OpenAI Realtime after the deterministic workflow is complete.
-6. Record the final demo only after both entry paths and both placement outcomes pass end-to-end tests.
+6. Record the final demo only after the unified conversational path and both placement outcomes pass end-to-end tests.
 
 ---
 

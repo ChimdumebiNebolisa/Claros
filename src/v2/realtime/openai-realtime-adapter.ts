@@ -35,6 +35,7 @@ type RealtimeSessionLike = {
   connect(options: { apiKey: string; model: string }): Promise<void>;
   sendMessage(message: string, otherEventData?: Record<string, unknown>): void;
   mute(muted: boolean): void;
+  setOutputMuted?(muted: boolean): void;
   interrupt(): void;
   close(): void;
   transport?: {
@@ -52,6 +53,7 @@ type SessionFactory = (options: {
   onCandidate: (input: DraftCandidateInput) => string;
   onRephrase: (input: CandidateActionInput) => string;
   onExactReview: (input: CandidateActionInput) => string;
+  onNavigateQuestion: (input: NavigateQuestionInput) => string;
 }) => RealtimeSessionLike;
 
 type CredentialProvider = (
@@ -67,11 +69,6 @@ type TrustedTurn = { modality: "typed" | "voice"; text: string };
 
 const draftCandidateSchema = z.object({
   exact_text: z.string().trim().min(1).max(8_000),
-  source_turn_ids: z
-    .array(z.string().min(1).max(128))
-    .min(1)
-    .max(32)
-    .refine((items) => new Set(items).size === items.length),
 });
 type DraftCandidateInput = z.infer<typeof draftCandidateSchema>;
 
@@ -80,14 +77,20 @@ const candidateActionSchema = z.object({
 });
 type CandidateActionInput = z.infer<typeof candidateActionSchema>;
 
+const navigateQuestionSchema = z.object({
+  question_index: z.number().int().min(1).max(40),
+});
+type NavigateQuestionInput = z.infer<typeof navigateQuestionSchema>;
+
 class SilentInputWebRTC extends OpenAIRealtimeWebRTC {
   private closed = false;
 
   constructor(
     stream: MediaStream,
+    audioElement: HTMLAudioElement,
     private readonly releaseInput: () => void,
   ) {
-    super({ mediaStream: stream });
+    super({ mediaStream: stream, audioElement });
   }
 
   override close(): void {
@@ -102,7 +105,7 @@ class SilentInputWebRTC extends OpenAIRealtimeWebRTC {
   }
 }
 
-const createSilentInputTransport = () => {
+const createSilentInputTransport = (audioElement: HTMLAudioElement) => {
   const context = new AudioContext();
   const source = context.createConstantSource();
   const gain = context.createGain();
@@ -110,7 +113,7 @@ const createSilentInputTransport = () => {
   gain.gain.value = 0;
   source.connect(gain).connect(destination);
   source.start();
-  return new SilentInputWebRTC(destination.stream, () => {
+  return new SilentInputWebRTC(destination.stream, audioElement, () => {
     source.stop();
     for (const track of destination.stream.getTracks()) track.stop();
     void context.close().catch(() => undefined);
@@ -124,7 +127,10 @@ const defaultSessionFactory: SessionFactory = ({
   onCandidate,
   onRephrase,
   onExactReview,
+  onNavigateQuestion,
 }) => {
+  const audioElement = document.createElement("audio");
+  audioElement.autoplay = true;
   const agent = new RealtimeAgent({
     name: "Claros",
     instructions,
@@ -151,10 +157,19 @@ const defaultSessionFactory: SessionFactory = ({
         parameters: candidateActionSchema,
         execute: onExactReview,
       }),
+      tool({
+        name: "navigate_question",
+        description:
+          "Request navigation to a grounded worksheet question by its visible number. The application validates the destination.",
+        parameters: navigateQuestionSchema,
+        execute: onNavigateQuestion,
+      }),
     ],
   });
-  const transport = microphone ? "webrtc" : createSilentInputTransport();
-  return new RealtimeSession(agent, {
+  const transport = microphone
+    ? new OpenAIRealtimeWebRTC({ audioElement })
+    : createSilentInputTransport(audioElement);
+  const session = new RealtimeSession(agent, {
     transport,
     model: "gpt-realtime-2.1",
     tracingDisabled: true,
@@ -179,6 +194,10 @@ const defaultSessionFactory: SessionFactory = ({
       providerData: { max_output_tokens: 600, truncation: "auto" },
     },
   }) as unknown as RealtimeSessionLike;
+  session.setOutputMuted = (muted) => {
+    audioElement.muted = muted;
+  };
+  return session;
 };
 
 const browserSpeechPlayback = (): SpeechPlayback => ({
@@ -222,6 +241,12 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
   private assistantTranscriptParts: string[] = [];
   private assistantAudioActive = false;
   private assistantResponseInterrupted = false;
+  private outputMuted = false;
+  private conversationHistory: Array<{
+    speaker: "student" | "claros";
+    text: string;
+    questionId?: string;
+  }> = [];
 
   constructor(
     private readonly credentialProvider: CredentialProvider = issueRealtimeCredential,
@@ -241,6 +266,9 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
       `${options.assignmentId}:${options.questionId}:${options.assignmentVersion}:${options.mode}`,
     );
     this.options = options;
+    this.conversationHistory = [...(options.conversationHistory ?? [])].slice(
+      -12,
+    );
     this.reconnectUsed = false;
     try {
       await this.openSession();
@@ -284,7 +312,8 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
   }
 
   setMuted(muted: boolean): RealtimeOperation {
-    this.session?.mute(muted);
+    this.outputMuted = muted;
+    this.session?.setOutputMuted?.(muted);
     return this.record("mute", muted);
   }
 
@@ -293,6 +322,7 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
     const turnId = this.nextEventId("typed-turn");
     if (trimmed) {
       this.trustedTurns.set(turnId, { modality: "typed", text: trimmed });
+      this.rememberTurn("student", trimmed);
       this.session?.sendMessage(trimmed, { event_id: turnId });
     }
     return this.record("typed_turn", text);
@@ -381,8 +411,10 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
           this.handleCandidateAction("request_rephrase", input),
         onExactReview: (input) =>
           this.handleCandidateAction("enter_exact_review", input),
+        onNavigateQuestion: (input) => this.handleNavigateQuestion(input),
       });
       this.session = session;
+      session.setOutputMuted?.(this.outputMuted);
       this.attachSessionEvents(session);
       await session.connect({
         apiKey: credential.client_secret,
@@ -472,12 +504,16 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
       const transcript = String(event.transcript).trim();
       if (!transcript) return;
       this.trustedTurns.set(itemId, { modality: "voice", text: transcript });
+      this.rememberTurn("student", transcript);
       this.emit({
         id: eventId,
         type: "transcript",
         speaker: "student",
         text: transcript,
         final: true,
+        sourceTurnId: itemId,
+        sessionId: this.credential?.session_id,
+        input: "voice",
       });
       return;
     }
@@ -525,25 +561,24 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
     if (this.assistantResponseInterrupted) return;
     const transcript = buffered || output.trim();
     if (!transcript) return;
+    const sourceTurnId = this.nextEventId("assistant-final");
+    this.rememberTurn("claros", transcript);
     this.emit({
-      id: this.nextEventId("assistant-final"),
+      id: sourceTurnId,
       type: "transcript",
       speaker: "claros",
       text: transcript,
       final: true,
+      sourceTurnId,
+      sessionId: this.credential?.session_id,
     });
   }
 
   private handleCandidate(input: DraftCandidateInput): string {
     const parsed = draftCandidateSchema.parse(input);
-    const turns = parsed.source_turn_ids.map((id) => this.trustedTurns.get(id));
-    if (turns.some((turn) => !turn)) return "Rejected: unknown source turn.";
-    const modalities = new Set(turns.map((turn) => turn?.modality));
-    if (modalities.size !== 1) return "Rejected: mixed input modalities.";
-    const sourceText = turns
-      .map((turn) => turn?.text ?? "")
-      .join(" ")
-      .trim();
+    const match = this.findTrustedSource(parsed.exact_text);
+    if (!match) return "Rejected: no matching completed student turn.";
+    const { sourceTurnIds, modality, sourceText } = match;
     const normalization =
       parsed.exact_text === sourceText
         ? "none"
@@ -557,12 +592,62 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
       id: this.nextEventId("candidate"),
       type: "candidate",
       text: parsed.exact_text,
-      input: modalities.has("voice") ? "voice" : "typed",
+      input: modality,
       normalization,
       sessionId: this.credential?.session_id,
-      sourceTurnIds: parsed.source_turn_ids,
+      sourceTurnIds,
     });
     return "Draft sent to the application for validation.";
+  }
+
+  private handleNavigateQuestion(input: NavigateQuestionInput): string {
+    const parsed = navigateQuestionSchema.parse(input);
+    const question = this.options?.availableQuestions?.find(
+      (item) => item.index === parsed.question_index,
+    );
+    if (!question) return "Rejected: unknown worksheet question.";
+    this.emit({
+      id: this.nextEventId("navigate-question"),
+      type: "navigate_question",
+      questionIndex: question.index,
+    });
+    return "Navigation request sent to the application for validation.";
+  }
+
+  private findTrustedSource(exactText: string): {
+    sourceTurnIds: string[];
+    modality: "typed" | "voice";
+    sourceText: string;
+  } | null {
+    const entries = [...this.trustedTurns.entries()];
+    for (let size = 1; size <= Math.min(4, entries.length); size += 1) {
+      const selected = entries.slice(-size);
+      const modalities = new Set(selected.map(([, turn]) => turn.modality));
+      if (modalities.size !== 1) continue;
+      const completedTurnText = selected
+        .map(([, turn]) => turn.text)
+        .join(" ")
+        .trim();
+      const sourceText = explicitAnswerText(completedTurnText);
+      if (
+        exactText === sourceText ||
+        punctuationComparable(exactText) === punctuationComparable(sourceText)
+      ) {
+        return {
+          sourceTurnIds: selected.map(([id]) => id),
+          modality: selected[0][1].modality,
+          sourceText,
+        };
+      }
+    }
+    return null;
+  }
+
+  private rememberTurn(speaker: "student" | "claros", text: string): void {
+    this.conversationHistory = [
+      ...this.conversationHistory,
+      { speaker, text, questionId: this.options?.questionId },
+    ].slice(-12);
   }
 
   private handleCandidateAction(
@@ -618,19 +703,11 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
   private buildInstructions(): string {
     const options = this.options;
     if (!options) throw new Error("Realtime session context is missing");
-    const modePolicy =
-      options.mode === "direct"
-        ? `Direct-answer mode:
-- Capture what the student intended with minimal interruption.
-- Do not tutor unless asked.
-- Do not turn a fragment into a materially more complete answer without permission.
-- Ask one short clarification only when necessary, then create a draft candidate.`
-        : `Guided-reasoning mode:
-- Ground every turn in the active question and supplied context.
-- Ask one focused question at a time and elicit the student's knowledge before explaining.
-- Do not give the final answer immediately.
-- When the student is ready, ask them to state one final answer, then create a draft candidate.
-- Moving a candidate into review is not approval.`;
+    const modePolicy = `One adaptive conversation:
+- Infer whether the student wants to dictate an answer, ask for concise help, revise, or move to another grounded question.
+- Capture a known answer with minimal interruption and tutor only when asked.
+- Do not turn discussion, commands, or ambiguous fragments into an answer; ask one short clarification when needed.
+- Create a draft only from the student's intended answer wording. Moving a draft into review is not approval.`;
     const phasePolicy = options.currentCandidate
       ? "Current phase: a draft exists. The student may request clearer wording or enter exact review. Do not call either action without their request."
       : "Current phase: capture or guide toward a draft answer.";
@@ -638,6 +715,8 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
       active_question: options.exactQuestion,
       candidate: options.currentCandidate?.exactText ?? null,
       context: options.relevantContext ?? [],
+      available_questions: options.availableQuestions ?? [],
+      recent_conversation: this.conversationHistory,
     });
     const instructions = `You are Claros, an accessibility-first worksheet assistant.
 
@@ -697,6 +776,13 @@ UNTRUSTED_WORKSHEET_DATA=${payload}`;
 
 const punctuationComparable = (value: string) =>
   value.normalize("NFKC").replace(/[\p{P}\p{Z}\s]+/gu, "");
+
+const explicitAnswerText = (value: string) => {
+  const match = value.match(
+    /^(?:my (?:final )?answer is|the answer is|i(?:'d| would)? answer)\s*[:,-]?\s*(\S[\s\S]*)$/iu,
+  );
+  return match?.[1]?.trim() || value;
+};
 
 export const createOpenAIRealtimeAdapter = (
   credentialProvider?: CredentialProvider,

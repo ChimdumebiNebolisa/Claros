@@ -93,7 +93,7 @@ describe("Gate 3 runtime boundaries", () => {
     const user = userEvent.setup();
 
     render(
-      <MemoryRouter initialEntries={["/app?runtime=api"]}>
+      <MemoryRouter initialEntries={["/app"]}>
         <AppProviders>
           <RootApp />
         </AppProviders>
@@ -149,7 +149,7 @@ describe("Gate 3 runtime boundaries", () => {
     const user = userEvent.setup();
 
     render(
-      <MemoryRouter initialEntries={["/app/asgn_runtime?runtime=api"]}>
+      <MemoryRouter initialEntries={["/app/asgn_runtime"]}>
         <AppProviders>
           <RootApp />
         </AppProviders>
@@ -161,7 +161,6 @@ describe("Gate 3 runtime boundaries", () => {
         name: "What is the runtime question?",
       }),
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Start answering" }));
     await user.click(screen.getByRole("button", { name: "Start speaking" }));
 
     await waitFor(() => expect(liveAdapter.startListening).toHaveBeenCalled());
@@ -170,7 +169,7 @@ describe("Gate 3 runtime boundaries", () => {
         assignmentId: "asgn_runtime",
         assignmentVersion: 3,
         questionId: "q_runtime",
-        mode: "direct",
+        mode: "conversation",
         exactQuestion: "What is the runtime question?",
         microphone: true,
       }),
@@ -195,7 +194,7 @@ describe("Gate 3 runtime boundaries", () => {
     const user = userEvent.setup();
 
     render(
-      <MemoryRouter initialEntries={["/app/asgn_runtime?runtime=api"]}>
+      <MemoryRouter initialEntries={["/app/asgn_runtime"]}>
         <AppProviders>
           <RootApp />
         </AppProviders>
@@ -205,7 +204,6 @@ describe("Gate 3 runtime boundaries", () => {
     await screen.findByRole("heading", {
       name: "What is the runtime question?",
     });
-    await user.click(screen.getByRole("button", { name: "Start answering" }));
     await user.click(screen.getByRole("button", { name: "Start speaking" }));
 
     expect(await screen.findByText("Connection lost")).toBeInTheDocument();
@@ -304,7 +302,7 @@ describe("Gate 3 runtime boundaries", () => {
     );
     const user = userEvent.setup();
     render(
-      <MemoryRouter initialEntries={["/app/asgn_runtime?runtime=api"]}>
+      <MemoryRouter initialEntries={["/app/asgn_runtime"]}>
         <AppProviders>
           <RootApp />
         </AppProviders>
@@ -314,7 +312,6 @@ describe("Gate 3 runtime boundaries", () => {
     await screen.findByRole("heading", {
       name: "What is the runtime question?",
     });
-    await user.click(screen.getByRole("button", { name: "Start answering" }));
     await user.click(screen.getByRole("button", { name: "Start speaking" }));
     await waitFor(() => expect(listener).toBeDefined());
     act(() => {
@@ -445,7 +442,7 @@ describe("Gate 3 runtime boundaries", () => {
     );
     const user = userEvent.setup();
     render(
-      <MemoryRouter initialEntries={["/app/asgn_runtime?runtime=api"]}>
+      <MemoryRouter initialEntries={["/app/asgn_runtime"]}>
         <AppProviders>
           <RootApp />
         </AppProviders>
@@ -455,7 +452,6 @@ describe("Gate 3 runtime boundaries", () => {
     await screen.findByRole("heading", {
       name: "What is the runtime question?",
     });
-    await user.click(screen.getByRole("button", { name: "Start answering" }));
     await user.click(screen.getByRole("button", { name: "Start speaking" }));
     await waitFor(() => expect(listener).toBeDefined());
     act(() => {
@@ -476,12 +472,14 @@ describe("Gate 3 runtime boundaries", () => {
       });
     });
 
-    const answer = screen.getByRole("textbox", { name: "Your words" });
+    const answer = screen.getByRole("textbox", { name: "Proposed answer" });
     expect(answer).toHaveValue("Plants need sunlight because");
     await user.click(
       screen.getByRole("button", { name: "Continue by typing" }),
     );
-    expect(answer).toHaveFocus();
+    expect(
+      screen.getByRole("textbox", { name: "Message Claros" }),
+    ).toHaveFocus();
     await user.clear(answer);
     await user.type(answer, completedText);
     await user.click(screen.getByRole("button", { name: "Review answer" }));
@@ -497,7 +495,7 @@ describe("Gate 3 runtime boundaries", () => {
     });
   });
 
-  it("keeps guided typed turns microphone-free and posts guided provenance", async () => {
+  it("keeps natural typed conversation microphone-free and posts typed provenance", async () => {
     let listener: RealtimeListener | undefined;
     const liveAdapter = {
       subscribe: vi.fn((next: RealtimeListener) => {
@@ -570,7 +568,7 @@ describe("Gate 3 runtime boundaries", () => {
     );
     const user = userEvent.setup();
     render(
-      <MemoryRouter initialEntries={["/app/asgn_runtime?runtime=api"]}>
+      <MemoryRouter initialEntries={["/app/asgn_runtime"]}>
         <AppProviders>
           <RootApp />
         </AppProviders>
@@ -580,14 +578,11 @@ describe("Gate 3 runtime boundaries", () => {
     await screen.findByRole("heading", {
       name: "What is the runtime question?",
     });
-    await user.click(
-      screen.getByRole("button", { name: "Start a guided conversation" }),
-    );
     await user.type(
-      screen.getByRole("textbox", { name: "Your response" }),
+      screen.getByRole("textbox", { name: "Message Claros" }),
       "Light provides energy.",
     );
-    await user.click(screen.getByRole("button", { name: "Send response" }));
+    await user.click(screen.getByRole("button", { name: "Send to Claros" }));
     await waitFor(() => expect(listener).toBeDefined());
     act(() => {
       listener?.({
@@ -603,33 +598,27 @@ describe("Gate 3 runtime boundaries", () => {
         final: true,
       });
     });
-    expect(screen.getAllByText("Now state your final answer.")).toHaveLength(2);
+    expect(
+      screen.getAllByText("Now state your final answer.").length,
+    ).toBeGreaterThan(0);
     expect(candidateRequest).toBeUndefined();
-    await user.click(
-      screen.getByRole("button", { name: "I am ready to answer" }),
-    );
     await user.type(
-      screen.getByRole("textbox", { name: "Your final answer" }),
+      screen.getByRole("textbox", { name: "Proposed answer" }),
       candidate.text,
     );
     await user.click(screen.getByRole("button", { name: "Review answer" }));
     await screen.findByRole("heading", { name: "Review your exact answer" });
 
     expect(liveAdapter.connect).toHaveBeenCalledWith(
-      expect.objectContaining({ microphone: false, mode: "guided" }),
+      expect.objectContaining({ microphone: false, mode: "conversation" }),
     );
     expect(liveAdapter.startListening).not.toHaveBeenCalled();
     expect(liveAdapter.sendTypedTurn).toHaveBeenCalledWith(
       "Light provides energy.",
     );
     expect(candidateRequest).toMatchObject({
-      origin: "student_after_guidance",
-      interaction: {
-        kind: "guided_final",
-        realtime_session_id: "sess_guided",
-        source_turn_ids: ["typed_final_1"],
-        input: "typed",
-      },
+      origin: "student_verbatim",
+      interaction: { kind: "direct_typed" },
     });
   });
 
@@ -697,7 +686,7 @@ describe("Gate 3 runtime boundaries", () => {
     const user = userEvent.setup();
 
     render(
-      <MemoryRouter initialEntries={["/app/asgn_runtime?runtime=api"]}>
+      <MemoryRouter initialEntries={["/app/asgn_runtime"]}>
         <AppProviders>
           <RootApp />
         </AppProviders>
@@ -707,9 +696,8 @@ describe("Gate 3 runtime boundaries", () => {
     await screen.findByRole("heading", {
       name: "What is the runtime question?",
     });
-    await user.click(screen.getByRole("button", { name: "Type instead" }));
     await user.type(
-      screen.getByRole("textbox", { name: "Your words" }),
+      screen.getByRole("textbox", { name: "Proposed answer" }),
       candidate.text,
     );
     await user.click(screen.getByRole("button", { name: "Review answer" }));

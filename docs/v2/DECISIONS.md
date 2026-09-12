@@ -16,10 +16,9 @@ Use the V2 authority order in `BASELINE_AUDIT.md`. Work on
 `codex/claros-v2-nerdy` from `5fb2177`; do not implement V2 directly on
 `main` and do not restore a historical branch wholesale.
 
-The three authority files remain byte-identical, including their intentional
-Markdown hard-break spaces. Their SHA-256 values are the integrity check;
-`git diff --check` applies to authored files with those three verbatim imports
-excluded when inspecting the Gate 0 commit.
+The three authority files use the SHA-256 values recorded in
+`BASELINE_AUDIT.md`. They were intentionally rebaselined on 2026-09-11 for the
+product-owner interaction correction described in D-005.
 
 ### D-002 — OpenSpec strategy
 
@@ -42,6 +41,19 @@ signed session is included because production truth must survive instance
 replacement. Cross-device/shareable resume, OCR, accounts, educator features,
 multiple choice, complex tables/math, manual placement, and arbitrary PDF
 support remain P1 or deferred.
+
+### D-005 — One real conversational application
+
+The product owner's 2026-09-11 decision supersedes mandatory direct/guided path
+selection and fixture-default `/app` behavior. Ordinary `/app` uses one
+persistent agent conversation and the real FastAPI/provider adapters. The agent
+infers dictation, concise-help, revision, and grounded-navigation intent while
+the application owns question, transcript, draft, approval, and placement
+bindings. Fixtures and fake adapters remain only for explicit tests/previews.
+
+This decision does not change immutable source storage, exact-answer review,
+signed-owner authorization, deterministic placement, OpenPDF rendering,
+qpdf/PDFBox publication validation, or confirmed-answer-only derivative export.
 
 ## Public routes, API, and ownership
 

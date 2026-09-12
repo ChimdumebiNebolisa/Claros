@@ -1,6 +1,6 @@
 ## Purpose
 
-Defines direct and guided voice assistance, captions, constrained Realtime
+Defines one adaptive voice conversation, captions, constrained Realtime
 authority, exact-state voice confirmation, and typed recovery without data loss.
 
 ## ADDED Requirements
@@ -8,11 +8,11 @@ authority, exact-state voice confirmation, and typed recovery without data loss.
 ### Requirement: Authorized short-lived Realtime sessions
 The browser MUST connect to OpenAI Realtime over WebRTC using a short-lived
 credential issued only after the server validates owner, assignment, active
-question, selected mode, and assignment version. A standard provider API key
+question and assignment version. A standard provider API key
 MUST never reach the browser.
 
 #### Scenario: Authorized student starts voice
-- **WHEN** the active assignment, question, mode, version, and owner all match
+- **WHEN** the active assignment, question, version, and owner all match
 - **THEN** Claros issues a short-lived client credential and the browser may open that bounded Realtime session
 
 #### Scenario: Context is stale
@@ -22,36 +22,48 @@ MUST never reach the browser.
 ### Requirement: Explicit accessible voice controls and states
 Voice UI MUST expose Ready, Listening, Thinking, Speaking, Interrupted,
 Connection lost, and Microphone unavailable as text. It MUST provide start,
-stop, interrupt, mute/unmute, live captions, retry, and `Continue by typing`.
+stop capture, interrupt output, speaker mute/unmute, live captions, retry, and
+`Continue by typing`. Capture and playback MUST remain independently controllable,
+and Listening MUST be shown only while microphone capture is active.
 A waveform or color MUST never be the sole state indicator.
 
 #### Scenario: Claros begins speaking
 - **WHEN** a Realtime response produces audio
 - **THEN** the UI displays `Speaking`, exposes an interrupt and mute control, and keeps matching text available
 
-### Requirement: Direct mode preserves student authorship
-Direct mode MUST focus on capturing the student's speech or typed text, minimize
-interruption, and request only concise clarification needed to represent the
-student's intended answer. It MUST NOT tutor, introduce a materially new fact,
-or make a fragment more complete without student choice.
+### Requirement: One agent adapts to conversational intent
+The agent MUST infer whether a turn requests answer capture, concise help,
+revision, or grounded question navigation. It MUST minimize interruption when
+capturing a known answer, offer concise grounded help when requested, and ask a
+short clarification when intent is ambiguous. It MUST NOT introduce a
+materially new fact or make a fragment more complete without student choice.
 
 #### Scenario: Student provides a complete direct answer
 - **WHEN** the captured turn contains a usable answer
 - **THEN** Claros creates one student-derived candidate and moves toward review without adding substantive content
 
-### Requirement: Guided mode elicits the student's final answer
-Guided mode MUST remain grounded in the exact active question and allowed source
-context, ask one focused question at a time, avoid unsolicited lectures, stop
-tutoring when the student is ready, and explicitly ask the student to state a
-final answer. Conversation turns MUST NOT become the candidate automatically.
+The conversation MUST remain grounded in the exact active question and allowed
+source context, ask one focused question at a time when help is wanted, avoid
+unsolicited lectures, and stop tutoring when the student intends an answer.
+Discussion and command turns MUST NOT become the candidate automatically.
 
-#### Scenario: Student completes guided reasoning
+#### Scenario: Student moves from help to an intended answer
 - **WHEN** the student indicates readiness and then states a final response
 - **THEN** Claros creates a `student_after_guidance` candidate from that response and enters the normal review flow
 
 #### Scenario: Transcript exists without final response
-- **WHEN** guided turns contain ideas but the student has not stated a final answer
+- **WHEN** conversation turns contain ideas but the student has not stated a final answer
 - **THEN** no candidate is eligible for review or confirmation solely from the transcript
+
+### Requirement: Application-owned turn and draft relationships
+Completed transcription events MUST carry application-observed session and turn
+identity. The application, not the model, MUST bind an intended draft to the
+matching completed student turns and current question. The model MUST NOT be
+required to guess or return private source-turn identifiers.
+
+#### Scenario: Model proposes an answer draft
+- **WHEN** the model requests a draft from student-intended answer text
+- **THEN** the adapter binds it to matching completed student turns and rejects unknown or materially changed text
 
 ### Requirement: Narrow Realtime authority
 Realtime MAY request active question context, set a student-derived candidate
@@ -84,6 +96,9 @@ On permission denial, connection failure, or audio failure, Claros MUST preserve
 the current candidate and bounded relevant turns, attempt at most one automatic
 reconnect, expose `Retry voice` and `Continue by typing`, and avoid duplicate
 candidates from replayed events. It MUST never require worksheet re-upload.
+
+Interrupting output MUST NOT destroy a healthy session. A necessary reconnect
+MUST preserve and replay bounded application-owned conversation context.
 
 #### Scenario: Realtime disconnects after a draft
 - **WHEN** voice connectivity fails with candidate text present

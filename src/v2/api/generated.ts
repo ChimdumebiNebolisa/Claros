@@ -582,7 +582,7 @@ export interface components {
      * RealtimeMode
      * @enum {string}
      */
-    RealtimeMode: "direct" | "guided";
+    RealtimeMode: "conversation" | "direct" | "guided";
     /** RephraseRequest */
     RephraseRequest: {
       /** Assignment Version */

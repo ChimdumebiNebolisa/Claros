@@ -285,7 +285,8 @@ public final class WorkerMain {
                 for (String value : new String[]{answer.displayIdentifier(),
                         answer.continuation().worksheetTitle(), answer.continuation().sourceQuestion()}) {
                     for (int codePoint : value.codePoints().toArray()) {
-                        if (!font.charExists(codePoint)) {
+                        if (codePoint != '\n' && codePoint != '\r'
+                                && !font.charExists(codePoint)) {
                             throw new WorkerRejection("unsupported_glyph");
                         }
                     }

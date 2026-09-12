@@ -45,6 +45,7 @@ import {
   type Candidate,
 } from "./domain/contracts";
 import {
+  ConversationWorkspace,
   DirectAnswerPanel,
   EntryPathChoice,
   GuidedReasoningPanel,
@@ -140,6 +141,7 @@ export default function WorkspaceShell({
   const realtimeActionHandlersRef = useRef<{
     requestRephrase: () => Promise<void>;
     requestReview: () => Promise<void>;
+    navigateQuestion: (questionIndex: number) => void;
   } | null>(null);
   const realtimeConnectionKeyRef = useRef<string | null>(null);
   const realtimeUnsubscribeRef = useRef<(() => void) | null>(null);
@@ -180,6 +182,7 @@ export default function WorkspaceShell({
   const [exportPollAttempt, setExportPollAttempt] = useState(0);
 
   const fixtureScenario = useMemo(() => {
+    if (!import.meta.env.DEV) return null;
     const value = new URLSearchParams(location.search).get("fixture");
     return isFixtureScenario(value) ? value : null;
   }, [location.search]);
@@ -188,11 +191,8 @@ export default function WorkspaceShell({
     const value = new URLSearchParams(location.search).get("realtime");
     return isRealtimeFixtureScenario(value) ? value : null;
   }, [location.search]);
-  const usesRealApi =
-    !import.meta.env.DEV ||
-    new URLSearchParams(location.search).get("runtime") === "api";
-  const runtimeSearch =
-    import.meta.env.DEV && usesRealApi ? "?runtime=api" : "";
+  const usesRealApi = !fixtureScenario;
+  const runtimeSearch = "";
   const routeKey = `${usesRealApi ? "api" : "fixture"}:${mode}:${assignmentId ?? ""}:${exportId ?? ""}:${fixtureScenario ?? ""}:${exportPollAttempt}`;
 
   useEffect(() => {
@@ -361,7 +361,6 @@ export default function WorkspaceShell({
           });
           if (mode === "question") {
             actor.send({ type: "START_QUESTION" });
-            if (restored.candidate) actor.send({ type: "TYPE_INSTEAD" });
           } else if (mode === "review") {
             actor.send({ type: "OPEN_REVIEW_ROUTE" });
           } else if (mode === "export") {
@@ -492,6 +491,7 @@ export default function WorkspaceShell({
     !isVoiceInlineError &&
     (snapshot.matches("direct") ||
       snapshot.matches("guided") ||
+      snapshot.matches("conversation") ||
       snapshot.matches("answerAdded") ||
       snapshot.matches("worksheetReview"));
 
@@ -500,7 +500,10 @@ export default function WorkspaceShell({
       const current = actor.getSnapshot();
 
       if (event.type === "voice_state") {
-        if (event.state === "speaking" && current.matches("guided")) {
+        if (
+          event.state === "speaking" &&
+          (current.matches("guided") || current.matches("conversation"))
+        ) {
           actor.send({ type: "VOICE_SPEAKING" });
         } else {
           actor.send({ type: "VOICE_STATE_CHANGED", state: event.state });
@@ -541,17 +544,29 @@ export default function WorkspaceShell({
 
         if (
           event.speaker === "student" &&
-          current.matches({ guided: "listening" })
+          (current.matches("guided") || current.matches("conversation"))
         ) {
-          actor.send({ type: "GUIDED_STUDENT_TURN", text: event.text });
+          actor.send({
+            type: "GUIDED_STUDENT_TURN",
+            text: event.text,
+            sourceTurnId: event.sourceTurnId,
+            sessionId: event.sessionId,
+            input: event.input,
+          });
         }
         if (
           event.speaker === "claros" &&
-          (current.matches({ guided: "thinking" }) ||
+          (current.matches("conversation") ||
+            current.matches({ guided: "thinking" }) ||
             current.matches({ guided: "speaking" }) ||
             current.matches({ guided: "ready" }))
         ) {
-          actor.send({ type: "GUIDED_REPLY", text: event.text });
+          actor.send({
+            type: "GUIDED_REPLY",
+            text: event.text,
+            sourceTurnId: event.sourceTurnId,
+            sessionId: event.sessionId,
+          });
         }
         return;
       }
@@ -594,6 +609,13 @@ export default function WorkspaceShell({
         return;
       }
 
+      if (event.type === "navigate_question") {
+        realtimeActionHandlersRef.current?.navigateQuestion(
+          event.questionIndex,
+        );
+        return;
+      }
+
       if (event.type === "confirmation_phrase") {
         actor.send({ type: "VOICE_CONFIRMATION", phrase: event.phrase });
         return;
@@ -633,7 +655,10 @@ export default function WorkspaceShell({
   }, [clearRealtimeAdvanceTimer]);
 
   const ensureRealtimeAdapter = useCallback(
-    async (answerPath: "direct" | "guided", microphone = true) => {
+    async (
+      answerPath: "conversation" | "direct" | "guided",
+      microphone = true,
+    ) => {
       const current = actor.getSnapshot().context;
       const currentAssignment = current.assignment;
       const currentQuestion =
@@ -685,6 +710,12 @@ export default function WorkspaceShell({
             mode: answerPath,
             exactQuestion: currentQuestion.prompt,
             relevantContext: [currentQuestion.instruction],
+            conversationHistory: current.guidedTurns,
+            availableQuestions: currentAssignment.questions.map((item) => ({
+              id: item.id,
+              index: item.index,
+              prompt: item.prompt,
+            })),
             currentCandidate: current.candidate
               ? {
                   id: current.candidate.id,
@@ -712,6 +743,12 @@ export default function WorkspaceShell({
         mode: answerPath,
         exactQuestion: currentQuestion.prompt,
         relevantContext: [currentQuestion.instruction],
+        conversationHistory: current.guidedTurns,
+        availableQuestions: currentAssignment.questions.map((item) => ({
+          id: item.id,
+          index: item.index,
+          prompt: item.prompt,
+        })),
         microphone,
       });
       if (current.muted) adapter.setMuted(true);
@@ -876,19 +913,6 @@ export default function WorkspaceShell({
       evidence?.questionId === currentQuestion.id &&
       evidence.text === candidate.text
     ) {
-      if (current.path === "guided") {
-        return {
-          assignment_version: currentAssignment.version,
-          text: candidate.text,
-          origin: "student_after_guidance",
-          interaction: {
-            kind: "guided_final",
-            realtime_session_id: evidence.sessionId,
-            source_turn_ids: [...evidence.sourceTurnIds],
-            input: evidence.input,
-          },
-        };
-      }
       if (evidence.input === "voice") {
         return {
           assignment_version: currentAssignment.version,
@@ -937,11 +961,11 @@ export default function WorkspaceShell({
     const existingEvidence = realtimeCandidateEvidenceRef.current;
     if (
       usesRealApi &&
-      current.path === "guided" &&
+      current.path === "conversation" &&
       (existingEvidence?.questionId !== currentQuestion.id ||
         existingEvidence.text !== candidate.text)
     ) {
-      const session = await ensureRealtimeAdapter("guided", false);
+      const session = await ensureRealtimeAdapter("conversation", false);
       const evidence = session?.adapter.registerTypedCandidate(candidate.text);
       if (evidence) {
         realtimeCandidateEvidenceRef.current = {
@@ -987,7 +1011,12 @@ export default function WorkspaceShell({
 
   const beginVoice = async () => {
     const current = actor.getSnapshot();
-    const answerPath = current.matches("guided") ? "guided" : "direct";
+    const answerPath =
+      current.matches("conversation") || current.matches("exactReview")
+        ? "conversation"
+        : current.matches("guided")
+          ? "guided"
+          : "direct";
     const interaction: FakeRealtimeInteraction = current.matches({
       guided: "finalizing",
     })
@@ -995,7 +1024,6 @@ export default function WorkspaceShell({
       : answerPath === "guided"
         ? "guided-turn"
         : "direct-answer";
-    actor.send({ type: "VOICE_START" });
     const session = await ensureRealtimeAdapter(answerPath, true);
     if (!session) return;
 
@@ -1115,8 +1143,24 @@ export default function WorkspaceShell({
     }
   };
 
+  const navigateConversationQuestion = (questionIndex: number) => {
+    const current = actor.getSnapshot().context;
+    const target = current.assignment?.questions.find(
+      (item) => item.index === questionIndex,
+    );
+    if (!target) return;
+    setGuidedDraft("");
+    realtimeCandidateEvidenceRef.current = null;
+    persistedCandidateRef.current = null;
+    actor.send({ type: "GO_TO_QUESTION", questionId: target.id });
+  };
+
   useEffect(() => {
-    realtimeActionHandlersRef.current = { requestRephrase, requestReview };
+    realtimeActionHandlersRef.current = {
+      requestRephrase,
+      requestReview,
+      navigateQuestion: navigateConversationQuestion,
+    };
     return () => {
       realtimeActionHandlersRef.current = null;
     };
@@ -1426,7 +1470,7 @@ export default function WorkspaceShell({
     const text = guidedDraft;
     actor.send({ type: "GUIDED_STUDENT_TURN", text });
     setGuidedDraft("");
-    const session = await ensureRealtimeAdapter("guided", !usesRealApi);
+    const session = await ensureRealtimeAdapter("conversation", !usesRealApi);
     if (!session) return;
     session.adapter.sendTypedTurn(text);
     if (session.kind === "fake") {
@@ -1446,7 +1490,11 @@ export default function WorkspaceShell({
   const retryVoice = async () => {
     actor.send({ type: "RETRY_VOICE" });
     const current = actor.getSnapshot();
-    const answerPath = current.matches("guided") ? "guided" : "direct";
+    const answerPath = current.matches("conversation")
+      ? "conversation"
+      : current.matches("guided")
+        ? "guided"
+        : "direct";
     if (usesRealApi) {
       const adapter = realtimeAdapterRef.current;
       if (adapter && realtimeAdapterKindRef.current === "real") {
@@ -1483,7 +1531,6 @@ export default function WorkspaceShell({
     clearRealtimeAdvanceTimer();
     realtimeAdapterRef.current?.interrupt();
     actor.send({ type: "INTERRUPT" });
-    releaseRealtimeAdapter();
   };
 
   const isExactReview = snapshot.matches("exactReview");
@@ -1697,6 +1744,39 @@ export default function WorkspaceShell({
     }
     if (!assignment || !question) return null;
 
+    if (snapshot.matches("conversation")) {
+      return (
+        <>
+          <ConversationWorkspace
+            question={question}
+            totalQuestions={assignment.questions.length}
+            turns={context.guidedTurns}
+            message={guidedDraft}
+            candidateText={context.candidate?.text ?? ""}
+            voiceState={context.voiceState}
+            muted={context.muted}
+            onMessageChange={setGuidedDraft}
+            onSendMessage={sendGuidedTurn}
+            onCandidateChange={(value) =>
+              actor.send({ type: "CANDIDATE_CHANGED", value })
+            }
+            onStart={beginVoice}
+            onStop={stopVoice}
+            onRetry={retryVoice}
+            onContinueByTyping={() => {
+              editorFocusRequested.current = true;
+              actor.send({ type: "CONTINUE_BY_TYPING" });
+            }}
+            onInterrupt={interruptVoice}
+            onToggleMute={toggleMute}
+            onMakeClearer={() => void requestRephrase()}
+            onReview={() => void requestReview()}
+          />
+          {liveCaptions}
+        </>
+      );
+    }
+
     if (snapshot.matches("questionChoice")) {
       return (
         <EntryPathChoice
@@ -1808,14 +1888,40 @@ export default function WorkspaceShell({
     if (snapshot.matches("exactReview") && context.candidate) {
       return (
         <>
-          <ExactAnswerReview
-            candidate={context.candidate}
-            placement={context.review?.placement ?? question.placement}
-            isHearing={isHearing}
-            error={context.error}
-            onHear={hearExact}
-            onChangeAnswer={() => actor.send({ type: "CHANGE_ANSWER" })}
-            onConfirm={() => void confirmAnswer()}
+          <ConversationWorkspace
+            question={question}
+            totalQuestions={assignment.questions.length}
+            turns={context.guidedTurns}
+            message={guidedDraft}
+            candidateText={context.candidate.text}
+            voiceState={context.voiceState}
+            muted={context.muted}
+            onMessageChange={setGuidedDraft}
+            onSendMessage={sendGuidedTurn}
+            onCandidateChange={(value) =>
+              actor.send({ type: "CANDIDATE_CHANGED", value })
+            }
+            onStart={beginVoice}
+            onStop={stopVoice}
+            onRetry={retryVoice}
+            onContinueByTyping={() =>
+              actor.send({ type: "CONTINUE_BY_TYPING" })
+            }
+            onInterrupt={interruptVoice}
+            onToggleMute={toggleMute}
+            onMakeClearer={() => void requestRephrase()}
+            onReview={() => void requestReview()}
+            reviewContent={
+              <ExactAnswerReview
+                candidate={context.candidate}
+                placement={context.review?.placement ?? question.placement}
+                isHearing={isHearing}
+                error={context.error}
+                onHear={hearExact}
+                onChangeAnswer={() => actor.send({ type: "CHANGE_ANSWER" })}
+                onConfirm={() => void confirmAnswer()}
+              />
+            }
           />
           {liveCaptions}
         </>

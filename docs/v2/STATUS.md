@@ -1,10 +1,10 @@
 # Claros V2 Delivery Status
 
-- **As of:** 2026-09-11
+- **As of:** 2026-09-12
 - **Branch:** `codex/claros-v2-nerdy`
 - **Baseline:** `5fb217715e4b3278f21a882b2652d928f2cca628`
-- **Current phase:** Gate 5 in progress — final human-spoken acceptance remains
-- **Gate state:** Gates 0–4 passed; Gate 5 is 6/8 tasks complete
+- **Current phase:** Gate 5 in progress — one-agent correction implemented; final human-spoken acceptance remains
+- **Gate state:** Gates 0–4 passed; Gate 5 is 10/12 tasks complete
 - **Gate 0 content checkpoint:** `0c15404b87edbbe19b03de93d81ad95aa1e897fd`
 - **Gate 1 content checkpoint:** `59cbc509650cc4a65b139a7db23012ead74efb3c`
 - **Gate 2 content checkpoint:** `0723303ef718bb28594d519da31ec0a55226fa45`
@@ -13,6 +13,38 @@
 - **Gate 4 live-source checkpoint:** `121287e766140610dfdde8cddfd3cec36817d6b0`
 - **Gate 5 workspace-integration checkpoint:** `2c688e58f197127f62571fa68fc797a4986fbaca`
 - **Gate 5 live-defect checkpoint:** `22b3d602d5b02711d0997af4fe18ce8945484cf5`
+
+### 2026-09-11 product-owner correction
+
+Mandatory direct/guided selection and fixture-default `/app` behavior are
+superseded. The three authority files and active OpenSpec change now specify one
+adaptive conversation using the real runtime by default. Authority SHA-256:
+
+- Execution PRD: `28BDCF6D3DADE6577AA8D216F4AFC0DED95976A4C33E82B0A26D3A7D3940019A`
+- Product contract: `CF273D0F0562BF535868E4EE7689A9AB085A4ECC539CD2A0E548A2EF8C5B5B2D`
+- Design system: `B10D6930F017834C59891A6A6C1D3BE9D4B25377616CBA601D85E218A1EA35D3`
+
+Reason: the product owner rejected separate answer modes and authorized a
+targeted restoration of one real conversation while retaining all approval,
+authorization, immutable-source, deterministic-placement, and PDF-validation
+invariants.
+
+### 2026-09-12 one-agent implementation evidence
+
+`npm start` now serves the real FastAPI/Vite/OpenAI/OpenPDF application at
+`http://127.0.0.1:8080/app`; fixture scenarios remain development/test-only.
+The biology sample and a separately uploaded supported PDF both traversed the
+real assignment, provider, candidate, exact-review, confirmation, placement,
+export, download, qpdf, and extracted-text checks. A provider-requested move
+from question 2 to question 3 was application-validated and preserved the
+conversation turn. The adapter-to-workspace regression suite covers completed
+transcript ownership, answer-draft binding, independent input/output mute,
+non-destructive interruption, reconnect context, and grounded navigation.
+
+This environment could establish a real OpenAI WebRTC session and observe the
+assistant response transcript/audio-output lifecycle, but it could not supply
+human speech to a physical microphone or have a human confirm audible playback.
+Those two sensory checks remain unverified and do not close tasks 5.7 or 5.8.
 
 ## Current milestone
 
@@ -36,8 +68,8 @@
   supports typed turns, mute, stop, interrupt, and exact playback, deduplicates
   provider events, closes SDK-owned media on replacement/exit, and permits one
   automatic reconnect. The existing fake adapter remains deterministic.
-- **Gate 5 workspace binding:** Direct voice and guided voice/typed turns now
-  use the live lazy-loaded adapter in API mode. Candidate writes retain the
+- **Gate 5 workspace binding:** Voice and typed turns now share one adaptive
+  conversation using the live lazy-loaded adapter in API mode. Candidate writes retain the
   authorized Realtime session/source-turn evidence, exact voice confirmation
   routes through the existing confirmation mutation only in exact review, and
   microphone/connection/module failures preserve the draft and expose typed
@@ -79,7 +111,7 @@
   produced digest `sha256:b4058b7bb22210a82690db7859354dad4fdf354441d57ee46a79deea6d7d5b66`;
   revision `claros-00075-xtv` serves it at 100 percent after live persistence,
   ownership-isolation, and proxy-identity checks.
-- **Next action:** Run one human-spoken direct answer and the exact confirmation
+- **Next action:** Run one human-spoken answer and the exact confirmation
   phrase in the already-verified live browser path, then close task 5.7 and
   request the independent Gate 5 review. Do not include the unrelated Docker
   artifacts.
@@ -267,7 +299,7 @@ finding or unavailable npm audit keeps Gate 1 blocked.
 | 2    | Fixture-complete V2 UI and fake Realtime                                               | Unit/component/Storybook/Playwright/axe, keyboard/focus/zoom/motion, full screenshot matrix, visual score ≥90 | Passed at `0723303` — 95/100 |
 | 3    | FastAPI, GCS adapters, physical IR, placement/export, gold corpus                      | Python/API/PDF integration, deterministic IR, exact Unicode, immutable source, container/revision smoke       | Passed at `88cda66`          |
 | 4    | Responses semantic mapping and rephrase                                                | Recorded/live corpus evaluation, zero invalid IDs, exact reconstruction, safe failure and provenance          | Passed at `976e176`          |
-| 5    | Realtime direct and guided paths                                                       | Fake browser suite and manual live voice/recovery/security evidence                                           | In progress — 6/8 tasks      |
+| 5    | One adaptive Realtime conversation                                                      | Fake browser suite and manual live voice/recovery/security evidence                                           | In progress — 10/12 tasks    |
 | 6    | Cutover, hardening, deployment                                                         | Full accumulated CI/security/a11y/visual/performance/staging evidence                                         | Not started                  |
 | 7    | Repeatable demo and release bundle                                                     | Clean-browser replay, final PDF, deployed smoke, honest submission copy, complete `artifacts/v2`              | Not started                  |
 

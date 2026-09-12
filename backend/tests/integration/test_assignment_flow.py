@@ -38,6 +38,7 @@ def _settings(storage_root: Path) -> Settings:
         cookie_secret=OWNER_TEST_SECRET,
         review_token_secret=REVIEW_TEST_SECRET,
         semantic_engine="current",
+        realtime_engine="current",
         openai_api_key=None,
     )
 

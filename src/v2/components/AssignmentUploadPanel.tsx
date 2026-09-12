@@ -210,7 +210,7 @@ export function AssignmentUploadPanel(props: AssignmentUploadPanelProps) {
             isDisabled={!props.onStart}
             className="min-h-11"
           >
-            Start Question 1
+            Start session
           </Button>
           <Button
             color="secondary"

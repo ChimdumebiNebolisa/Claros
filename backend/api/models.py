@@ -64,6 +64,7 @@ class SourceStatus(StrEnum):
 
 
 class RealtimeMode(StrEnum):
+    CONVERSATION = "conversation"
     DIRECT = "direct"
     GUIDED = "guided"
 

@@ -35,18 +35,20 @@ keyboard-accessible full-screen dialog while leaving the question first.
 - **WHEN** the student invokes `View worksheet` below 768 CSS pixels
 - **THEN** an accessible full-screen dialog renders the actual source, traps focus, and restores focus to the invoking control when closed
 
-### Requirement: Two equal entry paths
-Every unanswered question MUST initially show `Say my answer` and
-`Help me think it through` with equal visual weight and no preselection or
-recommendation. Both paths MUST preserve the exact question and converge on the
-same candidate comparison, review, confirmation, revision, and export rules.
+### Requirement: One persistent conversational workspace
+Every unanswered question MUST open directly in one conversational workspace
+without a mandatory mode selection. The same agent MUST infer whether the
+student is dictating, asking for concise help, revising, or requesting grounded
+question navigation, and MUST clarify ambiguous intent before drafting or
+navigating. Changing intent or input method MUST preserve the healthy session,
+bounded conversation, exact question binding, and current draft.
 
 #### Scenario: Unanswered question receives focus
-- **WHEN** the question-choice state becomes active
-- **THEN** both entry paths, `Type instead`, and `View worksheet` are understandable and keyboard reachable without onboarding
+- **WHEN** an unanswered question receives focus
+- **THEN** conversation, typing, voice, the editable draft area, and `View worksheet` are understandable and keyboard reachable without onboarding or a path choice
 
 ### Requirement: Complete typed operation
-Typed input MUST complete both direct and guided paths at every voice state,
+Typed input MUST complete the same conversation at every voice state,
 including when microphone permission or Realtime fails. Failure MUST preserve
 the candidate and relevant conversation state and MUST NOT require upload or
 page reload.
@@ -55,8 +57,8 @@ page reload.
 - **WHEN** permission is denied before or during an answer
 - **THEN** the UI announces `Microphone unavailable`, preserves current text, and offers immediate `Continue by typing`
 
-#### Scenario: Guided voice disconnects
-- **WHEN** the Realtime connection is lost after guided turns exist
+#### Scenario: Voice disconnects after conversation turns
+- **WHEN** the Realtime connection is lost after relevant turns exist
 - **THEN** the UI preserves the bounded transcript and candidate and allows the student to finish the final answer by typing
 
 ### Requirement: Distinct comparison and exact-review states
@@ -93,14 +95,14 @@ No required action may depend on dragging or resizing.
 
 #### Scenario: Keyboard-only completion
 - **WHEN** a student uses only keyboard navigation and typed input
-- **THEN** upload, path selection, answering, comparison, review, confirmation, revision, export, download, and dialogs remain operable and understandable
+- **THEN** upload, conversation, answering, comparison, review, confirmation, revision, export, download, and dialogs remain operable and understandable
 
 #### Scenario: Reduced motion is requested
 - **WHEN** the operating system reports reduced-motion preference
 - **THEN** placement and question transitions update immediately and announce the resulting state without essential animation
 
 ### Requirement: Honest marketing surface
-The public route MUST explain direct and guided paths, exact approval, source
+The public route MUST explain the adaptive one-agent conversation, exact approval, source
 preservation, accessibility, supported-PDF limits, and the final CTA using an
 authentic screenshot or live preview of the implemented product. It MUST NOT
 publish fabricated metrics, customers, pricing, certifications, integrations,

@@ -1186,6 +1186,14 @@ class AssignmentApplicationService:
             phase="candidate_ready" if candidate is not None else "answering",
             exact_question=question.exact_prompt,
             relevant_context=((question.instruction,) if question.instruction else ()),
+            available_questions=tuple(
+                {
+                    "question_id": item.question_id,
+                    "question_index": item.index,
+                    "exact_question": item.exact_prompt,
+                }
+                for item in versioned.manifest.questions
+            ),
             current_candidate=(
                 RealtimeCandidateBinding(
                     candidate_id=candidate.candidate_id,
