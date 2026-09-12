@@ -15,6 +15,34 @@
 - **Gate 5 live-defect checkpoint:** `22b3d602d5b02711d0997af4fe18ce8945484cf5`
 - **Gate 5 browser-acceptance implementation checkpoint:** `06425f913df328a21abeb73b192760005cee7d34`
 - **Gate 5 scoped independent code-review checkpoint:** `06425f913df328a21abeb73b192760005cee7d34` — approved; human evidence still pending
+- **Gate 5 conversation-behavior implementation checkpoint:** `6004c8a60200999ef27a0c3240f8025bfdef4eec` — bounded typed-provider evaluation complete; independent review pending
+
+### 2026-09-12 conversation-behavior repair
+
+The effective live policy and tool schemas now come from one shared artifact
+consumed by FastAPI and the real browser agent, with an SDK-level effective
+configuration test preventing server/browser drift. Application-owned state
+updates distinguish local/persisted drafts, exact review, approval, export,
+failure, active question, version, revision, and context epoch. Tools await a
+bounded correlated workspace outcome; relative navigation resolves from the
+actual active question and is acknowledged only after actor acceptance.
+
+Six bounded typed `gpt-realtime-2.1` sessions preserved two policy failures
+instead of selecting only successful retries. The first drove removal of
+duplicate action framing; later runs exposed a complete disguised answer and
+then a partial sentence frame. Policy `2026-09-12.4` explicitly prohibits both,
+and the sixth/final targeted rerun produced guided help without a sentence
+starter, fill-in template, quoted answer, or copy instruction. Known-answer
+capture and the live local/not-approved/not-exported status response passed.
+
+At implementation checkpoint `6004c8a`, 110 frontend tests, 76 backend
+Realtime tests, 10 isolated real-application Chromium tests, and 22 zero-skip
+OpenPDF tests pass, along with lint, typecheck, OpenAPI drift, strict OpenSpec,
+and whitespace checks. Full details, exact excerpts, rejected hypotheses, and
+evidence classifications are in
+`artifacts/v2/gate5/conversation-behavior-repair.md`. Tasks 5.7 and 5.8 remain
+open for physical-microphone, human-audible-playback, and downloaded-PDF
+acceptance. No merge or deployment was performed.
 
 ### 2026-09-11 product-owner correction
 

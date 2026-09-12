@@ -8,6 +8,7 @@
 - Semantic model configuration: `gpt-5.6-luna`
 - Corpus: checked-in synthetic biology sample and test-owned upload only
 - Status: automated browser acceptance and scoped code review pass; physical-microphone and human PDF acceptance remain open
+- Conversation-behavior implementation checkpoint: `6004c8a60200999ef27a0c3240f8025bfdef4eec`
 
 No API key, ephemeral credential, owner identifier, assignment identifier, raw
 provider payload, or private transcript is recorded here. The configured
@@ -61,6 +62,7 @@ Useful retired assertions were mapped as follows:
 | Server credential and production-bundle secrecy | Automated configuration and exact-value scan | `06425f9` | Pass — server key configured; 0 tracked exact-key matches; 0 production-bundle exact-key matches | No credential value was printed or recorded |
 | Bounded live provider: credential issuance, guided typed WebRTC response/captions, mute, interruption, reconnect, direct connect/stop, and cross-question captions | Prior live-provider browser observation | `22b3d60` | Pass for the listed observations | Predates current lifecycle fixes; not a substitute for the remaining human run |
 | Scoped independent implementation review | Read-only separate reviewer tracing relevant unchanged callers | `06425f9` | **Approve** — no blocking or material code findings remain | Reviewer correctly left sensory and downloaded-PDF evidence pending |
+| Conversation-policy and truthful-action repair | Deterministic effective-session checks plus six bounded typed live-provider sessions | `6004c8a` | Implemented; 110/110 frontend, 76/76 Realtime backend, 10/10 browser, and 22/22 zero-skip OpenPDF checks pass. Live sessions preserved two policy failures and drove `.2`–`.4`; final targeted rerun passed. | Small typed sample is not universal quality or physical-microphone evidence; scoped independent re-review recorded in `conversation-behavior-repair.md` |
 | Direct spoken transcript/candidate and exact spoken confirmation | Human microphone/provider/application evidence | Pending | **Not yet verified** | Requires the user at the prepared local application |
 | Audible exact playback and downloaded-PDF inspection | Human sensory and document evidence | Pending | **Not yet verified** | Requires human hearing and inspection of the session export |
 
