@@ -900,6 +900,14 @@ export const workspaceMachine = setup({
         listening: {
           id: "claros-v2-direct-listening",
           on: {
+            VOICE_STATE_CHANGED: [
+              {
+                guard: "reportedVoiceIsReady",
+                target: "ready",
+                actions: "setReportedVoiceState",
+              },
+              { actions: "setReportedVoiceState" },
+            ],
             VOICE_CAPTURED: {
               target: "captured",
               actions: "captureVoiceCandidate",
@@ -966,6 +974,7 @@ export const workspaceMachine = setup({
           id: "claros-v2-guided-ready",
           on: {
             VOICE_START: { target: "listening", actions: "setVoiceListening" },
+            GUIDED_REPLY: { actions: "appendClarosTurn" },
             GUIDED_STUDENT_TURN: {
               target: "thinking",
               actions: ["appendStudentTurn", "setVoiceThinking"],
@@ -979,6 +988,14 @@ export const workspaceMachine = setup({
         },
         listening: {
           on: {
+            VOICE_STATE_CHANGED: [
+              {
+                guard: "reportedVoiceIsReady",
+                target: "ready",
+                actions: "setReportedVoiceState",
+              },
+              { actions: "setReportedVoiceState" },
+            ],
             GUIDED_STUDENT_TURN: {
               target: "thinking",
               actions: ["appendStudentTurn", "setVoiceThinking"],
@@ -1004,6 +1021,7 @@ export const workspaceMachine = setup({
         speaking: {
           on: {
             INTERRUPT: { target: "ready", actions: "setVoiceInterrupted" },
+            GUIDED_REPLY: { actions: "appendClarosTurn" },
             VOICE_STATE_CHANGED: [
               {
                 guard: "reportedVoiceIsReady",

@@ -312,7 +312,7 @@ def _safety_identifier(subject: str) -> str:
     if not isinstance(subject, str) or not subject or len(subject) > 512:
         raise configuration_error()
     digest = hashlib.sha256(f"claros-realtime\0{subject}".encode()).hexdigest()
-    return f"claros_{digest}"
+    return f"claros_{digest[:57]}"
 
 
 def _aware_utc(value: datetime) -> datetime:

@@ -13,6 +13,7 @@ type EventName =
   | "audio_start"
   | "audio_stopped"
   | "audio_interrupted"
+  | "agent_end"
   | "error";
 
 const credential = (sequence = 1) => ({
@@ -31,7 +32,7 @@ class FakeSession {
   readonly close = vi.fn();
   private readonly listeners = new Map<
     EventName,
-    Set<(value?: unknown) => void>
+    Set<(...values: unknown[]) => void>
   >();
   readonly transport = {
     on: (
@@ -45,14 +46,14 @@ class FakeSession {
     status: "connecting" | "connected" | "disconnected",
   ) => void;
 
-  on(event: EventName, listener: (value?: unknown) => void): void {
+  on(event: EventName, listener: (...values: unknown[]) => void): void {
     const listeners = this.listeners.get(event) ?? new Set();
     listeners.add(listener);
     this.listeners.set(event, listeners);
   }
 
-  emit(event: EventName, value?: unknown): void {
-    for (const listener of this.listeners.get(event) ?? []) listener(value);
+  emit(event: EventName, ...values: unknown[]): void {
+    for (const listener of this.listeners.get(event) ?? []) listener(...values);
   }
 
   emitConnection(status: "connecting" | "connected" | "disconnected"): void {
@@ -183,11 +184,26 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
       delta: "Good. ",
     });
     sessions[0].emit("transport_event", {
-      type: "response.output_audio_transcript.done",
-      event_id: "evt_claros_done",
-      transcript: "Good. State your final answer.",
+      type: "response.output_audio.delta",
+      event_id: "evt_claros_audio_delta",
+      delta: "not-retained-audio",
     });
-    sessions[0].emit("audio_start");
+    sessions[0].emit("transport_event", {
+      type: "response.output_audio_transcript.done",
+      event_id: "evt_claros_part_one",
+      transcript: "Good.",
+    });
+    sessions[0].emit("transport_event", {
+      type: "response.output_audio_transcript.delta",
+      event_id: "evt_claros_delta_two",
+      delta: "State your final answer.",
+    });
+    sessions[0].emit("transport_event", {
+      type: "response.output_audio_transcript.done",
+      event_id: "evt_claros_part_two",
+      transcript: "State your final answer.",
+    });
+    sessions[0].emit("agent_end", {}, {}, "Good. State your final answer.");
     sessions[0].emit("audio_stopped");
     sessions[0].emit("audio_interrupted");
 
@@ -209,6 +225,12 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
           type: "transcript",
           speaker: "claros",
           final: false,
+        }),
+        expect.objectContaining({
+          type: "transcript",
+          speaker: "claros",
+          text: "Good. State your final answer.",
+          final: true,
         }),
         expect.objectContaining({ type: "voice_state", state: "listening" }),
         expect.objectContaining({ type: "voice_state", state: "thinking" }),
@@ -320,6 +342,13 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
     expect(playback.cancel).toHaveBeenCalledOnce();
     expect(events).toContainEqual(
       expect.objectContaining({
+        id: expect.stringContaining("ready-after-stop"),
+        type: "voice_state",
+        state: "ready",
+      }),
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({
         type: "playback_complete",
         exactText: "My exact answer.",
       }),
@@ -341,6 +370,29 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
         code: "realtime_disconnected",
       }),
     );
+  });
+
+  it("does not finalize a partial assistant transcript after interruption", async () => {
+    const { adapter, events, sessions } = setup();
+    await adapter.connect(connectOptions);
+
+    sessions[0].emit("transport_event", {
+      type: "response.created",
+      event_id: "evt_response_created",
+    });
+    sessions[0].emit("transport_event", {
+      type: "response.output_audio_transcript.done",
+      event_id: "evt_partial_done",
+      transcript: "This reply was interrupted",
+    });
+    adapter.interrupt();
+    sessions[0].emit("agent_end", {}, {}, "This reply was interrupted");
+
+    expect(
+      events.filter(
+        (event) => event.type === "transcript" && event.speaker === "claros",
+      ),
+    ).toEqual([]);
   });
 
   it("surfaces a disconnect when the single automatic reconnect fails", async () => {

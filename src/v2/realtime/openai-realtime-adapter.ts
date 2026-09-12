@@ -27,6 +27,10 @@ type RealtimeSessionLike = {
   on(event: "audio_start", listener: () => void): void;
   on(event: "audio_stopped", listener: () => void): void;
   on(event: "audio_interrupted", listener: () => void): void;
+  on(
+    event: "agent_end",
+    listener: (context: unknown, agent: unknown, output: string) => void,
+  ): void;
   on(event: "error", listener: (error: unknown) => void): void;
   connect(options: { apiKey: string; model: string }): Promise<void>;
   sendMessage(message: string, otherEventData?: Record<string, unknown>): void;
@@ -76,6 +80,43 @@ const candidateActionSchema = z.object({
 });
 type CandidateActionInput = z.infer<typeof candidateActionSchema>;
 
+class SilentInputWebRTC extends OpenAIRealtimeWebRTC {
+  private closed = false;
+
+  constructor(
+    stream: MediaStream,
+    private readonly releaseInput: () => void,
+  ) {
+    super({ mediaStream: stream });
+  }
+
+  override close(): void {
+    try {
+      super.close();
+    } finally {
+      if (!this.closed) {
+        this.closed = true;
+        this.releaseInput();
+      }
+    }
+  }
+}
+
+const createSilentInputTransport = () => {
+  const context = new AudioContext();
+  const source = context.createConstantSource();
+  const gain = context.createGain();
+  const destination = context.createMediaStreamDestination();
+  gain.gain.value = 0;
+  source.connect(gain).connect(destination);
+  source.start();
+  return new SilentInputWebRTC(destination.stream, () => {
+    source.stop();
+    for (const track of destination.stream.getTracks()) track.stop();
+    void context.close().catch(() => undefined);
+  });
+};
+
 const defaultSessionFactory: SessionFactory = ({
   instructions,
   microphone,
@@ -112,9 +153,7 @@ const defaultSessionFactory: SessionFactory = ({
       }),
     ],
   });
-  const transport = microphone
-    ? "webrtc"
-    : new OpenAIRealtimeWebRTC({ mediaStream: new MediaStream() });
+  const transport = microphone ? "webrtc" : createSilentInputTransport();
   return new RealtimeSession(agent, {
     transport,
     model: "gpt-realtime-2.1",
@@ -180,6 +219,9 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
   private destroyed = false;
   private reconnectUsed = false;
   private reconnecting = false;
+  private assistantTranscriptParts: string[] = [];
+  private assistantAudioActive = false;
+  private assistantResponseInterrupted = false;
 
   constructor(
     private readonly credentialProvider: CredentialProvider = issueRealtimeCredential,
@@ -221,11 +263,18 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
 
   stopListening(): RealtimeOperation {
     this.session?.mute(true);
+    this.emit({
+      id: this.nextEventId("ready-after-stop"),
+      type: "voice_state",
+      state: "ready",
+    });
     return this.record("stop");
   }
 
   interrupt(): RealtimeOperation {
     this.session?.interrupt();
+    this.assistantAudioActive = false;
+    this.assistantResponseInterrupted = true;
     this.emit({
       id: this.nextEventId("interrupted"),
       type: "voice_state",
@@ -300,6 +349,9 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
 
   private async openSession(): Promise<void> {
     if (!this.options || this.destroyed) return;
+    this.assistantAudioActive = false;
+    this.assistantTranscriptParts = [];
+    this.assistantResponseInterrupted = false;
     this.session?.close();
     this.session = null;
     try {
@@ -369,6 +421,7 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
     });
     session.on("audio_stopped", () => {
       if (isCurrent()) {
+        this.assistantAudioActive = false;
         this.emit({
           id: this.nextEventId("audio-stopped"),
           type: "voice_state",
@@ -378,12 +431,16 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
     });
     session.on("audio_interrupted", () => {
       if (isCurrent()) {
+        this.assistantAudioActive = false;
         this.emit({
           id: this.nextEventId("audio-interrupted"),
           type: "voice_state",
           state: "interrupted",
         });
       }
+    });
+    session.on("agent_end", (_context, _agent, output) => {
+      if (isCurrent()) this.finishAssistantTranscript(output);
     });
     session.on("error", (error) => {
       if (isCurrent()) this.handleConnectionFailure(error);
@@ -425,6 +482,7 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
       return;
     }
     if (event.type === "response.output_audio_transcript.delta") {
+      this.emitAssistantSpeaking(eventId);
       this.emit({
         id: eventId,
         type: "transcript",
@@ -434,19 +492,46 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
       });
       return;
     }
+    if (event.type === "response.output_audio.delta") {
+      this.emitAssistantSpeaking(eventId);
+      return;
+    }
     if (event.type === "response.output_audio_transcript.done") {
-      this.emit({
-        id: eventId,
-        type: "transcript",
-        speaker: "claros",
-        text: String(event.transcript),
-        final: true,
-      });
+      const transcript = String(event.transcript).trim();
+      if (transcript) this.assistantTranscriptParts.push(transcript);
       return;
     }
     if (event.type === "response.created") {
+      this.assistantTranscriptParts = [];
+      this.assistantAudioActive = false;
+      this.assistantResponseInterrupted = false;
       this.emit({ id: eventId, type: "voice_state", state: "thinking" });
     }
+  }
+
+  private emitAssistantSpeaking(eventId: string): void {
+    if (this.assistantAudioActive) return;
+    this.assistantAudioActive = true;
+    this.emit({
+      id: `${eventId}-speaking`,
+      type: "voice_state",
+      state: "speaking",
+    });
+  }
+
+  private finishAssistantTranscript(output: string): void {
+    const buffered = this.assistantTranscriptParts.join(" ").trim();
+    this.assistantTranscriptParts = [];
+    if (this.assistantResponseInterrupted) return;
+    const transcript = buffered || output.trim();
+    if (!transcript) return;
+    this.emit({
+      id: this.nextEventId("assistant-final"),
+      type: "transcript",
+      speaker: "claros",
+      text: transcript,
+      final: true,
+    });
   }
 
   private handleCandidate(input: DraftCandidateInput): string {

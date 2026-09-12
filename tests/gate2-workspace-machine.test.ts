@@ -76,6 +76,11 @@ describe("Claros V2 workspace machine", () => {
 
     actor.send({ type: "VOICE_START" });
     expect(actor.getSnapshot().matches({ guided: "listening" })).toBe(true);
+    actor.send({ type: "VOICE_STATE_CHANGED", state: "ready" });
+    expect(actor.getSnapshot().matches({ guided: "ready" })).toBe(true);
+
+    actor.send({ type: "VOICE_START" });
+    expect(actor.getSnapshot().matches({ guided: "listening" })).toBe(true);
     actor.send({
       type: "GUIDED_STUDENT_TURN",
       text: "Light gives the plant energy.",
@@ -85,8 +90,29 @@ describe("Claros V2 workspace machine", () => {
       text: "Now say the complete answer in your words.",
     });
     actor.send({ type: "VOICE_SPEAKING" });
+    actor.send({ type: "GUIDED_REPLY", text: "A complete spoken reply." });
+    expect(actor.getSnapshot().context.guidedTurns.at(-1)?.text).toBe(
+      "A complete spoken reply.",
+    );
     actor.send({ type: "VOICE_STATE_CHANGED", state: "ready" });
     expect(actor.getSnapshot().matches({ guided: "ready" })).toBe(true);
+    expect(actor.getSnapshot().context.voiceState).toBe("ready");
+    actor.send({ type: "GUIDED_REPLY", text: "A late final transcript." });
+    expect(actor.getSnapshot().context.guidedTurns.at(-1)?.text).toBe(
+      "A late final transcript.",
+    );
+    actor.stop();
+  });
+
+  it("returns direct listening to ready when capture is stopped", () => {
+    const actor = startAssignment();
+    actor.send({ type: "CHOOSE_DIRECT" });
+    actor.send({ type: "VOICE_START" });
+    expect(actor.getSnapshot().matches({ direct: "listening" })).toBe(true);
+
+    actor.send({ type: "VOICE_STATE_CHANGED", state: "ready" });
+
+    expect(actor.getSnapshot().matches({ direct: "ready" })).toBe(true);
     expect(actor.getSnapshot().context.voiceState).toBe("ready");
     actor.stop();
   });

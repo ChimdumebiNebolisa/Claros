@@ -362,6 +362,16 @@ test("casual voice agreement cannot confirm while the exact phrase confirms only
   await expect(
     page.getByText(exactPhraseAnswer, { exact: true }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Continue to Question 2" }).click();
+  await page.getByRole("button", { name: "Start answering" }).click();
+  await expect(
+    page.getByLabel("Live captions").getByRole("status"),
+  ).toContainText(
+    "Spoken words will appear here without changing your answer.",
+  );
+  await expect(
+    page.getByLabel("Live captions").getByText("Use this exact answer"),
+  ).toHaveCount(0);
 });
 
 test("Realtime disconnect preserves a typed draft and completes through typing", async ({

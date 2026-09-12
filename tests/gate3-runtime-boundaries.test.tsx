@@ -591,6 +591,11 @@ describe("Gate 3 runtime boundaries", () => {
     await waitFor(() => expect(listener).toBeDefined());
     act(() => {
       listener?.({
+        id: "speaking_event",
+        type: "voice_state",
+        state: "speaking",
+      });
+      listener?.({
         id: "reply_event",
         type: "transcript",
         speaker: "claros",
@@ -598,6 +603,7 @@ describe("Gate 3 runtime boundaries", () => {
         final: true,
       });
     });
+    expect(screen.getAllByText("Now state your final answer.")).toHaveLength(2);
     expect(candidateRequest).toBeUndefined();
     await user.click(
       screen.getByRole("button", { name: "I am ready to answer" }),

@@ -172,7 +172,11 @@ export default function WorkspaceShell({
   const [isHearing, setHearing] = useState(false);
   const [autoAdvance, setAutoAdvance] = useState(false);
   const [captionsVisible, setCaptionsVisible] = useState(true);
-  const [captions, setCaptions] = useState({ student: "", claros: "" });
+  const [captions, setCaptions] = useState<{
+    questionId?: string;
+    student: string;
+    claros: string;
+  }>({ student: "", claros: "" });
   const [exportPollAttempt, setExportPollAttempt] = useState(0);
 
   const fixtureScenario = useMemo(() => {
@@ -187,6 +191,8 @@ export default function WorkspaceShell({
   const usesRealApi =
     !import.meta.env.DEV ||
     new URLSearchParams(location.search).get("runtime") === "api";
+  const runtimeSearch =
+    import.meta.env.DEV && usesRealApi ? "?runtime=api" : "";
   const routeKey = `${usesRealApi ? "api" : "fixture"}:${mode}:${assignmentId ?? ""}:${exportId ?? ""}:${fixtureScenario ?? ""}:${exportPollAttempt}`;
 
   useEffect(() => {
@@ -425,7 +431,7 @@ export default function WorkspaceShell({
       const timer = window.setTimeout(() => {
         actor.send({ type: "EXPORT_SUCCEEDED", result: fixtureExportResult });
         navigate(
-          `/app/${context.assignment?.id ?? assignmentId ?? "fixture-biology"}/export/${fixtureExportResult.id}`,
+          `/app/${context.assignment?.id ?? assignmentId ?? "fixture-biology"}/export/${fixtureExportResult.id}${runtimeSearch}`,
         );
       }, 450);
       return () => window.clearTimeout(timer);
@@ -438,6 +444,7 @@ export default function WorkspaceShell({
     context.error,
     fixtureScenario,
     navigate,
+    runtimeSearch,
     snapshot,
     usesRealApi,
   ]);
@@ -502,12 +509,22 @@ export default function WorkspaceShell({
       }
 
       if (event.type === "transcript") {
-        setCaptions((previous) => ({
-          ...previous,
-          [event.speaker]: event.final
-            ? event.text
-            : `${previous[event.speaker]}${event.text}`,
-        }));
+        const activeQuestionId =
+          current.context.assignment?.questions[
+            current.context.activeQuestionIndex
+          ]?.id;
+        setCaptions((previous) => {
+          const scoped =
+            previous.questionId === activeQuestionId
+              ? previous
+              : { questionId: activeQuestionId, student: "", claros: "" };
+          return {
+            ...scoped,
+            [event.speaker]: event.final
+              ? event.text
+              : `${scoped[event.speaker]}${event.text}`,
+          };
+        });
         if (!event.final) return;
 
         if (
@@ -530,7 +547,9 @@ export default function WorkspaceShell({
         }
         if (
           event.speaker === "claros" &&
-          current.matches({ guided: "thinking" })
+          (current.matches({ guided: "thinking" }) ||
+            current.matches({ guided: "speaking" }) ||
+            current.matches({ guided: "ready" }))
         ) {
           actor.send({ type: "GUIDED_REPLY", text: event.text });
         }
@@ -653,7 +672,11 @@ export default function WorkspaceShell({
         realtimeAdapterKindRef.current = "real";
         realtimeMicrophoneRef.current = microphone;
         realtimeConnectionKeyRef.current = connectionKey;
-        setCaptions({ student: "", claros: "" });
+        setCaptions({
+          questionId: currentQuestion.id,
+          student: "",
+          claros: "",
+        });
         try {
           await adapter.connect({
             assignmentId: currentAssignment.id,
@@ -696,7 +719,11 @@ export default function WorkspaceShell({
       realtimeAdapterKindRef.current = "fake";
       realtimeMicrophoneRef.current = microphone;
       realtimeConnectionKeyRef.current = connectionKey;
-      setCaptions({ student: "", claros: "" });
+      setCaptions({
+        questionId: currentQuestion.id,
+        student: "",
+        claros: "",
+      });
       return { kind: "fake" as const, adapter, realtime };
     },
     [actor, handleRealtimeEvent, releaseRealtimeAdapter, usesRealApi],
@@ -1238,7 +1265,8 @@ export default function WorkspaceShell({
     const assignment = current.assignment;
     if (!usesRealApi || !assignment) {
       actor.send({ type: "EDIT_ANSWER", questionId });
-      if (navigateAfter) navigate(`/app/${assignment?.id ?? assignmentId}`);
+      if (navigateAfter)
+        navigate(`/app/${assignment?.id ?? assignmentId}${runtimeSearch}`);
       return;
     }
     if (mutationPendingRef.current) return;
@@ -1261,7 +1289,7 @@ export default function WorkspaceShell({
         editSeed: revision.edit_seed,
         version: revision.version,
       });
-      if (navigateAfter) navigate(`/app/${assignment.id}`);
+      if (navigateAfter) navigate(`/app/${assignment.id}${runtimeSearch}`);
     } catch (error) {
       actor.send({
         type: "REQUEST_FAILED",
@@ -1328,7 +1356,9 @@ export default function WorkspaceShell({
           result: mapped.result,
           version: mapped.version,
         });
-        navigate(`/app/${assignment.id}/export/${exported.export_id}`);
+        navigate(
+          `/app/${assignment.id}/export/${exported.export_id}${runtimeSearch}`,
+        );
       } else if (mapped.kind === "failed") {
         exportIdempotencyRef.current = null;
         actor.send({
@@ -1338,7 +1368,9 @@ export default function WorkspaceShell({
         });
       } else {
         actor.send({ type: "EXPORT_PENDING", version: mapped.version });
-        navigate(`/app/${assignment.id}/export/${exported.export_id}`);
+        navigate(
+          `/app/${assignment.id}/export/${exported.export_id}${runtimeSearch}`,
+        );
       }
     } catch (error) {
       actor.send({
@@ -1523,6 +1555,10 @@ export default function WorkspaceShell({
     snapshot,
   ]);
 
+  const displayedCaptions =
+    captions.questionId === question?.id
+      ? captions
+      : { student: "", claros: "" };
   const liveCaptions = (
     <section
       className={answerPathStyles.liveCaptions}
@@ -1549,19 +1585,19 @@ export default function WorkspaceShell({
           aria-live="polite"
           aria-atomic="true"
         >
-          {captions.student ? (
+          {displayedCaptions.student ? (
             <p className={answerPathStyles.captionLine}>
               <strong>You</strong>
-              <span>{captions.student}</span>
+              <span>{displayedCaptions.student}</span>
             </p>
           ) : null}
-          {captions.claros ? (
+          {displayedCaptions.claros ? (
             <p className={answerPathStyles.captionLine}>
               <strong>Claros</strong>
-              <span>{captions.claros}</span>
+              <span>{displayedCaptions.claros}</span>
             </p>
           ) : null}
-          {!captions.student && !captions.claros ? (
+          {!displayedCaptions.student && !displayedCaptions.claros ? (
             <p className={answerPathStyles.captionPlaceholder}>
               Spoken words will appear here without changing your answer.
             </p>
@@ -1574,7 +1610,7 @@ export default function WorkspaceShell({
   const openReview = () => {
     actor.send({ type: "OPEN_WORKSHEET_REVIEW" });
     navigate(
-      `/app/${assignment?.id ?? assignmentId ?? "fixture-biology"}/review`,
+      `/app/${assignment?.id ?? assignmentId ?? "fixture-biology"}/review${runtimeSearch}`,
     );
   };
 
@@ -1653,7 +1689,7 @@ export default function WorkspaceShell({
           }
           onStart={() => {
             actor.send({ type: "START_QUESTION" });
-            navigate(`/app/${assignment.id}`);
+            navigate(`/app/${assignment.id}${runtimeSearch}`);
           }}
           onViewWorksheet={() => setWorksheetOpen(true)}
         />
@@ -1811,7 +1847,7 @@ export default function WorkspaceShell({
           onContinue={() => {
             actor.send({ type: "CONTINUE_TO_NEXT" });
             if (!nextQuestionNumber) {
-              navigate(`/app/${assignment.id}/review`);
+              navigate(`/app/${assignment.id}/review${runtimeSearch}`);
             }
           }}
         />
@@ -1827,7 +1863,7 @@ export default function WorkspaceShell({
           }}
           onGoToQuestion={(questionId) => {
             actor.send({ type: "GO_TO_QUESTION", questionId });
-            navigate(`/app/${assignment.id}`);
+            navigate(`/app/${assignment.id}${runtimeSearch}`);
           }}
           onExport={() => void exportAssignment()}
         />
@@ -1879,7 +1915,7 @@ export default function WorkspaceShell({
         {assignment && !snapshot.matches("worksheetReview") ? (
           <Link
             className="v2-topbar-action"
-            to={`/app/${assignment.id}/review`}
+            to={`/app/${assignment.id}/review${runtimeSearch}`}
             onClick={() => actor.send({ type: "OPEN_WORKSHEET_REVIEW" })}
           >
             Review answers

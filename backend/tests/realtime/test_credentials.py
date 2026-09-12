@@ -85,6 +85,7 @@ async def test_issuer_returns_only_ephemeral_browser_credential_and_fixed_policy
     call = provider.calls[0]
     assert call.request == request
     assert call.safety_identifier.startswith("claros_")
+    assert len(call.safety_identifier) == 64
     assert "owner-internal-123" not in call.safety_identifier
     assert call.timeout_seconds == 2
 
