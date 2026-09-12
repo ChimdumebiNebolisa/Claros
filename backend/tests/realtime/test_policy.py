@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -22,6 +23,11 @@ from backend.realtime import (
     parse_realtime_tool_call,
     realtime_tool_definitions,
     voice_confirmation_intent,
+)
+
+_CONFIRMATION_CASES = json.loads(
+    (Path(__file__).resolve().parents[3] / "tests/fixtures/voice-confirmation-cases.json")
+    .read_text(encoding="utf-8")
 )
 
 
@@ -67,6 +73,8 @@ def test_session_configuration_exposes_only_bounded_intent_tools(
     assert tuple(tool["name"] for tool in definitions) == expected
     assert all(tool["parameters"]["additionalProperties"] is False for tool in definitions)
     assert "input_modality" not in definitions[0]["parameters"]["properties"]
+    assert definitions[1]["parameters"]["properties"] == {}
+    assert definitions[3]["parameters"]["properties"] == {}
     serialized = request.model_dump_json()
     for forbidden in (
         '"approve_for_student"',
@@ -161,12 +169,12 @@ def test_candidate_actions_require_current_candidate_and_candidate_ready_phase(
 
     rephrase = parse_realtime_tool_call(
         name="request_rephrase",
-        arguments='{"candidate_id":"cand_realtime_test"}',
+        arguments="{}",
         context=context,
     )
     review = parse_realtime_tool_call(
         name="enter_exact_review",
-        arguments={"candidate_id": "cand_realtime_test"},
+        arguments={},
         context=context,
     )
 
@@ -217,18 +225,18 @@ def test_forbidden_or_malformed_tool_calls_fail_closed(
     assert raised.value.code == expected_code
 
 
-def test_tool_call_cannot_select_a_different_candidate_or_run_in_wrong_phase(
+def test_tool_call_cannot_supply_a_candidate_or_run_in_wrong_phase(
     context_factory: Callable[..., RealtimeSessionContext],
     candidate: CandidateBinding,
 ) -> None:
     candidate_ready = context_factory(phase="candidate_ready", current_candidate=candidate)
-    with pytest.raises(RealtimeError) as wrong_candidate:
+    with pytest.raises(RealtimeError) as forged_candidate:
         parse_realtime_tool_call(
             name="enter_exact_review",
             arguments={"candidate_id": "cand_someone_elses"},
             context=candidate_ready,
         )
-    assert wrong_candidate.value.code == "realtime_tool_payload_invalid"
+    assert forged_candidate.value.code == "realtime_tool_payload_invalid"
 
     exact_review = context_factory(
         phase="exact_review",
@@ -252,16 +260,7 @@ def test_tool_call_cannot_select_a_different_candidate_or_run_in_wrong_phase(
 
 @pytest.mark.parametrize(
     "transcript",
-    [
-        "yes",
-        "okay",
-        "sounds good",
-        "use it",
-        "I agree",
-        "Use this exact answer.",
-        "use this exact answer",
-        "Use this exact answer please",
-    ],
+    _CONFIRMATION_CASES["rejected"],
 )
 def test_casual_or_inexact_agreement_never_creates_confirmation_intent(
     context_factory: Callable[..., RealtimeSessionContext],
@@ -285,9 +284,14 @@ def test_casual_or_inexact_agreement_never_creates_confirmation_intent(
     )
 
 
-def test_exact_voice_phrase_only_emits_intent_after_ready_exact_review(
+@pytest.mark.parametrize(
+    "transcript",
+    _CONFIRMATION_CASES["accepted"],
+)
+def test_exact_voice_words_only_emit_intent_after_ready_exact_review(
     context_factory: Callable[..., RealtimeSessionContext],
     candidate: CandidateBinding,
+    transcript: str,
 ) -> None:
     ready = context_factory(
         phase="exact_review",
@@ -296,7 +300,7 @@ def test_exact_voice_phrase_only_emits_intent_after_ready_exact_review(
         hear_it_offered=True,
     )
     intent = voice_confirmation_intent(
-        transcript=f"  {VOICE_CONFIRMATION_PHRASE}  ",
+        transcript=transcript,
         input_modality="audio",
         speaker="student",
         context=ready,

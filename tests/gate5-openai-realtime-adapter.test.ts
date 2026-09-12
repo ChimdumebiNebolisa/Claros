@@ -302,9 +302,28 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
     );
   });
 
-  it("routes typed turns and candidate-scoped application intents", async () => {
+  it("does not erase numeric or operator punctuation while matching a source turn", async () => {
+    const unsafePairs = [
+      ["-5", "5"],
+      ["1.5", "15"],
+      ["1/2", "12"],
+      ["x+y", "xy"],
+      ["1,000", "1000"],
+    ] as const;
+
+    for (const [spoken, changed] of unsafePairs) {
+      const { adapter, factoryOptions } = setup();
+      await adapter.connect({ ...connectOptions, currentCandidate: undefined });
+      adapter.sendTypedTurn(spoken);
+      expect(factoryOptions[0].onCandidate({ exact_text: changed })).toContain(
+        "Rejected",
+      );
+    }
+  });
+
+  it("routes typed turns and binds current-draft intents without an opaque model ID", async () => {
     const { adapter, events, factoryOptions } = setup();
-    await adapter.connect(connectOptions);
+    await adapter.connect({ ...connectOptions, currentCandidate: undefined });
 
     adapter.sendTypedTurn("Plants use light energy.");
     factoryOptions[0].onCandidate({
@@ -316,23 +335,14 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
       input: "typed",
       normalization: "none",
     });
-    expect(factoryOptions[0].onRephrase({ candidate_id: "stale" })).toContain(
-      "Rejected",
-    );
-    factoryOptions[0].onRephrase({ candidate_id: "cand_1" });
-    factoryOptions[0].onExactReview({ candidate_id: "cand_1" });
+    factoryOptions[0].onRephrase({});
+    factoryOptions[0].onExactReview({});
 
     expect(events).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ type: "candidate", input: "typed" }),
-        expect.objectContaining({
-          type: "request_rephrase",
-          candidateId: "cand_1",
-        }),
-        expect.objectContaining({
-          type: "enter_exact_review",
-          candidateId: "cand_1",
-        }),
+        expect.objectContaining({ type: "request_rephrase" }),
+        expect.objectContaining({ type: "enter_exact_review" }),
       ]),
     );
   });
@@ -383,7 +393,7 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
     complete();
     adapter.destroy();
 
-    expect(sessions[0].mute.mock.calls).toEqual([[false], [true]]);
+    expect(sessions[0].mute.mock.calls).toEqual([[true], [false], [true]]);
     expect(sessions[0].setOutputMuted).toHaveBeenCalledWith(true);
     expect(sessions[0].interrupt).toHaveBeenCalledOnce();
     expect(sessions[0].close).toHaveBeenCalledOnce();
@@ -418,6 +428,18 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
         code: "realtime_disconnected",
       }),
     );
+  });
+
+  it("preserves a manual input pause through automatic reconnect", async () => {
+    const { adapter, sessions } = setup();
+    await adapter.connect(connectOptions);
+    adapter.startListening();
+    adapter.stopListening();
+
+    sessions[0].emitConnection("disconnected");
+    await vi.waitFor(() => expect(sessions).toHaveLength(2));
+
+    expect(sessions[1].mute).toHaveBeenLastCalledWith(true);
   });
 
   it("preserves recent conversation in the automatic reconnect prompt", async () => {

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import hmac
 import json
+import re
 from collections.abc import Collection, Mapping
 from typing import Any, cast
 
@@ -14,7 +14,6 @@ from backend.realtime.models import (
     DraftCandidateIntent,
     EnterExactReviewIntent,
     ExactText,
-    Identifier,
     InputModality,
     NavigateQuestionIntent,
     RealtimeActionIntent,
@@ -77,8 +76,8 @@ class _DraftArguments(StrictModel):
         return self
 
 
-class _CandidateArguments(StrictModel):
-    candidate_id: Identifier
+class _CurrentDraftArguments(StrictModel):
+    pass
 
 
 class _NavigateArguments(StrictModel):
@@ -163,10 +162,8 @@ def realtime_tool_definitions() -> tuple[dict[str, Any], ...]:
             "parameters": {
                 "type": "object",
                 "additionalProperties": False,
-                "properties": {
-                    "candidate_id": {"type": "string", "minLength": 1, "maxLength": 128}
-                },
-                "required": ["candidate_id"],
+                "properties": {},
+                "required": [],
             },
         },
         {
@@ -195,10 +192,8 @@ def realtime_tool_definitions() -> tuple[dict[str, Any], ...]:
             "parameters": {
                 "type": "object",
                 "additionalProperties": False,
-                "properties": {
-                    "candidate_id": {"type": "string", "minLength": 1, "maxLength": 128}
-                },
-                "required": ["candidate_id"],
+                "properties": {},
+                "required": [],
             },
         },
     )
@@ -257,11 +252,9 @@ def parse_realtime_tool_call(
                 question_index=target.question_index,
             )
 
-        parsed_candidate = _CandidateArguments.model_validate_json(payload, strict=True)
+        _CurrentDraftArguments.model_validate_json(payload, strict=True)
         current = context.current_candidate
-        if current is None or not hmac.compare_digest(
-            parsed_candidate.candidate_id, current.candidate_id
-        ):
+        if current is None:
             raise tool_payload_error()
         if name == "request_rephrase":
             if context.phase != "candidate_ready":
@@ -304,7 +297,12 @@ def voice_confirmation_intent(
         or not context.hear_it_offered
         or context.current_candidate is None
         or len(transcript) > 256
-        or transcript.strip() != VOICE_CONFIRMATION_PHRASE
+        or re.fullmatch(
+            r"use this exact answer[.!]?",
+            transcript.strip(),
+            flags=re.IGNORECASE,
+        )
+        is None
     ):
         return None
     candidate = context.current_candidate

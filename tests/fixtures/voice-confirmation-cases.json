@@ -1,0 +1,20 @@
+{
+  "accepted": [
+    "Use this exact answer",
+    "  Use this exact answer.  ",
+    "use this exact answer!",
+    "USE THIS EXACT ANSWER"
+  ],
+  "rejected": [
+    "yes",
+    "okay",
+    "sounds good",
+    "use it",
+    "I agree",
+    "Use this exact answer please",
+    "Please use this exact answer.",
+    "Use this exact answer, please",
+    "Use this exact answer?",
+    "Do not use this exact answer"
+  ]
+}

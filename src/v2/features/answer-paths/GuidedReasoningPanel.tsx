@@ -4,6 +4,7 @@ import { Button } from "@/components/base/buttons/button";
 import { TextArea } from "@/components/base/textarea/textarea";
 import type {
   ConversationTurn as ConversationTurnType,
+  CaptureState,
   Question,
   VoiceState,
 } from "../../domain/contracts";
@@ -20,6 +21,7 @@ export type GuidedReasoningPanelProps = {
   turns: readonly ConversationTurnType[];
   draft: string;
   voiceState: VoiceState;
+  captureState?: CaptureState;
   muted?: boolean;
   mode?: "conversation" | "final-answer";
   onDraftChange: (value: string) => void;
@@ -94,6 +96,7 @@ export function GuidedReasoningPanel({
   turns,
   draft,
   voiceState,
+  captureState,
   muted,
   mode = "conversation",
   onDraftChange,
@@ -121,6 +124,7 @@ export function GuidedReasoningPanel({
 
       <VoiceStateControl
         state={voiceState}
+        captureState={captureState}
         muted={muted}
         onStart={onStart}
         onStop={onStop}

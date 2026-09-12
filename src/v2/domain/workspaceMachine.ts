@@ -2,7 +2,9 @@ import { assign, setup } from "xstate";
 import type {
   AnswerPath,
   Assignment,
+  CaptureState,
   Candidate,
+  CandidateOrigin,
   ConfirmedAnswer,
   ConversationTurn,
   ExportResult,
@@ -10,7 +12,7 @@ import type {
   ReviewSnapshot,
   VoiceState,
 } from "./contracts";
-import { CANONICAL_CONFIRMATION_PHRASE } from "./contracts";
+import { isCanonicalVoiceConfirmation } from "./contracts";
 import {
   appendixCandidateText,
   candidateFor,
@@ -57,9 +59,20 @@ export type WorkspaceContext = {
   confirmedAnswers: Readonly<Record<string, ConfirmedAnswer>>;
   guidedTurns: readonly ConversationTurn[];
   voiceState: VoiceState;
+  captureState: CaptureState;
+  contextEpoch: number;
+  drafts: Readonly<Record<string, QuestionDraft>>;
   muted: boolean;
   error: RecoverableError | null;
   exportResult: ExportResult | null;
+};
+
+export type QuestionDraft = {
+  text: string;
+  origin: CandidateOrigin;
+  localRevision: number;
+  dirty: boolean;
+  acknowledgedCandidate?: Candidate;
 };
 
 export type WorkspaceEvent =
@@ -78,6 +91,7 @@ export type WorkspaceEvent =
   | { type: "CHOOSE_GUIDED" }
   | { type: "TYPE_INSTEAD" }
   | { type: "VOICE_START" }
+  | { type: "VOICE_STOP" }
   | { type: "VOICE_CAPTURED"; text: string }
   | { type: "VOICE_STATE_CHANGED"; state: VoiceState }
   | { type: "VOICE_THINKING" }
@@ -89,7 +103,14 @@ export type WorkspaceEvent =
   | { type: "TOGGLE_MUTE" }
   | { type: "INTERRUPT" }
   | { type: "CANDIDATE_CHANGED"; value: string }
-  | { type: "CANDIDATE_PERSISTED"; candidate: Candidate; version: number }
+  | {
+      type: "CANDIDATE_PERSISTED";
+      candidate: Candidate;
+      version: number;
+      questionId?: string;
+      localRevision?: number;
+      contextEpoch?: number;
+    }
   | {
       type: "GUIDED_STUDENT_TURN";
       text: string;
@@ -168,6 +189,9 @@ export function createInitialWorkspaceContext(): WorkspaceContext {
     confirmedAnswers: {},
     guidedTurns: [],
     voiceState: "ready",
+    captureState: "inactive",
+    contextEpoch: 0,
+    drafts: {},
     muted: false,
     error: null,
     exportResult: null,
@@ -227,14 +251,29 @@ function contextForScenario(scenario: FixtureScenario): WorkspaceContext {
   if (scenario === "ready" || scenario === "question-choice") return context;
 
   if (scenario === "direct-listening") {
-    return { ...context, path: "direct", voiceState: "listening" };
+    return {
+      ...context,
+      path: "direct",
+      voiceState: "listening",
+      captureState: "active",
+    };
   }
   if (scenario === "direct-captured") {
     return {
       ...context,
       path: "direct",
       voiceState: "captured",
+      captureState: "active",
       candidate: direct,
+      drafts: {
+        [direct.questionId]: {
+          text: direct.text,
+          origin: direct.origin,
+          localRevision: 1,
+          dirty: false,
+          acknowledgedCandidate: direct,
+        },
+      },
     };
   }
   if (scenario === "voice-unavailable") {
@@ -242,6 +281,7 @@ function contextForScenario(scenario: FixtureScenario): WorkspaceContext {
       ...context,
       path: "direct",
       voiceState: "microphone_unavailable",
+      captureState: "paused",
       candidate: candidateFor(
         fixtureAssignment.questions[0].id,
         "Plants need sunlight because",
@@ -393,14 +433,11 @@ export const workspaceMachine = setup({
         context.activeQuestionIndex < context.assignment.questions.length - 1,
       ),
     cameFromGuided: ({ context }) => context.path === "guided",
-    isExactVoiceConfirmation: ({ event }) =>
-      event.type === "VOICE_CONFIRMATION" &&
-      event.phrase === CANONICAL_CONFIRMATION_PHRASE,
     reportedVoiceIsReady: ({ event }) =>
       event.type === "VOICE_STATE_CHANGED" && event.state === "ready",
     hasCurrentExactVoiceConfirmation: ({ context, event }) =>
       event.type === "VOICE_CONFIRMATION" &&
-      event.phrase === CANONICAL_CONFIRMATION_PHRASE &&
+      isCanonicalVoiceConfirmation(event.phrase) &&
       Boolean(
         context.review &&
         context.candidate &&
@@ -424,6 +461,17 @@ export const workspaceMachine = setup({
             confirmedAnswers: event.confirmedAnswers ?? {},
             activeQuestionIndex: event.activeQuestionIndex ?? 0,
             candidate: event.candidate ?? null,
+            drafts: event.candidate
+              ? {
+                  [event.candidate.questionId]: {
+                    text: event.candidate.text,
+                    origin: event.candidate.origin,
+                    localRevision: 0,
+                    dirty: false,
+                    acknowledgedCandidate: event.candidate,
+                  },
+                }
+              : {},
             error: null,
           }
         : { assignment: cloneAssignment(), error: null },
@@ -462,18 +510,28 @@ export const workspaceMachine = setup({
     }),
     setVoiceListening: assign({
       voiceState: () => "listening" as const,
+      captureState: () => "active" as const,
       error: () => null,
     }),
     setVoiceThinking: assign({ voiceState: () => "thinking" as const }),
     setVoiceSpeaking: assign({ voiceState: () => "speaking" as const }),
     setReportedVoiceState: assign(({ event }) =>
-      event.type === "VOICE_STATE_CHANGED" ? { voiceState: event.state } : {},
+      event.type === "VOICE_STATE_CHANGED"
+        ? {
+            voiceState: event.state,
+            ...(event.state === "listening"
+              ? { captureState: "active" as const }
+              : {}),
+          }
+        : {},
     ),
+    setCapturePaused: assign({ captureState: () => "paused" as const }),
     setVoiceInterrupted: assign({
       voiceState: () => "interrupted" as const,
     }),
     setMicrophoneUnavailable: assign({
       voiceState: () => "microphone_unavailable" as const,
+      captureState: () => "paused" as const,
       error: () => ({
         code: "microphone_unavailable",
         message: "Microphone unavailable",
@@ -495,6 +553,7 @@ export const workspaceMachine = setup({
         context.assignment?.questions[context.activeQuestionIndex];
       if (!question) return {};
       const changed = context.candidate?.text !== event.value;
+      const priorDraft = context.drafts[question.id];
       const origin = context.candidate
         ? changed
           ? "student_edited"
@@ -502,13 +561,26 @@ export const workspaceMachine = setup({
         : context.path === "guided"
           ? "student_after_guidance"
           : "student_verbatim";
+      const candidate = candidateFor(
+        question.id,
+        event.value,
+        origin,
+        (context.candidate?.version ?? 0) + (changed ? 1 : 0),
+      );
+      const localRevision =
+        (priorDraft?.localRevision ?? 0) + (changed ? 1 : 0);
       return {
-        candidate: candidateFor(
-          question.id,
-          event.value,
-          origin,
-          (context.candidate?.version ?? 0) + (changed ? 1 : 0),
-        ),
+        candidate,
+        drafts: {
+          ...context.drafts,
+          [question.id]: {
+            text: candidate.text,
+            origin: candidate.origin,
+            localRevision,
+            dirty: true,
+            acknowledgedCandidate: priorDraft?.acknowledgedCandidate,
+          },
+        },
         review: null,
         suggestion: null,
         originalCandidate: null,
@@ -517,32 +589,66 @@ export const workspaceMachine = setup({
         voiceState: "captured" as const,
       };
     }),
-    setPersistedCandidate: assign(({ context, event }) =>
-      event.type === "CANDIDATE_PERSISTED"
-        ? {
-            candidate: event.candidate,
-            assignment: context.assignment
-              ? { ...context.assignment, version: event.version }
-              : null,
-            review: null,
-            error: null,
-          }
-        : {},
-    ),
+    setPersistedCandidate: assign(({ context, event }) => {
+      if (event.type !== "CANDIDATE_PERSISTED") return {};
+      const questionId = event.questionId ?? event.candidate.questionId;
+      const draft = context.drafts[questionId];
+      const isCurrentDraft =
+        context.assignment?.questions[context.activeQuestionIndex]?.id ===
+          questionId &&
+        (event.localRevision === undefined ||
+          draft?.localRevision === event.localRevision) &&
+        (event.contextEpoch === undefined ||
+          context.contextEpoch === event.contextEpoch);
+      return {
+        assignment: context.assignment
+          ? { ...context.assignment, version: event.version }
+          : null,
+        drafts: {
+          ...context.drafts,
+          [questionId]: {
+            text: isCurrentDraft
+              ? event.candidate.text
+              : (draft?.text ?? event.candidate.text),
+            origin: isCurrentDraft
+              ? event.candidate.origin
+              : (draft?.origin ?? event.candidate.origin),
+            localRevision: draft?.localRevision ?? event.localRevision ?? 0,
+            dirty: !isCurrentDraft,
+            acknowledgedCandidate: event.candidate,
+          },
+        },
+        ...(isCurrentDraft
+          ? { candidate: event.candidate, review: null, error: null }
+          : {}),
+      };
+    }),
     captureVoiceCandidate: assign(({ context, event }) => {
       if (event.type !== "VOICE_CAPTURED") return {};
       const question =
         context.assignment?.questions[context.activeQuestionIndex];
       if (!question) return {};
+      const candidate = candidateFor(
+        question.id,
+        event.text,
+        context.path === "guided"
+          ? "student_after_guidance"
+          : "student_normalized",
+        (context.candidate?.version ?? 0) + 1,
+      );
+      const priorDraft = context.drafts[question.id];
       return {
-        candidate: candidateFor(
-          question.id,
-          event.text,
-          context.path === "guided"
-            ? "student_after_guidance"
-            : "student_normalized",
-          (context.candidate?.version ?? 0) + 1,
-        ),
+        candidate,
+        drafts: {
+          ...context.drafts,
+          [question.id]: {
+            text: candidate.text,
+            origin: candidate.origin,
+            localRevision: (priorDraft?.localRevision ?? 0) + 1,
+            dirty: true,
+            acknowledgedCandidate: priorDraft?.acknowledgedCandidate,
+          },
+        },
         review: null,
         originalCandidate: null,
         suggestion: null,
@@ -687,13 +793,30 @@ export const workspaceMachine = setup({
         Math.max((context.assignment?.questions.length ?? 1) - 1, 0),
       ),
       path: "conversation" as const,
-      candidate: null,
+      contextEpoch: context.contextEpoch + 1,
+      candidate: (() => {
+        const nextIndex = Math.min(
+          context.activeQuestionIndex + 1,
+          Math.max((context.assignment?.questions.length ?? 1) - 1, 0),
+        );
+        const questionId = context.assignment?.questions[nextIndex]?.id;
+        const draft = questionId ? context.drafts[questionId] : undefined;
+        return draft
+          ? draft.acknowledgedCandidate && !draft.dirty
+            ? draft.acknowledgedCandidate
+            : candidateFor(
+                questionId!,
+                draft.text,
+                draft.origin,
+                draft.localRevision,
+              )
+          : null;
+      })(),
       originalCandidate: null,
       suggestion: null,
       rephraseId: null,
       review: null,
       voiceState: "ready" as const,
-      muted: false,
       error: null,
     })),
     goToQuestion: assign(({ context, event }) => {
@@ -702,12 +825,24 @@ export const workspaceMachine = setup({
         context.assignment?.questions.findIndex(
           (question) => question.id === event.questionId,
         ) ?? -1;
+      if (index < 0 || index === context.activeQuestionIndex) return {};
+      const draft = context.drafts[event.questionId];
       return index < 0
         ? {}
         : {
             activeQuestionIndex: index,
             path: "conversation" as const,
-            candidate: null,
+            contextEpoch: context.contextEpoch + 1,
+            candidate: draft
+              ? draft.acknowledgedCandidate && !draft.dirty
+                ? draft.acknowledgedCandidate
+                : candidateFor(
+                    event.questionId,
+                    draft.text,
+                    draft.origin,
+                    draft.localRevision,
+                  )
+              : null,
             originalCandidate: null,
             suggestion: null,
             rephraseId: null,
@@ -726,6 +861,10 @@ export const workspaceMachine = setup({
       if (index < 0 || !answer) return {};
       return {
         activeQuestionIndex: index,
+        contextEpoch:
+          index === context.activeQuestionIndex
+            ? context.contextEpoch
+            : context.contextEpoch + 1,
         path: "conversation" as const,
         candidate: candidateFor(
           event.questionId,
@@ -751,6 +890,10 @@ export const workspaceMachine = setup({
       if (index < 0 || !answer) return {};
       return {
         activeQuestionIndex: index,
+        contextEpoch:
+          index === context.activeQuestionIndex
+            ? context.contextEpoch
+            : context.contextEpoch + 1,
         path: "conversation" as const,
         candidate: candidateFor(
           event.questionId,
@@ -869,6 +1012,7 @@ export const workspaceMachine = setup({
       actions: "setExportError",
     },
     VOICE_STATE_CHANGED: { actions: "setReportedVoiceState" },
+    VOICE_STOP: { actions: "setCapturePaused" },
   },
   states: {
     upload: {
@@ -1216,6 +1360,11 @@ export const workspaceMachine = setup({
           { target: "conversation", actions: "clearReview" },
         ],
         OPEN_WORKSHEET_REVIEW: "worksheetReview",
+        GO_TO_QUESTION: { target: "conversation", actions: "goToQuestion" },
+        CONTINUE_BY_TYPING: {
+          target: "conversation",
+          actions: "setVoiceReady",
+        },
       },
     },
     worksheetReview: {

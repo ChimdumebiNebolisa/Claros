@@ -7,11 +7,12 @@ import {
   VolumeX,
 } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
-import type { VoiceState } from "../../domain/contracts";
+import type { CaptureState, VoiceState } from "../../domain/contracts";
 import styles from "./answer-paths.module.css";
 
 export type VoiceStateControlProps = {
   state: VoiceState;
+  captureState?: CaptureState;
   muted?: boolean;
   onStart?: () => void;
   onStop?: () => void;
@@ -48,6 +49,7 @@ const helpForState: Record<VoiceState, string> = {
 
 export function VoiceStateControl({
   state,
+  captureState = state === "listening" ? "active" : "inactive",
   muted = false,
   onStart,
   onStop,
@@ -86,9 +88,7 @@ export function VoiceStateControl({
       </div>
 
       <div className={styles.voiceActions}>
-        {state === "ready" ||
-        state === "captured" ||
-        state === "interrupted" ? (
+        {!isFailure && captureState !== "active" ? (
           <Button
             color="primary"
             size="lg"
@@ -101,7 +101,7 @@ export function VoiceStateControl({
           </Button>
         ) : null}
 
-        {state === "listening" ? (
+        {!isFailure && captureState === "active" ? (
           <Button
             color="primary"
             size="lg"
@@ -116,7 +116,7 @@ export function VoiceStateControl({
 
         {state === "speaking" ? (
           <Button
-            color="primary"
+            color="secondary"
             size="lg"
             iconLeading={StopCircle}
             onPress={onInterrupt}
@@ -124,19 +124,6 @@ export function VoiceStateControl({
             className={styles.voicePrimary}
           >
             Interrupt Claros
-          </Button>
-        ) : null}
-
-        {state === "thinking" ? (
-          <Button
-            color="secondary"
-            size="lg"
-            isLoading
-            showTextWhileLoading
-            isDisabled
-            className={styles.voicePrimary}
-          >
-            Thinking
           </Button>
         ) : null}
 

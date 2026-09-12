@@ -8,6 +8,9 @@ export const candidateOrigins = [
 
 export const CANONICAL_CONFIRMATION_PHRASE = "Use this exact answer";
 
+export const isCanonicalVoiceConfirmation = (value: string) =>
+  /^use this exact answer[.!]?$/iu.test(value.trim());
+
 export type CandidateOrigin = (typeof candidateOrigins)[number];
 export type StudentAttribution = "Your words" | "Suggested wording";
 export type AnswerPath = "conversation" | "direct" | "guided";
@@ -21,6 +24,8 @@ export type VoiceState =
   | "interrupted"
   | "microphone_unavailable"
   | "disconnected";
+
+export type CaptureState = "inactive" | "active" | "paused";
 
 export type Question = {
   id: string;

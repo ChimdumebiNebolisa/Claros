@@ -39,9 +39,11 @@ import {
 import {
   fixtureScenarios,
   type FixtureScenario,
+  type WorkspaceContext,
 } from "./domain/workspaceMachine";
 import {
   CANONICAL_CONFIRMATION_PHRASE,
+  isCanonicalVoiceConfirmation,
   type Candidate,
 } from "./domain/contracts";
 import {
@@ -144,6 +146,7 @@ export default function WorkspaceShell({
     navigateQuestion: (questionIndex: number) => void;
   } | null>(null);
   const realtimeConnectionKeyRef = useRef<string | null>(null);
+  const realtimeConnectionGenerationRef = useRef(0);
   const realtimeUnsubscribeRef = useRef<(() => void) | null>(null);
   const realtimeAdvanceTimerRef = useRef<number | null>(null);
   const realtimeRunSequenceRef = useRef(0);
@@ -533,7 +536,7 @@ export default function WorkspaceShell({
         if (
           event.speaker === "student" &&
           current.matches("exactReview") &&
-          event.text.trim() === CANONICAL_CONFIRMATION_PHRASE
+          isCanonicalVoiceConfirmation(event.text)
         ) {
           actor.send({
             type: "VOICE_CONFIRMATION",
@@ -596,14 +599,14 @@ export default function WorkspaceShell({
       }
 
       if (event.type === "request_rephrase") {
-        if (current.context.candidate?.id === event.candidateId) {
+        if (current.context.candidate) {
           void realtimeActionHandlersRef.current?.requestRephrase();
         }
         return;
       }
 
       if (event.type === "enter_exact_review") {
-        if (current.context.candidate?.id === event.candidateId) {
+        if (current.context.candidate) {
           void realtimeActionHandlersRef.current?.requestReview();
         }
         return;
@@ -643,6 +646,7 @@ export default function WorkspaceShell({
   }, []);
 
   const releaseRealtimeAdapter = useCallback(() => {
+    realtimeConnectionGenerationRef.current += 1;
     clearRealtimeAdvanceTimer();
     realtimeUnsubscribeRef.current?.();
     realtimeUnsubscribeRef.current = null;
@@ -674,24 +678,52 @@ export default function WorkspaceShell({
           return { kind: "real" as const, adapter: realtimeAdapterRef.current };
         }
         if (!import.meta.env.DEV) return null;
+        const existingAdapter = realtimeAdapterRef.current;
+        const existingGeneration = realtimeConnectionGenerationRef.current;
         const realtime = await loadRealtimeAdapter();
+        if (
+          existingGeneration !== realtimeConnectionGenerationRef.current ||
+          existingAdapter !== realtimeAdapterRef.current
+        ) {
+          return null;
+        }
         return {
           kind: "fake" as const,
-          adapter: realtimeAdapterRef.current as FakeRealtimeAdapter,
+          adapter: existingAdapter as FakeRealtimeAdapter,
           realtime,
         };
       }
 
       releaseRealtimeAdapter();
+      const connectionGeneration = realtimeConnectionGenerationRef.current;
+      const latestBoundContext = () => {
+        const latest = actor.getSnapshot().context;
+        const latestQuestion =
+          latest.assignment?.questions[latest.activeQuestionIndex];
+        return connectionGeneration ===
+          realtimeConnectionGenerationRef.current &&
+          latest.assignment?.id === currentAssignment.id &&
+          latest.assignment.version === currentAssignment.version &&
+          latestQuestion?.id === currentQuestion.id
+          ? latest
+          : null;
+      };
       if (usesRealApi) {
         let adapter: RealtimeAdapter;
         try {
           const realtime = await loadOpenAIRealtimeAdapter();
+          if (!latestBoundContext()) return null;
           adapter = realtime.createOpenAIRealtimeAdapter();
         } catch {
-          actor.send({ type: "VOICE_DISCONNECTED" });
+          if (
+            connectionGeneration === realtimeConnectionGenerationRef.current
+          ) {
+            actor.send({ type: "VOICE_DISCONNECTED" });
+          }
           return null;
         }
+        const connectContext = latestBoundContext();
+        if (!connectContext) return null;
         realtimeUnsubscribeRef.current = adapter.subscribe(handleRealtimeEvent);
         realtimeAdapterRef.current = adapter;
         realtimeAdapterKindRef.current = "real";
@@ -710,30 +742,47 @@ export default function WorkspaceShell({
             mode: answerPath,
             exactQuestion: currentQuestion.prompt,
             relevantContext: [currentQuestion.instruction],
-            conversationHistory: current.guidedTurns,
+            conversationHistory: connectContext.guidedTurns,
             availableQuestions: currentAssignment.questions.map((item) => ({
               id: item.id,
               index: item.index,
               prompt: item.prompt,
             })),
-            currentCandidate: current.candidate
+            currentCandidate: connectContext.candidate
               ? {
-                  id: current.candidate.id,
-                  version: current.candidate.version,
-                  exactText: current.candidate.text,
+                  id: connectContext.candidate.id,
+                  version: connectContext.candidate.version,
+                  exactText: connectContext.candidate.text,
                 }
               : undefined,
             microphone,
+            captureActive: connectContext.captureState === "active",
           });
-          if (current.muted) adapter.setMuted(true);
+          const latestAfterConnect = latestBoundContext();
+          if (!latestAfterConnect) {
+            if (realtimeAdapterRef.current === adapter) {
+              releaseRealtimeAdapter();
+            } else {
+              adapter.destroy();
+            }
+            return null;
+          }
+          if (latestAfterConnect.muted) adapter.setMuted(true);
           return { kind: "real" as const, adapter };
         } catch {
+          if (realtimeAdapterRef.current === adapter) {
+            releaseRealtimeAdapter();
+          } else {
+            adapter.destroy();
+          }
           return null;
         }
       }
 
       if (!import.meta.env.DEV) return null;
       const realtime = await loadRealtimeAdapter();
+      const connectContext = latestBoundContext();
+      if (!connectContext) return null;
       const adapter = realtime.createFakeRealtimeAdapter();
       realtimeUnsubscribeRef.current = adapter.subscribe(handleRealtimeEvent);
       adapter.connect({
@@ -743,15 +792,16 @@ export default function WorkspaceShell({
         mode: answerPath,
         exactQuestion: currentQuestion.prompt,
         relevantContext: [currentQuestion.instruction],
-        conversationHistory: current.guidedTurns,
+        conversationHistory: connectContext.guidedTurns,
         availableQuestions: currentAssignment.questions.map((item) => ({
           id: item.id,
           index: item.index,
           prompt: item.prompt,
         })),
         microphone,
+        captureActive: connectContext.captureState === "active",
       });
-      if (current.muted) adapter.setMuted(true);
+      if (connectContext.muted) adapter.setMuted(true);
       realtimeAdapterRef.current = adapter;
       realtimeAdapterKindRef.current = "fake";
       realtimeMicrophoneRef.current = microphone;
@@ -803,6 +853,40 @@ export default function WorkspaceShell({
   useEffect(() => {
     return () => releaseRealtimeAdapter();
   }, [assignment?.id, question?.id, releaseRealtimeAdapter]);
+
+  const shouldMaintainCapture =
+    context.captureState === "active" &&
+    Boolean(assignment && question) &&
+    (snapshot.matches("conversation") ||
+      snapshot.matches("answerAdded") ||
+      snapshot.matches("exactReview"));
+
+  useEffect(() => {
+    if (!shouldMaintainCapture) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      void ensureRealtimeAdapter("conversation", true).then((session) => {
+        if (
+          !cancelled &&
+          session &&
+          actor.getSnapshot().context.captureState === "active"
+        ) {
+          session.adapter.startListening();
+        }
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    actor,
+    assignment?.id,
+    assignment?.version,
+    ensureRealtimeAdapter,
+    question?.id,
+    shouldMaintainCapture,
+  ]);
 
   useEffect(
     () => () => {
@@ -886,8 +970,9 @@ export default function WorkspaceShell({
     }
   };
 
-  const candidateRequestForCurrentState = (): ApiCandidateRequest | null => {
-    const current = actor.getSnapshot().context;
+  const candidateRequestForCurrentState = (
+    current: WorkspaceContext = actor.getSnapshot().context,
+  ): ApiCandidateRequest | null => {
     const currentAssignment = current.assignment;
     const currentQuestion =
       currentAssignment?.questions[current.activeQuestionIndex];
@@ -948,6 +1033,9 @@ export default function WorkspaceShell({
     if (!currentAssignment || !currentQuestion || !candidate) {
       throw new Error("A complete candidate is required before review.");
     }
+    const localRevision =
+      current.drafts[currentQuestion.id]?.localRevision ?? 0;
+    const contextEpoch = current.contextEpoch;
     const remembered = persistedCandidateRef.current;
     if (
       remembered?.assignmentId === currentAssignment.id &&
@@ -975,7 +1063,7 @@ export default function WorkspaceShell({
         };
       }
     }
-    const request = candidateRequestForCurrentState();
+    const request = candidateRequestForCurrentState(current);
     if (!request) {
       throw new Error("A complete candidate is required before review.");
     }
@@ -984,12 +1072,23 @@ export default function WorkspaceShell({
       currentQuestion.id,
       request,
     );
+    actor.send({
+      type: "CANDIDATE_PERSISTED",
+      ...persisted,
+      questionId: currentQuestion.id,
+      localRevision,
+      contextEpoch,
+    });
     const latest = actor.getSnapshot().context;
     const latestQuestion =
       latest.assignment?.questions[latest.activeQuestionIndex];
+    const latestDraft = latest.drafts[currentQuestion.id];
     if (
       latest.assignment?.id !== currentAssignment.id ||
-      latestQuestion?.id !== currentQuestion.id
+      latestQuestion?.id !== currentQuestion.id ||
+      latestDraft?.localRevision !== localRevision ||
+      latestDraft.text !== candidate.text ||
+      latest.contextEpoch !== contextEpoch
     ) {
       throw new DOMException("Assignment changed", "AbortError");
     }
@@ -1005,7 +1104,6 @@ export default function WorkspaceShell({
         candidateVersion: persisted.candidate.version,
       };
     }
-    actor.send({ type: "CANDIDATE_PERSISTED", ...persisted });
     return persisted;
   };
 
@@ -1053,6 +1151,7 @@ export default function WorkspaceShell({
   };
 
   const stopVoice = () => {
+    actor.send({ type: "VOICE_STOP" });
     const adapter = realtimeAdapterRef.current;
     if (!adapter) return;
     adapter.stopListening();
@@ -1075,6 +1174,9 @@ export default function WorkspaceShell({
       const question = assignment?.questions[current.activeQuestionIndex];
       if (!assignment || !question) throw new Error("Assignment unavailable");
       const persisted = await persistCurrentCandidate();
+      const requestState = actor.getSnapshot().context;
+      const requestDraft = requestState.drafts[question.id];
+      const requestContextEpoch = requestState.contextEpoch;
       const comparison = await requestRephraseMutation(
         assignment.id,
         question.id,
@@ -1084,6 +1186,19 @@ export default function WorkspaceShell({
           candidate_version: persisted.candidate.version,
         },
       );
+      const latest = actor.getSnapshot().context;
+      const latestQuestion =
+        latest.assignment?.questions[latest.activeQuestionIndex];
+      const latestDraft = latest.drafts[question.id];
+      if (
+        latest.assignment?.id !== assignment.id ||
+        latestQuestion?.id !== question.id ||
+        latestDraft?.localRevision !== requestDraft?.localRevision ||
+        latestDraft?.text !== requestDraft?.text ||
+        latest.contextEpoch !== requestContextEpoch
+      ) {
+        throw new DOMException("Draft changed", "AbortError");
+      }
       persistedCandidateRef.current = {
         assignmentId: assignment.id,
         assignmentVersion: comparison.version,
@@ -1121,11 +1236,27 @@ export default function WorkspaceShell({
       const question = assignment?.questions[current.activeQuestionIndex];
       if (!assignment || !question) throw new Error("Assignment unavailable");
       const persisted = await persistCurrentCandidate();
+      const requestState = actor.getSnapshot().context;
+      const requestDraft = requestState.drafts[question.id];
+      const requestContextEpoch = requestState.contextEpoch;
       const reviewed = await createReviewRequest(assignment.id, question.id, {
         assignment_version: persisted.version,
         candidate_id: persisted.candidate.id,
         candidate_version: persisted.candidate.version,
       });
+      const latest = actor.getSnapshot().context;
+      const latestQuestion =
+        latest.assignment?.questions[latest.activeQuestionIndex];
+      const latestDraft = latest.drafts[question.id];
+      if (
+        latest.assignment?.id !== assignment.id ||
+        latestQuestion?.id !== question.id ||
+        latestDraft?.localRevision !== requestDraft?.localRevision ||
+        latestDraft?.text !== requestDraft?.text ||
+        latest.contextEpoch !== requestContextEpoch
+      ) {
+        throw new DOMException("Draft changed", "AbortError");
+      }
       persistedCandidateRef.current = {
         assignmentId: assignment.id,
         assignmentVersion: reviewed.version,
@@ -1149,6 +1280,12 @@ export default function WorkspaceShell({
       (item) => item.index === questionIndex,
     );
     if (!target) return;
+    if (
+      current.assignment?.questions[current.activeQuestionIndex]?.id ===
+      target.id
+    ) {
+      return;
+    }
     setGuidedDraft("");
     realtimeCandidateEvidenceRef.current = null;
     persistedCandidateRef.current = null;
@@ -1470,7 +1607,13 @@ export default function WorkspaceShell({
     const text = guidedDraft;
     actor.send({ type: "GUIDED_STUDENT_TURN", text });
     setGuidedDraft("");
-    const session = await ensureRealtimeAdapter("conversation", !usesRealApi);
+    const preserveAudioSession = Boolean(
+      realtimeAdapterRef.current && realtimeMicrophoneRef.current,
+    );
+    const session = await ensureRealtimeAdapter(
+      "conversation",
+      preserveAudioSession || !usesRealApi,
+    );
     if (!session) return;
     session.adapter.sendTypedTurn(text);
     if (session.kind === "fake") {
@@ -1532,23 +1675,6 @@ export default function WorkspaceShell({
     realtimeAdapterRef.current?.interrupt();
     actor.send({ type: "INTERRUPT" });
   };
-
-  const isExactReview = snapshot.matches("exactReview");
-  useEffect(() => {
-    if (
-      !usesRealApi ||
-      !isExactReview ||
-      !realtimeMicrophoneRef.current ||
-      realtimeAdapterKindRef.current !== "real"
-    ) {
-      return;
-    }
-    const adapter = realtimeAdapterRef.current;
-    adapter?.startListening();
-    return () => {
-      adapter?.stopListening();
-    };
-  }, [isExactReview, usesRealApi]);
 
   useEffect(() => {
     if (
@@ -1754,6 +1880,7 @@ export default function WorkspaceShell({
             message={guidedDraft}
             candidateText={context.candidate?.text ?? ""}
             voiceState={context.voiceState}
+            captureState={context.captureState}
             muted={context.muted}
             onMessageChange={setGuidedDraft}
             onSendMessage={sendGuidedTurn}
@@ -1800,6 +1927,7 @@ export default function WorkspaceShell({
             totalQuestions={assignment.questions.length}
             candidateText={context.candidate?.text ?? ""}
             voiceState={context.voiceState}
+            captureState={context.captureState}
             muted={context.muted}
             onCandidateChange={(value) =>
               actor.send({ type: "CANDIDATE_CHANGED", value })
@@ -1829,6 +1957,7 @@ export default function WorkspaceShell({
             turns={context.guidedTurns}
             draft={isFinal ? (context.candidate?.text ?? "") : guidedDraft}
             voiceState={context.voiceState}
+            captureState={context.captureState}
             muted={context.muted}
             mode={isFinal ? "final-answer" : "conversation"}
             onDraftChange={(value) => {
@@ -1895,6 +2024,7 @@ export default function WorkspaceShell({
             message={guidedDraft}
             candidateText={context.candidate.text}
             voiceState={context.voiceState}
+            captureState={context.captureState}
             muted={context.muted}
             onMessageChange={setGuidedDraft}
             onSendMessage={sendGuidedTurn}
@@ -1943,20 +2073,49 @@ export default function WorkspaceShell({
           ? question.index + 1
           : undefined;
       return (
-        <AnswerAddedState
-          answer={answer}
-          nextQuestionNumber={nextQuestionNumber}
-          onEdit={() => {
-            if (usesRealApi) void editAnswer(question.id);
-            else actor.send({ type: "CHANGE_ANSWER" });
-          }}
-          onContinue={() => {
-            actor.send({ type: "CONTINUE_TO_NEXT" });
-            if (!nextQuestionNumber) {
-              navigate(`/app/${assignment.id}/review${runtimeSearch}`);
+        <>
+          <ConversationWorkspace
+            question={question}
+            totalQuestions={assignment.questions.length}
+            turns={context.guidedTurns}
+            message={guidedDraft}
+            candidateText={context.candidate?.text ?? answer.text}
+            voiceState={context.voiceState}
+            captureState={context.captureState}
+            muted={context.muted}
+            onMessageChange={setGuidedDraft}
+            onSendMessage={sendGuidedTurn}
+            onCandidateChange={() => undefined}
+            onStart={beginVoice}
+            onStop={stopVoice}
+            onRetry={retryVoice}
+            onContinueByTyping={() => {
+              editorFocusRequested.current = true;
+              actor.send({ type: "CONTINUE_BY_TYPING" });
+            }}
+            onInterrupt={interruptVoice}
+            onToggleMute={toggleMute}
+            onMakeClearer={() => undefined}
+            onReview={() => undefined}
+            reviewContent={
+              <AnswerAddedState
+                answer={answer}
+                nextQuestionNumber={nextQuestionNumber}
+                onEdit={() => {
+                  if (usesRealApi) void editAnswer(question.id);
+                  else actor.send({ type: "CHANGE_ANSWER" });
+                }}
+                onContinue={() => {
+                  actor.send({ type: "CONTINUE_TO_NEXT" });
+                  if (!nextQuestionNumber) {
+                    navigate(`/app/${assignment.id}/review${runtimeSearch}`);
+                  }
+                }}
+              />
             }
-          }}
-        />
+          />
+          {liveCaptions}
+        </>
       );
     }
     if (snapshot.matches("worksheetReview")) {

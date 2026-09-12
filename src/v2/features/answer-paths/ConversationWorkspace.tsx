@@ -4,6 +4,7 @@ import { Button } from "@/components/base/buttons/button";
 import { TextArea } from "@/components/base/textarea/textarea";
 import type {
   ConversationTurn as ConversationTurnType,
+  CaptureState,
   Question,
   VoiceState,
 } from "../../domain/contracts";
@@ -21,6 +22,7 @@ export type ConversationWorkspaceProps = {
   message: string;
   candidateText: string;
   voiceState: VoiceState;
+  captureState?: CaptureState;
   muted?: boolean;
   onMessageChange: (value: string) => void;
   onSendMessage: () => void;
@@ -93,6 +95,7 @@ export function ConversationWorkspace({
   message,
   candidateText,
   voiceState,
+  captureState,
   muted,
   onMessageChange,
   onSendMessage,
@@ -121,6 +124,7 @@ export function ConversationWorkspace({
 
       <VoiceStateControl
         state={voiceState}
+        captureState={captureState}
         muted={muted}
         onStart={onStart}
         onStop={onStop}

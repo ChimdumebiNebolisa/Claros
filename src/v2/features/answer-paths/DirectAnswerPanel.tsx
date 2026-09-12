@@ -2,7 +2,11 @@ import { ArrowRight, MagicWand02 } from "@untitledui/icons";
 import { useId, useRef } from "react";
 import { Button } from "@/components/base/buttons/button";
 import { TextArea } from "@/components/base/textarea/textarea";
-import type { Question, VoiceState } from "../../domain/contracts";
+import type {
+  CaptureState,
+  Question,
+  VoiceState,
+} from "../../domain/contracts";
 import { QuestionHeader } from "./QuestionHeader";
 import {
   VoiceStateControl,
@@ -15,6 +19,7 @@ export type DirectAnswerPanelProps = {
   totalQuestions: number;
   candidateText: string;
   voiceState: VoiceState;
+  captureState?: CaptureState;
   muted?: boolean;
   onCandidateChange: (value: string) => void;
   onTypeInstead?: () => void;
@@ -30,6 +35,7 @@ export function DirectAnswerPanel({
   totalQuestions,
   candidateText,
   voiceState,
+  captureState,
   muted,
   onCandidateChange,
   onTypeInstead,
@@ -55,6 +61,7 @@ export function DirectAnswerPanel({
 
       <VoiceStateControl
         state={voiceState}
+        captureState={captureState}
         muted={muted}
         onStart={onStart}
         onStop={onStop}

@@ -51,8 +51,8 @@ type SessionFactory = (options: {
   microphone: boolean;
   reasoning: "minimal" | "low";
   onCandidate: (input: DraftCandidateInput) => string;
-  onRephrase: (input: CandidateActionInput) => string;
-  onExactReview: (input: CandidateActionInput) => string;
+  onRephrase: (input: CurrentDraftActionInput) => string;
+  onExactReview: (input: CurrentDraftActionInput) => string;
   onNavigateQuestion: (input: NavigateQuestionInput) => string;
 }) => RealtimeSessionLike;
 
@@ -72,10 +72,8 @@ const draftCandidateSchema = z.object({
 });
 type DraftCandidateInput = z.infer<typeof draftCandidateSchema>;
 
-const candidateActionSchema = z.object({
-  candidate_id: z.string().min(1).max(128),
-});
-type CandidateActionInput = z.infer<typeof candidateActionSchema>;
+const currentDraftActionSchema = z.object({}).strict();
+type CurrentDraftActionInput = z.infer<typeof currentDraftActionSchema>;
 
 const navigateQuestionSchema = z.object({
   question_index: z.number().int().min(1).max(40),
@@ -146,15 +144,15 @@ const defaultSessionFactory: SessionFactory = ({
       tool({
         name: "request_rephrase",
         description:
-          "Request an optional clearer-wording comparison for the current draft.",
-        parameters: candidateActionSchema,
+          "Request an optional clearer-wording comparison for the application's current draft. The application binds and validates its identity.",
+        parameters: currentDraftActionSchema,
         execute: onRephrase,
       }),
       tool({
         name: "enter_exact_review",
         description:
-          "Ask the application to show exact review. This never confirms the answer.",
-        parameters: candidateActionSchema,
+          "Ask the application to show exact review for its current draft. The application binds and validates its identity. This never confirms the answer.",
+        parameters: currentDraftActionSchema,
         execute: onExactReview,
       }),
       tool({
@@ -241,6 +239,7 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
   private assistantTranscriptParts: string[] = [];
   private assistantAudioActive = false;
   private assistantResponseInterrupted = false;
+  private inputMuted = true;
   private outputMuted = false;
   private conversationHistory: Array<{
     speaker: "student" | "claros";
@@ -266,6 +265,7 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
       `${options.assignmentId}:${options.questionId}:${options.assignmentVersion}:${options.mode}`,
     );
     this.options = options;
+    this.inputMuted = !options.captureActive;
     this.conversationHistory = [...(options.conversationHistory ?? [])].slice(
       -12,
     );
@@ -280,6 +280,7 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
   }
 
   startListening(): RealtimeOperation {
+    this.inputMuted = false;
     this.session?.mute(false);
     this.emit({
       id: this.nextEventId("listening"),
@@ -290,6 +291,7 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
   }
 
   stopListening(): RealtimeOperation {
+    this.inputMuted = true;
     this.session?.mute(true);
     this.emit({
       id: this.nextEventId("ready-after-stop"),
@@ -424,6 +426,7 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
         session.close();
         return;
       }
+      session.mute(this.inputMuted);
       this.emit({
         id: this.nextEventId("ready"),
         type: "voice_state",
@@ -652,17 +655,12 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
 
   private handleCandidateAction(
     type: "request_rephrase" | "enter_exact_review",
-    input: CandidateActionInput,
+    input: CurrentDraftActionInput,
   ): string {
-    const parsed = candidateActionSchema.parse(input);
-    const currentCandidateId = this.options?.currentCandidate?.id;
-    if (currentCandidateId && parsed.candidate_id !== currentCandidateId) {
-      return "Rejected: stale or unknown candidate.";
-    }
+    currentDraftActionSchema.parse(input);
     this.emit({
       id: this.nextEventId(type),
       type,
-      candidateId: parsed.candidate_id,
     });
     return "Request sent to the application for validation.";
   }
@@ -774,8 +772,53 @@ UNTRUSTED_WORKSHEET_DATA=${payload}`;
   }
 }
 
-const punctuationComparable = (value: string) =>
-  value.normalize("NFKC").replace(/[\p{P}\p{Z}\s]+/gu, "");
+const semanticPunctuation = new Set([
+  "-",
+  "‐",
+  "‑",
+  "‒",
+  "–",
+  "—",
+  "―",
+  "−",
+  "+",
+  "/",
+  "\\",
+  "=",
+  "<",
+  ">",
+  "%",
+  "‰",
+  "×",
+  "÷",
+  "^",
+  "_",
+  "'",
+  "’",
+  "&",
+  "#",
+  "@",
+]);
+const punctuationCharacter = /^\p{P}$/u;
+const wordOrNumberCharacter = /^[\p{L}\p{N}]$/u;
+
+const punctuationComparable = (value: string) => {
+  const characters = [...value.normalize("NFKC")];
+  return characters
+    .filter((character, index) => {
+      if (/^[\p{Z}\s]$/u.test(character)) return false;
+      if (!punctuationCharacter.test(character)) return true;
+      if (semanticPunctuation.has(character)) return true;
+      const previous = characters[index - 1] ?? "";
+      const next = characters[index + 1] ?? "";
+      return (
+        [".", ",", ":"].includes(character) &&
+        wordOrNumberCharacter.test(previous) &&
+        wordOrNumberCharacter.test(next)
+      );
+    })
+    .join("");
+};
 
 const explicitAnswerText = (value: string) => {
   const match = value.match(

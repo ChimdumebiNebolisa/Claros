@@ -5,6 +5,7 @@ import {
   fixtureRephraseText,
   workspaceMachine,
 } from "../src/v2/domain/workspaceMachine";
+import confirmationCases from "./fixtures/voice-confirmation-cases.json";
 
 const startAssignment = () => {
   const actor = createActor(workspaceMachine).start();
@@ -37,7 +38,7 @@ describe("Claros V2 workspace machine", () => {
     actor.stop();
   });
 
-  it("accepts only the canonical voice phrase and only during exact review", () => {
+  it("accepts narrowly formatted canonical voice words only during exact review", () => {
     const actor = startAssignment();
     actor.send({ type: "CHOOSE_DIRECT" });
     actor.send({ type: "VOICE_START" });
@@ -55,10 +56,34 @@ describe("Claros V2 workspace machine", () => {
       type: "VOICE_CONFIRMATION",
       phrase: "Use this exact answer.",
     });
-    expect(actor.getSnapshot().matches("exactReview")).toBe(true);
-    actor.send({ type: "VOICE_CONFIRMATION", phrase: "Use this exact answer" });
     expect(actor.getSnapshot().matches("confirming")).toBe(true);
     actor.stop();
+  });
+
+  it("rejects extra confirmation words and accepts case variation", () => {
+    for (const phrase of confirmationCases.rejected) {
+      const rejected = startAssignment();
+      rejected.send({
+        type: "CANDIDATE_CHANGED",
+        value: "Plants need sunlight to make food.",
+      });
+      rejected.send({ type: "REQUEST_REVIEW" });
+      rejected.send({ type: "VOICE_CONFIRMATION", phrase });
+      expect(rejected.getSnapshot().matches("exactReview")).toBe(true);
+      rejected.stop();
+    }
+
+    for (const phrase of confirmationCases.accepted) {
+      const accepted = startAssignment();
+      accepted.send({
+        type: "CANDIDATE_CHANGED",
+        value: "Plants need sunlight to make food.",
+      });
+      accepted.send({ type: "REQUEST_REVIEW" });
+      accepted.send({ type: "VOICE_CONFIRMATION", phrase });
+      expect(accepted.getSnapshot().matches("confirming")).toBe(true);
+      accepted.stop();
+    }
   });
 
   it("exposes speaking, interruption, and a deterministic return to ready", () => {
@@ -109,11 +134,66 @@ describe("Claros V2 workspace machine", () => {
     actor.send({ type: "CHOOSE_DIRECT" });
     actor.send({ type: "VOICE_START" });
     expect(actor.getSnapshot().matches({ direct: "listening" })).toBe(true);
+    expect(actor.getSnapshot().context.captureState).toBe("active");
 
+    actor.send({ type: "VOICE_STOP" });
     actor.send({ type: "VOICE_STATE_CHANGED", state: "ready" });
 
     expect(actor.getSnapshot().matches({ direct: "ready" })).toBe(true);
     expect(actor.getSnapshot().context.voiceState).toBe("ready");
+    expect(actor.getSnapshot().context.captureState).toBe("paused");
+    actor.stop();
+  });
+
+  it("keeps capture intent independent from assistant activity and review", () => {
+    const actor = startAssignment();
+    actor.send({ type: "VOICE_START" });
+    actor.send({ type: "VOICE_STATE_CHANGED", state: "thinking" });
+    expect(actor.getSnapshot().context.captureState).toBe("active");
+    actor.send({ type: "VOICE_STATE_CHANGED", state: "speaking" });
+    expect(actor.getSnapshot().context.captureState).toBe("active");
+    actor.send({ type: "VOICE_CAPTURED", text: "A complete answer." });
+    actor.send({ type: "REQUEST_REVIEW" });
+    expect(actor.getSnapshot().matches("exactReview")).toBe(true);
+    expect(actor.getSnapshot().context.captureState).toBe("active");
+
+    actor.send({ type: "VOICE_STOP" });
+    expect(actor.getSnapshot().context.captureState).toBe("paused");
+    actor.send({ type: "CHANGE_ANSWER" });
+    expect(actor.getSnapshot().context.captureState).toBe("paused");
+    actor.stop();
+  });
+
+  it("preserves exact question-scoped drafts and treats same-question navigation as a no-op", () => {
+    const actor = startAssignment();
+    actor.send({ type: "CANDIDATE_CHANGED", value: "Draft for question one." });
+    const originalCandidate = actor.getSnapshot().context.candidate;
+
+    actor.send({ type: "GO_TO_QUESTION", questionId: "q_01" });
+    expect(actor.getSnapshot().context.candidate).toEqual(originalCandidate);
+
+    actor.send({ type: "GO_TO_QUESTION", questionId: "q_02" });
+    expect(actor.getSnapshot().context.candidate).toBeNull();
+    actor.send({ type: "CANDIDATE_CHANGED", value: "Draft for question two." });
+    actor.send({ type: "GO_TO_QUESTION", questionId: "q_01" });
+    expect(actor.getSnapshot().context.candidate?.text).toBe(
+      "Draft for question one.",
+    );
+    actor.send({ type: "GO_TO_QUESTION", questionId: "q_02" });
+    expect(actor.getSnapshot().context.candidate?.text).toBe(
+      "Draft for question two.",
+    );
+    actor.stop();
+  });
+
+  it("accepts validated question navigation from the answer acknowledgement", () => {
+    const actor = createActor(workspaceMachine).start();
+    actor.send({ type: "LOAD_FIXTURE_SCENARIO", scenario: "answer-added" });
+    actor.send({ type: "GO_TO_QUESTION", questionId: "q_02" });
+
+    expect(actor.getSnapshot().matches("conversation")).toBe(true);
+    expect(actor.getSnapshot().context.activeQuestionIndex).toBe(1);
+    expect(actor.getSnapshot().context.confirmedAnswers.q_01).toBeDefined();
     actor.stop();
   });
 

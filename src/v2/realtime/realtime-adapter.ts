@@ -48,8 +48,8 @@ export type RealtimeEvent =
       sessionId?: string;
       sourceTurnIds?: readonly string[];
     }
-  | { id: string; type: "request_rephrase"; candidateId: string }
-  | { id: string; type: "enter_exact_review"; candidateId: string }
+  | { id: string; type: "request_rephrase" }
+  | { id: string; type: "enter_exact_review" }
   | { id: string; type: "navigate_question"; questionIndex: number }
   | { id: string; type: "confirmation_phrase"; phrase: string }
   | {
@@ -113,6 +113,7 @@ export type RealtimeConnectOptions = {
     prompt: string;
   }[];
   microphone?: boolean;
+  captureActive?: boolean;
 };
 
 export type RealtimeCandidateEvidence = {
