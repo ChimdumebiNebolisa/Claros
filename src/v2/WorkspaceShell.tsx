@@ -40,7 +40,10 @@ import {
   fixtureScenarios,
   type FixtureScenario,
 } from "./domain/workspaceMachine";
-import type { Candidate } from "./domain/contracts";
+import {
+  CANONICAL_CONFIRMATION_PHRASE,
+  type Candidate,
+} from "./domain/contracts";
 import {
   DirectAnswerPanel,
   EntryPathChoice,
@@ -59,11 +62,14 @@ import {
 } from "./features/completion";
 import { IntakeFlow } from "./features/intake";
 import { StatusNotice } from "./components/StatusNotice";
+import { loadOpenAIRealtimeAdapter } from "./realtime/loadOpenAIRealtime";
 import { loadRealtimeAdapter } from "./realtime/loadRealtime";
 import type {
   FakeRealtimeAdapter,
   FakeRealtimeInteraction,
   FakeRealtimeScenario,
+  RealtimeAdapter,
+  RealtimeCandidateEvidence,
   RealtimeEvent,
 } from "./realtime/realtime-adapter";
 import answerPathStyles from "./features/answer-paths/answer-paths.module.css";
@@ -125,7 +131,16 @@ export default function WorkspaceShell({
   const { context } = snapshot;
   const taskRef = useRef<HTMLElement>(null);
   const editorFocusRequested = useRef(false);
-  const realtimeAdapterRef = useRef<FakeRealtimeAdapter | null>(null);
+  const realtimeAdapterRef = useRef<RealtimeAdapter | null>(null);
+  const realtimeAdapterKindRef = useRef<"fake" | "real" | null>(null);
+  const realtimeMicrophoneRef = useRef(false);
+  const realtimeCandidateEvidenceRef = useRef<
+    (RealtimeCandidateEvidence & { questionId: string; text: string }) | null
+  >(null);
+  const realtimeActionHandlersRef = useRef<{
+    requestRephrase: () => Promise<void>;
+    requestReview: () => Promise<void>;
+  } | null>(null);
   const realtimeConnectionKeyRef = useRef<string | null>(null);
   const realtimeUnsubscribeRef = useRef<(() => void) | null>(null);
   const realtimeAdvanceTimerRef = useRef<number | null>(null);
@@ -497,6 +512,18 @@ export default function WorkspaceShell({
 
         if (
           event.speaker === "student" &&
+          current.matches("exactReview") &&
+          event.text.trim() === CANONICAL_CONFIRMATION_PHRASE
+        ) {
+          actor.send({
+            type: "VOICE_CONFIRMATION",
+            phrase: CANONICAL_CONFIRMATION_PHRASE,
+          });
+          return;
+        }
+
+        if (
+          event.speaker === "student" &&
           current.matches({ guided: "listening" })
         ) {
           actor.send({ type: "GUIDED_STUDENT_TURN", text: event.text });
@@ -511,7 +538,40 @@ export default function WorkspaceShell({
       }
 
       if (event.type === "candidate") {
+        const activeQuestion =
+          current.context.assignment?.questions[
+            current.context.activeQuestionIndex
+          ];
+        if (
+          activeQuestion &&
+          event.sessionId &&
+          event.sourceTurnIds?.length &&
+          event.normalization
+        ) {
+          realtimeCandidateEvidenceRef.current = {
+            questionId: activeQuestion.id,
+            text: event.text,
+            sessionId: event.sessionId,
+            sourceTurnIds: event.sourceTurnIds,
+            input: event.input,
+            normalization: event.normalization,
+          };
+        }
         actor.send({ type: "VOICE_CAPTURED", text: event.text });
+        return;
+      }
+
+      if (event.type === "request_rephrase") {
+        if (current.context.candidate?.id === event.candidateId) {
+          void realtimeActionHandlersRef.current?.requestRephrase();
+        }
+        return;
+      }
+
+      if (event.type === "enter_exact_review") {
+        if (current.context.candidate?.id === event.candidateId) {
+          void realtimeActionHandlersRef.current?.requestReview();
+        }
         return;
       }
 
@@ -547,28 +607,79 @@ export default function WorkspaceShell({
     realtimeUnsubscribeRef.current = null;
     realtimeAdapterRef.current?.destroy();
     realtimeAdapterRef.current = null;
+    realtimeAdapterKindRef.current = null;
+    realtimeMicrophoneRef.current = false;
+    realtimeCandidateEvidenceRef.current = null;
     realtimeConnectionKeyRef.current = null;
   }, [clearRealtimeAdvanceTimer]);
 
   const ensureRealtimeAdapter = useCallback(
-    async (answerPath: "direct" | "guided") => {
-      if (usesRealApi) return null;
-      const realtime = await loadRealtimeAdapter();
+    async (answerPath: "direct" | "guided", microphone = true) => {
       const current = actor.getSnapshot().context;
       const currentAssignment = current.assignment;
       const currentQuestion =
         currentAssignment?.questions[current.activeQuestionIndex];
       if (!currentAssignment || !currentQuestion) return null;
 
-      const connectionKey = `${currentAssignment.id}:${currentQuestion.id}:${currentAssignment.version}:${answerPath}`;
+      const connectionKey = `${currentAssignment.id}:${currentQuestion.id}:${currentAssignment.version}:${answerPath}:${microphone ? "audio" : "text"}`;
       if (
         realtimeAdapterRef.current &&
         realtimeConnectionKeyRef.current === connectionKey
       ) {
-        return { adapter: realtimeAdapterRef.current, realtime };
+        if (realtimeAdapterKindRef.current === "real") {
+          return { kind: "real" as const, adapter: realtimeAdapterRef.current };
+        }
+        if (!import.meta.env.DEV) return null;
+        const realtime = await loadRealtimeAdapter();
+        return {
+          kind: "fake" as const,
+          adapter: realtimeAdapterRef.current as FakeRealtimeAdapter,
+          realtime,
+        };
       }
 
       releaseRealtimeAdapter();
+      if (usesRealApi) {
+        let adapter: RealtimeAdapter;
+        try {
+          const realtime = await loadOpenAIRealtimeAdapter();
+          adapter = realtime.createOpenAIRealtimeAdapter();
+        } catch {
+          actor.send({ type: "VOICE_DISCONNECTED" });
+          return null;
+        }
+        realtimeUnsubscribeRef.current = adapter.subscribe(handleRealtimeEvent);
+        realtimeAdapterRef.current = adapter;
+        realtimeAdapterKindRef.current = "real";
+        realtimeMicrophoneRef.current = microphone;
+        realtimeConnectionKeyRef.current = connectionKey;
+        setCaptions({ student: "", claros: "" });
+        try {
+          await adapter.connect({
+            assignmentId: currentAssignment.id,
+            questionId: currentQuestion.id,
+            assignmentVersion: currentAssignment.version,
+            mode: answerPath,
+            exactQuestion: currentQuestion.prompt,
+            relevantContext: [currentQuestion.instruction],
+            currentCandidate: current.candidate
+              ? {
+                  id: current.candidate.id,
+                  version: current.candidate.version,
+                  exactText: current.candidate.text,
+                }
+              : undefined,
+            microphone,
+          });
+          if (current.muted) adapter.setMuted(true);
+          return { kind: "real" as const, adapter };
+        } catch {
+          return null;
+        }
+      }
+
+      if (!import.meta.env.DEV) return null;
+      const realtime = await loadRealtimeAdapter();
       const adapter = realtime.createFakeRealtimeAdapter();
       realtimeUnsubscribeRef.current = adapter.subscribe(handleRealtimeEvent);
       adapter.connect({
@@ -578,12 +689,15 @@ export default function WorkspaceShell({
         mode: answerPath,
         exactQuestion: currentQuestion.prompt,
         relevantContext: [currentQuestion.instruction],
+        microphone,
       });
       if (current.muted) adapter.setMuted(true);
       realtimeAdapterRef.current = adapter;
+      realtimeAdapterKindRef.current = "fake";
+      realtimeMicrophoneRef.current = microphone;
       realtimeConnectionKeyRef.current = connectionKey;
       setCaptions({ student: "", claros: "" });
-      return { adapter, realtime };
+      return { kind: "fake" as const, adapter, realtime };
     },
     [actor, handleRealtimeEvent, releaseRealtimeAdapter, usesRealApi],
   );
@@ -730,6 +844,42 @@ export default function WorkspaceShell({
       };
     }
 
+    const evidence = realtimeCandidateEvidenceRef.current;
+    if (
+      evidence?.questionId === currentQuestion.id &&
+      evidence.text === candidate.text
+    ) {
+      if (current.path === "guided") {
+        return {
+          assignment_version: currentAssignment.version,
+          text: candidate.text,
+          origin: "student_after_guidance",
+          interaction: {
+            kind: "guided_final",
+            realtime_session_id: evidence.sessionId,
+            source_turn_ids: [...evidence.sourceTurnIds],
+            input: evidence.input,
+          },
+        };
+      }
+      if (evidence.input === "voice") {
+        return {
+          assignment_version: currentAssignment.version,
+          text: candidate.text,
+          origin:
+            evidence.normalization === "none"
+              ? "student_verbatim"
+              : "student_normalized",
+          interaction: {
+            kind: "direct_voice",
+            realtime_session_id: evidence.sessionId,
+            source_turn_ids: [...evidence.sourceTurnIds],
+            normalization: evidence.normalization,
+          },
+        };
+      }
+    }
+
     return {
       assignment_version: currentAssignment.version,
       text: candidate.text,
@@ -756,6 +906,23 @@ export default function WorkspaceShell({
       remembered.candidate.text === candidate.text
     ) {
       return { version: currentAssignment.version, candidate };
+    }
+    const existingEvidence = realtimeCandidateEvidenceRef.current;
+    if (
+      usesRealApi &&
+      current.path === "guided" &&
+      (existingEvidence?.questionId !== currentQuestion.id ||
+        existingEvidence.text !== candidate.text)
+    ) {
+      const session = await ensureRealtimeAdapter("guided", false);
+      const evidence = session?.adapter.registerTypedCandidate(candidate.text);
+      if (evidence) {
+        realtimeCandidateEvidenceRef.current = {
+          ...evidence,
+          questionId: currentQuestion.id,
+          text: candidate.text,
+        };
+      }
     }
     const request = candidateRequestForCurrentState();
     if (!request) {
@@ -792,10 +959,6 @@ export default function WorkspaceShell({
   };
 
   const beginVoice = async () => {
-    if (usesRealApi) {
-      actor.send({ type: "MICROPHONE_UNAVAILABLE" });
-      return;
-    }
     const current = actor.getSnapshot();
     const answerPath = current.matches("guided") ? "guided" : "direct";
     const interaction: FakeRealtimeInteraction = current.matches({
@@ -805,38 +968,42 @@ export default function WorkspaceShell({
       : answerPath === "guided"
         ? "guided-turn"
         : "direct-answer";
-    const session = await ensureRealtimeAdapter(answerPath);
+    actor.send({ type: "VOICE_START" });
+    const session = await ensureRealtimeAdapter(answerPath, true);
     if (!session) return;
 
-    session.adapter.enqueue(
-      ...session.realtime.createFakeRealtimeScript({
-        interaction,
-        runId: nextRealtimeRunId(),
-        scenario: realtimeFixtureScenario ?? "normal",
-        ...(interaction === "direct-answer"
-          ? {
-              studentText:
-                question?.id === "q_03"
-                  ? appendixCandidateText
-                  : question?.id === "q_02"
-                    ? directSuggestionText
-                    : directCandidateText,
-            }
-          : interaction === "guided-final-answer"
-            ? { studentText: guidedCandidateText }
-            : {}),
-      }),
-    );
+    if (session.kind === "fake") {
+      session.adapter.enqueue(
+        ...session.realtime.createFakeRealtimeScript({
+          interaction,
+          runId: nextRealtimeRunId(),
+          scenario: realtimeFixtureScenario ?? "normal",
+          ...(interaction === "direct-answer"
+            ? {
+                studentText:
+                  question?.id === "q_03"
+                    ? appendixCandidateText
+                    : question?.id === "q_02"
+                      ? directSuggestionText
+                      : directCandidateText,
+              }
+            : interaction === "guided-final-answer"
+              ? { studentText: guidedCandidateText }
+              : {}),
+        }),
+      );
+    }
     session.adapter.startListening();
-    actor.send({ type: "VOICE_START" });
-    session.adapter.advance();
+    if (session.kind === "fake") session.adapter.advance();
   };
 
   const stopVoice = () => {
     const adapter = realtimeAdapterRef.current;
     if (!adapter) return;
     adapter.stopListening();
-    advanceRealtimeSequence(adapter);
+    if (realtimeAdapterKindRef.current === "fake") {
+      advanceRealtimeSequence(adapter as FakeRealtimeAdapter);
+    }
   };
 
   const requestRephrase = async () => {
@@ -920,6 +1087,13 @@ export default function WorkspaceShell({
       mutationPendingRef.current = false;
     }
   };
+
+  useEffect(() => {
+    realtimeActionHandlersRef.current = { requestRephrase, requestReview };
+    return () => {
+      realtimeActionHandlersRef.current = null;
+    };
+  });
 
   const reviewComparisonSelection = async (
     selection: "original" | "suggestion",
@@ -1178,10 +1352,27 @@ export default function WorkspaceShell({
 
   const hearExact = async () => {
     if (!context.candidate) return;
-    if (usesRealApi) return;
+    if (usesRealApi) {
+      let adapter = realtimeAdapterRef.current;
+      if (!adapter) {
+        try {
+          const realtime = await loadOpenAIRealtimeAdapter();
+          adapter = realtime.createOpenAIRealtimeAdapter();
+        } catch {
+          setHearing(false);
+          return;
+        }
+        realtimeUnsubscribeRef.current = adapter.subscribe(handleRealtimeEvent);
+        realtimeAdapterRef.current = adapter;
+        realtimeAdapterKindRef.current = "real";
+      }
+      setHearing(true);
+      adapter.hearExact(context.candidate.text);
+      return;
+    }
     const answerPath = context.path ?? "direct";
     const session = await ensureRealtimeAdapter(answerPath);
-    if (!session) return;
+    if (!session || session.kind !== "fake") return;
 
     setHearing(true);
     session.adapter.hearExact(context.candidate.text);
@@ -1203,35 +1394,42 @@ export default function WorkspaceShell({
     const text = guidedDraft;
     actor.send({ type: "GUIDED_STUDENT_TURN", text });
     setGuidedDraft("");
-    if (usesRealApi) {
-      actor.send({ type: "MICROPHONE_UNAVAILABLE" });
-      return;
-    }
-    const session = await ensureRealtimeAdapter("guided");
+    const session = await ensureRealtimeAdapter("guided", !usesRealApi);
     if (!session) return;
     session.adapter.sendTypedTurn(text);
-    session.adapter.enqueue(
-      ...session.realtime.createFakeRealtimeScript({
-        interaction: "guided-typed-turn",
-        runId: nextRealtimeRunId(),
-        scenario: realtimeFixtureScenario ?? "normal",
-        clarosText:
-          "What does sunlight provide that helps the plant make food?",
-      }),
-    );
-    advanceRealtimeSequence(session.adapter);
+    if (session.kind === "fake") {
+      session.adapter.enqueue(
+        ...session.realtime.createFakeRealtimeScript({
+          interaction: "guided-typed-turn",
+          runId: nextRealtimeRunId(),
+          scenario: realtimeFixtureScenario ?? "normal",
+          clarosText:
+            "What does sunlight provide that helps the plant make food?",
+        }),
+      );
+      advanceRealtimeSequence(session.adapter);
+    }
   };
 
   const retryVoice = async () => {
     actor.send({ type: "RETRY_VOICE" });
-    if (usesRealApi) {
-      actor.send({ type: "MICROPHONE_UNAVAILABLE" });
-      return;
-    }
     const current = actor.getSnapshot();
     const answerPath = current.matches("guided") ? "guided" : "direct";
+    if (usesRealApi) {
+      const adapter = realtimeAdapterRef.current;
+      if (adapter && realtimeAdapterKindRef.current === "real") {
+        try {
+          await adapter.retry();
+        } catch {
+          // The adapter already emitted the stable recoverable error.
+        }
+      } else {
+        await ensureRealtimeAdapter(answerPath, true);
+      }
+      return;
+    }
     const session = await ensureRealtimeAdapter(answerPath);
-    if (!session) return;
+    if (!session || session.kind !== "fake") return;
     session.adapter.retry();
     session.adapter.enqueue({
       event: {
@@ -1256,6 +1454,23 @@ export default function WorkspaceShell({
     releaseRealtimeAdapter();
   };
 
+  const isExactReview = snapshot.matches("exactReview");
+  useEffect(() => {
+    if (
+      !usesRealApi ||
+      !isExactReview ||
+      !realtimeMicrophoneRef.current ||
+      realtimeAdapterKindRef.current !== "real"
+    ) {
+      return;
+    }
+    const adapter = realtimeAdapterRef.current;
+    adapter?.startListening();
+    return () => {
+      adapter?.stopListening();
+    };
+  }, [isExactReview, usesRealApi]);
+
   useEffect(() => {
     if (
       !realtimeFixtureScenario ||
@@ -1274,7 +1489,7 @@ export default function WorkspaceShell({
 
     void (async () => {
       const session = await ensureRealtimeAdapter(context.path ?? "direct");
-      if (!session || cancelled) return;
+      if (!session || session.kind !== "fake" || cancelled) return;
       session.adapter.enqueue(
         ...session.realtime.createFakeRealtimeScript({
           interaction: "exact-review",

@@ -205,6 +205,10 @@ def test_security_headers_cover_health_and_errors() -> None:
         assert response.headers["x-content-type-options"] == "nosniff"
         assert response.headers["x-frame-options"] == "DENY"
         assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
+        assert (
+            "connect-src 'self' https://api.openai.com"
+            in response.headers["content-security-policy"]
+        )
 
 
 def test_static_assets_and_spa_fallback_stay_out_of_api_namespace(

@@ -41,6 +41,7 @@ export type RealtimeEvent =
       type: "candidate";
       text: string;
       input: "typed" | "voice";
+      normalization?: "none" | "punctuation_only";
       sessionId?: string;
       sourceTurnIds?: readonly string[];
     }
@@ -97,6 +98,14 @@ export type RealtimeConnectOptions = {
     version: number;
     exactText: string;
   };
+  microphone?: boolean;
+};
+
+export type RealtimeCandidateEvidence = {
+  sessionId: string;
+  sourceTurnIds: readonly string[];
+  input: "typed" | "voice";
+  normalization: "none" | "punctuation_only";
 };
 
 export type RealtimeListener = (event: RealtimeEvent) => void;
@@ -111,6 +120,7 @@ export interface RealtimeAdapter {
   interrupt(): RealtimeOperation;
   setMuted(muted: boolean): RealtimeOperation;
   sendTypedTurn(text: string): RealtimeOperation;
+  registerTypedCandidate(text: string): RealtimeCandidateEvidence | null;
   hearExact(exactText: string): RealtimeOperation;
   retry(): RealtimeOperation | Promise<RealtimeOperation>;
   destroy(): RealtimeOperation;
@@ -279,6 +289,7 @@ export function createFakeRealtimeScript({
     type: "candidate",
     text,
     input: "voice",
+    normalization: "punctuation_only",
     sessionId: `fixture-session-${runId}`,
     sourceTurnIds: [id("student-caption")],
   });
@@ -359,6 +370,10 @@ export class FakeRealtimeAdapter implements RealtimeAdapter {
 
   sendTypedTurn(text: string): RealtimeOperation {
     return this.record("typed_turn", text);
+  }
+
+  registerTypedCandidate(): RealtimeCandidateEvidence | null {
+    return null;
   }
 
   hearExact(exactText: string): RealtimeOperation {

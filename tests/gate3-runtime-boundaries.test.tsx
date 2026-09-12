@@ -1,17 +1,25 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { AppProviders } from "../src/v2/AppProviders";
 import RootApp from "../src/v2/RootApp";
+import type { RealtimeListener } from "../src/v2/realtime/realtime-adapter";
 
-const realtimeMocks = vi.hoisted(() => ({ load: vi.fn() }));
+const realtimeMocks = vi.hoisted(() => ({
+  load: vi.fn(),
+  loadOpenAI: vi.fn(),
+}));
 
 vi.mock("../src/v2/realtime/loadRealtime", () => ({
   loadRealtimeAdapter: realtimeMocks.load,
+}));
+
+vi.mock("../src/v2/realtime/loadOpenAIRealtime", () => ({
+  loadOpenAIRealtimeAdapter: realtimeMocks.loadOpenAI,
 }));
 
 vi.mock("../src/v2/document/DocumentCrop", () => ({
@@ -60,6 +68,7 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   realtimeMocks.load.mockReset();
+  realtimeMocks.loadOpenAI.mockReset();
 });
 
 describe("Gate 3 runtime boundaries", () => {
@@ -111,7 +120,23 @@ describe("Gate 3 runtime boundaries", () => {
     );
   });
 
-  it("fails voice closed without loading the fixture Realtime adapter", async () => {
+  it("loads the live adapter without loading the fixture Realtime adapter", async () => {
+    const liveAdapter = {
+      subscribe: vi.fn(() => vi.fn()),
+      connect: vi.fn(async () => ({ id: "connect", command: "connect" })),
+      startListening: vi.fn(() => ({ id: "listen", command: "listen" })),
+      stopListening: vi.fn(),
+      interrupt: vi.fn(),
+      setMuted: vi.fn(),
+      sendTypedTurn: vi.fn(),
+      registerTypedCandidate: vi.fn(),
+      hearExact: vi.fn(),
+      retry: vi.fn(),
+      destroy: vi.fn(),
+    };
+    realtimeMocks.loadOpenAI.mockResolvedValue({
+      createOpenAIRealtimeAdapter: () => liveAdapter,
+    });
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
@@ -139,10 +164,467 @@ describe("Gate 3 runtime boundaries", () => {
     await user.click(screen.getByRole("button", { name: "Start answering" }));
     await user.click(screen.getByRole("button", { name: "Start speaking" }));
 
-    expect(
-      await screen.findByText("Microphone unavailable"),
-    ).toBeInTheDocument();
+    await waitFor(() => expect(liveAdapter.startListening).toHaveBeenCalled());
+    expect(liveAdapter.connect).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assignmentId: "asgn_runtime",
+        assignmentVersion: 3,
+        questionId: "q_runtime",
+        mode: "direct",
+        exactQuestion: "What is the runtime question?",
+        microphone: true,
+      }),
+    );
+    expect(realtimeMocks.loadOpenAI).toHaveBeenCalledOnce();
     expect(realtimeMocks.load).not.toHaveBeenCalled();
+  });
+
+  it("offers typed recovery when the live adapter cannot load", async () => {
+    realtimeMocks.loadOpenAI.mockRejectedValue(
+      new Error("Realtime module unavailable"),
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify(assignment), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter initialEntries={["/app/asgn_runtime?runtime=api"]}>
+        <AppProviders>
+          <RootApp />
+        </AppProviders>
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", {
+      name: "What is the runtime question?",
+    });
+    await user.click(screen.getByRole("button", { name: "Start answering" }));
+    await user.click(screen.getByRole("button", { name: "Start speaking" }));
+
+    expect(await screen.findByText("Connection lost")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Continue by typing" }),
+    ).toBeEnabled();
+    expect(realtimeMocks.load).not.toHaveBeenCalled();
+  });
+
+  it("posts direct voice candidates with bound Realtime provenance", async () => {
+    let listener: RealtimeListener | undefined;
+    const liveAdapter = {
+      subscribe: vi.fn((next: RealtimeListener) => {
+        listener = next;
+        return vi.fn();
+      }),
+      connect: vi.fn(async () => ({ id: "connect", command: "connect" })),
+      startListening: vi.fn(() => ({ id: "listen", command: "listen" })),
+      stopListening: vi.fn(),
+      interrupt: vi.fn(),
+      setMuted: vi.fn(),
+      sendTypedTurn: vi.fn(),
+      registerTypedCandidate: vi.fn(),
+      hearExact: vi.fn(),
+      retry: vi.fn(),
+      destroy: vi.fn(),
+    };
+    realtimeMocks.loadOpenAI.mockResolvedValue({
+      createOpenAIRealtimeAdapter: () => liveAdapter,
+    });
+    const candidate = {
+      candidate_id: "cand_voice",
+      candidate_version: 1,
+      question_id: "q_runtime",
+      text: "Plants use sunlight as energy.",
+      origin: "student_normalized",
+      attribution: "Your words",
+      created_at: "2026-09-04T12:00:00Z",
+    };
+    let candidateRequest: Record<string, unknown> | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.endsWith("/candidates")) {
+          candidateRequest = JSON.parse(String(init?.body)) as Record<
+            string,
+            unknown
+          >;
+          return new Response(JSON.stringify({ version: 4, candidate }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        if (url.endsWith("/review")) {
+          return new Response(
+            JSON.stringify({
+              version: 4,
+              question_id: "q_runtime",
+              candidate,
+              attribution: "Your words",
+              review_token: "review_voice",
+              expires_at: "2040-01-01T00:00:00Z",
+              placement: "appendix",
+              preview_context_url: "/context",
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+        if (url.endsWith("/confirm")) {
+          return new Response(
+            JSON.stringify({
+              version: 5,
+              confirmation_id: "confirmation_voice",
+              replayed: false,
+              confirmed_answer: {
+                question_id: "q_runtime",
+                revision: 1,
+                candidate_id: candidate.candidate_id,
+                candidate_version: candidate.candidate_version,
+                exact_text: candidate.text,
+                origin: candidate.origin,
+                attribution: "Your words",
+                placement: "appendix",
+                confirmed_at: "2026-09-04T12:01:00Z",
+              },
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+        return new Response(JSON.stringify(assignment), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={["/app/asgn_runtime?runtime=api"]}>
+        <AppProviders>
+          <RootApp />
+        </AppProviders>
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", {
+      name: "What is the runtime question?",
+    });
+    await user.click(screen.getByRole("button", { name: "Start answering" }));
+    await user.click(screen.getByRole("button", { name: "Start speaking" }));
+    await waitFor(() => expect(listener).toBeDefined());
+    act(() => {
+      listener?.({
+        id: "candidate_event",
+        type: "candidate",
+        text: candidate.text,
+        input: "voice",
+        normalization: "punctuation_only",
+        sessionId: "sess_voice",
+        sourceTurnIds: ["turn_voice_1"],
+      });
+    });
+    await user.click(screen.getByRole("button", { name: "Review answer" }));
+    await screen.findByRole("heading", { name: "Review your exact answer" });
+
+    await user.click(screen.getByRole("button", { name: "Hear it" }));
+    expect(liveAdapter.hearExact).toHaveBeenCalledWith(candidate.text);
+    expect(
+      screen.getByRole("button", { name: "Use this exact answer" }),
+    ).toBeEnabled();
+
+    expect(candidateRequest).toMatchObject({
+      origin: "student_normalized",
+      interaction: {
+        kind: "direct_voice",
+        realtime_session_id: "sess_voice",
+        source_turn_ids: ["turn_voice_1"],
+        normalization: "punctuation_only",
+      },
+    });
+
+    act(() => {
+      listener?.({
+        id: "casual_confirmation",
+        type: "transcript",
+        speaker: "student",
+        text: "okay",
+        final: true,
+      });
+    });
+    expect(
+      screen.getByRole("heading", { name: "Review your exact answer" }),
+    ).toBeInTheDocument();
+
+    act(() => {
+      listener?.({
+        id: "exact_confirmation",
+        type: "transcript",
+        speaker: "student",
+        text: "Use this exact answer",
+        final: true,
+      });
+    });
+    expect(
+      await screen.findByRole("heading", {
+        name: "Answer added to the attached answer page.",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("preserves a voice draft through microphone denial and finishes by typing", async () => {
+    let listener: RealtimeListener | undefined;
+    const liveAdapter = {
+      subscribe: vi.fn((next: RealtimeListener) => {
+        listener = next;
+        return vi.fn();
+      }),
+      connect: vi.fn(async () => ({ id: "connect", command: "connect" })),
+      startListening: vi.fn(() => ({ id: "listen", command: "listen" })),
+      stopListening: vi.fn(),
+      interrupt: vi.fn(),
+      setMuted: vi.fn(),
+      sendTypedTurn: vi.fn(),
+      registerTypedCandidate: vi.fn(),
+      hearExact: vi.fn(),
+      retry: vi.fn(),
+      destroy: vi.fn(),
+    };
+    realtimeMocks.loadOpenAI.mockResolvedValue({
+      createOpenAIRealtimeAdapter: () => liveAdapter,
+    });
+    const completedText =
+      "Plants need sunlight because it supplies energy for photosynthesis.";
+    const candidate = {
+      candidate_id: "cand_typed_fallback",
+      candidate_version: 1,
+      question_id: "q_runtime",
+      text: completedText,
+      origin: "student_verbatim",
+      attribution: "Your words",
+      created_at: "2026-09-04T12:00:00Z",
+    };
+    const candidateRequests: Record<string, unknown>[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.endsWith("/candidates")) {
+          candidateRequests.push(
+            JSON.parse(String(init?.body)) as Record<string, unknown>,
+          );
+          return new Response(JSON.stringify({ version: 4, candidate }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        if (url.endsWith("/review")) {
+          return new Response(
+            JSON.stringify({
+              version: 4,
+              question_id: "q_runtime",
+              candidate,
+              attribution: "Your words",
+              review_token: "review_typed_fallback",
+              expires_at: "2040-01-01T00:00:00Z",
+              placement: "appendix",
+              preview_context_url: "/context",
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+        return new Response(JSON.stringify(assignment), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={["/app/asgn_runtime?runtime=api"]}>
+        <AppProviders>
+          <RootApp />
+        </AppProviders>
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", {
+      name: "What is the runtime question?",
+    });
+    await user.click(screen.getByRole("button", { name: "Start answering" }));
+    await user.click(screen.getByRole("button", { name: "Start speaking" }));
+    await waitFor(() => expect(listener).toBeDefined());
+    act(() => {
+      listener?.({
+        id: "partial_voice_candidate",
+        type: "candidate",
+        text: "Plants need sunlight because",
+        input: "voice",
+        normalization: "none",
+        sessionId: "sess_denied",
+        sourceTurnIds: ["turn_partial"],
+      });
+      listener?.({
+        id: "microphone_denied",
+        type: "error",
+        code: "microphone_unavailable",
+        message: "Microphone unavailable",
+      });
+    });
+
+    const answer = screen.getByRole("textbox", { name: "Your words" });
+    expect(answer).toHaveValue("Plants need sunlight because");
+    await user.click(
+      screen.getByRole("button", { name: "Continue by typing" }),
+    );
+    expect(answer).toHaveFocus();
+    await user.clear(answer);
+    await user.type(answer, completedText);
+    await user.click(screen.getByRole("button", { name: "Review answer" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Review your exact answer" }),
+    ).toBeInTheDocument();
+    expect(candidateRequests).toHaveLength(1);
+    expect(candidateRequests[0]).toMatchObject({
+      text: completedText,
+      origin: "student_verbatim",
+      interaction: { kind: "direct_typed" },
+    });
+  });
+
+  it("keeps guided typed turns microphone-free and posts guided provenance", async () => {
+    let listener: RealtimeListener | undefined;
+    const liveAdapter = {
+      subscribe: vi.fn((next: RealtimeListener) => {
+        listener = next;
+        return vi.fn();
+      }),
+      connect: vi.fn(async () => ({ id: "connect", command: "connect" })),
+      startListening: vi.fn(),
+      stopListening: vi.fn(),
+      interrupt: vi.fn(),
+      setMuted: vi.fn(),
+      sendTypedTurn: vi.fn(),
+      registerTypedCandidate: vi.fn(() => ({
+        sessionId: "sess_guided",
+        sourceTurnIds: ["typed_final_1"],
+        input: "typed",
+        normalization: "none",
+      })),
+      hearExact: vi.fn(),
+      retry: vi.fn(),
+      destroy: vi.fn(),
+    };
+    realtimeMocks.loadOpenAI.mockResolvedValue({
+      createOpenAIRealtimeAdapter: () => liveAdapter,
+    });
+    const candidate = {
+      candidate_id: "cand_guided",
+      candidate_version: 1,
+      question_id: "q_runtime",
+      text: "Plants use sunlight to make food.",
+      origin: "student_after_guidance",
+      attribution: "Your words",
+      created_at: "2026-09-04T12:00:00Z",
+    };
+    let candidateRequest: Record<string, unknown> | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.endsWith("/candidates")) {
+          candidateRequest = JSON.parse(String(init?.body)) as Record<
+            string,
+            unknown
+          >;
+          return new Response(JSON.stringify({ version: 4, candidate }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        if (url.endsWith("/review")) {
+          return new Response(
+            JSON.stringify({
+              version: 4,
+              question_id: "q_runtime",
+              candidate,
+              attribution: "Your words",
+              review_token: "review_guided",
+              expires_at: "2040-01-01T00:00:00Z",
+              placement: "appendix",
+              preview_context_url: "/context",
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+        return new Response(JSON.stringify(assignment), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={["/app/asgn_runtime?runtime=api"]}>
+        <AppProviders>
+          <RootApp />
+        </AppProviders>
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", {
+      name: "What is the runtime question?",
+    });
+    await user.click(
+      screen.getByRole("button", { name: "Start a guided conversation" }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "Your response" }),
+      "Light provides energy.",
+    );
+    await user.click(screen.getByRole("button", { name: "Send response" }));
+    await waitFor(() => expect(listener).toBeDefined());
+    act(() => {
+      listener?.({
+        id: "reply_event",
+        type: "transcript",
+        speaker: "claros",
+        text: "Now state your final answer.",
+        final: true,
+      });
+    });
+    expect(candidateRequest).toBeUndefined();
+    await user.click(
+      screen.getByRole("button", { name: "I am ready to answer" }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "Your final answer" }),
+      candidate.text,
+    );
+    await user.click(screen.getByRole("button", { name: "Review answer" }));
+    await screen.findByRole("heading", { name: "Review your exact answer" });
+
+    expect(liveAdapter.connect).toHaveBeenCalledWith(
+      expect.objectContaining({ microphone: false, mode: "guided" }),
+    );
+    expect(liveAdapter.startListening).not.toHaveBeenCalled();
+    expect(liveAdapter.sendTypedTurn).toHaveBeenCalledWith(
+      "Light provides energy.",
+    );
+    expect(candidateRequest).toMatchObject({
+      origin: "student_after_guidance",
+      interaction: {
+        kind: "guided_final",
+        realtime_session_id: "sess_guided",
+        source_turn_ids: ["typed_final_1"],
+        input: "typed",
+      },
+    });
   });
 
   it("reuses a persisted candidate when review retry follows a server failure", async () => {

@@ -21,7 +21,7 @@ SECURITY_HEADERS = {
     "Content-Security-Policy": (
         "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; "
         "style-src 'self' 'unsafe-inline'; font-src 'self'; "
-        "img-src 'self' data: blob:; connect-src 'self'; "
+        "img-src 'self' data: blob:; connect-src 'self' https://api.openai.com; "
         "worker-src 'self' blob:; object-src 'none'; base-uri 'self'; "
         "frame-ancestors 'none'"
     ),

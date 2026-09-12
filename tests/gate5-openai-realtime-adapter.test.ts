@@ -111,8 +111,50 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
       "UNTRUSTED_WORKSHEET_DATA=",
     );
     expect(factoryOptions[0].instructions).not.toContain("ek_ephemeral_1");
+    expect(factoryOptions[0].microphone).toBe(true);
+    expect(factoryOptions[0].reasoning).toBe("low");
     expect(events).toContainEqual(
       expect.objectContaining({ type: "voice_state", state: "ready" }),
+    );
+  });
+
+  it("creates a text-only WebRTC session without requesting a microphone", async () => {
+    const { adapter, factoryOptions } = setup();
+
+    await adapter.connect({
+      ...connectOptions,
+      mode: "direct",
+      microphone: false,
+    });
+
+    expect(factoryOptions[0].microphone).toBe(false);
+    expect(factoryOptions[0].reasoning).toBe("minimal");
+    expect(factoryOptions[0].instructions).toContain("Direct-answer mode:");
+    expect(factoryOptions[0].instructions).toContain(
+      "Do not turn a fragment into a materially more complete answer without permission.",
+    );
+  });
+
+  it("does not spend the reconnect allowance on an initial credential failure", async () => {
+    const credentialProvider = vi
+      .fn()
+      .mockRejectedValue(new Error("unavailable"));
+    const factory = vi.fn() as unknown as SessionFactory;
+    const adapter = new OpenAIRealtimeAdapter(credentialProvider, factory);
+    const events: RealtimeEvent[] = [];
+    adapter.subscribe((event) => events.push(event));
+
+    await expect(adapter.connect(connectOptions)).rejects.toThrow(
+      "unavailable",
+    );
+
+    expect(credentialProvider).toHaveBeenCalledOnce();
+    expect(factory).not.toHaveBeenCalled();
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "error",
+        code: "realtime_disconnected",
+      }),
     );
   });
 
@@ -194,6 +236,12 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
     ).toContain("Rejected");
     expect(
       factoryOptions[0].onCandidate({
+        exact_text: "Plants need water instead.",
+        source_turn_ids: ["turn_voice_1"],
+      }),
+    ).toContain("changed the student's words");
+    expect(
+      factoryOptions[0].onCandidate({
         exact_text: "Plants use sunlight as energy.",
         source_turn_ids: ["turn_voice_1"],
       }),
@@ -202,6 +250,7 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
       expect.objectContaining({
         type: "candidate",
         input: "voice",
+        normalization: "none",
         sessionId: "sess_1",
         sourceTurnIds: ["turn_voice_1"],
       }),
@@ -218,6 +267,12 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
     factoryOptions[0].onCandidate({
       exact_text: "Plants use light energy.",
       source_turn_ids: [typedEventId],
+    });
+    expect(adapter.registerTypedCandidate("My typed final answer.")).toEqual({
+      sessionId: "sess_1",
+      sourceTurnIds: [expect.any(String)],
+      input: "typed",
+      normalization: "none",
     });
     expect(factoryOptions[0].onRephrase({ candidate_id: "stale" })).toContain(
       "Rejected",

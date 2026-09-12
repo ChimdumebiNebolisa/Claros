@@ -510,7 +510,7 @@ const server = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", "http://localhost");
   for (const [name, value] of Object.entries({
     "content-security-policy":
-      "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+      "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://api.openai.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
     "x-content-type-options": "nosniff",
     "x-frame-options": "DENY",
     "referrer-policy": "strict-origin-when-cross-origin",
