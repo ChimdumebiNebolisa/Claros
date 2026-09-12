@@ -21,21 +21,50 @@ Branch: `codex/claros-v2-nerdy`
 - Windows Docker smoke output is decoded explicitly as UTF-8 with replacement
   for malformed terminal bytes, avoiding locale-dependent reader failures.
 
-OpenSpec tasks 4.1, 4.2, 4.3, and 4.5 are complete. Tasks 4.4, 4.6, and 4.7
-remain open.
+OpenSpec tasks 4.1 through 4.6 are complete. Task 4.7 remains open pending the
+independent read-only review and checkpoint recording.
+
+## Live model selection
+
+The first bounded live sweep used the frozen model order and three runs per
+candidate. Luna was closest at 32/33 correct, zero invalid IDs, and 4,834 ms
+p95; Terra produced 27/33 correct with 4,507 ms p95; Sol produced 26/33 correct
+with 6,162 ms p95. No candidate was selected from that fingerprint.
+
+The single Luna miss was a `semantic_overlapping` failure on the synthetic
+non-science fixture. The system instructions were narrowed to state the
+already-enforced postvalidation rules explicitly: prompt and context IDs are
+disjoint, question prompts cannot be reused as context, and shared instructions
+require the warning on every referencing question. No schema, validator, gold
+expectation, or acceptance threshold changed.
+
+The required three-run benchmark was then repeated from Luna against the new
+prompt fingerprint. Luna passed all 33 required model-addressable results with
+zero invalid IDs and 5,347 ms p95 latency against the configured 30,000 ms
+semantic timeout budget. It used 135,678 input tokens and 7,534 output tokens,
+with an estimated cost of $0.036176 at the recorded 2026-09-11 price. The runner
+stopped immediately; Terra and Sol were not called again. The checksum-pinned
+scan-only case remains a deterministic preflight rejection and was not sent to
+a model.
+
+The sanitized per-fixture evidence is in `live-model-benchmark.json`. It stores
+case IDs, safe failure codes, counts, latency, token usage, cost estimates, and
+fingerprints. It stores no API key, provider payload, or generated text.
 
 ## Verification
 
 | Check | Result |
 | --- | --- |
-| Focused Ruff over semantic, application, domain, and tests | Pass |
-| Focused domain/semantic/application/OpenPDF-factory tests | 73 passed; 5 host qpdf skips |
+| Focused Ruff over backend, scripts, and tests | Pass |
+| Focused semantic tests after the live prompt correction | 53 passed |
 | Pinned twelve-case corpus regeneration check | Pass |
 | Corpus plus semantic tests | 76 passed |
-| Applicable backend regression, excluding protected untracked Realtime tests | 453 passed; 16 host qpdf skips |
+| Applicable backend regression, excluding protected untracked Realtime tests | 454 passed; 16 host qpdf skips |
 | OpenAI Python SDK adapter signature check | SDK 3.8.0 supports every used Responses parameter |
 | `npm run ci` | Pass: format, lint, typecheck, dependency/license policy, API drift, 73 Vitest tests, Storybook accessibility, production build, and bundle closure |
 | `npm run test:e2e:gate3` | Pass: one real Chromium/FastAPI authenticated typed/export/restart workflow |
+| Live Luna benchmark | Pass: 33/33 correct, zero invalid IDs, 5,347 ms p95 |
+| Credential and artifact scan | Pass: server key authenticated; benchmark evidence contains no key or generated text |
 | Linux production container build and real API smoke | Pass on Docker Engine 29.1.2 |
 | `git diff --check` | Pass |
 
@@ -45,9 +74,8 @@ typed flow, restart persistence, and valid inline and appendix exports.
 
 ## Remaining gate
 
-No `OPENAI_API_KEY` or `CLAROS_OPENAI_API_KEY` was present. The required live
-three-run corpus benchmark must still evaluate Luna, then Terra, then Sol as
-needed and publish correctness, invalid-ID, p95 latency, token/cost, and chosen
-model evidence. No model default is accepted for production until that gate
-passes. No scanner, broad PDF-library search, production migration, deployment,
-or traffic change was performed.
+The live-model blocker is cleared and `gpt-5.6-luna` is the selected semantic
+default. Gate 4 closes after the independent read-only review records no
+unresolved critical finding and `docs/v2/STATUS.md` records the content
+checkpoint. No scanner, broad PDF-library search, production migration,
+deployment, or traffic change was performed.

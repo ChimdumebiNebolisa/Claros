@@ -159,14 +159,23 @@ def test_student_edit_must_reference_current_candidate(manifest_factory) -> None
 
 
 def test_selected_rephrase_requires_matching_server_record(manifest_factory) -> None:
-    manifest = manifest_factory()
+    manifest, original = replace_candidate(
+        manifest_factory(),
+        question_id="q_1",
+        assignment_version=1,
+        exact_text="Plants need sunlight to make food.",
+        origin=CandidateOrigin.STUDENT_VERBATIM,
+        interaction=DirectTypedInteraction(),
+        now=NOW,
+        candidate_id_factory=lambda: "cand_original",
+    )
     question = manifest.questions[0].model_copy(
         update={
             "rephrases": (
                 RephraseRecord(
                     rephrase_id="rph_one",
                     original_candidate_id="cand_original",
-                    original_candidate_version=1,
+                    original_candidate_version=original.candidate_version,
                     suggestion_candidate_id="cand_suggestion",
                     suggestion_candidate_version=2,
                     suggestion_text="Plants use sunlight to make food.",
@@ -182,25 +191,78 @@ def test_selected_rephrase_requires_matching_server_record(manifest_factory) -> 
     updated, candidate = replace_candidate(
         manifest,
         question_id="q_1",
-        assignment_version=1,
+        assignment_version=manifest.version,
         exact_text="Plants use sunlight to make food.",
         origin=CandidateOrigin.CLAROS_REPHRASE,
         interaction=interaction,
         now=NOW,
         candidate_id_factory=lambda: "cand_selected",
     )
-    assert updated.version == 2
+    assert updated.version == 3
     assert candidate.attribution == StudentAttribution.SUGGESTED_WORDING
 
     with pytest.raises(InvalidCandidateOrigin):
         replace_candidate(
             manifest,
             question_id="q_1",
-            assignment_version=1,
+            assignment_version=manifest.version,
             exact_text="A changed suggestion.",
             origin=CandidateOrigin.CLAROS_REPHRASE,
             interaction=interaction,
             now=NOW,
+        )
+
+
+def test_selected_rephrase_rejects_a_suggestion_after_the_original_changes(
+    manifest_factory,
+) -> None:
+    with_candidate, candidate = replace_candidate(
+        manifest_factory(),
+        question_id="q_1",
+        assignment_version=1,
+        exact_text="Plants need sunlight to make food.",
+        origin=CandidateOrigin.STUDENT_VERBATIM,
+        interaction=DirectTypedInteraction(),
+        now=NOW,
+        candidate_id_factory=lambda: "cand_original",
+    )
+    with_rephrase, record = record_rephrase(
+        with_candidate,
+        question_id="q_1",
+        assignment_version=with_candidate.version,
+        candidate_id=candidate.candidate_id,
+        candidate_version=candidate.candidate_version,
+        suggestion_text="Plants use sunlight to make food.",
+        now=NOW,
+        rephrase_id_factory=lambda: "rph_stale",
+        candidate_id_factory=lambda: "cand_suggestion",
+    )
+    edited, _ = replace_candidate(
+        with_rephrase,
+        question_id="q_1",
+        assignment_version=with_rephrase.version,
+        exact_text="Plants use light energy to make food.",
+        origin=CandidateOrigin.STUDENT_EDITED,
+        interaction=StudentEditInteraction(
+            prior_candidate_id=candidate.candidate_id,
+            prior_candidate_version=candidate.candidate_version,
+        ),
+        now=NOW + timedelta(seconds=1),
+        candidate_id_factory=lambda: "cand_edited",
+    )
+
+    with pytest.raises(InvalidCandidateOrigin):
+        replace_candidate(
+            edited,
+            question_id="q_1",
+            assignment_version=edited.version,
+            exact_text=record.suggestion_text,
+            origin=CandidateOrigin.CLAROS_REPHRASE,
+            interaction=SelectedRephraseInteraction(
+                rephrase_id=record.rephrase_id,
+                suggestion_candidate_id=record.suggestion_candidate_id,
+            ),
+            now=NOW + timedelta(seconds=2),
         )
 
 

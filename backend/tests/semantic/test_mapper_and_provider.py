@@ -33,7 +33,7 @@ async def test_responses_parse_is_bounded_stateless_and_sanitized(
     responses = RecordingResponses(
         SimpleNamespace(
             output_parsed=valid_mapping,
-            output_text=None,
+            output_text="raw provider text must not leave the adapter",
             output=[],
             status="completed",
             incomplete_details=None,
@@ -48,6 +48,7 @@ async def test_responses_parse_is_bounded_stateless_and_sanitized(
     )
 
     assert result.parsed == valid_mapping
+    assert result.output_text is None
     assert (result.input_tokens, result.output_tokens) == (321, 45)
     call = responses.parse_calls[0]
     assert call["model"] == "gpt-5.6-luna"

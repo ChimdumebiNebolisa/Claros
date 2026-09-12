@@ -92,7 +92,7 @@ def test_application_factory_selects_configured_semantic_model(tmp_path: Path) -
 
 def test_semantic_selection_requires_key_and_supported_model(tmp_path: Path) -> None:
     with pytest.raises(ValidationError, match="CLAROS_OPENAI_API_KEY"):
-        _settings(tmp_path, semantic_engine="openai")
+        _settings(tmp_path, semantic_engine="openai", openai_api_key=None)
     with pytest.raises(ValidationError):
         _settings(
             tmp_path,

@@ -532,6 +532,7 @@ def _validate_origin(
             raise InvalidCandidateOrigin("The edit does not match the current answer.")
     elif isinstance(interaction, SelectedRephraseInteraction):
         expected = CandidateOrigin.CLAROS_REPHRASE
+        current = question.current_candidate
         matching = next(
             (
                 item
@@ -541,7 +542,14 @@ def _validate_origin(
             ),
             None,
         )
-        if matching is None or matching.suggestion_text != exact_text:
+        if (
+            matching is None
+            or current is None
+            or matching.original_candidate_id != current.candidate_id
+            or matching.original_candidate_version != current.candidate_version
+            or matching.suggestion_candidate_version != question.candidate_sequence + 1
+            or matching.suggestion_text != exact_text
+        ):
             raise InvalidCandidateOrigin("The suggestion is not a valid server rephrase.")
     else:  # pragma: no cover - exhaustive defensive boundary
         raise InvalidCandidateOrigin("The interaction path is unsupported.")

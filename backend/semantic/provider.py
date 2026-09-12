@@ -118,9 +118,10 @@ class OpenAIResponsesSemanticProvider:
             max_output_tokens=self._max_output_tokens,
             truncation="disabled",
         )
+        parsed = getattr(response, "output_parsed", None)
         return ProviderResult(
-            parsed=getattr(response, "output_parsed", None),
-            output_text=getattr(response, "output_text", None),
+            parsed=parsed,
+            output_text=None if parsed is not None else getattr(response, "output_text", None),
             refused=_has_refusal(response),
             incomplete=(
                 getattr(response, "status", None) == "incomplete"
