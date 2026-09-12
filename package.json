@@ -19,6 +19,7 @@
     "preview": "vite preview",
     "start": "node scripts/start-local.mjs",
     "test": "vitest run",
+    "test:conversation": "vitest run tests/gate2-workspace-machine.test.ts tests/gate3-runtime-boundaries.test.tsx tests/gate5-openai-realtime-adapter.test.ts",
     "test:watch": "vitest",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",

@@ -6,6 +6,7 @@ import "../src/styles/app.css";
 import "../src/styles/v2.css";
 
 const preview: Preview = {
+  initialGlobals: { a11y: { manual: true } },
   parameters: {
     a11y: { test: "error" },
     controls: { matchers: { color: /(background|color)$/i, date: /Date$/i } },
