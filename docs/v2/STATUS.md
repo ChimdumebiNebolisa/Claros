@@ -3,7 +3,7 @@
 - **As of:** 2026-09-12
 - **Branch:** `codex/claros-v2-nerdy`
 - **Baseline:** `5fb217715e4b3278f21a882b2652d928f2cca628`
-- **Current phase:** Gate 5 in progress — one-agent correction implemented; final human-spoken acceptance remains
+- **Current phase:** Gate 5 in progress — browser acceptance and scoped code review pass; final human microphone/PDF acceptance remains
 - **Gate state:** Gates 0–4 passed; Gate 5 is 11/13 tasks complete
 - **Gate 0 content checkpoint:** `0c15404b87edbbe19b03de93d81ad95aa1e897fd`
 - **Gate 1 content checkpoint:** `59cbc509650cc4a65b139a7db23012ead74efb3c`
@@ -13,6 +13,8 @@
 - **Gate 4 live-source checkpoint:** `121287e766140610dfdde8cddfd3cec36817d6b0`
 - **Gate 5 workspace-integration checkpoint:** `2c688e58f197127f62571fa68fc797a4986fbaca`
 - **Gate 5 live-defect checkpoint:** `22b3d602d5b02711d0997af4fe18ce8945484cf5`
+- **Gate 5 browser-acceptance implementation checkpoint:** `06425f913df328a21abeb73b192760005cee7d34`
+- **Gate 5 scoped independent code-review checkpoint:** `06425f913df328a21abeb73b192760005cee7d34` — approved; human evidence still pending
 
 ### 2026-09-11 product-owner correction
 
@@ -41,10 +43,31 @@ production build/bundle boundary checks, Ruff, strict OpenSpec validation, and
 zero npm audit vulnerabilities. The deployment workflow now depends on the
 offline conversation gate.
 
-The broad legacy `npm run test:e2e` suite is not claimed as passing: its first
-tests still expect the superseded fixture-default `/app` runtime and attempt to
-reach an unstarted API on port 8080. Updating that suite, physical microphone
-acceptance, and independent Gate 5 review remain open under tasks 5.7 and 5.8.
+That legacy `npm run test:e2e` failure was reproduced before repair: it started
+the wrong runtime, attempted to reach an unstarted API on port 8080, and still
+expected fixture-default behavior. The suite now owns an isolated real FastAPI
+and OpenPDF runtime on port 18080 and passes against the actual V2 application.
+Physical microphone and human PDF acceptance remain open under tasks 5.7 and
+5.8.
+
+### 2026-09-12 Gate 5 browser-acceptance repair
+
+Implementation checkpoint `06425f9` repairs the Playwright launcher in place,
+maps useful legacy assertions to the one-conversation product, and covers the
+real landing, assignment, review, authorized confirmation, and OpenPDF export
+paths. Only the external Realtime boundary is replaced in the test build by
+deterministic event replay. The repair also pauses capture after terminal
+disconnect, rejects old question/version/generation events, and keeps
+typed-only `Hear it` playback completion usable after version advancement.
+
+Fresh verification at this implementation shape passed 48 conversation tests,
+105 full frontend tests, 10 real-application Chromium tests, 548 backend tests
+with zero skips, 22 focused OpenPDF publication tests with zero skips, and the
+all-story accessibility sweep. Format, lint, typecheck, production build,
+bundle boundaries, dependency/API contracts, Ruff, strict OpenSpec, secret
+scans, and npm audit also passed. A separate read-only reviewer approved exact
+SHA `06425f9` after two correction passes. The combined evidence and human
+checklist are in `artifacts/v2/gate5/live-acceptance.md`.
 
 ### 2026-09-12 one-agent implementation evidence
 
@@ -98,7 +121,9 @@ Those two sensory checks remain unverified and do not close tasks 5.7 or 5.8.
   state, multipart response finalization, API-mode navigation, and
   cross-question captions. A human-spoken direct transcript/candidate and live
   spoken exact-confirmation phrase remain unverified, so tasks 5.7 and 5.8 stay
-  open. See `artifacts/v2/gate5/live-acceptance.md`.
+  open. The current deterministic application-browser suite and scoped code
+  review pass at `06425f9`; neither is represented as sensory evidence. See
+  `artifacts/v2/gate5/live-acceptance.md`.
 
 - **OpenPDF promotion:** The validated Java renderer is integrated behind
   explicit `CLAROS_PDF_ENGINE=openpdf` selection in the real `/api/v2` service.
@@ -128,10 +153,11 @@ Those two sensory checks remain unverified and do not close tasks 5.7 or 5.8.
   produced digest `sha256:b4058b7bb22210a82690db7859354dad4fdf354441d57ee46a79deea6d7d5b66`;
   revision `claros-00075-xtv` serves it at 100 percent after live persistence,
   ownership-isolation, and proxy-identity checks.
-- **Next action:** Run one human-spoken answer and the exact confirmation
-  phrase in the already-verified live browser path, then close task 5.7 and
-  request the independent Gate 5 review. Do not include the unrelated Docker
-  artifacts.
+- **Next action:** Run the seven-step physical-microphone checklist in the
+  prepared local application, including audible playback and downloaded-PDF
+  inspection. If it passes, append the observations, close task 5.7, and ask
+  the independent reviewer to close the evidence portion of task 5.8. Do not
+  include the unrelated Docker artifacts.
 
 ## Gate 0 checklist
 

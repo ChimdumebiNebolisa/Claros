@@ -1,79 +1,115 @@
-# Gate 5 live Realtime acceptance
+# Gate 5 browser and live Realtime acceptance
 
-- Date: 2026-09-11
+- Updated: 2026-09-12
 - Branch: `codex/claros-v2-nerdy`
-- Implementation checkpoint: `22b3d602d5b02711d0997af4fe18ce8945484cf5`
+- Browser-acceptance implementation checkpoint: `06425f913df328a21abeb73b192760005cee7d34`
+- Prior bounded live-provider checkpoint: `22b3d602d5b02711d0997af4fe18ce8945484cf5`
 - Realtime model: `gpt-realtime-2.1`
 - Semantic model configuration: `gpt-5.6-luna`
-- Corpus: checked-in synthetic biology sample only
-- Status: partial pass; task 5.7 remains open
+- Corpus: checked-in synthetic biology sample and test-owned upload only
+- Status: automated browser acceptance and scoped code review pass; physical-microphone and human PDF acceptance remain open
 
-No API key, ephemeral credential, owner identifier, assignment identifier, or
-raw provider payload is recorded in this report. Credential presence was
-checked as a boolean only. The local key remains in the ignored server-side
-`.env` file and was absent from tracked files and the production bundle.
+No API key, ephemeral credential, owner identifier, assignment identifier, raw
+provider payload, or private transcript is recorded here. The configured
+server-side key was checked only for presence and exact-value absence from
+tracked files and the production bundle.
 
-## Live results
+## Baseline defect and classification
 
-| Check | Result | Evidence |
-| --- | --- | --- |
-| Server credential issuance | Pass | A live credential was issued after owner/question/mode/version validation. The provider accepted the 64-character privacy-safe identifier. |
-| Guided typed turn over WebRTC | Pass | The live model returned context-specific responses not present in the fake adapter; the full final response appeared identically in the guided conversation and live caption region. |
-| Text-only WebRTC transport | Pass | A locally owned silent audio track satisfied the SDK WebRTC transport without requesting microphone permission, and teardown owns track/context cleanup. |
-| Mute/unmute | Pass | The visible control toggled between `Mute spoken output` and `Unmute spoken output` during a live session. |
-| Interrupt | Pass | `Interrupt Claros` appeared during live streamed output; activation moved the UI to `Interrupted` and preserved the student turn. A subsequent guided turn completed normally. |
-| Recoverable reconnect | Pass | With the local credential server intentionally unavailable, the UI showed `Connection lost` and preserved the draft. After server recovery, `Retry voice` obtained a fresh credential and returned to `Ready`. |
-| Direct microphone connection and stop | Pass | The live direct path reached `Listening`; `Stop listening` returned it to `Ready` without losing the editor. |
-| Cross-question captions | Pass | Moving from Question 2 to Question 3 showed the empty caption placeholder rather than the prior question's transcript. |
-| Direct spoken transcript/candidate | **Not yet verified** | The browser environment did not route either system speech or a temporary synthetic WAV into its microphone input. The temporary fixture was deleted. No direct transcript was claimed. |
-| Spoken exact-confirmation phrase | **Not yet verified** | Button confirmation and fake-adapter phrase authority pass, but a live microphone transcription of `Use this exact answer` still needs one human-spoken run. |
+At baseline `3d1f7809ef22e28f5203c2425eaf111f98946a80`, the bounded command
+`npx playwright test tests/e2e/gate2-workspace.spec.ts --grep "active Question 2" --max-failures=1`
+started the legacy Node server on 8787 and Vite on 5173. Vite then proxied the
+normal V2 API request to an unstarted process on 8080 and failed with
+`ECONNREFUSED 127.0.0.1:8080`; the obsolete fixture-image assertion timed out.
+This was a harness/runtime defect plus a retired fixture expectation, not an
+application failure.
 
-## Defects found and fixed during the live run
+The repair keeps `npm run test:e2e` in place but builds the actual V2 frontend,
+starts the real FastAPI service on dedicated port 18080, uses isolated local
+storage, selects the real OpenPDF worker with checksum-verified qpdf, refuses
+to reuse another server, and removes only its own test storage on teardown. A
+test-build-only import alias replaces the external OpenAI Realtime boundary
+with deterministic event replay. FastAPI routes, domain validation,
+persistence, review, confirmation, source delivery, export, qpdf, PDFBox, and
+OpenPDF remain real. There is no production-accessible fake-mode switch.
 
-1. Realtime credential issuance failed because the hashed safety identifier was
-   71 characters; OpenAI permits 64. The identifier is now a prefixed,
-   truncated SHA-256 value of exactly 64 characters.
-2. Text-only sessions passed an empty `MediaStream`, while the pinned SDK
-   requires an audio track. They now use a zero-gain, app-owned Web Audio track
-   with explicit cleanup.
-3. Stopping direct capture left the state at `Listening`. The adapter now emits
-   `Ready`, and both state-machine paths accept that transition.
-4. WebRTC audio handled by the browser does not emit SDK audio buffers. Visible
-   `Speaking` state now begins from live transcript/audio deltas, enabling the
-   interrupt control.
-5. Provider output can contain multiple transcript parts. Parts are accumulated
-   and finalized on the SDK `agent_end` event; interrupted partial output is not
-   promoted to a completed Claros turn.
-6. Development navigation dropped `?runtime=api` and could silently fall back
-   to fixtures. API-mode routes now preserve the query while ordinary fixture
-   route tests remain fixture-backed.
-7. Captions from one question remained visible on the next. Caption state is
-   now question-scoped.
+Useful retired assertions were mapped as follows:
 
-## Automated verification
+- Fixture-default `/app` became real sample creation and supported upload
+  through `POST /api/v2/assignments`.
+- Separate direct/guided route assertions became one adaptive conversation
+  with typed and voice-replay intents in the same workspace.
+- Fixture-only answer placement became real review, authorization, OpenPDF
+  export, PDF parsing/text inspection, and source SHA preservation.
+- Existing keyboard, focus, mobile reflow, exact wording, stale review,
+  authorization, and axe assertions were retained rather than weakened.
 
-| Command | Result |
-| --- | --- |
-| `npm test` | Pass — 89/89 |
-| `python -m pytest backend/tests -q` with explicit test engines | Pass — 525 passed, 16 expected qpdf skips |
-| `npx playwright test tests/e2e/gate2-workspace.spec.ts --workers=1` | Pass — 15/15 |
-| `npm run typecheck` | Pass |
-| `npm run lint` | Pass |
-| `npm run format` | Pass |
-| `npm run build` | Pass; accepted pinned EmbedPDF warnings only |
-| `npm run check:dependencies` | Pass |
-| `npm run check:bundles` | Pass; fake Realtime adapter absent from production |
-| `python -m ruff check backend` | Pass |
-| `openspec validate claros-reconstruction --strict` | Pass |
-| tracked and production-bundle secret scans | Pass — 0 matches |
-| `npm audit --omit=dev --audit-level=high` | Pass — 0 production vulnerabilities |
+## Coverage
 
-The full npm audit currently reports two high-severity development-tooling
-findings in the Redocly `js-yaml` dependency chain. They are not shipped in the
-production dependency set. Gate 6 must resolve or formally disposition them.
+| Check | Evidence type | Source checkpoint | Result | Remaining limitation |
+| --- | --- | --- | --- | --- |
+| Repaired `npm run test:e2e` launcher and isolation | Automated application-browser diagnostic | `06425f9` | Pass — owns built frontend, FastAPI 18080, storage, qpdf, OpenPDF worker, readiness, and cleanup | External provider is deterministically substituted only at its test import boundary |
+| Landing, CTA, sample, supported upload, one conversation, drafts/navigation, review/revision, one authorized approval, acknowledgement, keyboard/mobile, and export | Automated application browser | `06425f9` | Pass — 10/10 Chromium tests in 1.5 minutes | Replay is not physical microphone or audible-playback evidence |
+| Captions, independent speaker mute, interruption, active capture controls, terminal disconnect, typed fallback, and retained pause across navigation | Automated Realtime replay through real application UI | `06425f9` | Pass | Does not prove device capture or human hearing |
+| Exact command grammar and answer-fidelity regressions | Focused unit/integration plus browser replay | `06425f9` | Pass — questions, negation, extra clauses, and casual agreement rejected; negatives, decimals, fractions, operators, and thousands separators retained | Spoken recognition of the command awaits a human microphone |
+| Conversation regressions | Automated frontend integration | `06425f9` | Pass — 48/48 | Provider transport is mocked in deterministic tests |
+| Full frontend suite | Automated unit/component/integration | `06425f9` | Pass — 105/105 across 14 files | None |
+| Full backend suite | Automated API/security/storage/PDF integration with repository-local qpdf | `06425f9` working tree; final behavioral delta is frontend-only | Pass — 548 passed, 0 skipped, 23 third-party deprecation warnings | No backend file changed after this run |
+| OpenPDF publication suite | Automated OpenPDF/qpdf/PDFBox integration | `06425f9` working tree; final behavioral delta is frontend-only | Pass — 22 passed, 0 skipped, 1 third-party warning; qpdf 12.3.2, Java 21.0.10 | Human inspection of the final downloaded PDF remains pending |
+| Existing accessibility gate | Storybook Playwright plus in-app axe/keyboard checks | `06425f9` | Pass — all V2 stories, 1/1 sweep; browser workspace axe test also passed | Human assistive-technology evaluation was not requested |
+| Format, lint, typecheck, build, bundle, dependency, API, Ruff, strict OpenSpec, and npm audit | Automated contract/build checks | `06425f9` | Pass — 0 npm vulnerabilities; accepted pinned EmbedPDF crypto-externalization and lazy-chunk warnings only | CI will rerun on pull request or main, not on this branch push |
+| Server credential and production-bundle secrecy | Automated configuration and exact-value scan | `06425f9` | Pass — server key configured; 0 tracked exact-key matches; 0 production-bundle exact-key matches | No credential value was printed or recorded |
+| Bounded live provider: credential issuance, guided typed WebRTC response/captions, mute, interruption, reconnect, direct connect/stop, and cross-question captions | Prior live-provider browser observation | `22b3d60` | Pass for the listed observations | Predates current lifecycle fixes; not a substitute for the remaining human run |
+| Scoped independent implementation review | Read-only separate reviewer tracing relevant unchanged callers | `06425f9` | **Approve** — no blocking or material code findings remain | Reviewer correctly left sensory and downloaded-PDF evidence pending |
+| Direct spoken transcript/candidate and exact spoken confirmation | Human microphone/provider/application evidence | Pending | **Not yet verified** | Requires the user at the prepared local application |
+| Audible exact playback and downloaded-PDF inspection | Human sensory and document evidence | Pending | **Not yet verified** | Requires human hearing and inspection of the session export |
 
-## Remaining acceptance action
+The full backend and focused OpenPDF runs initially received an invalid command
+environment because `qpdf` is repository-local rather than globally on
+`PATH`. They were rerun with
+`.local/tools/qpdf/bin/qpdf.exe`; the passing totals above are from those
+corrected runs. No dependency skip or renderer fallback remained.
 
-Run one human-spoken direct answer through live transcription/candidate capture,
-then enter exact review and speak the canonical phrase exactly once. After that
-passes, task 5.7 can close and task 5.8 can begin independent review.
+## Scoped independent review
+
+The first review of `82896ea` found three blockers: terminal disconnect could
+retain capture intent, late events could cross question boundaries, and browser
+coverage omitted caption/mute/interruption integration. The re-review of
+`531c1db` found a typed-only `Hear it` completion edge case after assignment
+version advancement. The smallest justified fixes pause and mute only after
+terminal recovery failure, bind provider events to connection generation plus
+assignment/version/question, exercise the missing browser seams, and allow
+only local non-mutating `playback_complete` through the stale-version guard.
+The final read-only review approved `06425f9`. General PDF selection, cloud
+deployment, and unrelated repository domains were out of scope.
+
+## Physical-microphone checklist
+
+Use the sample or another project-owned worksheet. Record observations without
+copying a private transcript into this repository.
+
+1. Start speaking and ask about the active question. Verify browser/device
+   capture, a provider transcript, and human-audible assistant playback.
+2. While Claros speaks, press **Stop listening**. Speak a new short phrase and
+   verify it is not transmitted as new input. Separate any already-buffered
+   transcription from post-pause speech; a changed label alone is insufficient.
+3. Resume capture, type a short message, then speak again. Verify both inputs
+   remain in the same conversation.
+4. Dictate an answer, navigate to another question conversationally, and
+   return. Verify the draft remains attached only to its original question.
+5. Enter exact review, press **Hear it**, confirm the wording is audible, and
+   say `Use this exact answer` once. Verify exactly one approval and no command
+   text in the answer.
+6. Request the next question conversationally. Verify capture continues only
+   if enabled and remains paused if paused.
+7. Complete export and inspect the downloaded PDF. Verify approved wording,
+   meaningful punctuation (use a naturally numeric question when available),
+   placement, source preservation, and exclusion of an unconfirmed draft.
+
+For the session, keep five evidence categories distinct: browser/device,
+provider transcript, application candidate/approval, human audible-playback
+confirmation, and downloaded-PDF inspection.
+
+Tasks 5.7 and 5.8 remain open until the required human checks pass and that
+evidence is appended. Automated replay is not claimed as human acoustic
+acceptance.
