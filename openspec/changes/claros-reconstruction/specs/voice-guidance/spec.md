@@ -58,6 +58,12 @@ ask the student to repeat model-authored wording. This boundary MUST NOT become
 a lecture, accusation, fixed hint sequence, or quiz after the student has
 already supplied a usable intended answer.
 
+On a direct ready-answer request, Claros MUST ask one focused question without
+also stating the cause, result, role, relationship, opening clause, or other
+conclusion that the worksheet asks the student to supply. This narrow rule does
+not limit useful factual or concept explanations when the student asks to
+understand the question or a concept.
+
 #### Scenario: Student repeatedly requests a finished answer
 - **WHEN** the student asks Claros to provide a ready-to-submit response to the active question
 - **THEN** Claros gives useful grounded help toward constructing the response without supplying the finished worksheet answer in the student's place

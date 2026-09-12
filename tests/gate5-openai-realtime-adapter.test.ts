@@ -227,6 +227,12 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
       "never offer a sentence starter, partial answer, fill-in-the-blank",
     );
     expect(factoryOptions[0].instructions).toContain(
+      "Do not state the cause, result, role, or relationship",
+    );
+    expect(factoryOptions[0].instructions).toContain(
+      "Ask the focused question without supplying the conclusion",
+    );
+    expect(factoryOptions[0].instructions).toContain(
       "make the tool call as your first output with no spoken or written preamble",
     );
   });
