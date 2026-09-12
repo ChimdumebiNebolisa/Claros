@@ -217,6 +217,9 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
     expect(factoryOptions[0].instructions).toContain(
       "do not provide a complete ready-to-submit answer",
     );
+    expect(factoryOptions[0].instructions).toContain(
+      "make the tool call as your first output with no spoken or written preamble",
+    );
   });
 
   it("does not spend the reconnect allowance on an initial credential failure", async () => {
