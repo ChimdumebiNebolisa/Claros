@@ -62,7 +62,7 @@ no API key, provider payload, or generated text.
 | Focused semantic tests after the live prompt correction | 53 passed |
 | Pinned twelve-case corpus regeneration check | Pass |
 | Corpus plus semantic tests | 76 passed |
-| Applicable backend regression, excluding protected untracked Realtime tests | 454 passed; 16 host qpdf skips |
+| Applicable backend regression, excluding protected untracked Realtime tests | 455 passed; 16 host qpdf skips |
 | OpenAI Python SDK adapter signature check | SDK 3.8.0 supports every used Responses parameter |
 | `npm run ci` | Pass: format, lint, typecheck, dependency/license policy, API drift, 73 Vitest tests, Storybook accessibility, production build, and bundle closure |
 | `npm run test:e2e:gate3` | Pass: one real Chromium/FastAPI authenticated typed/export/restart workflow |

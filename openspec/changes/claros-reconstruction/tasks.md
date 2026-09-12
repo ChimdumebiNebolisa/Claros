@@ -109,7 +109,7 @@ do not use checkboxes and therefore do not count toward V2 progress.
 - [x] 4.4 [Lead] Run the required corpus benchmark in order Luna, Terra, Sol for three runs per candidate and select the first model meeting 100-percent required-gold correctness, zero invalid IDs, and the recorded p95 latency budget; verify the report captures fixture results, latency, cost observations, and chosen environment default.
 - [x] 4.5 [Lead] Exercise typed direct and guided fixture flows against real semantic mapping and rephrase while using recorded-provider CI responses; verify exact questions come only from source reconstruction and the model never controls geometry, approval, or PDF output.
 - [x] 4.6 [Lead] Run unit, schema, recorded-provider, corpus, integration, browser, privacy-log, and live-provider evaluation checks; verify failures preserve safe assignment state and no deterministic test depends on a live provider.
-- [ ] 4.7 [Reviewer] Perform read-only prompt-injection, closed-world, provenance, corpus, and evidence review; verify critical findings are fixed and record the checkpoint SHA in `docs/v2/STATUS.md`.
+- [x] 4.7 [Reviewer] Perform read-only prompt-injection, closed-world, provenance, corpus, and evidence review; verify critical findings are fixed and record the checkpoint SHA in `docs/v2/STATUS.md`.
 
 ## 5. Gate 5 — OpenAI Realtime direct and guided voice
 

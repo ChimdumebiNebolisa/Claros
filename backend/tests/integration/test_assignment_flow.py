@@ -37,6 +37,8 @@ def _settings(storage_root: Path) -> Settings:
         public_origin=ORIGIN,
         cookie_secret=OWNER_TEST_SECRET,
         review_token_secret=REVIEW_TEST_SECRET,
+        semantic_engine="current",
+        openai_api_key=None,
     )
 
 
@@ -281,21 +283,15 @@ def test_recorded_semantic_mapping_supports_both_typed_paths_rephrase_and_export
             SemanticQuestionOutput(
                 question_key="q_002",
                 prompt_block_ids=(block_id("How does sunlight help a plant make food?"),),
-                context_block_ids=(
-                    block_id("Describe the role of sunlight in your own words."),
-                ),
+                context_block_ids=(block_id("Describe the role of sunlight in your own words."),),
                 question_type="short_answer",
                 grounding="grounded",
                 visual_context_dependency=False,
             ),
             SemanticQuestionOutput(
                 question_key="q_003",
-                prompt_block_ids=(
-                    block_id("How can photosynthesis support other living things?"),
-                ),
-                context_block_ids=(
-                    block_id("Give one clear connection to another living thing."),
-                ),
+                prompt_block_ids=(block_id("How can photosynthesis support other living things?"),),
+                context_block_ids=(block_id("Give one clear connection to another living thing."),),
                 question_type="short_answer",
                 grounding="grounded",
                 visual_context_dependency=False,

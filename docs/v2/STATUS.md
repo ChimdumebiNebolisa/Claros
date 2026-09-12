@@ -3,27 +3,25 @@
 - **As of:** 2026-09-11
 - **Branch:** `codex/claros-v2-nerdy`
 - **Baseline:** `5fb217715e4b3278f21a882b2652d928f2cca628`
-- **Current phase:** Gate 4 in progress — semantic mapping and rephrasing are integrated
-- **Gate state:** Gates 0–3 passed; Gate 4 is 4/7 tasks complete; local container smoke passes
+- **Current phase:** Gate 5 in progress — preserved Realtime draft is under integration review
+- **Gate state:** Gates 0–4 passed; Gate 5 is 0/8 tasks complete
 - **Gate 0 content checkpoint:** `0c15404b87edbbe19b03de93d81ad95aa1e897fd`
 - **Gate 1 content checkpoint:** `59cbc509650cc4a65b139a7db23012ead74efb3c`
 - **Gate 2 content checkpoint:** `0723303ef718bb28594d519da31ec0a55226fa45`
 - **Gate 3 accepted clean checkpoint:** `88cda664f55abf698a1d56567e814e024708ad0a`
+- **Gate 4 accepted evidence checkpoint:** `976e176ea0fe828147684757ae7cf07e37a1e175`
+- **Gate 4 live-source checkpoint:** `121287e766140610dfdde8cddfd3cec36817d6b0`
 
 ## Current milestone
 
-- **Gate 4 checkpoint:** OpenSpec tasks 4.1, 4.2, 4.3, and 4.5 are complete.
-  Strict Responses adapters, closed-world block validation, exact source
-  reconstruction, safe optional rephrasing, application wiring, and recorded
-  direct/guided typed flows pass without provider-owned geometry or approval.
-- **Gate 4 verification:** 453 applicable backend tests, 73 Vitest tests,
-  Storybook accessibility, frontend CI, the real FastAPI browser restart flow,
-  checksum-pinned corpus checks, and a rebuilt Linux container/export smoke
-  pass. Details are recorded in `artifacts/v2/gate4/verification.md`.
-- **Gate 4 blocker:** No OpenAI API key is available locally, so the required
-  three-run Luna/Terra/Sol live corpus benchmark, final live-provider sweep,
-  and reviewer checkpoint remain open. Production semantic selection is not
-  enabled or claimed.
+- **Gate 4 checkpoint:** All seven tasks pass. `gpt-5.6-luna` is selected after
+  33/33 live corpus results, zero invalid IDs, 7,142 ms p95 latency, and one
+  accepted live rephrase. The sanitized report is bound to clean source
+  checkpoint `121287e` and checksum-verifies every fixture before a model call.
+- **Gate 4 review:** Independent review at evidence checkpoint `976e176` found
+  no remaining P0–P3 issue after verifying source/tree binding, corpus and
+  prompt/schema fingerprints, adversarial prompt separation, provenance,
+  stale-rephrase prevention, output redaction, and report consistency.
 
 - **OpenPDF promotion:** The validated Java renderer is integrated behind
   explicit `CLAROS_PDF_ENGINE=openpdf` selection in the real `/api/v2` service.
@@ -53,10 +51,10 @@
   produced digest `sha256:b4058b7bb22210a82690db7859354dad4fdf354441d57ee46a79deea6d7d5b66`;
   revision `claros-00075-xtv` serves it at 100 percent after live persistence,
   ownership-isolation, and proxy-identity checks.
-- **Next action:** Run and publish the required live semantic corpus benchmark
-  when an authorized OpenAI API key is available, then complete the Gate 4
-  live-provider verification and read-only reviewer checkpoint. Keep the
-  protected Realtime draft tree excluded until Gate 5 is deliberately started.
+- **Next action:** Preserve and integrate the existing untracked Realtime draft
+  deliberately for Gate 5, starting with its already-passing backend policy,
+  credential, and lifecycle tests. Add the pinned browser adapter dependency
+  and real WebRTC integration without committing unrelated Docker artifacts.
 
 ## Gate 0 checklist
 
@@ -240,8 +238,8 @@ finding or unavailable npm audit keeps Gate 1 blocked.
 | 1    | Untitled foundation, V2 routes/providers, scoped legacy, authentic EmbedPDF spike, MSW | Build/tests, route and keyboard smoke, CSP/WASM/worker proof, no PDF request from `/`                         | Passed at `59cbc50`          |
 | 2    | Fixture-complete V2 UI and fake Realtime                                               | Unit/component/Storybook/Playwright/axe, keyboard/focus/zoom/motion, full screenshot matrix, visual score ≥90 | Passed at `0723303` — 95/100 |
 | 3    | FastAPI, GCS adapters, physical IR, placement/export, gold corpus                      | Python/API/PDF integration, deterministic IR, exact Unicode, immutable source, container/revision smoke       | Passed at `88cda66`          |
-| 4    | Responses semantic mapping and rephrase                                                | Recorded/live corpus evaluation, zero invalid IDs, exact reconstruction, safe failure and provenance          | In progress — 4/7 tasks     |
-| 5    | Realtime direct and guided paths                                                       | Fake browser suite and manual live voice/recovery/security evidence                                           | Not started                  |
+| 4    | Responses semantic mapping and rephrase                                                | Recorded/live corpus evaluation, zero invalid IDs, exact reconstruction, safe failure and provenance          | Passed at `976e176`          |
+| 5    | Realtime direct and guided paths                                                       | Fake browser suite and manual live voice/recovery/security evidence                                           | In progress — 0/8 tasks      |
 | 6    | Cutover, hardening, deployment                                                         | Full accumulated CI/security/a11y/visual/performance/staging evidence                                         | Not started                  |
 | 7    | Repeatable demo and release bundle                                                     | Clean-browser replay, final PDF, deployed smoke, honest submission copy, complete `artifacts/v2`              | Not started                  |
 
@@ -310,3 +308,13 @@ exact digest use, and live browser export/reopen. Windows Docker Desktop is
 optional and was not used as acceptance evidence. Tasks 3.8 and 3.9 are
 complete; later gates remain unimplemented and must preserve the frozen Gate 3
 contracts.
+
+## Gate 4 exit statement
+
+Gate 4 passed at reviewed evidence checkpoint
+`976e176ea0fe828147684757ae7cf07e37a1e175`. The required bounded live selection
+stopped at Luna after three complete 11/11 runs with zero invalid IDs and a
+7,142 ms p95, and the live rephrase check passed. The report is reproducibly
+bound to clean source checkpoint `121287e`, verified corpus bytes, prompt, and
+schemas. Independent review found no remaining critical issue. No credential,
+raw provider payload, or generated answer text is committed.

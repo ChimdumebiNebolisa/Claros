@@ -29,6 +29,8 @@ def _settings(tmp_path: Path, **overrides: object) -> Settings:
         "environment": "test",
         "storage_backend": "local",
         "local_storage_path": tmp_path / "objects",
+        "semantic_engine": "current",
+        "openai_api_key": None,
     }
     values.update(overrides)
     return Settings(**values)
