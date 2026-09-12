@@ -26,8 +26,9 @@ from backend.realtime import (
 )
 
 _CONFIRMATION_CASES = json.loads(
-    (Path(__file__).resolve().parents[3] / "tests/fixtures/voice-confirmation-cases.json")
-    .read_text(encoding="utf-8")
+    (
+        Path(__file__).resolve().parents[3] / "tests/fixtures/voice-confirmation-cases.json"
+    ).read_text(encoding="utf-8")
 )
 
 
@@ -96,9 +97,10 @@ def test_all_compatibility_modes_use_one_adaptive_conversation_policy(
 
     assert len(set(prompts)) == 1
     assert "One adaptive conversation:" in prompts[0]
-    assert "Capture a known answer with minimal interruption" in prompts[0]
-    assert "tutor only when asked" in prompts[0]
-    assert "Do not turn discussion, commands, or ambiguous fragments into an answer" in prompts[0]
+    assert "Capture a known intended answer with minimal interruption" in prompts[0]
+    assert "Do not quiz a student who already supplied a usable answer" in prompts[0]
+    assert "do not provide a complete ready-to-submit answer" in prompts[0]
+    assert "Do not turn discussion, commands, hesitation" in prompts[0]
     assert "Direct-answer mode:" not in prompts[0]
     assert "Guided-reasoning mode:" not in prompts[0]
 
@@ -146,7 +148,7 @@ def test_navigation_is_bound_to_an_application_supplied_question(
 
     intent = parse_realtime_tool_call(
         name="navigate_question",
-        arguments={"question_index": 2},
+        arguments={"destination": 2},
         context=context,
     )
 
@@ -155,10 +157,18 @@ def test_navigation_is_bound_to_an_application_supplied_question(
     with pytest.raises(RealtimeError) as unknown:
         parse_realtime_tool_call(
             name="navigate_question",
-            arguments={"question_index": 3},
+            arguments={"destination": 3},
             context=context,
         )
     assert unknown.value.code == "realtime_tool_payload_invalid"
+
+    relative = parse_realtime_tool_call(
+        name="navigate_question",
+        arguments={"destination": "next"},
+        context=context.model_copy(update={"question_id": "q_photosynthesis"}),
+    )
+    assert isinstance(relative, NavigateQuestionIntent)
+    assert relative.question_id == "q_respiration"
 
 
 def test_candidate_actions_require_current_candidate_and_candidate_ready_phase(

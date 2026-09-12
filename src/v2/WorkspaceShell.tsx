@@ -72,8 +72,12 @@ import type {
   FakeRealtimeInteraction,
   FakeRealtimeScenario,
   RealtimeAdapter,
+  RealtimeActionContext,
+  RealtimeApplicationActionOutcome,
+  RealtimeApplicationState,
   RealtimeCandidateEvidence,
   RealtimeEvent,
+  RealtimeNavigationDestination,
 } from "./realtime/realtime-adapter";
 import answerPathStyles from "./features/answer-paths/answer-paths.module.css";
 
@@ -83,6 +87,11 @@ const WorksheetDialog = lazy(() => import("./document/WorksheetDialog"));
 type WorkspaceShellProps = {
   mode?: "upload" | "question" | "review" | "export";
 };
+
+type ApplicationActionResult = Pick<
+  RealtimeApplicationActionOutcome,
+  "status" | "message"
+>;
 
 const isFixtureScenario = (value: string | null): value is FixtureScenario =>
   fixtureScenarios.some((scenario) => scenario === value);
@@ -141,9 +150,11 @@ export default function WorkspaceShell({
     (RealtimeCandidateEvidence & { questionId: string; text: string }) | null
   >(null);
   const realtimeActionHandlersRef = useRef<{
-    requestRephrase: () => Promise<void>;
-    requestReview: () => Promise<void>;
-    navigateQuestion: (questionIndex: number) => void;
+    requestRephrase: () => Promise<ApplicationActionResult>;
+    requestReview: () => Promise<ApplicationActionResult>;
+    navigateQuestion: (
+      destination: RealtimeNavigationDestination,
+    ) => ApplicationActionResult;
   } | null>(null);
   const realtimeConnectionKeyRef = useRef<string | null>(null);
   const realtimeConnectionGenerationRef = useRef(0);
@@ -498,6 +509,109 @@ export default function WorkspaceShell({
       snapshot.matches("answerAdded") ||
       snapshot.matches("worksheetReview"));
 
+  const getRealtimeApplicationState =
+    useCallback((): RealtimeApplicationState | null => {
+      const current = actor.getSnapshot();
+      const currentContext = current.context;
+      const currentAssignment = currentContext.assignment;
+      const currentQuestion =
+        currentAssignment?.questions[currentContext.activeQuestionIndex];
+      if (!currentAssignment || !currentQuestion) return null;
+      const candidate = currentContext.candidate;
+      const draft = currentContext.drafts[currentQuestion.id];
+      const persisted = Boolean(
+        candidate &&
+        draft?.acknowledgedCandidate?.id === candidate.id &&
+        draft.acknowledgedCandidate.version === candidate.version &&
+        draft.acknowledgedCandidate.text === candidate.text &&
+        !draft.dirty,
+      );
+      const approved = currentContext.confirmedAnswers[currentQuestion.id];
+      const readyReview = currentContext.review;
+      const exportStatus = current.matches("exportComplete")
+        ? "complete"
+        : current.matches("exporting")
+          ? "pending"
+          : current.matches("exportFailed")
+            ? "failed"
+            : "not_started";
+      return {
+        assignmentId: currentAssignment.id,
+        assignmentVersion: currentAssignment.version,
+        questionId: currentQuestion.id,
+        contextEpoch: currentContext.contextEpoch,
+        activeQuestionIndex: currentQuestion.index,
+        activeQuestionText: currentQuestion.prompt,
+        draft: candidate
+          ? {
+              status: persisted ? "persisted" : "local",
+              exactText: candidate.text,
+              candidateId: candidate.id,
+              candidateVersion: candidate.version,
+            }
+          : { status: "none" },
+        reviewStatus:
+          current.matches("exactReview") &&
+          readyReview?.candidateId === candidate?.id &&
+          readyReview?.candidateVersion === candidate?.version
+            ? "ready"
+            : "not_ready",
+        approvalStatus: approved ? "approved" : "not_approved",
+        approvedExactText: approved?.text,
+        exportStatus,
+        failureCode: currentContext.error?.code,
+      };
+    }, [actor]);
+
+  const completeRealtimeAction = useCallback(
+    (
+      event: Extract<
+        RealtimeEvent,
+        {
+          type:
+            | "candidate"
+            | "request_rephrase"
+            | "enter_exact_review"
+            | "navigate_question";
+        }
+      >,
+      result: ApplicationActionResult,
+    ) => {
+      const state = getRealtimeApplicationState();
+      const origin =
+        event.actionContext ??
+        (state && {
+          assignmentId: state.assignmentId,
+          assignmentVersion: state.assignmentVersion,
+          questionId: state.questionId,
+          contextEpoch: state.contextEpoch,
+        });
+      if (!origin) return;
+      realtimeAdapterRef.current?.completeApplicationAction?.({
+        actionId: event.id,
+        origin,
+        ...result,
+        ...(state ? { state } : {}),
+      });
+    },
+    [getRealtimeApplicationState],
+  );
+
+  const actionOriginIsCurrent = useCallback(
+    (event: { actionContext?: RealtimeActionContext }) => {
+      if (!event.actionContext) return true;
+      const state = getRealtimeApplicationState();
+      return Boolean(
+        state &&
+        state.assignmentId === event.actionContext.assignmentId &&
+        state.assignmentVersion === event.actionContext.assignmentVersion &&
+        state.questionId === event.actionContext.questionId &&
+        state.contextEpoch === event.actionContext.contextEpoch,
+      );
+    },
+    [getRealtimeApplicationState],
+  );
+
   const handleRealtimeEvent = useCallback(
     (event: RealtimeEvent) => {
       const current = actor.getSnapshot();
@@ -575,6 +689,14 @@ export default function WorkspaceShell({
       }
 
       if (event.type === "candidate") {
+        if (!actionOriginIsCurrent(event)) {
+          completeRealtimeAction(event, {
+            status: "superseded",
+            message:
+              "The active worksheet context changed before the draft was accepted.",
+          });
+          return;
+        }
         const activeQuestion =
           current.context.assignment?.questions[
             current.context.activeQuestionIndex
@@ -595,27 +717,74 @@ export default function WorkspaceShell({
           };
         }
         actor.send({ type: "VOICE_CAPTURED", text: event.text });
+        const updated = actor.getSnapshot().context;
+        completeRealtimeAction(event, {
+          status:
+            updated.candidate?.text === event.text ? "accepted" : "failed",
+          message:
+            updated.candidate?.text === event.text
+              ? `A local draft is ready for Question ${activeQuestion?.index}. It is not persisted, in exact review, or approved.`
+              : "The application did not accept the proposed draft.",
+        });
         return;
       }
 
       if (event.type === "request_rephrase") {
-        if (current.context.candidate) {
-          void realtimeActionHandlersRef.current?.requestRephrase();
+        if (!actionOriginIsCurrent(event)) {
+          completeRealtimeAction(event, {
+            status: "superseded",
+            message:
+              "The active worksheet context changed before rephrasing began.",
+          });
+        } else if (current.context.candidate) {
+          void realtimeActionHandlersRef.current
+            ?.requestRephrase()
+            .then((result) => completeRealtimeAction(event, result));
+        } else {
+          completeRealtimeAction(event, {
+            status: "rejected",
+            message: "There is no current draft to rephrase.",
+          });
         }
         return;
       }
 
       if (event.type === "enter_exact_review") {
-        if (current.context.candidate) {
-          void realtimeActionHandlersRef.current?.requestReview();
+        if (!actionOriginIsCurrent(event)) {
+          completeRealtimeAction(event, {
+            status: "superseded",
+            message:
+              "The active worksheet context changed before review began.",
+          });
+        } else if (current.context.candidate) {
+          void realtimeActionHandlersRef.current
+            ?.requestReview()
+            .then((result) => completeRealtimeAction(event, result));
+        } else {
+          completeRealtimeAction(event, {
+            status: "rejected",
+            message: "There is no current draft to review.",
+          });
         }
         return;
       }
 
       if (event.type === "navigate_question") {
-        realtimeActionHandlersRef.current?.navigateQuestion(
-          event.questionIndex,
-        );
+        if (!actionOriginIsCurrent(event)) {
+          completeRealtimeAction(event, {
+            status: "superseded",
+            message:
+              "The active worksheet context changed before navigation was resolved.",
+          });
+          return;
+        }
+        const result = realtimeActionHandlersRef.current?.navigateQuestion(
+          event.destination,
+        ) ?? {
+          status: "failed" as const,
+          message: "Navigation is unavailable.",
+        };
+        completeRealtimeAction(event, result);
         return;
       }
 
@@ -636,7 +805,7 @@ export default function WorkspaceShell({
 
       setHearing(false);
     },
-    [actor],
+    [actionOriginIsCurrent, actor, completeRealtimeAction],
   );
 
   const clearRealtimeAdvanceTimer = useCallback(() => {
@@ -762,6 +931,7 @@ export default function WorkspaceShell({
                   exactText: connectContext.candidate.text,
                 }
               : undefined,
+            applicationState: getRealtimeApplicationState() ?? undefined,
             microphone,
             captureActive: connectContext.captureState === "active",
           });
@@ -807,6 +977,7 @@ export default function WorkspaceShell({
           index: item.index,
           prompt: item.prompt,
         })),
+        applicationState: getRealtimeApplicationState() ?? undefined,
         microphone,
         captureActive: connectContext.captureState === "active",
       });
@@ -822,7 +993,13 @@ export default function WorkspaceShell({
       });
       return { kind: "fake" as const, adapter, realtime };
     },
-    [actor, handleRealtimeEvent, releaseRealtimeAdapter, usesRealApi],
+    [
+      actor,
+      getRealtimeApplicationState,
+      handleRealtimeEvent,
+      releaseRealtimeAdapter,
+      usesRealApi,
+    ],
   );
 
   const nextRealtimeRunId = useCallback(() => {
@@ -896,6 +1073,20 @@ export default function WorkspaceShell({
     question?.id,
     shouldMaintainCapture,
   ]);
+
+  const realtimeApplicationStateKey = JSON.stringify(
+    getRealtimeApplicationState(),
+  );
+  useEffect(() => {
+    if (realtimeAdapterKindRef.current !== "real") return;
+    const state = getRealtimeApplicationState();
+    if (!state) return;
+    void Promise.resolve(
+      realtimeAdapterRef.current?.updateApplicationState?.(state),
+    ).catch(() => {
+      actor.send({ type: "VOICE_DISCONNECTED" });
+    });
+  }, [actor, getRealtimeApplicationState, realtimeApplicationStateKey]);
 
   useEffect(
     () => () => {
@@ -1169,12 +1360,20 @@ export default function WorkspaceShell({
     }
   };
 
-  const requestRephrase = async () => {
-    if (usesRealApi && mutationPendingRef.current) return;
+  const requestRephrase = async (): Promise<ApplicationActionResult> => {
+    if (usesRealApi && mutationPendingRef.current) {
+      return {
+        status: "failed",
+        message: "Another worksheet change is still in progress.",
+      };
+    }
     actor.send({ type: "REQUEST_REPHRASE" });
     if (!usesRealApi) {
       setAutoAdvance(true);
-      return;
+      return {
+        status: "accepted",
+        message: "The wording comparison is ready.",
+      };
     }
     mutationPendingRef.current = true;
     try {
@@ -1221,23 +1420,45 @@ export default function WorkspaceShell({
         rephraseId: comparison.rephrase_id,
         version: comparison.version,
       });
+      return {
+        status: "accepted",
+        message: `The wording comparison is ready for Question ${question.index}. No suggestion has been selected or approved.`,
+      };
     } catch (error) {
-      if (isAbortError(error)) return;
+      if (isAbortError(error)) {
+        return {
+          status: "superseded",
+          message:
+            "The draft or active question changed before rephrasing completed.",
+        };
+      }
       actor.send({
         type: "REPHRASE_FAILED",
         error: toRecoverableError(error),
       });
+      return {
+        status: "failed",
+        message: "The application could not prepare a wording comparison.",
+      };
     } finally {
       mutationPendingRef.current = false;
     }
   };
 
-  const requestReview = async () => {
+  const requestReview = async (): Promise<ApplicationActionResult> => {
     if (!usesRealApi) {
       actor.send({ type: "REQUEST_REVIEW" });
-      return;
+      return {
+        status: "accepted",
+        message: "Exact review is ready. The answer is not approved yet.",
+      };
     }
-    if (mutationPendingRef.current) return;
+    if (mutationPendingRef.current) {
+      return {
+        status: "failed",
+        message: "Another worksheet change is still in progress.",
+      };
+    }
     mutationPendingRef.current = true;
     try {
       const current = actor.getSnapshot().context;
@@ -1272,33 +1493,74 @@ export default function WorkspaceShell({
         candidate: reviewed.candidate,
       };
       actor.send({ type: "REVIEW_READY", ...reviewed });
+      return {
+        status: "accepted",
+        message: `Exact review is ready for Question ${question.index}. The answer is not approved yet.`,
+      };
     } catch (error) {
-      if (isAbortError(error)) return;
+      if (isAbortError(error)) {
+        return {
+          status: "superseded",
+          message:
+            "The draft or active question changed before review completed.",
+        };
+      }
       actor.send({
         type: "REQUEST_FAILED",
         error: toRecoverableError(error),
       });
+      return {
+        status: "failed",
+        message: "The application could not open exact review.",
+      };
     } finally {
       mutationPendingRef.current = false;
     }
   };
 
-  const navigateConversationQuestion = (questionIndex: number) => {
+  const navigateConversationQuestion = (
+    destination: RealtimeNavigationDestination,
+  ): ApplicationActionResult => {
     const current = actor.getSnapshot().context;
-    const target = current.assignment?.questions.find(
-      (item) => item.index === questionIndex,
-    );
-    if (!target) return;
+    const questions = current.assignment?.questions ?? [];
+    const target =
+      destination.kind === "index"
+        ? questions.find((item) => item.index === destination.questionIndex)
+        : questions[
+            current.activeQuestionIndex +
+              (destination.direction === "next" ? 1 : -1)
+          ];
+    if (!target) {
+      return {
+        status: "rejected",
+        message: "That worksheet question is not available.",
+      };
+    }
     if (
       current.assignment?.questions[current.activeQuestionIndex]?.id ===
       target.id
     ) {
-      return;
+      return {
+        status: "accepted",
+        message: `Already on Question ${target.index}: ${target.prompt}`,
+      };
     }
     setGuidedDraft("");
     realtimeCandidateEvidenceRef.current = null;
     persistedCandidateRef.current = null;
     actor.send({ type: "GO_TO_QUESTION", questionId: target.id });
+    const updated = actor.getSnapshot().context;
+    const active = updated.assignment?.questions[updated.activeQuestionIndex];
+    return active?.id === target.id
+      ? {
+          status: "accepted",
+          message: `Now on Question ${target.index}: ${target.prompt}`,
+        }
+      : {
+          status: "superseded",
+          message:
+            "The active worksheet context changed before navigation completed.",
+        };
   };
 
   useEffect(() => {

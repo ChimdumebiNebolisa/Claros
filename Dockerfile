@@ -12,6 +12,7 @@ COPY index.html postcss.config.mjs tsconfig.json tsconfig.node.json vite.config.
 COPY public ./public
 COPY src ./src
 COPY tests ./tests
+COPY backend/realtime/realtime-policy.json ./backend/realtime/realtime-policy.json
 
 RUN npm run build
 

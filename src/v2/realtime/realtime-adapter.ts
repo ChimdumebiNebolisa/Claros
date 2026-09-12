@@ -27,6 +27,41 @@ export type FakeRealtimeInteraction =
 export type RealtimeAvailability =
   { available: true } | { available: false; reason: "not_configured" };
 
+export type RealtimeActionContext = {
+  assignmentId: string;
+  assignmentVersion: number;
+  questionId: string;
+  contextEpoch: number;
+};
+
+export type RealtimeApplicationState = RealtimeActionContext & {
+  activeQuestionIndex: number;
+  activeQuestionText: string;
+  draft: {
+    status: "none" | "local" | "persisted";
+    exactText?: string;
+    candidateId?: string;
+    candidateVersion?: number;
+  };
+  reviewStatus: "not_ready" | "ready";
+  approvalStatus: "not_approved" | "approved";
+  approvedExactText?: string;
+  exportStatus: "not_started" | "pending" | "failed" | "complete";
+  failureCode?: string;
+};
+
+export type RealtimeApplicationActionOutcome = {
+  actionId: string;
+  origin: RealtimeActionContext;
+  status: "accepted" | "failed" | "rejected" | "superseded";
+  message: string;
+  state?: RealtimeApplicationState;
+};
+
+export type RealtimeNavigationDestination =
+  | { kind: "index"; questionIndex: number }
+  | { kind: "relative"; direction: "next" | "back" };
+
 export type RealtimeEvent =
   | { id: string; type: "voice_state"; state: VoiceState }
   | {
@@ -47,10 +82,24 @@ export type RealtimeEvent =
       normalization?: "none" | "punctuation_only";
       sessionId?: string;
       sourceTurnIds?: readonly string[];
+      actionContext?: RealtimeActionContext;
     }
-  | { id: string; type: "request_rephrase" }
-  | { id: string; type: "enter_exact_review" }
-  | { id: string; type: "navigate_question"; questionIndex: number }
+  | {
+      id: string;
+      type: "request_rephrase";
+      actionContext?: RealtimeActionContext;
+    }
+  | {
+      id: string;
+      type: "enter_exact_review";
+      actionContext?: RealtimeActionContext;
+    }
+  | {
+      id: string;
+      type: "navigate_question";
+      destination: RealtimeNavigationDestination;
+      actionContext?: RealtimeActionContext;
+    }
   | { id: string; type: "confirmation_phrase"; phrase: string }
   | {
       id: string;
@@ -114,6 +163,7 @@ export type RealtimeConnectOptions = {
   }[];
   microphone?: boolean;
   captureActive?: boolean;
+  applicationState?: RealtimeApplicationState;
 };
 
 export type RealtimeCandidateEvidence = {
@@ -136,6 +186,10 @@ export interface RealtimeAdapter {
   setMuted(muted: boolean): RealtimeOperation;
   sendTypedTurn(text: string): RealtimeOperation;
   registerTypedCandidate(text: string): RealtimeCandidateEvidence | null;
+  updateApplicationState?(
+    state: RealtimeApplicationState,
+  ): void | Promise<void>;
+  completeApplicationAction?(outcome: RealtimeApplicationActionOutcome): void;
   hearExact(exactText: string): RealtimeOperation;
   retry(): RealtimeOperation | Promise<RealtimeOperation>;
   destroy(): RealtimeOperation;
@@ -390,6 +444,10 @@ export class FakeRealtimeAdapter implements RealtimeAdapter {
   registerTypedCandidate(): RealtimeCandidateEvidence | null {
     return null;
   }
+
+  updateApplicationState(): void {}
+
+  completeApplicationAction(): void {}
 
   hearExact(exactText: string): RealtimeOperation {
     return this.record("hear_exact", exactText);

@@ -47,6 +47,25 @@ source context, ask one focused question at a time when help is wanted, avoid
 unsolicited lectures, and stop tutoring when the student intends an answer.
 Discussion and command turns MUST NOT become the candidate automatically.
 
+When a student asks what the question means, Claros MUST explain the task
+without automatically supplying a polished worksheet response. It MAY explain
+relevant terms and concepts and MUST choose a concise explanation, hint,
+analogy, or focused question according to the student's difficulty. When the
+student requests a ready-to-submit answer, including repeatedly, Claros MUST
+help the student construct it from the active question and their existing
+reasoning rather than supply a complete response disguised as an example or
+ask the student to repeat model-authored wording. This boundary MUST NOT become
+a lecture, accusation, fixed hint sequence, or quiz after the student has
+already supplied a usable intended answer.
+
+#### Scenario: Student repeatedly requests a finished answer
+- **WHEN** the student asks Claros to provide a ready-to-submit response to the active question
+- **THEN** Claros gives useful grounded help toward constructing the response without supplying the finished worksheet answer in the student's place
+
+#### Scenario: Student asks what the question means
+- **WHEN** the student asks for comprehension help rather than stating an intended answer
+- **THEN** Claros explains what the question asks and does not automatically create a candidate from that explanation
+
 #### Scenario: Student moves from help to an intended answer
 - **WHEN** the student indicates readiness and then states a final response
 - **THEN** Claros creates a `student_after_guidance` candidate from that response and enters the normal review flow
@@ -72,6 +91,24 @@ report a voice issue. It MUST NOT approve for the student, select or alter
 geometry, rewrite source questions, choose an arbitrary question, export, or
 write a PDF. Every product mutation MUST pass the normal authenticated API and
 version checks.
+
+An intent tool result MUST remain pending until the application reports an
+accepted, failed, rejected, timed-out, or superseded outcome bound to its
+originating question and context. The agent MUST acknowledge navigation or a
+draft/review result only after application acceptance and MUST answer status
+questions from fresh application-owned draft, persistence, review, approval,
+and export state. Relative navigation such as `next` or `back` MUST be resolved
+from the application's actual active question. Accepted navigation MUST name
+the application-owned destination question; a stale or superseded request MUST
+NOT announce success.
+
+#### Scenario: Navigation is accepted by the application
+- **WHEN** a grounded navigation intent is resolved and the active question changes
+- **THEN** the tool result reports the destination's actual number and exact application-owned question text before Claros acknowledges success
+
+#### Scenario: Application action is stale or fails
+- **WHEN** an intent no longer matches its originating question/context or the application rejects it
+- **THEN** its result reports failure or supersession and Claros does not describe the requested mutation as completed
 
 #### Scenario: Voice tool requests PDF write
 - **WHEN** a model emits a tool name or payload outside the permitted schema

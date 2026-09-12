@@ -38,6 +38,7 @@ from backend.realtime.models import (
 )
 from backend.realtime.policy import (
     REALTIME_MODEL,
+    REALTIME_POLICY_VERSION,
     VOICE_CONFIRMATION_PHRASE,
     build_realtime_instructions,
     parse_realtime_tool_call,
@@ -49,6 +50,7 @@ from backend.realtime.provider import OpenAIRealtimeCredentialProvider
 __all__ = [
     "CLIENT_SECRET_TTL_SECONDS",
     "REALTIME_MODEL",
+    "REALTIME_POLICY_VERSION",
     "VOICE_CONFIRMATION_PHRASE",
     "WEBRTC_CALLS_URL",
     "AvailableQuestionBinding",

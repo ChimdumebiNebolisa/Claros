@@ -112,7 +112,10 @@ class BrowserReplayRealtimeAdapter implements RealtimeAdapter {
     if (questionMatch) {
       this.emit({
         type: "navigate_question",
-        questionIndex: Number(questionMatch[1]),
+        destination: {
+          kind: "index",
+          questionIndex: Number(questionMatch[1]),
+        },
       });
       return this.operation("typed_turn", text);
     }

@@ -7,7 +7,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { AppProviders } from "../src/v2/AppProviders";
 import RootApp from "../src/v2/RootApp";
-import type { RealtimeListener } from "../src/v2/realtime/realtime-adapter";
+import type {
+  RealtimeActionContext,
+  RealtimeListener,
+} from "../src/v2/realtime/realtime-adapter";
 
 const realtimeMocks = vi.hoisted(() => ({
   load: vi.fn(),
@@ -130,6 +133,8 @@ describe("Gate 3 runtime boundaries", () => {
       setMuted: vi.fn(),
       sendTypedTurn: vi.fn(),
       registerTypedCandidate: vi.fn(),
+      updateApplicationState: vi.fn(),
+      completeApplicationAction: vi.fn(),
       hearExact: vi.fn(),
       retry: vi.fn(),
       destroy: vi.fn(),
@@ -192,6 +197,8 @@ describe("Gate 3 runtime boundaries", () => {
       setMuted: vi.fn(),
       sendTypedTurn: vi.fn(),
       registerTypedCandidate: vi.fn(),
+      updateApplicationState: vi.fn(),
+      completeApplicationAction: vi.fn(),
       hearExact: vi.fn(),
       retry: vi.fn(),
       destroy: vi.fn(),
@@ -261,6 +268,8 @@ describe("Gate 3 runtime boundaries", () => {
       setMuted: vi.fn(),
       sendTypedTurn: vi.fn(),
       registerTypedCandidate: vi.fn(),
+      updateApplicationState: vi.fn(),
+      completeApplicationAction: vi.fn(),
       hearExact: vi.fn(),
       retry: vi.fn(),
       destroy: vi.fn(),
@@ -304,12 +313,24 @@ describe("Gate 3 runtime boundaries", () => {
     });
     await user.click(screen.getByRole("button", { name: "Start speaking" }));
     await waitFor(() => expect(listener).toBeDefined());
+    const actionContext = (
+      liveAdapter.connect.mock.calls as unknown as [
+        [{ applicationState: RealtimeActionContext }],
+      ]
+    )[0][0].applicationState;
 
     act(() => {
       listener?.({
+        id: "unavailable-question",
+        type: "navigate_question",
+        destination: { kind: "index", questionIndex: 99 },
+        actionContext,
+      });
+      listener?.({
         id: "navigate-from-question-one",
         type: "navigate_question",
-        questionIndex: 2,
+        destination: { kind: "relative", direction: "next" },
+        actionContext,
       });
       listener?.({
         id: "late-question-one-candidate",
@@ -327,6 +348,26 @@ describe("Gate 3 runtime boundaries", () => {
     expect(
       screen.getByRole("textbox", { name: "Proposed answer" }),
     ).toHaveValue("");
+    expect(liveAdapter.completeApplicationAction).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        actionId: "unavailable-question",
+        status: "rejected",
+        message: "That worksheet question is not available.",
+      }),
+    );
+    expect(liveAdapter.completeApplicationAction).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        actionId: "navigate-from-question-one",
+        status: "accepted",
+        message: "Now on Question 2: What is the second runtime question?",
+        state: expect.objectContaining({
+          questionId: "q_runtime_2",
+          activeQuestionIndex: 2,
+        }),
+      }),
+    );
   });
 
   it("finishes typed-only exact-review playback after persistence advances the version", async () => {
@@ -546,6 +587,8 @@ describe("Gate 3 runtime boundaries", () => {
       setMuted: vi.fn(),
       sendTypedTurn: vi.fn(),
       registerTypedCandidate: vi.fn(),
+      updateApplicationState: vi.fn(),
+      completeApplicationAction: vi.fn(),
       hearExact: vi.fn(),
       retry: vi.fn(),
       destroy: vi.fn(),
@@ -651,6 +694,15 @@ describe("Gate 3 runtime boundaries", () => {
     });
     await user.click(screen.getByRole("button", { name: "Review answer" }));
     await screen.findByRole("heading", { name: "Review your exact answer" });
+    await waitFor(() =>
+      expect(liveAdapter.updateApplicationState).toHaveBeenCalledWith(
+        expect.objectContaining({
+          draft: expect.objectContaining({ status: "persisted" }),
+          reviewStatus: "ready",
+          approvalStatus: "not_approved",
+        }),
+      ),
+    );
     expect(
       screen.getByRole("button", { name: "Stop listening" }),
     ).toBeEnabled();
@@ -698,6 +750,14 @@ describe("Gate 3 runtime boundaries", () => {
         name: "Answer added to the attached answer page.",
       }),
     ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(liveAdapter.updateApplicationState).toHaveBeenCalledWith(
+        expect.objectContaining({
+          approvalStatus: "approved",
+          exportStatus: "not_started",
+        }),
+      ),
+    );
     expect(
       screen.getByRole("button", { name: "Stop listening" }),
     ).toBeEnabled();

@@ -1,11 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
+import { RealtimeSession } from "@openai/agents/realtime";
 import { createActor } from "xstate";
 import {
+  createClarosRealtimeAgent,
   OpenAIRealtimeAdapter,
+  REALTIME_POLICY_VERSION,
   type RealtimeSessionLike,
   type SessionFactory,
   type SpeechPlayback,
 } from "../src/v2/realtime/openai-realtime-adapter";
+import realtimePolicy from "../backend/realtime/realtime-policy.json";
 import type { RealtimeEvent } from "../src/v2/realtime/realtime-adapter";
 import { fixtureAssignment } from "../src/v2/domain/fixtures";
 import { workspaceMachine } from "../src/v2/domain/workspaceMachine";
@@ -34,6 +38,9 @@ class FakeSession {
   readonly setOutputMuted = vi.fn();
   readonly interrupt = vi.fn();
   readonly close = vi.fn();
+  readonly updateInstructions = vi.fn(async (instructions: string) => {
+    void instructions;
+  });
   private readonly listeners = new Map<
     EventName,
     Set<(...values: unknown[]) => void>
@@ -96,6 +103,55 @@ const connectOptions = {
 };
 
 describe("Gate 5 OpenAI Realtime adapter", () => {
+  it("constructs the effective browser session tools from the authoritative policy", async () => {
+    const callback = vi.fn(() => "test");
+    const agent = createClarosRealtimeAgent("test instructions", {
+      onCandidate: callback,
+      onRephrase: callback,
+      onExactReview: callback,
+      onNavigateQuestion: callback,
+    });
+
+    expect(REALTIME_POLICY_VERSION).toBe(realtimePolicy.version);
+    expect(
+      agent.tools.map((registered) => ({
+        name: registered.name,
+        description:
+          "description" in registered ? registered.description : undefined,
+      })),
+    ).toEqual(
+      realtimePolicy.tools.map(({ name, description }) => ({
+        name,
+        description,
+      })),
+    );
+    const sessionConfig = await RealtimeSession.computeInitialSessionConfig(
+      agent,
+      { model: "gpt-realtime-2.1", tracingDisabled: true },
+    );
+    const registeredTools = sessionConfig.tools as Array<{
+      type: "function";
+      name: string;
+      description: string;
+      parameters: Record<string, unknown>;
+    }>;
+    expect(
+      registeredTools.map((registered) => {
+        const parameters = { ...registered.parameters } as Record<
+          string,
+          unknown
+        >;
+        delete parameters.$schema;
+        return {
+          type: registered.type,
+          name: registered.name,
+          description: registered.description,
+          parameters,
+        };
+      }),
+    ).toEqual(realtimePolicy.tools);
+  });
+
   it("fetches an owner-bound ephemeral credential and connects WebRTC with it", async () => {
     const { adapter, credentialProvider, events, factoryOptions, sessions } =
       setup();
@@ -137,7 +193,29 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
       "One adaptive conversation:",
     );
     expect(factoryOptions[0].instructions).toContain(
-      "Do not turn discussion, commands, or ambiguous fragments into an answer",
+      "Do not turn discussion, commands, hesitation, or ambiguous fragments into an answer",
+    );
+  });
+
+  it("keeps the effective navigation tool and browser policy in agreement", async () => {
+    const { adapter, factoryOptions } = setup();
+
+    await adapter.connect({
+      ...connectOptions,
+      availableQuestions: [
+        { id: "q_1", index: 1, prompt: "Question one" },
+        { id: "q_2", index: 2, prompt: "Question two" },
+      ],
+    });
+
+    expect(factoryOptions[0].instructions).toContain(
+      "Navigate only to a question in the application-supplied question list",
+    );
+    expect(factoryOptions[0].instructions).not.toContain(
+      "Never select another question",
+    );
+    expect(factoryOptions[0].instructions).toContain(
+      "do not provide a complete ready-to-submit answer",
     );
   });
 
@@ -256,20 +334,28 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
     });
 
     expect(
-      factoryOptions[0].onCandidate({
+      await factoryOptions[0].onCandidate({
         exact_text: "No completed student turn says this.",
       }),
     ).toContain("Rejected");
     expect(
-      factoryOptions[0].onCandidate({
+      await factoryOptions[0].onCandidate({
         exact_text: "Plants need water instead.",
       }),
     ).toContain("no matching completed student turn");
-    expect(
+    const candidateResult = Promise.resolve(
       factoryOptions[0].onCandidate({
         exact_text: "Plants use sunlight as energy.",
       }),
-    ).toContain("sent");
+    );
+    const candidateAction = events.find((event) => event.type === "candidate");
+    adapter.completeApplicationAction({
+      actionId: candidateAction!.id,
+      origin: candidateAction!.actionContext!,
+      status: "accepted",
+      message: "A local draft is ready.",
+    });
+    await expect(candidateResult).resolves.toContain("Accepted by application");
     expect(events).toContainEqual(
       expect.objectContaining({
         type: "candidate",
@@ -288,11 +374,20 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
       "My answer is: Plants need sunlight because it provides energy.",
     );
 
-    expect(
+    const candidateResult = Promise.resolve(
       factoryOptions[0].onCandidate({
         exact_text: "Plants need sunlight because it provides energy.",
       }),
-    ).toContain("sent");
+    );
+    const candidateAction = events.find((event) => event.type === "candidate");
+    adapter.completeApplicationAction({
+      actionId: candidateAction!.id,
+      origin: candidateAction!.actionContext!,
+      status: "accepted",
+      message: "A local draft is ready.",
+    });
+    await expect(candidateResult).resolves.toContain("Accepted by application");
+
     expect(events).toContainEqual(
       expect.objectContaining({
         type: "candidate",
@@ -326,17 +421,47 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
     await adapter.connect({ ...connectOptions, currentCandidate: undefined });
 
     adapter.sendTypedTurn("Plants use light energy.");
-    factoryOptions[0].onCandidate({
-      exact_text: "Plants use light energy.",
+    const draftResult = Promise.resolve(
+      factoryOptions[0].onCandidate({
+        exact_text: "Plants use light energy.",
+      }),
+    );
+    const draftAction = events.find((event) => event.type === "candidate");
+    adapter.completeApplicationAction({
+      actionId: draftAction!.id,
+      origin: draftAction!.actionContext!,
+      status: "accepted",
+      message: "A local draft is ready.",
     });
+    await draftResult;
     expect(adapter.registerTypedCandidate("My typed final answer.")).toEqual({
       sessionId: "sess_1",
       sourceTurnIds: [expect.any(String)],
       input: "typed",
       normalization: "none",
     });
-    factoryOptions[0].onRephrase({});
-    factoryOptions[0].onExactReview({});
+    const rephraseResult = Promise.resolve(factoryOptions[0].onRephrase({}));
+    const rephraseAction = events.find(
+      (event) => event.type === "request_rephrase",
+    );
+    adapter.completeApplicationAction({
+      actionId: rephraseAction!.id,
+      origin: rephraseAction!.actionContext!,
+      status: "accepted",
+      message: "The wording comparison is ready.",
+    });
+    await rephraseResult;
+    const reviewResult = Promise.resolve(factoryOptions[0].onExactReview({}));
+    const reviewAction = events.find(
+      (event) => event.type === "enter_exact_review",
+    );
+    adapter.completeApplicationAction({
+      actionId: reviewAction!.id,
+      origin: reviewAction!.actionContext!,
+      status: "accepted",
+      message: "Exact review is ready.",
+    });
+    await reviewResult;
 
     expect(events).toEqual(
       expect.arrayContaining([
@@ -357,21 +482,183 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
       ],
     });
 
-    expect(
-      factoryOptions[0].onNavigateQuestion({ question_index: 3 }),
-    ).toContain("Rejected");
-    expect(
-      factoryOptions[0].onNavigateQuestion({ question_index: 2 }),
-    ).toContain("sent");
+    expect(factoryOptions[0].onNavigateQuestion({ destination: 3 })).toContain(
+      "Rejected",
+    );
+    const navigationResult = Promise.resolve(
+      factoryOptions[0].onNavigateQuestion({ destination: 2 }),
+    );
+    const navigationAction = events.find(
+      (event) => event.type === "navigate_question",
+    );
     expect(events).toContainEqual(
       expect.objectContaining({
         type: "navigate_question",
-        questionIndex: 2,
+        destination: { kind: "index", questionIndex: 2 },
       }),
     );
     expect(
       events.filter((event) => event.type === "navigate_question"),
     ).toHaveLength(1);
+    adapter.completeApplicationAction({
+      actionId: navigationAction!.id,
+      origin: navigationAction!.actionContext!,
+      status: "accepted",
+      message: "Now on Question 2: Question two",
+    });
+    await expect(navigationResult).resolves.toContain(
+      "Accepted by application",
+    );
+  });
+
+  it("waits for the application outcome before reporting navigation success", async () => {
+    const { adapter, events, factoryOptions } = setup();
+    await adapter.connect({
+      ...connectOptions,
+      currentCandidate: undefined,
+      availableQuestions: [
+        { id: "q_1", index: 1, prompt: "Question one" },
+        { id: "q_2", index: 2, prompt: "Question two" },
+      ],
+    });
+
+    let settled = false;
+    const result = Promise.resolve(
+      factoryOptions[0].onNavigateQuestion({ destination: 2 }),
+    ).then((value) => {
+      settled = true;
+      return value;
+    });
+    await Promise.resolve();
+
+    expect(settled).toBe(false);
+    const action = events.find((event) => event.type === "navigate_question");
+    expect(action).toBeDefined();
+    (
+      adapter as unknown as {
+        completeApplicationAction(outcome: {
+          actionId: string;
+          origin: NonNullable<
+            Extract<
+              RealtimeEvent,
+              { type: "navigate_question" }
+            >["actionContext"]
+          >;
+          status: "accepted";
+          message: string;
+        }): void;
+      }
+    ).completeApplicationAction({
+      actionId: action!.id,
+      origin: action!.actionContext!,
+      status: "accepted",
+      message: "Now on Question 2: Question two",
+    });
+
+    await expect(result).resolves.toBe(
+      "Accepted by application: Now on Question 2: Question two",
+    );
+  });
+
+  it("returns stale and replaced action results as superseded, never successful", async () => {
+    const { adapter, events, factoryOptions } = setup();
+    await adapter.connect({
+      ...connectOptions,
+      currentCandidate: undefined,
+      availableQuestions: [
+        { id: "q_1", index: 1, prompt: "Question one" },
+        { id: "q_2", index: 2, prompt: "Question two" },
+      ],
+    });
+
+    const older = Promise.resolve(
+      factoryOptions[0].onNavigateQuestion({ destination: "next" }),
+    );
+    const newer = Promise.resolve(
+      factoryOptions[0].onNavigateQuestion({ destination: 2 }),
+    );
+    await expect(older).resolves.toContain("Superseded by application");
+
+    const latest = events
+      .filter((event) => event.type === "navigate_question")
+      .at(-1)!;
+    adapter.completeApplicationAction({
+      actionId: latest.id,
+      origin: {
+        ...latest.actionContext!,
+        contextEpoch: latest.actionContext!.contextEpoch + 1,
+      },
+      status: "accepted",
+      message: "Now on Question 2: Question two",
+    });
+    await expect(newer).resolves.toContain("Superseded by application");
+  });
+
+  it("updates the live agent with distinct application-owned workflow states", async () => {
+    const { adapter, sessions } = setup();
+    await adapter.connect({ ...connectOptions, currentCandidate: undefined });
+    const base = {
+      assignmentId: "asn_1",
+      assignmentVersion: 7,
+      questionId: "q_1",
+      contextEpoch: 3,
+      activeQuestionIndex: 1,
+      activeQuestionText: "How does sunlight help a plant make food?",
+      approvedExactText: undefined,
+      failureCode: undefined,
+    } as const;
+
+    await adapter.updateApplicationState({
+      ...base,
+      draft: { status: "local", exactText: "My local words." },
+      reviewStatus: "not_ready",
+      approvalStatus: "not_approved",
+      exportStatus: "not_started",
+    });
+    await adapter.updateApplicationState({
+      ...base,
+      assignmentVersion: 8,
+      draft: {
+        status: "persisted",
+        exactText: "My local words.",
+        candidateId: "cand_1",
+        candidateVersion: 1,
+      },
+      reviewStatus: "ready",
+      approvalStatus: "not_approved",
+      exportStatus: "not_started",
+    });
+    await adapter.updateApplicationState({
+      ...base,
+      assignmentVersion: 9,
+      draft: {
+        status: "persisted",
+        exactText: "My local words.",
+        candidateId: "cand_1",
+        candidateVersion: 1,
+      },
+      reviewStatus: "not_ready",
+      approvalStatus: "approved",
+      approvedExactText: "My local words.",
+      exportStatus: "complete",
+    });
+
+    const updates = sessions[0].updateInstructions.mock.calls.map(
+      ([instructions]) => String(instructions),
+    );
+    expect(
+      updates.some((value) => value.includes('"draft_status":"local"')),
+    ).toBe(true);
+    expect(
+      updates.some(
+        (value) =>
+          value.includes('"draft_status":"persisted"') &&
+          value.includes('"review_status":"ready"') &&
+          value.includes('"approval_status":"not_approved"'),
+      ),
+    ).toBe(true);
+    expect(updates.at(-1)).toContain('"approval_status":"approved"');
+    expect(updates.at(-1)).toContain('"export_status":"complete"');
   });
 
   it("supports mute, stop, interrupt, exact playback, and teardown", async () => {
@@ -478,7 +765,7 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
   });
 
   it("drives the real adapter transcript and draft through the conversation machine after ready", async () => {
-    const { adapter, factoryOptions, sessions } = setup();
+    const { adapter, events, factoryOptions, sessions } = setup();
     const actor = createActor(workspaceMachine).start();
     actor.send({ type: "START_ANALYSIS" });
     actor.send({ type: "ANALYSIS_READY", assignment: fixtureAssignment });
@@ -513,9 +800,19 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
       item_id: "turn_voice_final",
       transcript: "Plants use sunlight as energy.",
     });
-    factoryOptions[0].onCandidate({
-      exact_text: "Plants use sunlight as energy.",
+    const candidateResult = Promise.resolve(
+      factoryOptions[0].onCandidate({
+        exact_text: "Plants use sunlight as energy.",
+      }),
+    );
+    const candidateAction = events.find((event) => event.type === "candidate");
+    adapter.completeApplicationAction({
+      actionId: candidateAction!.id,
+      origin: candidateAction!.actionContext!,
+      status: "accepted",
+      message: "A local draft is ready.",
     });
+    await candidateResult;
 
     const snapshot = actor.getSnapshot();
     expect(snapshot.matches("conversation")).toBe(true);
