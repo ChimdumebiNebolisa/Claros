@@ -55,6 +55,24 @@ test("deterministic Realtime replay preserves capture intent, typed continuity, 
     page.getByLabel("Voice controls").getByRole("status"),
   ).toContainText("Speaking");
   await expect(stopListening).toBeVisible();
+  await expect(page.getByLabel("Live captions")).toContainText(
+    "Can you give me one short hint?",
+  );
+  await expect(page.getByLabel("Live captions")).toContainText(
+    "What detail from the question supports your answer?",
+  );
+
+  await page.getByRole("button", { name: "Mute spoken output" }).click();
+  await expect(
+    page.getByRole("button", { name: "Unmute spoken output" }),
+  ).toBeVisible();
+  await expect(stopListening).toBeVisible();
+  await page.getByRole("button", { name: "Unmute spoken output" }).click();
+  await page.getByRole("button", { name: "Interrupt Claros" }).click();
+  await expect(
+    page.getByLabel("Voice controls").getByRole("status"),
+  ).toContainText("Interrupted");
+  await expect(stopListening).toBeVisible();
 
   await stopListening.click();
   await expect(
@@ -94,15 +112,28 @@ test("disconnect preserves the question-bound draft and hands control to typing"
   await candidate.fill(draft);
 
   await page.getByRole("button", { name: "Start speaking" }).click();
-  await page.getByRole("button", { name: "Stop listening" }).click();
   await expect(
     page.getByLabel("Voice controls").getByRole("status"),
   ).toContainText("Connection lost");
   await expect(candidate).toHaveValue(draft);
   await page.getByRole("button", { name: "Continue by typing" }).click();
   await expect(candidate).toHaveValue(draft);
+  await sendMessage(page, "Go to question 2");
+  await expect(
+    page.getByRole("heading", { level: 1, name: questionTwo }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Start speaking" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Stop listening" }),
+  ).toHaveCount(0);
+  await sendMessage(page, "Go to question 1");
+  await expect(
+    page.getByRole("heading", { level: 1, name: questionOne }),
+  ).toBeVisible();
+  await expect(candidate).toHaveValue(draft);
   await page.getByRole("button", { name: "Start speaking" }).click();
-  await page.getByRole("button", { name: "Stop listening" }).click();
   await expect(
     page.getByLabel("Voice controls").getByRole("status"),
   ).toContainText("Connection lost");

@@ -247,6 +247,88 @@ describe("Gate 3 runtime boundaries", () => {
     ).toBeEnabled();
   });
 
+  it("discards late events from the question that owned the Realtime listener", async () => {
+    let listener: RealtimeListener | undefined;
+    const liveAdapter = {
+      subscribe: vi.fn((next: RealtimeListener) => {
+        listener = next;
+        return vi.fn();
+      }),
+      connect: vi.fn(async () => ({ id: "connect", command: "connect" })),
+      startListening: vi.fn(() => ({ id: "listen", command: "listen" })),
+      stopListening: vi.fn(),
+      interrupt: vi.fn(),
+      setMuted: vi.fn(),
+      sendTypedTurn: vi.fn(),
+      registerTypedCandidate: vi.fn(),
+      hearExact: vi.fn(),
+      retry: vi.fn(),
+      destroy: vi.fn(),
+    };
+    realtimeMocks.loadOpenAI.mockResolvedValue({
+      createOpenAIRealtimeAdapter: () => liveAdapter,
+    });
+    const twoQuestionAssignment = {
+      ...assignment,
+      question_count: 2,
+      questions: [
+        ...assignment.questions,
+        {
+          ...assignment.questions[0],
+          question_id: "q_runtime_2",
+          index: 2,
+          prompt: "What is the second runtime question?",
+        },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify(twoQuestionAssignment), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={["/app/asgn_runtime"]}>
+        <AppProviders>
+          <RootApp />
+        </AppProviders>
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", {
+      name: "What is the runtime question?",
+    });
+    await user.click(screen.getByRole("button", { name: "Start speaking" }));
+    await waitFor(() => expect(listener).toBeDefined());
+
+    act(() => {
+      listener?.({
+        id: "navigate-from-question-one",
+        type: "navigate_question",
+        questionIndex: 2,
+      });
+      listener?.({
+        id: "late-question-one-candidate",
+        type: "candidate",
+        text: "This answer belongs only to question one.",
+        input: "voice",
+      });
+    });
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "What is the second runtime question?",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: "Proposed answer" }),
+    ).toHaveValue("");
+  });
+
   it("reuses a healthy audio session when the student sends a typed turn", async () => {
     const liveAdapter = {
       subscribe: vi.fn(() => vi.fn()),

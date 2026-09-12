@@ -686,6 +686,8 @@ export class OpenAIRealtimeAdapter implements RealtimeAdapter {
 
   private emitConnectionError(error: unknown): void {
     if (this.destroyed) return;
+    this.inputMuted = true;
+    this.session?.mute(true);
     const permissionDenied =
       error instanceof DOMException && error.name === "NotAllowedError";
     this.emit({

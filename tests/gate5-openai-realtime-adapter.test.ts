@@ -558,6 +558,7 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
   it("surfaces a disconnect when the single automatic reconnect fails", async () => {
     const { adapter, credentialProvider, events, sessions } = setup();
     await adapter.connect(connectOptions);
+    adapter.startListening();
     credentialProvider.mockRejectedValueOnce(new Error("provider unavailable"));
 
     sessions[0].emitConnection("disconnected");
@@ -571,6 +572,10 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
     );
 
     expect(credentialProvider).toHaveBeenCalledTimes(2);
+    expect(sessions[0].close).toHaveBeenCalled();
+
+    await adapter.retry();
+    expect(sessions[1].mute).toHaveBeenLastCalledWith(true);
   });
 
   it("does not reconnect after microphone permission denial", async () => {

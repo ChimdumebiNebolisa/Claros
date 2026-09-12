@@ -282,6 +282,8 @@ describe("Claros V2 workspace machine", () => {
   it("keeps guided turns through voice failure and requires a final candidate", () => {
     const actor = startAssignment();
     actor.send({ type: "CHOOSE_GUIDED" });
+    actor.send({ type: "VOICE_START" });
+    expect(actor.getSnapshot().context.captureState).toBe("active");
     actor.send({
       type: "GUIDED_STUDENT_TURN",
       text: "I know sunlight gives the plant energy.",
@@ -293,12 +295,14 @@ describe("Claros V2 workspace machine", () => {
       turnsBeforeDisconnect,
     );
     expect(actor.getSnapshot().context.candidate).toBeNull();
+    expect(actor.getSnapshot().context.captureState).toBe("paused");
     actor.send({ type: "REQUEST_REVIEW" });
     expect(actor.getSnapshot().matches({ guided: "voiceUnavailable" })).toBe(
       true,
     );
 
     actor.send({ type: "CONTINUE_BY_TYPING" });
+    expect(actor.getSnapshot().context.captureState).toBe("paused");
     actor.send({
       type: "CANDIDATE_CHANGED",
       value: "Sunlight gives a plant energy to make food.",

@@ -45,6 +45,16 @@ class BrowserReplayRealtimeAdapter implements RealtimeAdapter {
       });
     } else {
       this.emit({ type: "voice_state", state: "listening" });
+      if (this.scenario() === "disconnect") {
+        this.later(60, () => {
+          this.captureActive = false;
+          this.emit({
+            type: "error",
+            code: "realtime_disconnected",
+            message: "Connection lost",
+          });
+        });
+      }
     }
     return this.operation("listen");
   }
@@ -52,14 +62,6 @@ class BrowserReplayRealtimeAdapter implements RealtimeAdapter {
   stopListening(): RealtimeOperation {
     this.captureActive = false;
     this.clearTimers();
-    if (this.scenario() === "disconnect") {
-      this.emit({
-        type: "error",
-        code: "realtime_disconnected",
-        message: "Connection lost",
-      });
-      return this.operation("stop");
-    }
     if (this.scenario() !== "controls") {
       const text = this.answer();
       const turnId = this.nextId("student-caption");

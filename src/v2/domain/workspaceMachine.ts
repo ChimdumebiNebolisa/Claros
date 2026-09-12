@@ -540,6 +540,7 @@ export const workspaceMachine = setup({
     }),
     setVoiceDisconnected: assign({
       voiceState: () => "disconnected" as const,
+      captureState: () => "paused" as const,
       error: () => ({
         code: "realtime_disconnected",
         message: "Voice disconnected. Your work is still here.",

@@ -708,6 +708,9 @@ export default function WorkspaceShell({
           ? latest
           : null;
       };
+      const handleBoundRealtimeEvent = (event: RealtimeEvent) => {
+        if (latestBoundContext()) handleRealtimeEvent(event);
+      };
       if (usesRealApi) {
         let adapter: RealtimeAdapter;
         try {
@@ -724,7 +727,9 @@ export default function WorkspaceShell({
         }
         const connectContext = latestBoundContext();
         if (!connectContext) return null;
-        realtimeUnsubscribeRef.current = adapter.subscribe(handleRealtimeEvent);
+        realtimeUnsubscribeRef.current = adapter.subscribe(
+          handleBoundRealtimeEvent,
+        );
         realtimeAdapterRef.current = adapter;
         realtimeAdapterKindRef.current = "real";
         realtimeMicrophoneRef.current = microphone;
@@ -784,7 +789,9 @@ export default function WorkspaceShell({
       const connectContext = latestBoundContext();
       if (!connectContext) return null;
       const adapter = realtime.createFakeRealtimeAdapter();
-      realtimeUnsubscribeRef.current = adapter.subscribe(handleRealtimeEvent);
+      realtimeUnsubscribeRef.current = adapter.subscribe(
+        handleBoundRealtimeEvent,
+      );
       adapter.connect({
         assignmentId: currentAssignment.id,
         questionId: currentQuestion.id,
