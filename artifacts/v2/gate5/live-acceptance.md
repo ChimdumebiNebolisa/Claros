@@ -113,3 +113,13 @@ confirmation, and downloaded-PDF inspection.
 Tasks 5.7 and 5.8 remain open until the required human checks pass and that
 evidence is appended. Automated replay is not claimed as human acoustic
 acceptance.
+
+## Runtime handoff
+
+The normal `npm start` launcher was run from documentation checkpoint
+`6c57b31`, whose application sources are identical to implementation checkpoint
+`06425f9`. It produced a fresh production frontend and OpenPDF worker, then
+started FastAPI with live OpenAI semantic mapping, live OpenAI Realtime,
+OpenPDF, and the checksum-verified repository-local qpdf executable. Both
+`GET /health` and `GET /app` returned HTTP 200, and the application was left
+running at `http://127.0.0.1:8080/app` for the human session.
