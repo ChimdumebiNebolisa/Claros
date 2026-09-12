@@ -64,7 +64,11 @@ function ConversationHistory({
   const visibleTurns = turns.length > 6 ? turns.slice(-5) : turns;
 
   return (
-    <div className={styles.conversation} aria-label="Conversation with Claros">
+    <div
+      className={styles.conversation}
+      role="region"
+      aria-label="Conversation with Claros"
+    >
       {collapsedTurns.length ? (
         <details className={styles.earlierTurns}>
           <summary>Show {collapsedTurns.length} earlier turns</summary>

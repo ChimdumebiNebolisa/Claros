@@ -10,6 +10,7 @@
     "dev": "vite",
     "dev:api": "node server/index.mjs",
     "build": "tsc -b && vite build",
+    "build:e2e": "tsc -b && vite build --config tests/e2e/support/vite.config.ts --outDir output/playwright/e2e-dist",
     "build:openpdf": "mvn -q -f workers/openpdf/pom.xml package -DskipTests",
     "format": "prettier --check src/v2 src/main.tsx src/styles/tailwind.css src/styles/v2.css \"tests/gate*.test.ts*\" tests/e2e tests/storybook .storybook scripts playwright.config.ts playwright.storybook.config.ts vite.config.ts vitest.config.ts components.json eslint.config.js package.json tsconfig.json",
     "lint": "eslint src/v2 src/main.tsx tests .storybook --max-warnings=0",
@@ -29,7 +30,7 @@
     "check:visual": "node scripts/verify-gate2-screenshots.mjs",
     "generate:api": "node scripts/openapi-contract.mjs --write",
     "check:api": "node scripts/openapi-contract.mjs",
-    "test:e2e": "npm run build && playwright test",
+    "test:e2e": "npm run build:e2e && npm run build:openpdf && playwright test",
     "test:e2e:gate3": "npm run build && playwright test --config playwright.gate3.config.ts",
     "ci": "npm run format && npm run lint && npm run typecheck && npm run check:dependencies && npm run check:api && npm test && npm run test:storybook && npm run build && npm run check:bundles"
   },

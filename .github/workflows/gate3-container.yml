@@ -87,6 +87,9 @@ jobs:
           mvn -q -f workers/openpdf/pom.xml package -DskipTests
           python -m pytest backend/tests/openpdf -q
 
+      - name: Run deterministic real-application browser acceptance
+        run: npm run test:e2e
+
   container-smoke:
     runs-on: ubuntu-24.04
     timeout-minutes: 45

@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 import pikepdf
+from pypdf import PdfReader
 
 
 def main() -> None:
@@ -15,6 +16,7 @@ def main() -> None:
         result = {
             "pageCount": len(document.pages),
             "warnings": [*document.check_pdf_syntax(), *document.get_warnings()],
+            "text": "\n".join(page.extract_text() or "" for page in PdfReader(pdf_path).pages),
         }
     print(json.dumps(result, ensure_ascii=False))
 

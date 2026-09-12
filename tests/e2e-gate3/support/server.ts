@@ -121,6 +121,7 @@ async function stopChildProcess(
 export function inspectPdf(pdfPath: string): {
   pageCount: number;
   warnings: string[];
+  text: string;
 } {
   const pythonPath = process.env.CLAROS_GATE3_PYTHON ?? defaultPythonPath;
   const verifierPath = join(
@@ -143,5 +144,6 @@ export function inspectPdf(pdfPath: string): {
   return JSON.parse(result.stdout) as {
     pageCount: number;
     warnings: string[];
+    text: string;
   };
 }
