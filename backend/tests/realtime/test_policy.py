@@ -99,7 +99,7 @@ def test_all_compatibility_modes_use_one_adaptive_conversation_policy(
     assert "One adaptive conversation:" in prompts[0]
     assert "Capture a known intended answer with minimal interruption" in prompts[0]
     assert "Do not quiz a student who already supplied a usable answer" in prompts[0]
-    assert "do not provide a complete ready-to-submit answer" in prompts[0]
+    assert "Do not provide a complete ready-to-submit answer" in prompts[0]
     assert "Do not turn discussion, commands, hesitation" in prompts[0]
     assert "Direct-answer mode:" not in prompts[0]
     assert "Guided-reasoning mode:" not in prompts[0]

@@ -215,7 +215,7 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
       "Never select another question",
     );
     expect(factoryOptions[0].instructions).toContain(
-      "do not provide a complete ready-to-submit answer",
+      "Do not provide a complete ready-to-submit answer",
     );
     expect(factoryOptions[0].instructions).toContain(
       "never output a complete sentence that directly answers the worksheet question",
