@@ -40,16 +40,19 @@ expectation, or acceptance threshold changed.
 
 The required three-run benchmark was then repeated from Luna against the new
 prompt fingerprint. Luna passed all 33 required model-addressable results with
-zero invalid IDs and 5,347 ms p95 latency against the configured 30,000 ms
-semantic timeout budget. It used 135,678 input tokens and 7,534 output tokens,
-with an estimated cost of $0.036176 at the recorded 2026-09-11 price. The runner
-stopped immediately; Terra and Sol were not called again. The checksum-pinned
-scan-only case remains a deterministic preflight rejection and was not sent to
-a model.
+zero invalid IDs and 7,142 ms p95 latency against the configured 30,000 ms
+semantic timeout budget. It used 135,678 input tokens and 7,678 output tokens,
+with an estimated cost of $0.036350 at the recorded 2026-09-11 price. The runner
+stopped immediately; Terra and Sol were not called again. One bounded live Luna
+rephrase also passed strict factual-delta validation in 1,719 ms. The
+checksum-pinned scan-only case remains a deterministic preflight rejection and
+was not sent to a model.
 
 The sanitized per-fixture evidence is in `live-model-benchmark.json`. It stores
-case IDs, safe failure codes, counts, latency, token usage, cost estimates, and
-fingerprints. It stores no API key, provider payload, or generated text.
+case IDs, safe failure codes, counts, latency, token usage, cost estimates,
+fixture-verification state, and fingerprints. It is bound to clean tracked tree
+`4379e7f3ecf53dcc6f3c9cdcc1b8b3bfbdb2b228` at checkpoint `121287e` and stores
+no API key, provider payload, or generated text.
 
 ## Verification
 
@@ -63,7 +66,7 @@ fingerprints. It stores no API key, provider payload, or generated text.
 | OpenAI Python SDK adapter signature check | SDK 3.8.0 supports every used Responses parameter |
 | `npm run ci` | Pass: format, lint, typecheck, dependency/license policy, API drift, 73 Vitest tests, Storybook accessibility, production build, and bundle closure |
 | `npm run test:e2e:gate3` | Pass: one real Chromium/FastAPI authenticated typed/export/restart workflow |
-| Live Luna benchmark | Pass: 33/33 correct, zero invalid IDs, 5,347 ms p95 |
+| Live Luna benchmark | Pass: 33/33 correct, zero invalid IDs, 7,142 ms p95; live rephrase accepted in 1,719 ms |
 | Credential and artifact scan | Pass: server key authenticated; benchmark evidence contains no key or generated text |
 | Linux production container build and real API smoke | Pass on Docker Engine 29.1.2 |
 | `git diff --check` | Pass |

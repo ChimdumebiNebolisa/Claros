@@ -232,9 +232,9 @@ Benchmark `gpt-5.6-luna`, then `gpt-5.6-terra`, then `gpt-5.6-sol`; select the
 first candidate with 100% required-gold correctness, zero invalid IDs over
 three runs, and acceptable recorded p95 latency. Gate 4 selected
 `gpt-5.6-luna` after a closed-world prompt correction: the accepted fingerprint
-produced 33/33 correct live results, zero invalid IDs, and 5,347 ms p95 latency
+produced 33/33 correct live results, zero invalid IDs, and 7,142 ms p95 latency
 against the 30,000 ms semantic timeout budget. The accepted Luna run used
-135,678 input tokens and 7,534 output tokens at an estimated cost of $0.036176.
+135,678 input tokens and 7,678 output tokens at an estimated cost of $0.036350.
 Terra and Sol were not rerun after Luna passed.
 
 ### D-019 — Realtime

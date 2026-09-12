@@ -1,0 +1,731 @@
+{
+  "commit_sha": "121287e766140610dfdde8cddfd3cec36817d6b0",
+  "evidence": [
+    {
+      "accepted": true,
+      "complete_three_runs": true,
+      "correctness_percent": 100,
+      "estimated_cost_usd_micros": 36350,
+      "fingerprints_match": true,
+      "invalid_id_count": 0,
+      "model": "gpt-5.6-luna",
+      "p95_latency_ms": 7142,
+      "total_input_tokens": 135678,
+      "total_output_tokens": 7678
+    }
+  ],
+  "fingerprint": {
+    "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+    "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+    "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+  },
+  "fixture_digests_verified": true,
+  "generated_at": "2026-09-12T00:09:43.768305+00:00",
+  "latency_budget_source": "CLAROS_SEMANTIC_TIMEOUT_SECONDS default (30 seconds)",
+  "latency_threshold_ms": 30000,
+  "live_rephrase": {
+    "accepted": true,
+    "failure_code": null,
+    "latency_ms": 1719,
+    "model": "gpt-5.6-luna",
+    "output_redacted": true
+  },
+  "mode": "live",
+  "model_order": [
+    "gpt-5.6-luna",
+    "gpt-5.6-terra",
+    "gpt-5.6-sol"
+  ],
+  "non_model_corpus_cases": [
+    {
+      "case_id": "controlled-scan-rejection",
+      "expected_error_code": "requires_ocr",
+      "reason": "deterministic preflight rejection; no model call is permitted"
+    }
+  ],
+  "pricing_observation_usd_per_million_tokens": {
+    "gpt-5.6-luna": {
+      "input": 0.2,
+      "output": 1.2
+    },
+    "gpt-5.6-sol": {
+      "input": 4.0,
+      "output": 20.0
+    },
+    "gpt-5.6-terra": {
+      "input": 2.0,
+      "output": 12.0
+    }
+  },
+  "required_runs": [
+    1,
+    2,
+    3
+  ],
+  "runs": [
+    {
+      "actual_question_count": 2,
+      "case_id": "biology-polished",
+      "correct": true,
+      "estimated_cost_usd_micros": 1055,
+      "expected_question_count": 2,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 4145,
+      "invalid_id_count": 0,
+      "latency_ms": 7773,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 188,
+      "run": 1
+    },
+    {
+      "actual_question_count": 2,
+      "case_id": "middle-school-science",
+      "correct": true,
+      "estimated_cost_usd_micros": 1065,
+      "expected_question_count": 2,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 4162,
+      "invalid_id_count": 0,
+      "latency_ms": 2663,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 194,
+      "run": 1
+    },
+    {
+      "actual_question_count": 2,
+      "case_id": "non-science-short-answer",
+      "correct": true,
+      "estimated_cost_usd_micros": 1121,
+      "expected_question_count": 2,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 4152,
+      "invalid_id_count": 0,
+      "latency_ms": 3270,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 242,
+      "run": 1
+    },
+    {
+      "actual_question_count": 1,
+      "case_id": "blank-answer-lines",
+      "correct": true,
+      "estimated_cost_usd_micros": 916,
+      "expected_question_count": 1,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 3691,
+      "invalid_id_count": 0,
+      "latency_ms": 2565,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 148,
+      "run": 1
+    },
+    {
+      "actual_question_count": 1,
+      "case_id": "rectangular-answer-boxes",
+      "correct": true,
+      "estimated_cost_usd_micros": 893,
+      "expected_question_count": 1,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 3464,
+      "invalid_id_count": 0,
+      "latency_ms": 2423,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 167,
+      "run": 1
+    },
+    {
+      "actual_question_count": 4,
+      "case_id": "multi-page-order",
+      "correct": true,
+      "estimated_cost_usd_micros": 1454,
+      "expected_question_count": 4,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 5283,
+      "invalid_id_count": 0,
+      "latency_ms": 3511,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 331,
+      "run": 1
+    },
+    {
+      "actual_question_count": 1,
+      "case_id": "long-answer-appendix",
+      "correct": true,
+      "estimated_cost_usd_micros": 992,
+      "expected_question_count": 1,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 3707,
+      "invalid_id_count": 0,
+      "latency_ms": 3451,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 209,
+      "run": 1
+    },
+    {
+      "actual_question_count": 2,
+      "case_id": "unicode-punctuation-names",
+      "correct": true,
+      "estimated_cost_usd_micros": 1092,
+      "expected_question_count": 2,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 4189,
+      "invalid_id_count": 0,
+      "latency_ms": 2628,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 212,
+      "run": 1
+    },
+    {
+      "actual_question_count": 1,
+      "case_id": "rotated-crop-box",
+      "correct": true,
+      "estimated_cost_usd_micros": 919,
+      "expected_question_count": 1,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 3689,
+      "invalid_id_count": 0,
+      "latency_ms": 2183,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 151,
+      "run": 1
+    },
+    {
+      "actual_question_count": 1,
+      "case_id": "no-safe-inline-region",
+      "correct": true,
+      "estimated_cost_usd_micros": 1862,
+      "expected_question_count": 1,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 5154,
+      "invalid_id_count": 0,
+      "latency_ms": 7142,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 693,
+      "run": 1
+    },
+    {
+      "actual_question_count": 0,
+      "case_id": "ambiguous-question-boundary",
+      "correct": true,
+      "estimated_cost_usd_micros": 790,
+      "expected_question_count": 0,
+      "failure_code": "semantic_incomplete",
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 3590,
+      "invalid_id_count": 0,
+      "latency_ms": 1627,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 60,
+      "run": 1
+    },
+    {
+      "actual_question_count": 2,
+      "case_id": "biology-polished",
+      "correct": true,
+      "estimated_cost_usd_micros": 1069,
+      "expected_question_count": 2,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 4145,
+      "invalid_id_count": 0,
+      "latency_ms": 2480,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 200,
+      "run": 2
+    },
+    {
+      "actual_question_count": 2,
+      "case_id": "middle-school-science",
+      "correct": true,
+      "estimated_cost_usd_micros": 1080,
+      "expected_question_count": 2,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 4162,
+      "invalid_id_count": 0,
+      "latency_ms": 2612,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 206,
+      "run": 2
+    },
+    {
+      "actual_question_count": 2,
+      "case_id": "non-science-short-answer",
+      "correct": true,
+      "estimated_cost_usd_micros": 1169,
+      "expected_question_count": 2,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 4152,
+      "invalid_id_count": 0,
+      "latency_ms": 3627,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 282,
+      "run": 2
+    },
+    {
+      "actual_question_count": 1,
+      "case_id": "blank-answer-lines",
+      "correct": true,
+      "estimated_cost_usd_micros": 917,
+      "expected_question_count": 1,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 3691,
+      "invalid_id_count": 0,
+      "latency_ms": 2100,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 149,
+      "run": 2
+    },
+    {
+      "actual_question_count": 1,
+      "case_id": "rectangular-answer-boxes",
+      "correct": true,
+      "estimated_cost_usd_micros": 875,
+      "expected_question_count": 1,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 3464,
+      "invalid_id_count": 0,
+      "latency_ms": 1965,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 152,
+      "run": 2
+    },
+    {
+      "actual_question_count": 4,
+      "case_id": "multi-page-order",
+      "correct": true,
+      "estimated_cost_usd_micros": 1471,
+      "expected_question_count": 4,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 5283,
+      "invalid_id_count": 0,
+      "latency_ms": 3929,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 345,
+      "run": 2
+    },
+    {
+      "actual_question_count": 1,
+      "case_id": "long-answer-appendix",
+      "correct": true,
+      "estimated_cost_usd_micros": 957,
+      "expected_question_count": 1,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 3707,
+      "invalid_id_count": 0,
+      "latency_ms": 2552,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 180,
+      "run": 2
+    },
+    {
+      "actual_question_count": 2,
+      "case_id": "unicode-punctuation-names",
+      "correct": true,
+      "estimated_cost_usd_micros": 1121,
+      "expected_question_count": 2,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 4189,
+      "invalid_id_count": 0,
+      "latency_ms": 2728,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 236,
+      "run": 2
+    },
+    {
+      "actual_question_count": 1,
+      "case_id": "rotated-crop-box",
+      "correct": true,
+      "estimated_cost_usd_micros": 929,
+      "expected_question_count": 1,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 3689,
+      "invalid_id_count": 0,
+      "latency_ms": 2094,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 159,
+      "run": 2
+    },
+    {
+      "actual_question_count": 1,
+      "case_id": "no-safe-inline-region",
+      "correct": true,
+      "estimated_cost_usd_micros": 1728,
+      "expected_question_count": 1,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 5154,
+      "invalid_id_count": 0,
+      "latency_ms": 5618,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 581,
+      "run": 2
+    },
+    {
+      "actual_question_count": 0,
+      "case_id": "ambiguous-question-boundary",
+      "correct": true,
+      "estimated_cost_usd_micros": 803,
+      "expected_question_count": 0,
+      "failure_code": "semantic_incomplete",
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 3590,
+      "invalid_id_count": 0,
+      "latency_ms": 1398,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 71,
+      "run": 2
+    },
+    {
+      "actual_question_count": 2,
+      "case_id": "biology-polished",
+      "correct": true,
+      "estimated_cost_usd_micros": 1061,
+      "expected_question_count": 2,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 4145,
+      "invalid_id_count": 0,
+      "latency_ms": 2345,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 193,
+      "run": 3
+    },
+    {
+      "actual_question_count": 2,
+      "case_id": "middle-school-science",
+      "correct": true,
+      "estimated_cost_usd_micros": 1081,
+      "expected_question_count": 2,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 4162,
+      "invalid_id_count": 0,
+      "latency_ms": 2380,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 207,
+      "run": 3
+    },
+    {
+      "actual_question_count": 2,
+      "case_id": "non-science-short-answer",
+      "correct": true,
+      "estimated_cost_usd_micros": 1109,
+      "expected_question_count": 2,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 4152,
+      "invalid_id_count": 0,
+      "latency_ms": 2810,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 232,
+      "run": 3
+    },
+    {
+      "actual_question_count": 1,
+      "case_id": "blank-answer-lines",
+      "correct": true,
+      "estimated_cost_usd_micros": 917,
+      "expected_question_count": 1,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 3691,
+      "invalid_id_count": 0,
+      "latency_ms": 2288,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 149,
+      "run": 3
+    },
+    {
+      "actual_question_count": 1,
+      "case_id": "rectangular-answer-boxes",
+      "correct": true,
+      "estimated_cost_usd_micros": 867,
+      "expected_question_count": 1,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 3464,
+      "invalid_id_count": 0,
+      "latency_ms": 1951,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 145,
+      "run": 3
+    },
+    {
+      "actual_question_count": 4,
+      "case_id": "multi-page-order",
+      "correct": true,
+      "estimated_cost_usd_micros": 1481,
+      "expected_question_count": 4,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 5283,
+      "invalid_id_count": 0,
+      "latency_ms": 3210,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 354,
+      "run": 3
+    },
+    {
+      "actual_question_count": 1,
+      "case_id": "long-answer-appendix",
+      "correct": true,
+      "estimated_cost_usd_micros": 1011,
+      "expected_question_count": 1,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 3707,
+      "invalid_id_count": 0,
+      "latency_ms": 3221,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 225,
+      "run": 3
+    },
+    {
+      "actual_question_count": 2,
+      "case_id": "unicode-punctuation-names",
+      "correct": true,
+      "estimated_cost_usd_micros": 1108,
+      "expected_question_count": 2,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 4189,
+      "invalid_id_count": 0,
+      "latency_ms": 2515,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 225,
+      "run": 3
+    },
+    {
+      "actual_question_count": 1,
+      "case_id": "rotated-crop-box",
+      "correct": true,
+      "estimated_cost_usd_micros": 938,
+      "expected_question_count": 1,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 3689,
+      "invalid_id_count": 0,
+      "latency_ms": 2416,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 167,
+      "run": 3
+    },
+    {
+      "actual_question_count": 1,
+      "case_id": "no-safe-inline-region",
+      "correct": true,
+      "estimated_cost_usd_micros": 1693,
+      "expected_question_count": 1,
+      "failure_code": null,
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 5154,
+      "invalid_id_count": 0,
+      "latency_ms": 4578,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 552,
+      "run": 3
+    },
+    {
+      "actual_question_count": 0,
+      "case_id": "ambiguous-question-boundary",
+      "correct": true,
+      "estimated_cost_usd_micros": 806,
+      "expected_question_count": 0,
+      "failure_code": "semantic_incomplete",
+      "fingerprint": {
+        "corpus_sha256": "1aff7bdae742464185b6c61dfef800d6d2d3495e4a58cdd381d856fda8215300",
+        "prompt_sha256": "6796c091629b03a56a618856e242bbcd6d376fe866e813a17ca271dc653565a7",
+        "schema_sha256": "0848444d538b0ca19ec609eeeefd508e9a2e0c7bc8ff6c4ebdb780aa455e130b"
+      },
+      "input_tokens": 3590,
+      "invalid_id_count": 0,
+      "latency_ms": 1449,
+      "mode": "live",
+      "model": "gpt-5.6-luna",
+      "output_tokens": 73,
+      "run": 3
+    }
+  ],
+  "schema_version": 1,
+  "selected_model": "gpt-5.6-luna",
+  "tracked_source_clean": true,
+  "tree_sha": "4379e7f3ecf53dcc6f3c9cdcc1b8b3bfbdb2b228"
+}
