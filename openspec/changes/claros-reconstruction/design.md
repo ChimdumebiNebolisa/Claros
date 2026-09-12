@@ -90,9 +90,12 @@ the mobile sheet, with an immediate announced reduced-motion result.
 ### 3. Separate visible workflow, server state, transport, and disclosure state
 
 XState owns upload/check/readiness, active question, one conversation with
-capture/playback substates, comparison, exact review, confirmation, answer-added,
-worksheet review, and export/error states. TanStack Query owns all `/api/v2`
-fetches/mutations and cache invalidation. The Realtime adapter owns WebRTC,
+independent capture intent and assistant activity, question-scoped local drafts,
+comparison, one active exact review, confirmation, answer-added, worksheet
+review, and export/error states. The API adapter owns typed transport and
+server-version boundaries. TanStack Query may replace ordinary read/poll
+lifecycle code only through a parity-tested pilot; it does not own draft,
+review, confirmation, or provenance truth. The Realtime adapter owns WebRTC,
 tracks, captions, turns, interruptions, and reconnect. Local React state owns
 only focus-neutral disclosure and animation details.
 

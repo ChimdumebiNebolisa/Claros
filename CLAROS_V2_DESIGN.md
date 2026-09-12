@@ -188,7 +188,7 @@ Immediately update both states and announce the result through an accessible sta
 ### Navigation
 
 ```text
-Claros   Two ways to answer   Student control   Prototype   [Try the mockup]
+Claros   How it works   Accessibility   [Try Claros]
 ```
 
 Do not show sign-in, pricing, integrations, educator portals, or compliance pages until they exist.
@@ -255,7 +255,7 @@ Use one high-contrast section for four guarantees:
 
 ### Usage rules
 
-- Blue: primary action, focus, selected path, active question
+- Blue: primary action, focus, selected wording, active question
 - Green: completed and safely placed states only
 - Amber: attention or answer-page fallback, not general decoration
 - Red: actual errors only

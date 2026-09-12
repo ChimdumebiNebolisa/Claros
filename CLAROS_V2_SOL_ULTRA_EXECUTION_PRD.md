@@ -1587,10 +1587,16 @@ Permitted conceptual tools:
 ```text
 get_active_question_context()
 set_student_candidate(exact_text, source_turn_ids)
-request_clearer_wording(candidate_id)
-enter_exact_review(candidate_id)
+request_clearer_wording_for_current_draft()
+enter_exact_review_for_current_draft()
 report_voice_issue(code)
 ```
+
+The model does not supply opaque candidate identifiers for current-draft
+actions. On receipt, the application immediately binds either intent to the
+active assignment, question, local draft revision, acknowledged candidate ID
+and version, and context epoch. The normal authenticated API still requires and
+validates candidate identity and assignment version before any mutation.
 
 Do not expose:
 
@@ -1935,7 +1941,7 @@ Implement every P0 screen and transition with deterministic fixture data and a f
 
 Required:
 
-- both paths complete end to end with fixtures;
+- both known-answer and guided-help intents complete end to end with fixtures;
 - exact review mandatory;
 - inline and appendix outcomes visible;
 - mobile flow complete;
@@ -2072,7 +2078,7 @@ Required:
 
 - deployed URL passes smoke check;
 - demo can be repeated from a clean browser session;
-- both answer paths and both placement outcomes have evidence;
+- both answer intents and both placement outcomes have evidence;
 - final PDF opens correctly;
 - submission copy contains no unsupported claim;
 - `artifacts/v2/final-summary.md` lists commands, results, known limitations, and remaining risks.

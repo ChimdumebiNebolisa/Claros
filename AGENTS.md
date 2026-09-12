@@ -23,7 +23,7 @@ read `docs/agents/engineering.md`.
   source objects, and derivative-only export intact.
 - Treat missing or unreadable inline space as an attached-answer-page outcome;
   reject only when the question or required context cannot be grounded safely.
-- Keep both answer paths usable with typed input. Voice may trigger confirmation
+- Keep the one adaptive conversation fully usable with typed input. Voice may trigger confirmation
   only in exact review with the exact phrase `Use this exact answer`; it never
   owns geometry or export.
 - Use the active OpenSpec design for substantive requirement, architecture,

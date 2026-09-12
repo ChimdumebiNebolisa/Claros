@@ -11,7 +11,7 @@ import { Brand } from "./Brand";
 import styles from "./marketing/marketing.module.css";
 
 const guarantees = [
-  "Choose your route",
+  "Change how you respond",
   "See every wording change",
   "Approve the exact text",
   "Keep the source pages",
@@ -76,23 +76,26 @@ export default function MarketingShell() {
 
       <section className={styles.paths} id="how-it-works">
         <div className={styles.sectionIntro}>
-          <p className={styles.eyebrow}>Two ways to answer</p>
-          <h2>Start where your thinking is.</h2>
+          <p className={styles.eyebrow}>One adaptive conversation</p>
+          <h2>Speak, ask for help, or type—without choosing a mode.</h2>
           <p>
-            Give the answer you already know, or work it through one step at a
-            time. Both routes end at the same exact review.
+            Claros follows your intent while keeping the same question,
+            conversation, and editable draft together. Every answer still ends
+            at the same exact review.
           </p>
         </div>
         <div className={styles.pathGrid}>
           <article className={styles.pathCard}>
             <Microphone01 aria-hidden="true" />
-            <h3>Say my answer</h3>
-            <p>Speak or type what you already know.</p>
+            <h3>State what you know</h3>
+            <p>Speak or type an answer with minimal interruption.</p>
           </article>
           <article className={styles.pathCard}>
             <Lightbulb02 aria-hidden="true" />
-            <h3>Help me think it through</h3>
-            <p>Work through the question with Claros, one step at a time.</p>
+            <h3>Ask for concise help</h3>
+            <p>
+              Work through the same question with one focused prompt at a time.
+            </p>
           </article>
         </div>
         <div className={styles.convergence} aria-label="Shared completion path">

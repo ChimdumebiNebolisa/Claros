@@ -4,7 +4,7 @@
 - **Branch:** `codex/claros-v2-nerdy`
 - **Baseline:** `5fb217715e4b3278f21a882b2652d928f2cca628`
 - **Current phase:** Gate 5 in progress — one-agent correction implemented; final human-spoken acceptance remains
-- **Gate state:** Gates 0–4 passed; Gate 5 is 10/12 tasks complete
+- **Gate state:** Gates 0–4 passed; Gate 5 is 11/13 tasks complete
 - **Gate 0 content checkpoint:** `0c15404b87edbbe19b03de93d81ad95aa1e897fd`
 - **Gate 1 content checkpoint:** `59cbc509650cc4a65b139a7db23012ead74efb3c`
 - **Gate 2 content checkpoint:** `0723303ef718bb28594d519da31ec0a55226fa45`
@@ -20,14 +20,31 @@ Mandatory direct/guided selection and fixture-default `/app` behavior are
 superseded. The three authority files and active OpenSpec change now specify one
 adaptive conversation using the real runtime by default. Authority SHA-256:
 
-- Execution PRD: `28BDCF6D3DADE6577AA8D216F4AFC0DED95976A4C33E82B0A26D3A7D3940019A`
-- Product contract: `CF273D0F0562BF535868E4EE7689A9AB085A4ECC539CD2A0E548A2EF8C5B5B2D`
-- Design system: `B10D6930F017834C59891A6A6C1D3BE9D4B25377616CBA601D85E218A1EA35D3`
+- Execution PRD: `17F7CBD11691A7DD97195AF45F98A2E9B8910921F805FC2CDC037D6963F8997F`
+- Product contract: `E0D00CE25E2806AF4BCE8997A798C7504667910A9A770F7B599131904C14B01E`
+- Design system: `23B8789FB543B0C14F41940D5DBD68FEB7BE851517CB8757CBE8748B023FF374`
 
 Reason: the product owner rejected separate answer modes and authorized a
 targeted restoration of one real conversation while retaining all approval,
 authorization, immutable-source, deterministic-placement, and PDF-validation
 invariants.
+
+### 2026-09-12 scoped conversation-audit correction
+
+The authority text now removes the remaining mandatory-path contradiction and
+defines known-answer and guided-help behavior as intents inside one adaptive
+conversation. OpenSpec task 5A.5 is complete. Verification passed with 46
+focused frontend conversation tests, 129 focused backend Realtime/semantic
+tests, 531 full backend tests (17 OpenPDF tests skipped because local `qpdf` is
+unavailable), 103 full Vitest tests, the all-story Playwright axe sweep, the
+production build/bundle boundary checks, Ruff, strict OpenSpec validation, and
+zero npm audit vulnerabilities. The deployment workflow now depends on the
+offline conversation gate.
+
+The broad legacy `npm run test:e2e` suite is not claimed as passing: its first
+tests still expect the superseded fixture-default `/app` runtime and attempt to
+reach an unstarted API on port 8080. Updating that suite, physical microphone
+acceptance, and independent Gate 5 review remain open under tasks 5.7 and 5.8.
 
 ### 2026-09-12 one-agent implementation evidence
 
@@ -299,7 +316,7 @@ finding or unavailable npm audit keeps Gate 1 blocked.
 | 2    | Fixture-complete V2 UI and fake Realtime                                               | Unit/component/Storybook/Playwright/axe, keyboard/focus/zoom/motion, full screenshot matrix, visual score ≥90 | Passed at `0723303` — 95/100 |
 | 3    | FastAPI, GCS adapters, physical IR, placement/export, gold corpus                      | Python/API/PDF integration, deterministic IR, exact Unicode, immutable source, container/revision smoke       | Passed at `88cda66`          |
 | 4    | Responses semantic mapping and rephrase                                                | Recorded/live corpus evaluation, zero invalid IDs, exact reconstruction, safe failure and provenance          | Passed at `976e176`          |
-| 5    | One adaptive Realtime conversation                                                      | Fake browser suite and manual live voice/recovery/security evidence                                           | In progress — 10/12 tasks    |
+| 5    | One adaptive Realtime conversation                                                     | Fake browser suite and manual live voice/recovery/security evidence                                           | In progress — 11/13 tasks    |
 | 6    | Cutover, hardening, deployment                                                         | Full accumulated CI/security/a11y/visual/performance/staging evidence                                         | Not started                  |
 | 7    | Repeatable demo and release bundle                                                     | Clean-browser replay, final PDF, deployed smoke, honest submission copy, complete `artifacts/v2`              | Not started                  |
 

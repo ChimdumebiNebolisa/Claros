@@ -70,21 +70,19 @@ Trust statement:
 
 ---
 
-## 3. Two entry paths
+## 3. One adaptive conversation
 
-Every active question begins with two explicit choices.
+Every active question opens directly in one persistent conversation. The same
+agent infers whether the student is stating a known answer, asking for concise
+help, revising wording, or requesting grounded question navigation. If intent
+is ambiguous, Claros asks one short clarifying question instead of requiring a
+mode choice.
 
-```text
-[ Say my answer ]
-I already know what I want to say.
+Speech and typed input remain available in the same workspace. Changing input
+method or conversational intent does not discard the current draft, bounded
+conversation, active-question binding, or a healthy voice session.
 
-[ Help me think it through ]
-Guide me with one question at a time.
-```
-
-Typed input remains available beneath both paths.
-
-### 3.1 Path A — Say my answer
+### 3.1 Known-answer intent
 
 Purpose: remove the typing bottleneck when the student already knows the answer.
 
@@ -111,9 +109,9 @@ Available actions:
 - **Use my words** — keep the normalized transcription.
 - **Make it clearer** — request a visibly labeled suggested rephrasing.
 - **Edit** — manually change the draft.
-- **Use this answer** — explicitly approve the exact visible text.
+- **Use this exact answer** — explicitly approve the exact visible text.
 
-### 3.2 Path B — Help me think it through
+### 3.2 Guided-help intent
 
 Purpose: provide contextual tutoring without turning the product into an automatic answer generator.
 
@@ -160,7 +158,8 @@ No conversational intent bypasses exact review and approval.
 ### 4.1 Claros may
 
 - transcribe speech;
-- normalize punctuation and obvious speech artifacts;
+- apply only lossless transcription cleanup that preserves numeric, operator,
+  identifier, and other meaning-bearing punctuation;
 - ask guiding questions;
 - suggest clearer wording when requested;
 - show a suggestion beside the student’s original wording;
@@ -232,7 +231,9 @@ Voice may be used to approve an answer only after:
 1. the exact final text is visible;
 2. Claros has offered to read it aloud;
 3. the interface is in the dedicated confirmation state; and
-4. the student gives an exact confirmation command such as **“Use this exact answer.”**
+4. the student says the command words **“Use this exact answer”**; recognition
+   may ignore letter case and a single terminal period or exclamation mark, but
+   must reject extra words, negation, or a question.
 
 Casual agreement during conversation does not count.
 

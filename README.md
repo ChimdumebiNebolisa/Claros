@@ -33,13 +33,15 @@ explicit fixture URLs. They are not the normal `/app` runtime.
 
 ## Product contract
 
-The supplied reconstruction PRD is the product source of truth and the supplied
-`CLAROS_DESIGN.md` is the visual source of truth. The active OpenSpec change is
-`openspec/changes/claros-reconstruction/`.
+`CLAROS_V2_SOL_ULTRA_EXECUTION_PRD.md` is the implementation authority,
+`CLAROS_V2_PRODUCT_CONTRACT.md` controls product behavior, and
+`CLAROS_V2_DESIGN.md` controls visual and interaction behavior. The active
+OpenSpec change is `openspec/changes/claros-reconstruction/`.
 
-The first slice deliberately excludes scans/OCR, multiple choice, tables,
-drawings, teacher review, arbitrary geometry, and production persistence. These
-are new contracts, not hidden fallbacks.
+V2 deliberately excludes scans/OCR, multiple choice, arbitrary tables and
+drawings, teacher workflows, and arbitrary geometry. Production uses private
+durable GCS storage; local development and tests use the matching filesystem
+adapter. Neither mode changes the supported worksheet contract.
 
 ## Safety notes
 
