@@ -3,14 +3,16 @@
 - **As of:** 2026-09-11
 - **Branch:** `codex/claros-v2-nerdy`
 - **Baseline:** `5fb217715e4b3278f21a882b2652d928f2cca628`
-- **Current phase:** Gate 5 in progress — direct and guided browser binding is next
-- **Gate state:** Gates 0–4 passed; Gate 5 is 2/8 tasks complete
+- **Current phase:** Gate 5 in progress — final human-spoken acceptance remains
+- **Gate state:** Gates 0–4 passed; Gate 5 is 6/8 tasks complete
 - **Gate 0 content checkpoint:** `0c15404b87edbbe19b03de93d81ad95aa1e897fd`
 - **Gate 1 content checkpoint:** `59cbc509650cc4a65b139a7db23012ead74efb3c`
 - **Gate 2 content checkpoint:** `0723303ef718bb28594d519da31ec0a55226fa45`
 - **Gate 3 accepted clean checkpoint:** `88cda664f55abf698a1d56567e814e024708ad0a`
 - **Gate 4 accepted evidence checkpoint:** `976e176ea0fe828147684757ae7cf07e37a1e175`
 - **Gate 4 live-source checkpoint:** `121287e766140610dfdde8cddfd3cec36817d6b0`
+- **Gate 5 workspace-integration checkpoint:** `2c688e58f197127f62571fa68fc797a4986fbaca`
+- **Gate 5 live-defect checkpoint:** `22b3d602d5b02711d0997af4fe18ce8945484cf5`
 
 ## Current milestone
 
@@ -34,6 +36,20 @@
   supports typed turns, mute, stop, interrupt, and exact playback, deduplicates
   provider events, closes SDK-owned media on replacement/exit, and permits one
   automatic reconnect. The existing fake adapter remains deterministic.
+- **Gate 5 workspace binding:** Direct voice and guided voice/typed turns now
+  use the live lazy-loaded adapter in API mode. Candidate writes retain the
+  authorized Realtime session/source-turn evidence, exact voice confirmation
+  routes through the existing confirmation mutation only in exact review, and
+  microphone/connection/module failures preserve the draft and expose typed
+  continuation. Tasks 5.3–5.6 pass at checkpoint `2c688e5`.
+- **Gate 5 live acceptance:** Live guided responses, full caption/turn
+  persistence, mute, interruption, post-interrupt continuation, credential
+  failure/retry, and direct connect/stop pass at `22b3d60`. The run fixed the
+  provider safety-identifier limit, text-only WebRTC input track, speaking/stop
+  state, multipart response finalization, API-mode navigation, and
+  cross-question captions. A human-spoken direct transcript/candidate and live
+  spoken exact-confirmation phrase remain unverified, so tasks 5.7 and 5.8 stay
+  open. See `artifacts/v2/gate5/live-acceptance.md`.
 
 - **OpenPDF promotion:** The validated Java renderer is integrated behind
   explicit `CLAROS_PDF_ENGINE=openpdf` selection in the real `/api/v2` service.
@@ -63,10 +79,10 @@
   produced digest `sha256:b4058b7bb22210a82690db7859354dad4fdf354441d57ee46a79deea6d7d5b66`;
   revision `claros-00075-xtv` serves it at 100 percent after live persistence,
   ownership-isolation, and proxy-identity checks.
-- **Next action:** Bind the real lazy-loaded adapter into the direct and guided
-  workspace paths, preserving authenticated candidate origin/source-turn
-  evidence and typed fallback. Then verify exact-review voice confirmation and
-  recovery without committing unrelated Docker artifacts.
+- **Next action:** Run one human-spoken direct answer and the exact confirmation
+  phrase in the already-verified live browser path, then close task 5.7 and
+  request the independent Gate 5 review. Do not include the unrelated Docker
+  artifacts.
 
 ## Gate 0 checklist
 
@@ -251,7 +267,7 @@ finding or unavailable npm audit keeps Gate 1 blocked.
 | 2    | Fixture-complete V2 UI and fake Realtime                                               | Unit/component/Storybook/Playwright/axe, keyboard/focus/zoom/motion, full screenshot matrix, visual score ≥90 | Passed at `0723303` — 95/100 |
 | 3    | FastAPI, GCS adapters, physical IR, placement/export, gold corpus                      | Python/API/PDF integration, deterministic IR, exact Unicode, immutable source, container/revision smoke       | Passed at `88cda66`          |
 | 4    | Responses semantic mapping and rephrase                                                | Recorded/live corpus evaluation, zero invalid IDs, exact reconstruction, safe failure and provenance          | Passed at `976e176`          |
-| 5    | Realtime direct and guided paths                                                       | Fake browser suite and manual live voice/recovery/security evidence                                           | In progress — 1/8 tasks      |
+| 5    | Realtime direct and guided paths                                                       | Fake browser suite and manual live voice/recovery/security evidence                                           | In progress — 6/8 tasks      |
 | 6    | Cutover, hardening, deployment                                                         | Full accumulated CI/security/a11y/visual/performance/staging evidence                                         | Not started                  |
 | 7    | Repeatable demo and release bundle                                                     | Clean-browser replay, final PDF, deployed smoke, honest submission copy, complete `artifacts/v2`              | Not started                  |
 
