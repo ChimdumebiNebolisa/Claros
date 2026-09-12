@@ -348,6 +348,11 @@ describe("Gate 3 runtime boundaries", () => {
     expect(
       screen.getByRole("textbox", { name: "Proposed answer" }),
     ).toHaveValue("");
+    expect(
+      screen.getByText(
+        "Now on Question 2: What is the second runtime question?",
+      ),
+    ).toBeInTheDocument();
     expect(liveAdapter.completeApplicationAction).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({

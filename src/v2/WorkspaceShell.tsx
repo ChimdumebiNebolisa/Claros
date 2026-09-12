@@ -1551,16 +1551,16 @@ export default function WorkspaceShell({
     actor.send({ type: "GO_TO_QUESTION", questionId: target.id });
     const updated = actor.getSnapshot().context;
     const active = updated.assignment?.questions[updated.activeQuestionIndex];
-    return active?.id === target.id
-      ? {
-          status: "accepted",
-          message: `Now on Question ${target.index}: ${target.prompt}`,
-        }
-      : {
-          status: "superseded",
-          message:
-            "The active worksheet context changed before navigation completed.",
-        };
+    if (active?.id !== target.id) {
+      return {
+        status: "superseded",
+        message:
+          "The active worksheet context changed before navigation completed.",
+      };
+    }
+    const message = `Now on Question ${target.index}: ${target.prompt}`;
+    actor.send({ type: "GUIDED_REPLY", text: message });
+    return { status: "accepted", message };
   };
 
   useEffect(() => {
