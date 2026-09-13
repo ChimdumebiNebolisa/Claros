@@ -3,7 +3,7 @@
 - **Branch:** `codex/claros-v2-nerdy`
 - **Baseline:** `cea7ee164a137d7c7cec2f0016632be2070bc9c0`
 - **Feature implementation checkpoint:** `42574782016a8c870c0943eaf3d3f8a39baff807`
-- **Corrected review candidate:** pending commit
+- **Corrected review candidate:** `fb5bcbeea3628494e1afce3938fbd583091f434e`
 - **Independent review:** first pass requested changes; corrected-candidate review pending
 - **Date:** 2026-09-13
 
@@ -124,10 +124,12 @@ The feature checkpoint passed:
 - `openspec validate claros-reconstruction --strict`;
 - `npm audit --audit-level=high`: zero vulnerabilities.
 
-The corrected candidate will repeat the applicable verification after removal of
-the unused Tailwind aliases/plugin and will be reviewed independently at its exact
-SHA. The tool host uses Node 24 and therefore prints an engine warning; the project
-targets Node 22, and its dependency verifier checks that declared target.
+The corrected candidate repeated the complete `npm run ci`, conversation, full
+browser, restart-persistence, visual-check, 49-image capture, dependency audit,
+and strict OpenSpec verification after removal of the unused Tailwind
+aliases/plugin. It will be reviewed independently at its exact evidence SHA. The
+tool host uses Node 24 and therefore prints an engine warning; the project targets
+Node 22, and its dependency verifier checks that declared target.
 
 ## Authority and semantic boundary
 
