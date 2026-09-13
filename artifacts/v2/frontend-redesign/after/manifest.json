@@ -1,5 +1,5 @@
 {
-  "commit": "fb5bcbeea3628494e1afce3938fbd583091f434e",
+  "commit": "fec63d2ae5a1535e41fb9b70078840e5f29bb0e4",
   "baseUrl": "http://127.0.0.1:5174",
   "expectedStateMatrixCaptures": 49,
   "totalCaptures": 49,
@@ -27,8 +27,8 @@
     },
     {
       "file": "frontend-redesign/after/ready-desktop.png",
-      "sha256": "b40a3b22553fbab89a428620743b7d02dfbfb591c19a3185a305292af103d472",
-      "bytes": 75316
+      "sha256": "4354540a598c709fcf88ca3d1b47eb9fa117092cf26aa8c8f59719a743924be7",
+      "bytes": 73675
     },
     {
       "file": "frontend-redesign/after/ready-mobile.png",
@@ -157,18 +157,18 @@
     },
     {
       "file": "frontend-redesign/after/exact-review-appendix-desktop.png",
-      "sha256": "d20b83c51b465c907d49a34ee7ee62535a0fe37e49b8eeea89566d1b6a423009",
-      "bytes": 119235
+      "sha256": "cb812c979b659b48b08b7de86186111d3d36350c9d3b4166b2418b563f5d03fa",
+      "bytes": 118836
     },
     {
       "file": "frontend-redesign/after/exact-review-appendix-mobile.png",
-      "sha256": "de5bc29f897653913abe9ad0476f55cb0ea9172ca2407d3d1cbde265dcc7852a",
-      "bytes": 57976
+      "sha256": "6c88c6ed03ed9b570eab94ad5f027772b4eb9f91110589fdf96e6c23b5cd502f",
+      "bytes": 60819
     },
     {
       "file": "frontend-redesign/after/exact-review-appendix-compact-tablet.png",
-      "sha256": "17fa1ecc2b2abf34bf9573205b39390278b124b6bb903aaee91b6a56ae23045e",
-      "bytes": 90513
+      "sha256": "c06f3b4f7f341f5e31842b9ea31b6a743a0df84cdfec563b397f7dc5ab0b99c7",
+      "bytes": 90528
     },
     {
       "file": "frontend-redesign/after/answer-added-desktop.png",

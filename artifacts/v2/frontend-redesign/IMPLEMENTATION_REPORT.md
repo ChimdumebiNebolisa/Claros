@@ -3,8 +3,9 @@
 - **Branch:** `codex/claros-v2-nerdy`
 - **Baseline:** `cea7ee164a137d7c7cec2f0016632be2070bc9c0`
 - **Feature implementation checkpoint:** `42574782016a8c870c0943eaf3d3f8a39baff807`
-- **Corrected review candidate:** `fb5bcbeea3628494e1afce3938fbd583091f434e`
-- **Independent review:** first pass requested changes; corrected-candidate review pending
+- **Corrected implementation checkpoint:** `fec63d2ae5a1535e41fb9b70078840e5f29bb0e4`
+- **Independent review:** first pass closed authority/evidence/debris findings;
+  second pass requested exact-review DOM ordering; final-candidate review pending
 - **Date:** 2026-09-13
 
 ## Outcome
@@ -114,7 +115,7 @@ reduced motion is respected, and measured pages had no horizontal overflow at 39
 
 The feature checkpoint passed:
 
-- `npm run ci`: format, lint, typecheck, dependency/license checks, 111 Vitest tests,
+- `npm run ci`: format, lint, typecheck, dependency/license checks, 112 Vitest tests,
   Storybook build, Storybook axe, production build, and bundle boundaries;
 - `npm run test:conversation`: 54/54 tests;
 - `npm run test:e2e`: 10/10 Chromium tests;
@@ -124,12 +125,12 @@ The feature checkpoint passed:
 - `openspec validate claros-reconstruction --strict`;
 - `npm audit --audit-level=high`: zero vulnerabilities.
 
-The corrected candidate repeated the complete `npm run ci`, conversation, full
-browser, restart-persistence, visual-check, 49-image capture, dependency audit,
-and strict OpenSpec verification after removal of the unused Tailwind
-aliases/plugin. It will be reviewed independently at its exact evidence SHA. The
-tool host uses Node 24 and therefore prints an engine warning; the project targets
-Node 22, and its dependency verifier checks that declared target.
+The corrected implementation repeated the complete `npm run ci`, full browser,
+visual-check, 49-image capture, dependency audit, and strict OpenSpec verification
+after moving exact review before the secondary transcript in visual, DOM, keyboard,
+and screen-reader order. A focused regression test covers the review-plus-transcript
+state. The tool host uses Node 24 and therefore prints an engine warning; the
+project targets Node 22, and its dependency verifier checks that declared target.
 
 ## Authority and semantic boundary
 
