@@ -1,19 +1,19 @@
 {
-  "commit": "a5a4890fa643aa8579205f53b9952d1fcf113c2a",
+  "commit": "0562b0a714d7b213e76eb913eb5983e391822f94",
   "baseUrl": "http://127.0.0.1:5174",
-  "expectedStateMatrixCaptures": 46,
-  "totalCaptures": 46,
+  "expectedStateMatrixCaptures": 49,
+  "totalCaptures": 49,
   "externalRequests": [],
   "captures": [
     {
       "file": "frontend-redesign/after/upload-desktop.png",
-      "sha256": "f1f10a51854d3500788527a2d526f30a3223780b7ac71c5bd3b1f63f98b571d9",
-      "bytes": 52491
+      "sha256": "ef8d96acb4cd2b6df90ca3c6c7b506f1c3399dce2d5c7b220abec23a38e745c8",
+      "bytes": 52550
     },
     {
       "file": "frontend-redesign/after/upload-mobile.png",
-      "sha256": "98e74423a1163fccc9157f831d2bad6ed53e247b7e58d2d938ec715336332f98",
-      "bytes": 41904
+      "sha256": "ebec529b1e74d4cd535067f541f417b58be9e5fa7c3b2d03a6d0438b395b92f7",
+      "bytes": 41923
     },
     {
       "file": "frontend-redesign/after/checking-desktop.png",
@@ -27,8 +27,8 @@
     },
     {
       "file": "frontend-redesign/after/ready-desktop.png",
-      "sha256": "4354540a598c709fcf88ca3d1b47eb9fa117092cf26aa8c8f59719a743924be7",
-      "bytes": 73675
+      "sha256": "b40a3b22553fbab89a428620743b7d02dfbfb591c19a3185a305292af103d472",
+      "bytes": 75316
     },
     {
       "file": "frontend-redesign/after/ready-mobile.png",
@@ -52,28 +52,28 @@
     },
     {
       "file": "frontend-redesign/after/conversation-empty-desktop.png",
-      "sha256": "bd3c72ba2ed63d7a3075ee5aab465542ef7d315c35fbd21033bed39cb8d794f8",
-      "bytes": 89294
+      "sha256": "6967d81eb76a07a1c6cbf177f95feffa46952d4ab462fb8897a80518c04f151f",
+      "bytes": 89316
     },
     {
       "file": "frontend-redesign/after/conversation-empty-mobile.png",
-      "sha256": "b4026e864e6ad5b50dfdcd9c1fc4fc7d6d73eea9e6b454a87616f01d3817c53f",
-      "bytes": 48132
+      "sha256": "a99b374004f350a836a521b4c37a6e7234e78662df0f3d7ba5282e04f4ef1d54",
+      "bytes": 48135
     },
     {
       "file": "frontend-redesign/after/conversation-listening-desktop.png",
-      "sha256": "63b41445011d6df1f75e5332702d1d18d323b9be102068a6d5df36ed8c342449",
-      "bytes": 89689
+      "sha256": "5aa179a1d9dec83532a0b0708f1e4bfe4e5b73f85abe32adda306a34bec55d9a",
+      "bytes": 89710
     },
     {
       "file": "frontend-redesign/after/conversation-listening-mobile.png",
-      "sha256": "1d2b4e6584c4a5a9a4d977fe883016ceaa635d31be725c84c283a679da4379ac",
-      "bytes": 48481
+      "sha256": "1b8e98ecea06e1b60422fd015ab177d9a707990a26b6d21291972004eb0891b3",
+      "bytes": 48482
     },
     {
       "file": "frontend-redesign/after/conversation-turns-desktop.png",
-      "sha256": "7becc0fa1d9e1117bf0b71f1b15e0af80e6ece1c28fb2c6ea55f75e6ba01b776",
-      "bytes": 107923
+      "sha256": "8a165cf121edb854bdcf50784961cab27cfc57fd851c33ae46a43a933ffaed73",
+      "bytes": 107902
     },
     {
       "file": "frontend-redesign/after/conversation-turns-mobile.png",
@@ -82,18 +82,23 @@
     },
     {
       "file": "frontend-redesign/after/conversation-turns-tablet.png",
-      "sha256": "2e6c4dfdb7041c0c7cad85cbe3d2284c0cec296f846bc0f3246816a08e398c96",
-      "bytes": 106445
+      "sha256": "e2d792fad8fb501faaad9f37523a3b00bff1ef271e983bcc4805f2a2886b6b03",
+      "bytes": 106465
+    },
+    {
+      "file": "frontend-redesign/after/conversation-turns-compact-tablet.png",
+      "sha256": "f3091667844a7f8f67d9b50c02ed025a7b944b707cbb199cf49504a6067a12eb",
+      "bytes": 81789
     },
     {
       "file": "frontend-redesign/after/conversation-draft-desktop.png",
-      "sha256": "9290741c3f6f458aec51f4fe84bfc8a259ebf166c02e62246bef60fe797e8c4b",
-      "bytes": 105617
+      "sha256": "034b598319506a8e0f52feebd804b1a4ef298171274abeefcc86c6915a553052",
+      "bytes": 105597
     },
     {
       "file": "frontend-redesign/after/conversation-draft-mobile.png",
-      "sha256": "2553fe25abf29d2e83f8d21a44cee2f35c3ef927fa282077fab30856a674a56f",
-      "bytes": 50339
+      "sha256": "954df7251d18d854891bb6c5740c62067ee591bb3a618a0dbc7d43e4b480a1fd",
+      "bytes": 47878
     },
     {
       "file": "frontend-redesign/after/direct-listening-desktop.png",
@@ -161,6 +166,11 @@
       "bytes": 57976
     },
     {
+      "file": "frontend-redesign/after/exact-review-appendix-compact-tablet.png",
+      "sha256": "17fa1ecc2b2abf34bf9573205b39390278b124b6bb903aaee91b6a56ae23045e",
+      "bytes": 90513
+    },
+    {
       "file": "frontend-redesign/after/answer-added-desktop.png",
       "sha256": "0b14050b0c057062ea2149ddeab0f942a3806450427fb736954cd91a3823edf8",
       "bytes": 103911
@@ -197,13 +207,13 @@
     },
     {
       "file": "frontend-redesign/after/unsupported-desktop.png",
-      "sha256": "6922afe9b709f826745a7f201dc999396f0de3e01fb5b0f16037e4a54e483511",
-      "bytes": 65839
+      "sha256": "c301a475ba6a442fb4645d5bcac1739d76d7be384365965cde09a194a39f6f6b",
+      "bytes": 65859
     },
     {
       "file": "frontend-redesign/after/unsupported-mobile.png",
-      "sha256": "dbc2f16d9f0961731cf926b2f275120145b06be2d1c892acb06edcc0e628fc44",
-      "bytes": 53636
+      "sha256": "b7e1531a3cdb8f0531715a455b40c32381c7daf7096e687f8a5bc29424f74b8e",
+      "bytes": 53667
     },
     {
       "file": "frontend-redesign/after/voice-unavailable-desktop.png",
@@ -224,6 +234,11 @@
       "file": "frontend-redesign/after/marketing-tablet.png",
       "sha256": "9a9cd3ed68dea096f4b806f219d2b3a950a33f72f9d9450eeb933bc3402763a3",
       "bytes": 149529
+    },
+    {
+      "file": "frontend-redesign/after/marketing-compact-tablet.png",
+      "sha256": "61d0a4bd84b6da96ed138c73870f9cd82db17019678dd2533f44280876d3e4c7",
+      "bytes": 111247
     },
     {
       "file": "frontend-redesign/after/marketing-mobile.png",

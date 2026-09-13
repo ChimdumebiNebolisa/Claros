@@ -45,15 +45,16 @@ The referenced projects publish open code under MIT-compatible terms. No 21st.de
 
 ## Capture matrix
 
-`after/manifest.json` records 46 state/viewport images, SHA-256 hashes, the implementation commit, and confirms that the capture made no external requests. It covers:
+`after/manifest.json` records 49 state/viewport images, SHA-256 hashes, the implementation commit, and confirms that the capture made no external requests. It covers:
 
-- marketing at 1440px, 1024px, and 390px;
+- marketing at 1440px, 1024px, 768px, and 390px;
 - upload, checking, ready, unsupported, and voice-unavailable states;
 - empty, listening, multi-turn, and populated-draft conversation states;
 - exact inline and appendix review;
 - answer placement, worksheet review, and export completion;
 - mobile source worksheet dialog with the actual rendered PDF;
-- tablet structural states for question choice, conversation, guided help, and worksheet review.
+- 768px compact-tablet evidence for conversation and exact review;
+- 1024px structural states for question choice, conversation, guided help, and worksheet review.
 
 The baseline and after directories are intentionally retained as release evidence. Production-route spot captures are also retained where they prove the fixture presentation matches the running application.
 
