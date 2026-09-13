@@ -114,6 +114,54 @@ a {
   animation-delay: 360ms;
 }
 
+.claros-voice-dot {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 1px solid var(--claros-line-strong);
+  border-radius: 50%;
+  background: white;
+}
+
+.claros-voice-dot span {
+  width: 2px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--claros-blue);
+}
+
+.claros-voice-dot span:nth-child(2) {
+  height: 12px;
+}
+.claros-voice-dot--active span {
+  animation: claros-voice 720ms ease-in-out infinite alternate;
+}
+.claros-voice-dot--active span:nth-child(2) {
+  animation-delay: 110ms;
+}
+.claros-voice-dot--active span:nth-child(3) {
+  animation-delay: 220ms;
+}
+.claros-voice-dot--error {
+  border-color: #e7b9b3;
+}
+.claros-voice-dot--error span {
+  background: var(--claros-error);
+}
+
+@keyframes claros-voice {
+  from {
+    transform: scaleY(0.55);
+  }
+  to {
+    transform: scaleY(1.2);
+  }
+}
+
 @keyframes claros-loader {
   from {
     transform: scaleY(0.48);
@@ -126,7 +174,8 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .claros-loader span {
+  .claros-loader span,
+  .claros-voice-dot span {
     animation: none;
   }
 }
@@ -264,7 +313,7 @@ a {
 
 .v2-app-shell {
   min-height: 100vh;
-  background: var(--claros-soft);
+  background: var(--claros-canvas);
 }
 
 .v2-topbar {
@@ -272,13 +321,14 @@ a {
   z-index: 20;
   top: 0;
   display: grid;
-  height: 64px;
+  height: 68px;
   grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 24px;
-  padding: 0 28px;
+  gap: 22px;
+  padding: 0 32px;
   border-bottom: 1px solid var(--claros-line);
-  background: var(--claros-paper);
+  background: rgba(252, 253, 254, 0.94);
+  backdrop-filter: blur(14px);
 }
 
 .v2-topbar-title,
@@ -302,12 +352,12 @@ a {
 
 .v2-workspace-grid {
   display: grid;
-  min-height: calc(100vh - 64px);
-  grid-template-columns: minmax(0, 1fr) 420px;
+  min-height: calc(100vh - 68px);
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 410px);
 }
 
 .v2-workspace-grid--task-only {
-  grid-template-columns: minmax(0, 760px);
+  grid-template-columns: minmax(0, 860px);
   justify-content: center;
 }
 
@@ -316,12 +366,12 @@ a {
   min-width: 0;
   align-items: flex-start;
   justify-content: center;
-  padding: 48px;
+  padding: 44px 40px 72px;
   background: var(--claros-paper);
 }
 
 .v2-task-inner {
-  width: min(100%, 760px);
+  width: min(100%, 860px);
 }
 
 .v2-task h1 {
@@ -368,13 +418,13 @@ a {
 
 .v2-source-pane {
   position: sticky;
-  top: 64px;
+  top: 68px;
   min-width: 0;
-  height: calc(100vh - 64px);
+  height: calc(100vh - 68px);
   overflow: auto;
-  padding: 24px;
+  padding: 22px;
   border-left: 1px solid var(--claros-line);
-  background: #eef1f6;
+  background: #eaf0f8;
 }
 
 .v2-source-heading {

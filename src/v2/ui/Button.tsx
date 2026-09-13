@@ -1,5 +1,10 @@
 import { LoaderCircle, type LucideIcon } from "lucide-react";
-import type { ButtonHTMLAttributes, ComponentType, SVGProps } from "react";
+import type {
+  AnchorHTMLAttributes,
+  ButtonHTMLAttributes,
+  ComponentType,
+  SVGProps,
+} from "react";
 import { cn } from "./cn";
 
 type IconComponent = LucideIcon | ComponentType<SVGProps<SVGSVGElement>>;
@@ -26,6 +31,8 @@ export type ButtonProps = Omit<
   isLoading?: boolean;
   showTextWhileLoading?: boolean;
   onPress?: () => void;
+  href?: string;
+  download?: string;
 };
 
 const colors: Record<ButtonColor, string> = {
@@ -62,24 +69,19 @@ export function Button({
   className,
   children,
   type = "button",
+  href,
+  download,
   ...props
 }: ButtonProps) {
-  return (
-    <button
-      type={type}
-      disabled={isDisabled || isLoading}
-      onClick={(event) => {
-        onClick?.(event);
-        if (!event.defaultPrevented) onPress?.();
-      }}
-      className={cn(
-        "inline-flex shrink-0 items-center justify-center border font-semibold outline-none transition-[color,background-color,border-color,box-shadow,transform] duration-150 focus-visible:ring-2 focus-visible:ring-[var(--claros-blue)] focus-visible:ring-offset-2 active:translate-y-px disabled:pointer-events-none disabled:opacity-45",
-        colors[color],
-        sizes[size],
-        className,
-      )}
-      {...props}
-    >
+  const controlClassName = cn(
+    "inline-flex shrink-0 items-center justify-center border font-semibold outline-none transition-[color,background-color,border-color,box-shadow,transform] duration-150 focus-visible:ring-2 focus-visible:ring-[var(--claros-blue)] focus-visible:ring-offset-2 active:translate-y-px disabled:pointer-events-none disabled:opacity-45",
+    colors[color],
+    sizes[size],
+    isDisabled && "pointer-events-none opacity-45",
+    className,
+  );
+  const content = (
+    <>
       {isLoading ? (
         <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
       ) : IconLeading ? (
@@ -93,6 +95,42 @@ export function Button({
       {!isLoading && IconTrailing ? (
         <IconTrailing className="size-4" aria-hidden="true" />
       ) : null}
+    </>
+  );
+
+  if (href) {
+    return (
+      <a
+        href={href}
+        download={download}
+        aria-disabled={isDisabled || isLoading || undefined}
+        className={controlClassName}
+        onClick={(event) => {
+          if (isDisabled || isLoading) {
+            event.preventDefault();
+            return;
+          }
+          onPress?.();
+        }}
+        {...(props as AnchorHTMLAttributes<HTMLAnchorElement>)}
+      >
+        {content}
+      </a>
+    );
+  }
+
+  return (
+    <button
+      type={type}
+      disabled={isDisabled || isLoading}
+      onClick={(event) => {
+        onClick?.(event);
+        if (!event.defaultPrevented) onPress?.();
+      }}
+      className={controlClassName}
+      {...props}
+    >
+      {content}
     </button>
   );
 }

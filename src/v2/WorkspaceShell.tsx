@@ -1,4 +1,4 @@
-import { Eye } from "@untitledui/icons";
+import { Eye } from "lucide-react";
 import {
   lazy,
   Suspense,
@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { Button } from "@/components/base/buttons/button";
+import { Button } from "@/v2/ui/Button";
 import { Brand } from "./Brand";
 import {
   beginRevision,

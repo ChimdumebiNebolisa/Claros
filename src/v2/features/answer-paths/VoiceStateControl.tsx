@@ -1,14 +1,13 @@
 import {
-  Microphone01,
-  MicrophoneOff01,
-  RefreshCw01,
-  StopCircle,
-  VolumeMax,
+  CircleStop,
+  Mic,
+  MicOff,
+  RefreshCw,
+  Volume2,
   VolumeX,
-} from "@untitledui/icons";
-import { Button } from "@/components/base/buttons/button";
+} from "lucide-react";
+import { Button } from "@/v2/ui/Button";
 import type { CaptureState, VoiceState } from "../../domain/contracts";
-import styles from "./answer-paths.module.css";
 
 export type VoiceStateControlProps = {
   state: VoiceState;
@@ -23,28 +22,25 @@ export type VoiceStateControlProps = {
 };
 
 const voiceLabels: Record<VoiceState, string> = {
-  ready: "Ready",
+  ready: "Ready to listen",
   listening: "Listening",
-  captured: "Captured",
-  thinking: "Thinking",
-  speaking: "Speaking",
-  interrupted: "Interrupted",
+  captured: "Words captured",
+  thinking: "Claros is thinking",
+  speaking: "Claros is speaking",
+  interrupted: "Speech stopped",
   microphone_unavailable: "Microphone unavailable",
   disconnected: "Connection lost",
 };
 
 const helpForState: Record<VoiceState, string> = {
-  ready: "Start speaking when you are ready, or type your answer below.",
-  listening: "Claros is listening. Your words will remain editable.",
-  captured: "Your words are ready to edit before review.",
-  thinking: "Claros is considering your last response.",
-  speaking: "Claros is speaking. You can interrupt at any time.",
-  interrupted:
-    "Claros stopped speaking. Your text and conversation are still available.",
-  microphone_unavailable:
-    "Your current text is safe. Retry voice or continue by typing.",
-  disconnected:
-    "Your current text and conversation are safe. Retry voice or continue by typing.",
+  ready: "Speak or type below.",
+  listening: "Your words stay editable.",
+  captured: "Review or keep talking.",
+  thinking: "Your last response is safe.",
+  speaking: "Interrupt at any time.",
+  interrupted: "Your conversation is safe.",
+  microphone_unavailable: "Retry voice or keep typing.",
+  disconnected: "Retry voice or keep typing.",
 };
 
 export function VoiceStateControl({
@@ -60,110 +56,106 @@ export function VoiceStateControl({
 }: VoiceStateControlProps) {
   const isFailure =
     state === "microphone_unavailable" || state === "disconnected";
+  const isActive = state === "listening" || state === "speaking";
 
   return (
-    <section
-      className={`${styles.voiceControl} ${
-        isFailure ? styles.voiceControlFailure : ""
-      }`}
+    <div
+      className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--claros-line)] px-4 py-3"
       aria-label="Voice controls"
     >
-      <div className={styles.voiceStatusRow} role="status" aria-live="polite">
+      <div
+        className="flex min-w-0 items-center gap-3"
+        role="status"
+        aria-live="polite"
+      >
         <span
-          className={`${styles.voiceSignal} ${
-            state === "listening" || state === "speaking"
-              ? styles.voiceSignalActive
-              : ""
-          }`}
+          className={`claros-voice-dot ${isActive ? "claros-voice-dot--active" : ""} ${isFailure ? "claros-voice-dot--error" : ""}`}
           aria-hidden="true"
         >
           <span />
           <span />
           <span />
         </span>
-        <span>
-          <strong>{voiceLabels[state]}</strong>
-          <small>{helpForState[state]}</small>
+        <span className="min-w-0">
+          <strong className="block truncate text-sm font-semibold text-[var(--claros-ink)]">
+            {voiceLabels[state]}
+          </strong>
+          <small className="block truncate text-xs text-[var(--claros-muted)]">
+            {helpForState[state]}
+          </small>
         </span>
       </div>
 
-      <div className={styles.voiceActions}>
+      <div className="flex flex-wrap items-center justify-end gap-1.5">
         {!isFailure && captureState !== "active" ? (
           <Button
-            color="primary"
-            size="lg"
-            iconLeading={Microphone01}
+            color="tertiary"
+            size="sm"
+            iconLeading={Mic}
             onPress={onStart}
             isDisabled={!onStart}
-            className={styles.voicePrimary}
           >
             Start speaking
           </Button>
         ) : null}
-
         {!isFailure && captureState === "active" ? (
           <Button
-            color="primary"
-            size="lg"
-            iconLeading={StopCircle}
+            color="secondary"
+            size="sm"
+            iconLeading={CircleStop}
             onPress={onStop}
             isDisabled={!onStop}
-            className={styles.voicePrimary}
           >
             Stop listening
           </Button>
         ) : null}
-
         {state === "speaking" ? (
           <Button
             color="secondary"
-            size="lg"
-            iconLeading={StopCircle}
+            size="sm"
+            iconLeading={CircleStop}
             onPress={onInterrupt}
             isDisabled={!onInterrupt}
-            className={styles.voicePrimary}
           >
             Interrupt Claros
           </Button>
         ) : null}
-
         {isFailure ? (
           <>
             <Button
               color="secondary"
-              size="lg"
-              iconLeading={RefreshCw01}
+              size="sm"
+              iconLeading={RefreshCw}
               onPress={onRetry}
               isDisabled={!onRetry}
-              className={styles.minimumTarget}
             >
               Retry voice
             </Button>
             <Button
-              color="primary"
-              size="lg"
-              iconLeading={MicrophoneOff01}
+              color="tertiary"
+              size="sm"
+              iconLeading={MicOff}
               onPress={onContinueByTyping}
               isDisabled={!onContinueByTyping}
-              className={styles.minimumTarget}
             >
               Continue by typing
             </Button>
           </>
         ) : null}
-
         {onToggleMute && !isFailure ? (
           <Button
-            color="link-gray"
-            size="lg"
-            iconLeading={muted ? VolumeX : VolumeMax}
+            color="tertiary"
+            size="sm"
+            iconLeading={muted ? VolumeX : Volume2}
             onPress={onToggleMute}
-            className={styles.minimumTarget}
+            aria-label={muted ? "Unmute spoken output" : "Mute spoken output"}
           >
-            {muted ? "Unmute spoken output" : "Mute spoken output"}
+            <span className="hidden xl:inline">
+              {muted ? "Unmute" : "Mute"}
+            </span>
           </Button>
         ) : null}
       </div>
-    </section>
+    </div>
   );
 }

@@ -1,7 +1,11 @@
-import { ArrowRight, MagicWand02, Send01 } from "@untitledui/icons";
+import {
+  ArrowRight,
+  Send as Send01,
+  WandSparkles as MagicWand02,
+} from "lucide-react";
 import { useId, useRef } from "react";
-import { Button } from "@/components/base/buttons/button";
-import { TextArea } from "@/components/base/textarea/textarea";
+import { Button } from "@/v2/ui/Button";
+import { Textarea as TextArea } from "@/v2/ui/Textarea";
 import type {
   ConversationTurn as ConversationTurnType,
   CaptureState,

@@ -1,6 +1,10 @@
-import { ArrowRight, Eye, Lightbulb02, Microphone01 } from "@untitledui/icons";
-import { Button } from "@/components/base/buttons/button";
-import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
+import {
+  ArrowRight,
+  Eye,
+  Lightbulb as Lightbulb02,
+  Mic as Microphone01,
+} from "lucide-react";
+import { Button } from "@/v2/ui/Button";
 import type { Question } from "../../domain/contracts";
 import { QuestionHeader } from "./QuestionHeader";
 import styles from "./answer-paths.module.css";
@@ -28,13 +32,12 @@ export function EntryPathChoice({
 
       <div className={styles.pathGrid}>
         <article className={styles.pathCard}>
-          <FeaturedIcon
-            icon={Microphone01}
-            color="brand"
-            theme="light"
-            size="md"
+          <span
+            className="grid size-11 place-items-center rounded-lg bg-[var(--claros-blue-mist)] text-[var(--claros-blue-dark)]"
             aria-hidden="true"
-          />
+          >
+            <Microphone01 className="size-5" />
+          </span>
           <div className={styles.pathCopy}>
             <h2>Say my answer</h2>
             <p>Speak or type what you already know.</p>
@@ -51,13 +54,12 @@ export function EntryPathChoice({
         </article>
 
         <article className={styles.pathCard}>
-          <FeaturedIcon
-            icon={Lightbulb02}
-            color="brand"
-            theme="light"
-            size="md"
+          <span
+            className="grid size-11 place-items-center rounded-lg bg-[var(--claros-blue-mist)] text-[var(--claros-blue-dark)]"
             aria-hidden="true"
-          />
+          >
+            <Lightbulb02 className="size-5" />
+          </span>
           <div className={styles.pathCopy}>
             <h2>Help me think it through</h2>
             <p>Work through the question with Claros, one step at a time.</p>
