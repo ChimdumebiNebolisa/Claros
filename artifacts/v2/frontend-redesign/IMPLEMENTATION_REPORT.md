@@ -3,9 +3,11 @@
 - **Branch:** `codex/claros-v2-nerdy`
 - **Baseline:** `cea7ee164a137d7c7cec2f0016632be2070bc9c0`
 - **Feature implementation checkpoint:** `42574782016a8c870c0943eaf3d3f8a39baff807`
-- **Corrected implementation checkpoint:** `fec63d2ae5a1535e41fb9b70078840e5f29bb0e4`
+- **Frontend implementation checkpoint:** `fec63d2ae5a1535e41fb9b70078840e5f29bb0e4`
+- **Final capture-harness checkpoint:** `6a2d9f6910bef71221f381b13ac18be00a3224fa`
 - **Independent review:** first pass closed authority/evidence/debris findings;
-  second pass requested exact-review DOM ordering; final-candidate review pending
+  second pass closed exact-review ordering; third pass requested a deterministic
+  ready-state source wait; final-candidate review pending
 - **Date:** 2026-09-13
 
 ## Outcome
@@ -129,8 +131,12 @@ The corrected implementation repeated the complete `npm run ci`, full browser,
 visual-check, 49-image capture, dependency audit, and strict OpenSpec verification
 after moving exact review before the secondary transcript in visual, DOM, keyboard,
 and screen-reader order. A focused regression test covers the review-plus-transcript
-state. The tool host uses Node 24 and therefore prints an engine warning; the
-project targets Node 22, and its dependency verifier checks that declared target.
+state. The capture harness now waits for the authentic desktop source crop in the
+named ready state. Two consecutive full captures produced the same ready-state hash,
+`abee4fee9955d89a250b724c5a384dec56cb78f0781b9449ee27b4b4ab98e841`, and visual
+inspection confirms that the source excerpt—not its transient loader—is present.
+The tool host uses Node 24 and therefore prints an engine warning; the project
+targets Node 22, and its dependency verifier checks that declared target.
 
 ## Authority and semantic boundary
 

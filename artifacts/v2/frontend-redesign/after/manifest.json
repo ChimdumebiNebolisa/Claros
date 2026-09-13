@@ -1,5 +1,5 @@
 {
-  "commit": "fec63d2ae5a1535e41fb9b70078840e5f29bb0e4",
+  "commit": "6a2d9f6910bef71221f381b13ac18be00a3224fa",
   "baseUrl": "http://127.0.0.1:5174",
   "expectedStateMatrixCaptures": 49,
   "totalCaptures": 49,
@@ -27,8 +27,8 @@
     },
     {
       "file": "frontend-redesign/after/ready-desktop.png",
-      "sha256": "4354540a598c709fcf88ca3d1b47eb9fa117092cf26aa8c8f59719a743924be7",
-      "bytes": 73675
+      "sha256": "abee4fee9955d89a250b724c5a384dec56cb78f0781b9449ee27b4b4ab98e841",
+      "bytes": 81077
     },
     {
       "file": "frontend-redesign/after/ready-mobile.png",
@@ -47,8 +47,8 @@
     },
     {
       "file": "frontend-redesign/after/question-choice-tablet.png",
-      "sha256": "583908948e10eedcb7bb5e3c99d17ab7a1428b7ea9fd09a0bf44305d5d78fe03",
-      "bytes": 68791
+      "sha256": "7f68fef342ce09b1a84cf41f917a6cc62c631d331f6b190ace3a89574c6a8f14",
+      "bytes": 70035
     },
     {
       "file": "frontend-redesign/after/conversation-empty-desktop.png",
@@ -132,8 +132,8 @@
     },
     {
       "file": "frontend-redesign/after/guided-conversation-tablet.png",
-      "sha256": "115d32262372929ddd48516217579fa25a5d1b494d134192bfea1d6f9b23a7c8",
-      "bytes": 99148
+      "sha256": "9905e2130a54c16ffee4d2835f78b1fe83556b20df4fe225f6fa5e876d5e345b",
+      "bytes": 99533
     },
     {
       "file": "frontend-redesign/after/wording-comparison-desktop.png",
