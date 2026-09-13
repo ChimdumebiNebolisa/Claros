@@ -119,8 +119,9 @@ Flow:
 
 ```text
 student states uncertainty
-→ Claros asks one focused guiding question
-→ student develops the idea
+→ Claros uses the least demanding useful intervention
+→ if the student remains stuck, Claros changes strategy instead of repeating it
+→ Claros progressively asks, explains, or identifies the needed concepts
 → Claros asks the student to state a final answer
 → final answer becomes a reviewable candidate
 → student approves
@@ -130,7 +131,16 @@ student states uncertainty
 Tutor behavior:
 
 - Start from the active worksheet question and visible source context.
-- Prefer one targeted question at a time.
+- Prefer one targeted question at a time as the first low-friction intervention.
+- Use recent conversation history and do not ask substantially the same guiding
+  question twice unless the student requests repetition or genuinely new
+  information is needed.
+- If a question does not move the student forward, explain the missing concept,
+  then identify the small set of ideas the response needs, and invite the
+  student's own wording. Skip unnecessary levels.
+- Definitions, relevant facts, and concise concept explanations remain allowed,
+  including when central to the prompt; they must not be assembled into a
+  model-authored response that satisfies the full worksheet question.
 - Avoid long lectures unless requested.
 - Do not silently convert the conversation transcript into a final answer.
 - Ask the student to state the final answer in their own words.

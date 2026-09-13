@@ -218,22 +218,72 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
       "Do not provide a complete ready-to-submit answer",
     );
     expect(factoryOptions[0].instructions).toContain(
-      "never output a complete sentence that directly answers the worksheet question",
+      "never compose a response that satisfies the full worksheet prompt",
+    );
+    expect(factoryOptions[0].instructions).toMatch(
+      /model answers disguised as examples.*fill-in-the-blank frames.*quoted templates/i,
     );
     expect(factoryOptions[0].instructions).toContain(
-      "filled-in sentence frames, quoted templates",
+      "rich sentence starters, partial answer clauses",
     );
     expect(factoryOptions[0].instructions).toContain(
-      "never offer a sentence starter, partial answer, fill-in-the-blank",
+      "Concept explanations may state relevant facts, definitions, and relationships",
     );
     expect(factoryOptions[0].instructions).toContain(
-      "Do not state the cause, result, role, or relationship",
-    );
-    expect(factoryOptions[0].instructions).toContain(
-      "Ask the focused question without supplying the conclusion",
+      "ask the focused question without also supplying its conclusion",
     );
     expect(factoryOptions[0].instructions).toContain(
       "make the tool call as your first output with no spoken or written preamble",
+    );
+  });
+
+  it("gives the effective agent enough history and policy to change help strategy", async () => {
+    const { adapter, factoryOptions } = setup();
+    const conversationHistory = [
+      {
+        id: "turn_1",
+        speaker: "student" as const,
+        text: "What's the answer?",
+        questionId: "q_1",
+      },
+      {
+        id: "turn_2",
+        speaker: "claros" as const,
+        text: "What does sunlight provide?",
+        questionId: "q_1",
+      },
+      {
+        id: "turn_3",
+        speaker: "student" as const,
+        text: "Tell me the answer.",
+        questionId: "q_1",
+      },
+    ];
+
+    await adapter.connect({ ...connectOptions, conversationHistory });
+
+    const instructions = factoryOptions[0].instructions;
+    const payload = JSON.parse(
+      instructions.split("UNTRUSTED_WORKSHEET_DATA=")[1],
+    ) as { recent_conversation: typeof conversationHistory };
+    expect(payload.recent_conversation).toEqual(conversationHistory);
+    expect(realtimePolicy.conversation_policy).toMatch(
+      /least demanding intervention/i,
+    );
+    expect(realtimePolicy.conversation_policy).toMatch(
+      /do not ask substantially the same guiding question twice/i,
+    );
+    expect(realtimePolicy.conversation_policy).toMatch(
+      /explain (?:one|the) missing concept/i,
+    );
+    expect(realtimePolicy.conversation_policy).toMatch(
+      /identify (?:the )?small set of concepts/i,
+    );
+    expect(realtimePolicy.conversation_policy).toMatch(
+      /student(?:'s)? (?:own )?wording/i,
+    );
+    expect(realtimePolicy.conversation_policy).toMatch(
+      /do not (?:require|force) (?:all|every) (?:four )?levels/i,
     );
   });
 
