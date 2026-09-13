@@ -142,8 +142,7 @@ async function capture(name, route, heading, viewport) {
   await page.getByRole("heading", { name: heading, exact: true }).waitFor();
   await page.evaluate(() => document.fonts.ready);
   const expectsDesktopSourceCrop =
-    viewport === "desktop" &&
-    (name === "ready" || route.startsWith("/app/"));
+    viewport === "desktop" && (name === "ready" || route.startsWith("/app/"));
   if (expectsDesktopSourceCrop) {
     await page
       .getByRole("img", { name: /showing question \d+ and its answer area/i })
