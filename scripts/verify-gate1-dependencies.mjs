@@ -15,14 +15,13 @@ const required = {
   "@embedpdf/plugin-document-manager": ["2.15.0", "MIT"],
   "@embedpdf/plugin-render": ["2.15.0", "MIT"],
   "@embedpdf/react-pdf-viewer": ["2.15.0", "MIT"],
+  "@fontsource/instrument-serif": ["5.3.0", "OFL-1.1"],
   "@openai/agents": ["0.18.0", "MIT"],
   "@tanstack/react-query": ["5.102.8", "MIT"],
-  "@untitledui/file-icons": ["0.0.9", "MIT"],
-  "@untitledui/icons": ["0.0.22", "MIT"],
+  "lucide-react": ["0.468.0", "ISC"],
   motion: ["12.43.0", "MIT"],
   "openapi-fetch": ["0.17.0", "MIT"],
-  "react-aria": ["3.52.0", "Apache-2.0"],
-  "react-aria-components": ["1.21.0", "Apache-2.0"],
+  "radix-ui": ["1.6.7", "MIT"],
   msw: ["2.15.0", "MIT"],
   "msw-storybook-addon": ["3.0.0", "MIT"],
   "openapi-typescript": ["7.13.0", "MIT"],
@@ -75,18 +74,20 @@ for (const legacy of [
 }
 
 for (const component of [
-  "application/file-upload/file-upload-base.tsx",
-  "application/modals/modal.tsx",
-  "application/loading-indicator/loading-indicator.tsx",
-  "application/empty-state/empty-state.tsx",
-  "base/textarea/textarea.tsx",
-  "base/radio-buttons/radio-buttons.tsx",
-  "base/badges/badges.tsx",
+  "ui/Button.tsx",
+  "ui/Textarea.tsx",
+  "ui/LoadingState.tsx",
+  "ui/cn.ts",
+  "components/AssignmentUploadPanel.tsx",
+  "components/StatusNotice.tsx",
+  "document/WorksheetDialog.tsx",
 ]) {
   try {
-    await access(new URL(`../src/components/${component}`, import.meta.url));
+    await access(new URL(`../src/v2/${component}`, import.meta.url));
   } catch {
-    problems.push(`Approved Untitled component is missing: ${component}`);
+    problems.push(
+      `Approved Claros open-code component is missing: ${component}`,
+    );
   }
 }
 
@@ -97,5 +98,5 @@ if (problems.length) {
 }
 
 console.log(
-  `Verified ${Object.keys(required).length} exact Gate 1 versions/licenses, seven approved Untitled primitives, Node 22, and retained legacy dependencies.`,
+  `Verified ${Object.keys(required).length} exact Gate 1 versions/licenses, seven approved Claros open-code components, Node 22, and retained legacy dependencies.`,
 );
