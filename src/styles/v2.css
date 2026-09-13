@@ -1,22 +1,23 @@
 :root {
-  --claros-ink: #111827;
-  --claros-muted: #5d6677;
-  --claros-quiet: #8b94a5;
-  --claros-line: #dfe5ef;
-  --claros-line-strong: #cbd5e1;
-  --claros-paper: #ffffff;
-  --claros-soft: #f7f9fc;
-  --claros-blue: #075ee8;
-  --claros-blue-dark: #064bbb;
-  --claros-blue-soft: #eef5ff;
-  --claros-blue-mist: #dcecff;
-  --claros-green: #16835d;
+  --claros-ink: #172033;
+  --claros-muted: #5b667a;
+  --claros-quiet: #8792a6;
+  --claros-line: #dfe6f0;
+  --claros-line-strong: #c8d2e1;
+  --claros-paper: #fcfdfe;
+  --claros-canvas: #f4f7fb;
+  --claros-soft: #f4f7fb;
+  --claros-blue: #155eef;
+  --claros-blue-dark: #0e4ab8;
+  --claros-blue-soft: #f2f7ff;
+  --claros-blue-mist: #e8f1ff;
+  --claros-green: #17795b;
   --claros-green-soft: #ecf9f3;
-  --claros-amber: #ad6411;
+  --claros-amber: #a35d10;
   --claros-amber-soft: #fff8e8;
   --claros-error: #b42318;
-  --claros-night: #090b10;
-  --claros-night-card: #121722;
+  --claros-night: #111a2c;
+  --claros-night-card: #19243a;
   color: var(--claros-ink);
   font-family:
     "Inter Variable",
@@ -77,9 +78,57 @@ a {
   height: 28px;
   place-items: center;
   border: 1px solid currentColor;
-  border-radius: 8px;
-  color: var(--claros-blue);
-  font-size: 14px;
+  border-radius: 7px 7px 7px 2px;
+  background: var(--claros-blue);
+  color: white;
+  font-family: "Instrument Serif", Georgia, serif;
+  font-size: 17px;
+}
+
+.claros-loader {
+  display: grid;
+  grid-template-columns: repeat(4, 6px);
+  gap: 4px;
+  height: 28px;
+  align-items: end;
+}
+
+.claros-loader span {
+  width: 6px;
+  height: 9px;
+  border-radius: 2px;
+  background: var(--claros-blue);
+  animation: claros-loader 900ms ease-in-out infinite alternate;
+}
+
+.claros-loader span:nth-child(2) {
+  height: 18px;
+  animation-delay: 120ms;
+}
+.claros-loader span:nth-child(3) {
+  height: 25px;
+  animation-delay: 240ms;
+}
+.claros-loader span:nth-child(4) {
+  height: 14px;
+  animation-delay: 360ms;
+}
+
+@keyframes claros-loader {
+  from {
+    transform: scaleY(0.48);
+    opacity: 0.45;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .claros-loader span {
+    animation: none;
+  }
 }
 
 .v2-primary-link,

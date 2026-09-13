@@ -1,4 +1,5 @@
 import "@fontsource-variable/inter";
+import "@fontsource/instrument-serif";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { AppProviders } from "./v2/AppProviders";
