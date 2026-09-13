@@ -60,8 +60,8 @@ do not use checkboxes and therefore do not count toward V2 progress.
 
 **Dependency:** Gate 0 is passed and recorded.
 
-- [x] 1.1 [Lead] Pin the approved Node 22-compatible Untitled, EmbedPDF, TanStack Query, Motion, MSW, OpenAPI, testing, and lint dependencies while retaining legacy-only packages; verify `npm ci`, package license inspection, and `npm audit --audit-level=high` pass.
-- [x] 1.2 [Frontend integrator] Install only the approved free Untitled v8 primitives and wrap Claros-specific notices/cards without recreating ordinary controls; verify component stories preserve React Aria labels, focus, and keyboard behavior.
+- [x] 1.1 [Lead] Historical Gate 1: pin the then-approved Node 22-compatible Untitled, EmbedPDF, TanStack Query, Motion, MSW, OpenAPI, testing, and lint dependencies while retaining legacy-only packages; verify `npm ci`, package license inspection, and `npm audit --audit-level=high` pass. The Untitled selection is superseded by section 1B.
+- [x] 1.2 [Frontend integrator] Historical Gate 1: install only the then-approved free Untitled v8 primitives and wrap Claros-specific notices/cards without recreating ordinary controls; verify component stories preserve React Aria labels, focus, and keyboard behavior. The generated layer was removed after section 1B established the replacement and passed regression checks.
 - [x] 1.3 [Lead] Add V2 semantic tokens, providers, route shell, SPA fallback rules, and route-scoped `/legacy`; verify route tests cover `/`, every `/app` shape, `/legacy`, `/health`, and an unknown non-API path without legacy CSS leakage.
 - [x] 1.4 [Document integrator] Implement an authentic EmbedPDF sample crop and read-only full viewer with forbidden capabilities disabled; verify the real fixture renders, range requests work, modal focus restores, and no HTML worksheet recreation exists.
 - [x] 1.5 [Frontend integrator] Establish deterministic V2 Storybook/MSW fixtures for empty, loading, ready, error, and document-viewer states; verify Storybook builds and its accessibility checks pass.
@@ -69,9 +69,9 @@ do not use checkboxes and therefore do not count toward V2 progress.
 
 ### 1B. September 2026 frontend redesign
 
-- [ ] 1B.1 [Lead] Replace the obsolete Untitled-only authority with the approved Claros-owned open-code foundation and typography-led marketing direction; verify authority text no longer directs future agents to restore Untitled or a hero screenshot.
-- [ ] 1B.2 [Frontend integrator] Redesign marketing, conversation/composer, draft, exact review, upload/loading, shell, and source framing without changing product state or handlers; verify desktop, tablet, and mobile visual evidence.
-- [ ] 1B.3 [Lead] Remove only proven-unused V2 styling and dependencies, then run formatting, lint, typecheck, frontend/conversation tests, Storybook accessibility, production build, browser tests, visual checks, and OpenSpec validation.
+- [x] 1B.1 [Lead] Replace the obsolete Untitled-only authority with the approved Claros-owned open-code foundation and typography-led marketing direction; verify authority text no longer directs future agents to restore Untitled or a hero screenshot.
+- [x] 1B.2 [Frontend integrator] Redesign marketing, conversation/composer, draft, exact review, upload/loading, shell, and source framing without changing product state or handlers; verify desktop, tablet, and mobile visual evidence.
+- [x] 1B.3 [Lead] Remove only proven-unused V2 styling and dependencies, then run formatting, lint, typecheck, frontend/conversation tests, Storybook accessibility, production build, browser tests, visual checks, and OpenSpec validation.
 - [ ] 1B.4 [Reviewer] Perform an independent read-only design/code review against the before/after evidence and frozen product semantics.
 - [x] 1.7 [Lead] Run format, lint, typecheck, unit, Storybook, production build, route smoke, and keyboard upload/dialog tests plus a CSP/WASM/worker production smoke; verify the empty V2 shell screenshot has no fake PDF or second visible design system.
 - [x] 1.8 [Reviewer] Perform a read-only Gate 1 contract, dependency, accessibility, and browser review; verify all critical findings are fixed and record the checkpoint SHA in `docs/v2/STATUS.md`.
@@ -141,7 +141,7 @@ do not use checkboxes and therefore do not count toward V2 progress.
 **Dependency:** Gates 0–5 pass on the same integration line.
 
 - [ ] 6.1 [Lead] Connect all real V2 adapters, exclude mocks from production, and verify no sample-hash-only, in-memory assignment, client geometry, or provider bypass remains in `/app` production bundles and runtime.
-- [ ] 6.2 [Lead] Complete `/app` cutover, remove `/legacy`, `/api/v1`, and only now-unused Radix, React-PDF, dropzone, resizable-panel, Lucide, legacy server/style dependencies; verify dependency graph, route tests, build, and full regression suite contain one product generation and one visible component system.
+- [ ] 6.2 [Lead] Complete `/app` cutover and remove `/legacy`, `/api/v1`, React-PDF, dropzone, resizable-panel, and only now-unused legacy server/style dependencies. Retain current V2 Radix accessibility primitives and Lucide icons unless later evidence proves a replacement is materially better; verify dependency graph, route tests, build, and full regression suite contain one product generation and one visible component system.
 - [ ] 6.3 [Lead] Complete security/privacy hardening and run npm/pip audits, secret scan, container/image scan, CSP/cookie/origin/rate-limit tests, dependency-license review, and log inspection; verify no unresolved HIGH/CRITICAL runtime issue, credential exposure, public GCS object, or sensitive content log remains.
 - [ ] 6.4 [Lead] Run full unit, contract, integration, PDF corpus, recorded-provider, fake-Realtime, Storybook, Playwright, axe, keyboard, 200-percent zoom, reduced-motion, performance, and production build suites for one commit; verify every check and budget passes.
 - [ ] 6.5 [Lead] Capture and independently review the final screenshot matrix and browser flow; verify at least 90/100 overall, every category at least 80 percent, zero critical accessibility defects, zero anti-reference violations, and authentic PDF rendering.

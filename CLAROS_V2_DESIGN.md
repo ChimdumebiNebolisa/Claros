@@ -268,10 +268,12 @@ Use one high-contrast section for four guarantees:
 
 ### Marketing
 
-Use one editorial serif for hero and section headlines. The mockup uses a system editorial stack so the prototype remains self-contained; production may use Instrument Serif if loaded and licensed appropriately.
+Use locally bundled Instrument Serif for hero and section headlines. Its license,
+loading, and production-build checks passed during the September 2026 frontend
+redesign; Georgia remains the fallback face.
 
 ```css
-font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+font-family: "Instrument Serif", Georgia, serif;
 ```
 
 ### Application
@@ -375,9 +377,12 @@ Use an 8 px base rhythm with larger 12/20/28/40 px working increments. Question 
 
 ## 14. Implementation guidance
 
-Keep the current React, Vite, TypeScript, Tailwind/Radix, XState, React-PDF, Storybook, and Playwright foundation. Rebuild the information architecture and component states rather than replacing the framework.
+Keep the current React, Vite, TypeScript, Tailwind, Claros-owned open-code
+primitives, Radix accessibility primitives, Lucide, XState, EmbedPDF, Storybook,
+and Playwright foundation. Rebuild information architecture and component states
+without replacing the product state machine or server-owned authority.
 
-Recommended additions:
+Current supporting libraries:
 
 - Motion for limited answer-placement and state transitions
 - TanStack Query for server state

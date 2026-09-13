@@ -130,9 +130,11 @@ The new authorities invalidate only these prior conclusions:
   code routes an insufficient or unsafe region to an attached answer page.
 - Export begins after one confirmed answer and leaves unanswered questions
   blank.
-- Untitled UI React is the sole visible V2 component foundation and EmbedPDF
-  is the V2 source renderer. Radix and React-PDF are legacy-only during
-  migration.
+- At the Gate 0 baseline, Untitled UI React was selected as the sole visible V2
+  component foundation and EmbedPDF as the source renderer. The September 2026
+  frontend redesign superseded only that presentation choice: current V2 uses
+  Claros-owned open-code primitives, Tailwind, Lucide, Radix accessibility
+  primitives, and EmbedPDF; React-PDF remains legacy-only during migration.
 - FastAPI, private GCS, and immutable manifests/objects become production
   authorities; Node and in-memory state remain temporary V1 references.
 - Both direct and guided paths support speech and complete typed operation.

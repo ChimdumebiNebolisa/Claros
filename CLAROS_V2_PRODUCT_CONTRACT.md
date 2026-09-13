@@ -600,12 +600,12 @@ Claros
 │
 ├── React application                 rebuild the flow
 │   ├── React + Vite
-│   ├── Tailwind/CSS tokens + Radix
+│   ├── Tailwind + Claros-owned open-code primitives
 │   ├── XState for user-visible workflow
 │   ├── TanStack Query for server state
 │   ├── Motion for bounded transitions
 │   ├── Storybook + MSW for states
-│   └── React-PDF for source rendering
+│   └── EmbedPDF for source rendering
 │
 ├── OpenAI Realtime
 │   ├── browser WebRTC

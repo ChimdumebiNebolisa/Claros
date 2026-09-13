@@ -65,7 +65,8 @@ unreviewed generated corpus output.
 ## Visual authority
 
 `CLAROS_V2_DESIGN.md` controls visual and interaction behavior beneath the V2
-execution PRD. Untitled UI React is the sole visible V2 component foundation;
+execution PRD. Claros-owned open-code primitives, Tailwind composition, Lucide,
+and Radix accessibility primitives form the visible V2 component foundation;
 EmbedPDF renders authentic source content. The task is first in DOM and visual
-order, the marketing hero demonstrates the real product, and legacy styles are
-scoped to `/legacy` until removal.
+order, the marketing hero is typography-led with one action, and legacy styles
+are scoped to `/legacy` until removal.

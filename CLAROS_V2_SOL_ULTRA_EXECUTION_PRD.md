@@ -2043,7 +2043,7 @@ Required:
 - remove dead V2 mock adapters from production bundles;
 - migrate `/app` to V2;
 - move legacy route behind explicit development-only access or remove it after evidence capture;
-- remove unused Radix, `react-pdf`, and old server dependencies only when no remaining route requires them;
+- retain current V2 Radix accessibility primitives and remove `react-pdf` plus old server dependencies only when no remaining route requires them;
 - finalize CI and Cloud Run deployment;
 - run dependency and security checks;
 - complete accessibility and performance passes.

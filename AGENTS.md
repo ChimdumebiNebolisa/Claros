@@ -28,5 +28,6 @@ read `docs/agents/engineering.md`.
   owns geometry or export.
 - Use the active OpenSpec design for substantive requirement, architecture,
   schema, and surface-authority changes.
-- Use Untitled UI React and EmbedPDF for V2. Radix, `react-pdf`, the Node API,
-  and legacy styles may exist only behind `/legacy` until the cutover gate.
+- Use Claros-owned open-code primitives, Tailwind composition, Lucide icons,
+  Radix accessibility primitives, and EmbedPDF for V2. `react-pdf`, the Node
+  API, and legacy styles may exist only behind `/legacy` until the cutover gate.

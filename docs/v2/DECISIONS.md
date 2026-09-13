@@ -125,23 +125,23 @@ confirmed and invalidates all prior review tokens.
 
 ### D-009 — Visible component foundation
 
-Untitled UI React v8 is the sole visible V2 foundation. Install through the
-official CLI with `--lib-version 8`, inspect every generated diff, and vendor
-only these confirmed free components:
+The September 2026 frontend redesign supersedes the historical Gate 1 Untitled
+foundation. V2 now uses a small Claros-owned, shadcn-style open-code layer under
+`src/v2/ui`, Tailwind composition, Lucide icons, and Radix accessibility
+primitives where their behavior is useful. The approved local primitives are:
 
 ```text
-file-upload-base
-modal
-loading-indicator
-empty-state
+button
 textarea
-radio-buttons
-badges
+loading-indicator
 ```
 
-Use existing Untitled primitives to compose Claros-specific notices and cards.
-Use `@untitledui/icons` for ordinary icons. Do not add another component kit or
-handcraft ordinary controls.
+Compose Claros-specific notices, cards, and workflow surfaces from these
+primitives and direct Tailwind classes. Keep product state and handlers outside
+the primitive layer. Adapt only useful composition ideas from open-code sources;
+do not import their demo state, model/source pickers, or approval authority. Do
+not add another visible component system without evidence that it is materially
+better than this one.
 
 ### D-010 — PDF rendering
 
@@ -283,13 +283,14 @@ freezes transitives. ESLint remains on exact `9.39.4` because the selected JSX
 accessibility plugin does not accept ESLint 10; this is a compatibility choice,
 not permission for floating dependencies.
 
-The official Untitled CLI `0.1.64` was run with library version 8. Only the
-seven approved primitives in D-009 and their required local foundations were
-accepted. `@openai/agents` remains absent until Gate 5. React strict-mode double
-mounting is not enabled at the application root because pinned EmbedPDF 2.15.0
-duplicates its document registry during the development-only mount/unmount
-probe; deterministic unit, Storybook, and fresh-server browser tests instead
-exercise teardown and remount behavior.
+At Gate 1, the official Untitled CLI `0.1.64` was run with library version 8 and
+only the seven then-approved primitives were accepted. That record is historical:
+the September redesign superseded the Gate 1 foundation and removed its generated
+layer after regression proof. `@openai/agents` was absent at Gate 1 and was added
+at Gate 5 for Realtime. React strict-mode double mounting is not enabled at the
+application root because pinned EmbedPDF 2.15.0 duplicates its document registry
+during the development-only mount/unmount probe; deterministic unit, Storybook,
+and fresh-server browser tests instead exercise teardown and remount behavior.
 
 Development CSP permits inline React Refresh code while production does not.
 Both permit `wasm-unsafe-eval` and blob workers required by PDFium. Production
@@ -468,7 +469,7 @@ versions and retain a single lockfile per ecosystem.
 
 | Purpose                | Packages                                                                                                                                                                                  |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Untitled foundation    | `@untitledui/icons`, `react-aria-components`, `tailwindcss-react-aria-components`, `tailwindcss-animate`; vendored Untitled UI v8 source                                                  |
+| Open-code UI           | `radix-ui`, `lucide-react`, `clsx`, `tailwind-merge`, locally bundled Instrument Serif; Claros-owned source under `src/v2/ui`                                                            |
 | PDF rendering          | `@embedpdf/react-pdf-viewer`, `@embedpdf/core`, `@embedpdf/engines`, `@embedpdf/pdfium`, `@embedpdf/models`, `@embedpdf/plugin-document-manager`, `@embedpdf/plugin-render`, all `2.15.0` |
 | Server/workflow state  | `@tanstack/react-query`, `openapi-fetch`                                                                                                                                                  |
 | Bounded animation      | `motion`                                                                                                                                                                                  |
@@ -476,9 +477,8 @@ versions and retain a single lockfile per ecosystem.
 | Generated API          | `openapi-typescript` as a development dependency                                                                                                                                          |
 | Quality                | ESLint flat config, TypeScript ESLint, React Hooks, JSX accessibility plugins                                                                                                             |
 
-Retain the current compatible React 19 and TypeScript lines unless the reviewed
-vendored Untitled source demonstrates a concrete incompatibility. Preserve
-XState, Zod 4, React Router, Vite, Tailwind, Inter, Storybook, Vitest,
+Retain the current compatible React 19 and TypeScript lines. Preserve XState,
+Zod 4, React Router, Vite, Tailwind, Inter, Storybook, Vitest,
 Playwright/axe, `clsx`, and `tailwind-merge`; avoid unrelated framework
 upgrades during the foundation gate.
 
@@ -502,23 +502,24 @@ tool configuration, matching the repository’s historical packaging approach.
 
 ### Retain temporarily, then remove
 
-Keep `radix-ui`, `react-pdf`, `react-dropzone`,
-`react-resizable-panels`, `lucide-react`, `tw-animate-css`, and the Node server
-only while `/legacy` imports them. Gate 6 removes each dependency after import
-and production-bundle evidence proves it is unused. Do not add PyMuPDF or any
-second visible component system.
+Keep `react-pdf`, `react-dropzone`, `react-resizable-panels`, and the Node server
+only while `/legacy` imports them. Radix and Lucide are current V2 dependencies,
+not scheduled legacy removals. Gate 6 removes each legacy dependency only after
+import and production-bundle evidence proves it is unused. Do not add PyMuPDF or
+any second visible component system.
 
 Before finalizing locks, verify the installed EmbedPDF tarball licenses, retain
 font licenses, run `npm audit --audit-level=high` and `pip-audit`, and record any
-exception in `RISKS.md`. The Untitled CLI has search/install side effects, so
-run it only on the V2 branch and review its entire diff before acceptance.
+exception in `RISKS.md`. The historical Untitled CLI migration is closed and
+must not be rerun; review any future registry operation's entire diff before
+acceptance.
 
 ## Gate 1 ownership
 
 | Owner                      | Exclusive write scope                                                                                                             |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | Lead                       | Dependency manifests/locks; routing; providers; semantic tokens; XState/domain contracts; API/OpenAPI types; shared configuration |
-| Untitled integrator        | Vendored base components selected in D-009, after lead freezes dependency/theme paths                                             |
+| Open-code UI integrator    | Claros-owned primitives selected in D-009, after lead freezes dependency/theme paths                                               |
 | Document-viewer integrator | EmbedPDF adapter and its isolated tests, after lead freezes source/context interfaces                                             |
 | Feature-screen integrator  | Feature presentation and stories against frozen fixtures; no shared contracts or tokens                                           |
 | Review agents              | Read-only evidence, contract, accessibility, security, and visual review                                                          |

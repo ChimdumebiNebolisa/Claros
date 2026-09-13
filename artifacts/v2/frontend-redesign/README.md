@@ -62,4 +62,5 @@ The baseline and after directories are intentionally retained as release evidenc
 
 Side-by-side review found materially stronger hierarchy, typography, spacing rhythm, CTA focus, conversation readability, draft distinction, approval prominence, worksheet context, and mobile composition. The final surfaces use the Claros worksheet-margin line, restrained cobalt emphasis, cool paper/canvas surfaces, semantic green/amber, compact radii, and minimal shadows rather than generic registry defaults.
 
-Automated verification and the independent read-only review are recorded in the final implementation report.
+Automated verification and the independent read-only review are recorded in the
+[final implementation report](IMPLEMENTATION_REPORT.md).

@@ -62,26 +62,29 @@ for (const [name, [version, license]] of Object.entries(required)) {
 }
 
 for (const legacy of [
-  "radix-ui",
   "react-pdf",
   "react-dropzone",
   "react-resizable-panels",
-  "lucide-react",
 ]) {
   if (!packageJson.dependencies[legacy]) {
     problems.push(`${legacy} must remain present until the Gate 6 cutover`);
   }
 }
 
-for (const component of [
+const foundationFiles = [
   "ui/Button.tsx",
   "ui/Textarea.tsx",
   "ui/LoadingState.tsx",
   "ui/cn.ts",
+];
+
+const integratedSurfaceFiles = [
   "components/AssignmentUploadPanel.tsx",
   "components/StatusNotice.tsx",
   "document/WorksheetDialog.tsx",
-]) {
+];
+
+for (const component of [...foundationFiles, ...integratedSurfaceFiles]) {
   try {
     await access(new URL(`../src/v2/${component}`, import.meta.url));
   } catch {
@@ -98,5 +101,5 @@ if (problems.length) {
 }
 
 console.log(
-  `Verified ${Object.keys(required).length} exact Gate 1 versions/licenses, seven approved Claros open-code components, Node 22, and retained legacy dependencies.`,
+  `Verified ${Object.keys(required).length} exact versions/licenses, ${foundationFiles.length} Claros-owned open-code foundation files, ${integratedSurfaceFiles.length} integrated V2 surfaces, Node 22, and retained legacy-only dependencies.`,
 );
