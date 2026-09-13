@@ -10,8 +10,8 @@ contract.
 The controlling sources, in descending order, are the V2 execution PRD, V2
 product contract, V2 design authority, accepted tests/evaluation thresholds,
 current implementation, and git history. This order resolves stale statements
-in the lower authorities: Untitled UI React and EmbedPDF control V2 even where
-the product/design documents still mention Radix or React-PDF. Historical code
+in the lower authorities: the Claros-owned open-code presentation layer and EmbedPDF control V2 even where
+the product/design documents still mention older component systems or React-PDF. Historical code
 is a source of tested invariants, never a branch to restore wholesale.
 
 The delivery deadline is 2026-09-18. Gates are cumulative: a later gate cannot
@@ -63,12 +63,13 @@ placement scope that conflicts with P0.
 
 ### 2. Use one V2 visual foundation and load expensive capabilities on demand
 
-Use React 19, Vite, TypeScript, Tailwind, XState, and Storybook from the current
-foundation. Add Untitled UI React v8 as the sole visible V2 primitive layer,
-with its React Aria behavior preserved, and install only the confirmed free
-components needed by the screens. Claros-specific cards, notices, document
-overlays, and voice meters compose those primitives. Legacy CSS is scoped under
-the legacy route root so it cannot alter V2 focus or control behavior.
+Use React 19, Vite, TypeScript, Tailwind 4, XState, and Storybook from the current
+foundation. Ordinary V2 controls use a small Claros-owned, shadcn-style open-code
+layer with Lucide icons. Radix may supply focused accessibility primitives such
+as dialogs without defining a competing visual theme. MIT-licensed 21st.dev and
+Beautiful UI compositions may be adapted after removing demo state and unsupported
+features. Claros-specific document and voice treatments remain specialized. Legacy
+CSS is scoped under the legacy route root so it cannot alter V2 behavior.
 
 Use EmbedPDF packages pinned to one version for both authentic source rendering
 and controlled page-region crops. The full viewer is read-only and disables
@@ -271,7 +272,7 @@ defect, and no anti-reference violation. Evidence is tied to one commit SHA in
 
 The lead alone owns dependency manifests/lockfiles, routing, global tokens,
 domain/state types, API/OpenAPI contracts, and integration merges. A frontend
-integrator may own vendored Untitled primitives and isolated feature
+integrator may own Claros open-code primitives and isolated feature
 screens/tests. A document integrator may own PDF adapters, fixtures, and corpus
 tests. A voice integrator may own the Realtime adapter and its tests only after
 the relevant domain/API contracts freeze. A read-only reviewer can inspect any

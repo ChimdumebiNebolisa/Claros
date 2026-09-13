@@ -10,7 +10,7 @@ earlier failure.
 | Owner | Exclusive write scope after contracts freeze | Must not change |
 |---|---|---|
 | Lead | Dependencies and lockfiles, routing, global tokens/providers, domain/XState types, API/OpenAPI schemas, integration merges, gate status | Nothing shared may be delegated without a recorded handoff |
-| Frontend integrator | Vendored Untitled primitives, isolated V2 feature screens, stories, and component tests | Dependencies, global tokens, routes, domain/API contracts |
+| Frontend integrator | Claros open-code primitives, isolated V2 feature screens, stories, and component tests | Dependencies, global tokens, routes, domain/API contracts |
 | Document integrator | PDF adapters, physical extraction, geometry/export internals, corpus fixtures and PDF tests | API schemas, browser state, global dependencies |
 | Voice integrator | Realtime browser adapter, server credential implementation, policies, and isolated tests after schemas freeze | Confirmation semantics, candidate origins, routes, shared state types |
 | Reviewer | Read-only inspection and evidence scoring | All tracked files |
@@ -66,6 +66,13 @@ do not use checkboxes and therefore do not count toward V2 progress.
 - [x] 1.4 [Document integrator] Implement an authentic EmbedPDF sample crop and read-only full viewer with forbidden capabilities disabled; verify the real fixture renders, range requests work, modal focus restores, and no HTML worksheet recreation exists.
 - [x] 1.5 [Frontend integrator] Establish deterministic V2 Storybook/MSW fixtures for empty, loading, ready, error, and document-viewer states; verify Storybook builds and its accessibility checks pass.
 - [x] 1.6 [Lead] Add route-level lazy boundaries for PDF and Realtime code; verify production bundle evidence shows `/` loads neither stack and fixture adapters remain outside ordinary runtime bundles.
+
+### 1B. September 2026 frontend redesign
+
+- [ ] 1B.1 [Lead] Replace the obsolete Untitled-only authority with the approved Claros-owned open-code foundation and typography-led marketing direction; verify authority text no longer directs future agents to restore Untitled or a hero screenshot.
+- [ ] 1B.2 [Frontend integrator] Redesign marketing, conversation/composer, draft, exact review, upload/loading, shell, and source framing without changing product state or handlers; verify desktop, tablet, and mobile visual evidence.
+- [ ] 1B.3 [Lead] Remove only proven-unused V2 styling and dependencies, then run formatting, lint, typecheck, frontend/conversation tests, Storybook accessibility, production build, browser tests, visual checks, and OpenSpec validation.
+- [ ] 1B.4 [Reviewer] Perform an independent read-only design/code review against the before/after evidence and frozen product semantics.
 - [x] 1.7 [Lead] Run format, lint, typecheck, unit, Storybook, production build, route smoke, and keyboard upload/dialog tests plus a CSP/WASM/worker production smoke; verify the empty V2 shell screenshot has no fake PDF or second visible design system.
 - [x] 1.8 [Reviewer] Perform a read-only Gate 1 contract, dependency, accessibility, and browser review; verify all critical findings are fixed and record the checkpoint SHA in `docs/v2/STATUS.md`.
 

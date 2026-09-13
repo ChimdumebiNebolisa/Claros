@@ -1,10 +1,21 @@
 {
-  "version": "8",
-  "framework": "vite",
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/styles/tailwind.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
   "aliases": {
-    "components": "@/components/",
-    "utils": "@/lib/",
-    "hooks": "@/hooks/",
-    "styles": "@/styles/"
-  }
+    "components": "@/v2/components",
+    "utils": "@/v2/ui/cn",
+    "ui": "@/v2/ui",
+    "lib": "@/lib",
+    "hooks": "@/hooks"
+  },
+  "iconLibrary": "lucide"
 }

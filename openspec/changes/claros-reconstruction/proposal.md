@@ -13,8 +13,8 @@ assignments, and evidence from the running product rather than mockups.
 - **BREAKING** Replace the Node in-memory `/api/v1` production path with a
   stateless FastAPI `/api/v2` service backed by private Google Cloud Storage;
   retain V1 temporarily at `/legacy` only for migration evidence.
-- **BREAKING** Replace Radix-based V2 controls with Untitled UI React and
-  replace `react-pdf` with authentic, read-only EmbedPDF rendering.
+- **BREAKING** Replace the historical mixed V2 control layer with Claros-owned
+  open-code primitives and replace `react-pdf` with authentic, read-only EmbedPDF rendering.
 - Accept native-text sequential short-answer PDFs within explicit limits,
   derive deterministic physical evidence, and use model-selected block IDs to
   construct exact ordered questions without model-owned geometry.
@@ -68,7 +68,7 @@ remain new deltas within this active change.
   `/legacy` until the Gate 6 cutover.
 - Introduces FastAPI, GCS, the Python analysis/geometry stack, the maintained
   Java 21/OpenPDF worker, qpdf and PDFBox validators, OpenAI Responses, OpenAI
-  Realtime, Untitled UI React, EmbedPDF, TanStack Query, Motion, MSW, and
+  Realtime, Claros-owned open-code UI, EmbedPDF, TanStack Query, Motion, MSW, and
   generated OpenAPI client contracts.
 - Replaces sample-hash admission, client-coordinated placement, ASCII export,
   in-memory assignment truth, and all-answers-required export behavior.

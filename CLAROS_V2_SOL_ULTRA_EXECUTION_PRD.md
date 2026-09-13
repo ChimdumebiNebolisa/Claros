@@ -50,7 +50,7 @@ When sources conflict, use this order:
 6. Git history, only as an implementation reference.
 7. Old generated HTML, screenshots, and design-board mockups, only as anti-references.
 
-This PRD explicitly supersedes any earlier implementation guidance that says the V2 student interface must continue using Radix primitives or `react-pdf`. The new V2 visual foundation is Untitled UI React, and the new PDF viewing foundation is EmbedPDF. Existing Radix and `react-pdf` code may remain temporarily on the legacy route during migration, but they must not define the new V2 interface.
+This PRD explicitly supersedes earlier implementation guidance that says the V2 student interface must continue using `react-pdf`; EmbedPDF remains the V2 PDF foundation. The September 2026 frontend review supersedes the earlier Untitled-only presentation constraint: V2 now uses a small Claros-owned, shadcn-style open-code primitive layer, Tailwind composition, Lucide icons, and Radix accessibility primitives where they reduce interaction risk. Legacy dependencies may remain only where `/legacy` still requires them.
 
 ### 0.3 Resolve conflicts explicitly
 
@@ -160,7 +160,7 @@ Deliver:
 Deliver:
 
 - current CSS/component inventory;
-- Untitled UI React integration plan;
+- open-code primitive and Tailwind integration plan;
 - exact base components needed, based on available free components;
 - EmbedPDF integration options;
 - responsive layout recommendation;
@@ -505,8 +505,8 @@ Claros
 |
 |-- React application, rebuild the V2 flow
 |   |-- React 19 + Vite + TypeScript
-|   |-- Untitled UI React as the sole visible component foundation
-|   |-- Tailwind tokens supplied by Untitled UI and Claros semantic tokens
+|   |-- Claros-owned shadcn-style open-code primitives
+|   |-- Tailwind 4 composition and one Claros semantic-token layer
 |   |-- XState for visible workflow
 |   |-- TanStack Query for server state
 |   |-- Motion for bounded domain transitions
@@ -577,20 +577,19 @@ Use immutable object names for source and exports. Use GCS generation preconditi
 
 ## 29. Component-system decision
 
-Use **Untitled UI React** as the sole visible component foundation for the V2 route.
+Use a **small Claros-owned open-code component foundation** for the V2 route. It follows shadcn-style ownership: source lives in the repository and is adapted to Claros instead of carrying a visible third-party theme.
 
 ### Required rules
 
-1. Install only the necessary free components through the official Untitled UI CLI after confirming their current names.
-2. Scaffold the Untitled UI Tailwind theme and global styles once.
-3. Wrap vendored components behind local Claros APIs where product semantics differ.
-4. Preserve React Aria behavior and accessible labeling.
-5. Use `@untitledui/icons` for ordinary interface icons.
-6. Do not install or use Opensource UI.
-7. Do not add shadcn/ui, MUI, Mantine, Chakra, Radix Themes, React Aria components outside the Untitled UI layer, or another visible design system.
-8. Existing Radix code may stay only on the legacy route during migration.
-9. Do not handcraft ordinary buttons, inputs, textareas, radio groups, dialogs, sheets, tooltips, progress indicators, alerts, or file uploaders.
-10. A component missing from the free kit may be composed from existing Untitled UI primitives. Do not add a second kit.
+1. Keep the primitive inventory small and checked in under a Claros namespace.
+2. Use Tailwind 4 and one Claros semantic-token layer for ordinary composition.
+3. Preserve native semantics, keyboard behavior, visible focus, and accessible labeling.
+4. Use Lucide for ordinary V2 interface icons.
+5. Use Radix selectively for interaction primitives such as dialogs when it materially reduces accessibility risk; do not add a second visible theme.
+6. Adapt suitable MIT-licensed 21st.dev and Beautiful UI compositions, removing demo state and unsupported product features before use.
+7. Do not copy model pickers, agent traces, source pickers, decorative shaders, fake progress, or local submission logic into Claros.
+8. Keep specialized PDF and voice styling local; use open-code primitives and Tailwind for ordinary controls and layouts.
+9. Remove obsolete Untitled V2 code and dependencies only after searches and tests prove they are unused, while preserving `/legacy` requirements.
 
 ### Initial component inventory
 
@@ -648,7 +647,7 @@ Custom UI code is allowed only where Claros has domain-specific behavior not pro
 - `AnswerPlacementTransition`
 - adapters that wrap EmbedPDF or the OpenAI Realtime session
 
-These components may compose Untitled UI primitives. They must not recreate base controls.
+These components may compose the Claros-owned primitives. Product-specific state belongs in feature components, not in base controls.
 
 ## 32. Visual direction
 
@@ -717,7 +716,8 @@ Rules:
 
 ## 34. Typography and control sizing
 
-- Application font: Inter or Untitled UI's compatible sans-serif token.
+- Application font: Inter.
+- Marketing display font: Instrument Serif, used only for editorial headings.
 - Application body: 16px target.
 - Supporting text: 13px minimum.
 - Question text: 24-32px on desktop, 22-28px on mobile.
@@ -729,7 +729,7 @@ Rules:
 
 ## 35. Color and shape
 
-Map Claros semantic tokens into the Untitled UI theme:
+Expose one Claros semantic-token theme to Tailwind and specialized CSS:
 
 ```css
 --claros-ink: #111827;
@@ -818,9 +818,9 @@ Explain the accessibility problem and prove the full transformation in under one
 
 1. Navigation: Claros, How it works, Accessibility, Try Claros.
 2. Hero headline and supporting copy from this PRD.
-3. One real browser screenshot or live product preview from the implemented app.
-4. One-agent conversation section.
-5. From speech or typing to exact review to PDF placement.
+3. A typography-led hero with one primary action; do not place an application screenshot or device mockup in the hero.
+4. One continuous, semantically ordered workflow from natural conversation through approval and PDF completion.
+5. A compact explanation that voice is primary while typing remains available.
 6. Dark trust section with four guarantees:
    - Talk naturally or type.
    - See every wording change.
@@ -840,7 +840,7 @@ No fake usage metrics, customer logos, pricing, sign-in, LMS integrations, compl
 
 - headline: **Bring in a worksheet.**
 - short explanation of supported native-text short-answer PDFs;
-- Untitled UI file upload component;
+- accessible Claros-owned PDF file upload control;
 - **Try the biology sample** secondary action;
 - concise limitations link;
 - visible keyboard-accessible file button.
@@ -1095,7 +1095,7 @@ src/
     worksheet-review/
     export/
   components/
-    ui/                    vendored Untitled UI and local wrappers
+    ui/                    Claros-owned open-code primitives
     document/              EmbedPDF and overlay integrations
     voice/                 controlled Realtime UI
   domain/
@@ -1907,7 +1907,7 @@ Required:
 ### Work
 
 - create V2 branch or worktree;
-- add Untitled UI theme and only required components;
+- add the Claros open-code theme and only required primitives;
 - add semantic Claros token layer;
 - add application providers;
 - add new route shell;
@@ -1917,7 +1917,7 @@ Required:
 
 ### Parallelism
 
-Allow one frontend agent to integrate Untitled UI and one read-only agent to validate available components. Only the lead changes dependencies and shared tokens.
+Allow one frontend integrator to own isolated screens and one read-only reviewer to validate components and evidence. Only the lead changes dependencies and shared tokens.
 
 ### Gate 1
 
@@ -2102,7 +2102,7 @@ Do not work directly on `main` until the V2 gates pass.
 Commit at meaningful gates, not after every tiny edit. Suggested checkpoints:
 
 1. audit and OpenSpec plan;
-2. Untitled UI and route shell;
+2. Claros open-code primitives and route shell;
 3. fixture-driven V2 workflow;
 4. real document engine and APIs;
 5. semantic mapping;
@@ -2162,7 +2162,7 @@ The product is done only when all of these are true:
 - the final derivative PDF downloads and opens;
 - microphone and Realtime failures preserve progress;
 - keyboard-only completion works;
-- the deployed UI uses Untitled UI consistently;
+- the deployed UI uses the Claros open-code foundation consistently;
 - the actual PDF is rendered through EmbedPDF;
 - the V2 UI contains no generated design-board artifacts or fake claims;
 - the full evidence bundle exists;
@@ -2190,7 +2190,7 @@ The product is done only when all of these are true:
 - no equal 50/50 split;
 - no enterprise dashboard aesthetic;
 - no generic chatbot layout;
-- no base controls hand-built outside Untitled UI;
+- ordinary controls use the shared Claros open-code primitives;
 - task is first on mobile;
 - review is visually distinct from transcript;
 - actual browser screenshots demonstrate the result.
@@ -2217,7 +2217,7 @@ Start with the six read-only audits. Synthesize the result. Do not edit producti
 The implementation decision is settled:
 
 ```text
-Untitled UI React for ordinary visible UI
+Claros-owned shadcn-style open-code primitives for ordinary visible UI
 EmbedPDF for actual PDF rendering
 FastAPI plus GCS for the production backend and persistence
 Python deterministic PDF engine

@@ -208,7 +208,7 @@ Do not show sign-in, pricing, integrations, educator portals, or compliance page
 
 > Nothing is written until you approve the exact text.
 
-The hero should contain one concrete application mockup, not abstract AI imagery.
+The hero is typography-led and contains one primary action. Do not place an application screenshot, device mockup, abstract AI image, shader, or carousel in it. Product proof comes from precise copy and the continuous workflow below the fold.
 
 ### One-agent section
 
