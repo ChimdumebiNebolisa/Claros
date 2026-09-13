@@ -173,8 +173,9 @@ test("built FastAPI app preserves an authenticated partial export across restart
     expect(pageContext.body.crop.width_mpt).toBeGreaterThan(0);
     expect(pageContext.body.crop.height_mpt).toBeGreaterThan(0);
 
-    await page.getByRole("button", { name: "Type instead" }).click();
-    await page.getByRole("textbox", { name: "Your words" }).fill(exactAnswer);
+    await page
+      .getByRole("textbox", { name: "Proposed answer" })
+      .fill(exactAnswer);
     await page.getByRole("button", { name: "Review answer" }).click();
     await expect(
       page.getByRole("heading", { level: 1, name: "Review your exact answer" }),
