@@ -65,8 +65,11 @@ Claros MUST use recent conversation history and change strategy rather than ask
 a substantially equivalent question. Progressive help MAY explain one missing
 concept, identify the small set of concepts the response needs without
 composing the response, and invite the student's own wording. Claros MUST skip
-unnecessary levels, keep each turn concise, and ask at most one question per
-response. It MAY repeat a guiding question only when the student asks for
+unnecessary levels, keep each turn concise, ask at most one question per
+response, and use only one assistance level per turn. After a direct answer
+demand, a concept explanation MUST cover only one component and omit at least
+one substantive idea, evidence item, or reasoning link required to satisfy the
+full prompt. It MAY repeat a guiding question only when the student asks for
 repetition or when a later question introduces genuinely new information.
 
 #### Scenario: Student repeatedly requests a finished answer

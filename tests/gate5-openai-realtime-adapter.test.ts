@@ -227,7 +227,7 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
       "rich sentence starters, partial answer clauses",
     );
     expect(factoryOptions[0].instructions).toContain(
-      "Concept explanations may state relevant facts, definitions, and relationships",
+      "A direct concept request may receive relevant facts, definitions, and relationships",
     );
     expect(factoryOptions[0].instructions).toContain(
       "ask the focused question without also supplying its conclusion",
@@ -274,16 +274,25 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
       /do not ask substantially the same guiding question twice/i,
     );
     expect(realtimePolicy.conversation_policy).toMatch(
-      /explain (?:one|the) missing concept/i,
+      /explain (?:exactly )?(?:one|the) missing concept/i,
     );
     expect(realtimePolicy.conversation_policy).toMatch(
-      /identify (?:the )?small set of concepts/i,
+      /(?:identify (?:the )?small set|name two or three) (?:of )?concepts/i,
     );
     expect(realtimePolicy.conversation_policy).toMatch(
       /student(?:'s)? (?:own )?wording/i,
     );
     expect(realtimePolicy.conversation_policy).toMatch(
       /do not (?:require|force) (?:all|every) (?:four )?levels/i,
+    );
+    expect(realtimePolicy.conversation_policy).toMatch(
+      /do not combine levels in one turn/i,
+    );
+    expect(realtimePolicy.conversation_policy).toMatch(
+      /leave out at least one substantive idea, evidence item, or reasoning link/i,
+    );
+    expect(realtimePolicy.conversation_policy).toMatch(
+      /never add the remaining connection, outcome, or evidence/i,
     );
   });
 
