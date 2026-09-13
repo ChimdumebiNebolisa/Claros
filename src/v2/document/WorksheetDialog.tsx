@@ -1,4 +1,5 @@
-import { XClose } from "@untitledui/icons";
+import { X as XClose } from "lucide-react";
+import { Dialog as RadixDialog } from "radix-ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   DocumentManagerCapability,
@@ -6,12 +7,7 @@ import type {
 } from "@embedpdf/plugin-document-manager";
 import { PDFViewer } from "@embedpdf/react-pdf-viewer";
 import type { PluginRegistry } from "@embedpdf/core";
-import {
-  Dialog,
-  Modal,
-  ModalOverlay,
-} from "../../components/application/modals/modal";
-import { Button } from "../../components/base/buttons/button";
+import { Button } from "../ui/Button";
 import styles from "./document.module.css";
 import { createWorksheetViewerConfig } from "./viewerConfig";
 
@@ -167,20 +163,18 @@ export default function WorksheetDialog({
   };
 
   return (
-    <ModalOverlay
-      isOpen={isOpen}
-      onOpenChange={onOpenChange}
-      isDismissable
-      className={styles.dialogOverlay}
-    >
-      <Modal className={styles.dialogModal}>
-        <Dialog
+    <RadixDialog.Root open={isOpen} onOpenChange={onOpenChange}>
+      <RadixDialog.Portal>
+        <RadixDialog.Overlay className={styles.dialogOverlay} />
+        <RadixDialog.Content
           aria-labelledby="worksheet-dialog-title"
-          className={styles.dialog}
+          className={`${styles.dialogModal} ${styles.dialog}`}
         >
           <header className={styles.dialogHeader}>
             <div>
-              <h2 id="worksheet-dialog-title">Original worksheet</h2>
+              <RadixDialog.Title asChild>
+                <h2 id="worksheet-dialog-title">Original worksheet</h2>
+              </RadixDialog.Title>
               <p
                 className={
                   viewerState.kind === "error"
@@ -213,8 +207,8 @@ export default function WorksheetDialog({
               onReady={handleReady}
             />
           </div>
-        </Dialog>
-      </Modal>
-    </ModalOverlay>
+        </RadixDialog.Content>
+      </RadixDialog.Portal>
+    </RadixDialog.Root>
   );
 }

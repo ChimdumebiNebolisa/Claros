@@ -197,25 +197,24 @@
 }
 
 .reviewSurface {
-  padding: 28px;
-  border: 1px solid var(--claros-blue-mist);
-  border-radius: 20px;
-  background: var(--claros-paper);
-  box-shadow: 0 18px 45px rgba(17, 24, 39, 0.08);
+  padding: 2px 0 2px 24px;
+  border-left: 2px solid var(--claros-blue);
 }
 
 .exactAnswerCard {
-  margin-top: 28px;
-  padding: 20px;
-  border-radius: 16px;
+  margin-top: 24px;
+  padding: 18px;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgb(17 32 51 / 5%);
 }
 
 .exactText {
-  padding: 22px;
-  border-radius: 12px;
-  background: var(--claros-night);
-  color: var(--claros-paper);
-  font-size: clamp(20px, 2.5vw, 26px);
+  padding: 20px 20px 20px 22px;
+  border-left: 2px solid var(--claros-blue);
+  border-radius: 2px 10px 10px 2px;
+  background: var(--claros-canvas);
+  color: var(--claros-ink);
+  font-size: clamp(19px, 2.5vw, 24px);
   font-weight: 540;
   letter-spacing: -0.015em;
   line-height: 1.5;
@@ -230,9 +229,9 @@
   align-items: flex-start;
   gap: 12px;
   margin-top: 16px;
-  padding: 16px;
+  padding: 13px 15px;
   border: 1px solid;
-  border-radius: 12px;
+  border-radius: 10px;
 }
 
 .destination svg {
@@ -287,7 +286,7 @@
   margin-bottom: 20px;
   place-items: center;
   border: 1px solid #b7e1ce;
-  border-radius: 14px;
+  border-radius: 10px;
   background: var(--claros-green-soft);
   color: var(--claros-green);
 }
@@ -307,7 +306,7 @@
 
 .handoffAnswer,
 .handoffDestination {
-  border-radius: 14px;
+  border-radius: 10px;
 }
 
 .handoffAnswer {
@@ -521,8 +520,7 @@
 
 @media (max-width: 640px) {
   .reviewSurface {
-    padding: 20px;
-    border-radius: 16px;
+    padding: 0 0 0 16px;
   }
 
   .comparisonGrid {

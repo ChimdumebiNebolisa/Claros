@@ -1,8 +1,7 @@
+import { AlertCircle, CheckCircle, Info } from "lucide-react";
 import type { ReactNode } from "react";
-import { AlertCircle, CheckCircle, InfoCircle } from "@untitledui/icons";
-import { Button } from "@/components/base/buttons/button";
-import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
-import { cx } from "@/lib/cx";
+import { Button } from "@/v2/ui/Button";
+import { cn } from "@/v2/ui/cn";
 
 type NoticeTone = "info" | "success" | "warning" | "error";
 
@@ -23,18 +22,18 @@ const toneStyles: Record<NoticeTone, string> = {
 };
 
 const toneIcons = {
-  info: InfoCircle,
+  info: Info,
   success: CheckCircle,
   warning: AlertCircle,
   error: AlertCircle,
 } as const;
 
-const iconColors = {
-  info: "brand",
-  success: "success",
-  warning: "warning",
-  error: "error",
-} as const;
+const iconStyles: Record<NoticeTone, string> = {
+  info: "bg-[var(--claros-blue-mist)] text-[var(--claros-blue-dark)]",
+  success: "bg-[#d8f1e6] text-[var(--claros-green)]",
+  warning: "bg-[#f7e8c9] text-[var(--claros-amber)]",
+  error: "bg-[#f8dedb] text-[var(--claros-error)]",
+};
 
 export function StatusNotice({
   title,
@@ -48,7 +47,7 @@ export function StatusNotice({
 
   return (
     <div
-      className={cx(
+      className={cn(
         "flex w-full items-start gap-3 rounded-xl border p-4 text-left",
         toneStyles[tone],
         className,
@@ -56,14 +55,15 @@ export function StatusNotice({
       role={tone === "error" ? "alert" : "status"}
       aria-live={tone === "error" ? "assertive" : "polite"}
     >
-      <FeaturedIcon
-        icon={Icon}
-        color={iconColors[tone]}
-        theme="light"
-        size="sm"
-        className="shrink-0"
+      <span
+        className={cn(
+          "grid size-9 shrink-0 place-items-center rounded-lg",
+          iconStyles[tone],
+        )}
         aria-hidden="true"
-      />
+      >
+        <Icon className="size-[18px]" />
+      </span>
       <div className="min-w-0 flex-1">
         <p className="m-0 text-sm font-semibold text-[var(--claros-ink)]">
           {title}

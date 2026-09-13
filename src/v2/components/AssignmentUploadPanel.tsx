@@ -1,8 +1,7 @@
-import { FileCheck02 } from "@untitledui/icons";
-import { FileUpload } from "@/components/application/file-upload/file-upload-base";
-import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
-import { Button } from "@/components/base/buttons/button";
-import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
+import { FileCheck2, UploadCloud } from "lucide-react";
+import { useRef, useState, type DragEvent } from "react";
+import { Button } from "@/v2/ui/Button";
+import { LoadingState } from "@/v2/ui/LoadingState";
 import { StatusNotice } from "./StatusNotice";
 
 export const MAX_WORKSHEET_BYTES = 10 * 1024 * 1024;
@@ -50,50 +49,98 @@ function UploadControl({
   | "onShowLimitations"
   | "validationMessage"
 >) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const acceptFile = (file?: File) => {
+    if (!file) return;
+    if (file.size > MAX_WORKSHEET_BYTES) {
+      onValidationError("file_too_large");
+      return;
+    }
+    if (
+      file.type !== "application/pdf" &&
+      !file.name.toLowerCase().endsWith(".pdf")
+    ) {
+      onValidationError("not_pdf");
+      return;
+    }
+    onFileSelected(file);
+  };
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragging(false);
+    acceptFile(event.dataTransfer.files.item(0) ?? undefined);
+  };
+
   return (
-    <FileUpload.Root>
-      <FileUpload.DropZone
-        accept="application/pdf,.pdf"
-        allowsMultiple={false}
-        maxSize={MAX_WORKSHEET_BYTES}
-        buttonLabel="Choose a PDF"
-        inputLabel="Choose a PDF worksheet"
-        hint="PDF with selectable text, up to 10 MiB and 8 pages"
-        isInvalid={Boolean(validationMessage)}
-        errorMessageId={uploadErrorId}
-        className="min-h-48 justify-center border border-dashed border-[var(--claros-line-strong)] bg-[var(--claros-soft)] px-6 py-8 ring-0"
-        onDropFiles={(files) => {
-          const file = files.item(0);
-          if (file) onFileSelected(file);
+    <div className="grid gap-4">
+      <div
+        className={`grid min-h-[230px] place-items-center rounded-[16px] border border-dashed px-6 py-9 text-center transition-[border-color,background-color,box-shadow] ${isDragging ? "border-[var(--claros-blue)] bg-[var(--claros-blue-soft)] ring-4 ring-[rgba(21,94,239,.1)]" : "border-[var(--claros-line-strong)] bg-[var(--claros-canvas)]"}`}
+        onDragEnter={(event) => {
+          event.preventDefault();
+          setIsDragging(true);
         }}
-        onDropUnacceptedFiles={() => onValidationError("not_pdf")}
-        onSizeLimitExceed={() => onValidationError("file_too_large")}
-      />
+        onDragOver={(event) => event.preventDefault()}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node))
+            setIsDragging(false);
+        }}
+        onDrop={handleDrop}
+      >
+        <div className="grid max-w-[420px] justify-items-center">
+          <span
+            className="grid size-12 place-items-center rounded-[12px] border border-[var(--claros-line)] bg-white text-[var(--claros-blue)] shadow-[0_1px_2px_rgba(17,32,51,.06)]"
+            aria-hidden="true"
+          >
+            <UploadCloud className="size-5" />
+          </span>
+          <h2 className="mt-5 text-lg font-semibold tracking-[-0.02em] text-[var(--claros-ink)]">
+            Bring in a worksheet
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--claros-muted)]">
+            Drop a text-based PDF here, or choose one from your device.
+          </p>
+          <input
+            ref={inputRef}
+            className="sr-only"
+            type="file"
+            accept="application/pdf,.pdf"
+            aria-label="Choose a PDF worksheet"
+            aria-describedby={validationMessage ? uploadErrorId : undefined}
+            onChange={(event) =>
+              acceptFile(event.currentTarget.files?.item(0) ?? undefined)
+            }
+          />
+          <Button
+            color="primary"
+            size="md"
+            className="mt-5"
+            onPress={() => inputRef.current?.click()}
+          >
+            Choose a PDF
+          </Button>
+          <span className="mt-3 text-xs text-[var(--claros-quiet)]">
+            Up to 10 MiB and 8 pages
+          </span>
+        </div>
+      </div>
       {validationMessage ? (
         <p
           id={uploadErrorId}
           role="alert"
-          className="m-0 text-sm text-error-primary"
+          className="m-0 text-sm text-[var(--claros-error)]"
         >
           {validationMessage}
         </p>
       ) : null}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-        <Button
-          color="secondary"
-          size="md"
-          onPress={onTrySample}
-          className="min-h-11"
-        >
+        <Button color="secondary" size="md" onPress={onTrySample}>
           Try the biology sample
         </Button>
         {onShowLimitations ? (
-          <Button
-            color="link-gray"
-            size="md"
-            onPress={onShowLimitations}
-            className="min-h-11"
-          >
+          <Button color="link-gray" size="md" onPress={onShowLimitations}>
             Which PDFs work?
           </Button>
         ) : (
@@ -102,7 +149,7 @@ function UploadControl({
           </p>
         )}
       </div>
-    </FileUpload.Root>
+    </div>
   );
 }
 
@@ -112,15 +159,10 @@ export function AssignmentUploadPanel(props: AssignmentUploadPanelProps) {
   if (state.kind === "loading") {
     return (
       <section
-        className="grid min-h-64 place-items-center rounded-2xl border border-[var(--claros-line)] bg-white p-8"
+        className="grid min-h-72 place-items-center border-y border-[var(--claros-line)] bg-[var(--claros-canvas)] p-8"
         aria-label="Worksheet check"
-        aria-live="polite"
       >
-        <LoadingIndicator
-          type="line-spinner"
-          size="md"
-          label={state.message ?? "Checking your worksheet…"}
-        />
+        <LoadingState label={state.message ?? "Checking your worksheet…"} />
       </section>
     );
   }
@@ -128,69 +170,49 @@ export function AssignmentUploadPanel(props: AssignmentUploadPanelProps) {
   if (state.kind === "ready") {
     return (
       <section
-        className="rounded-2xl border border-[var(--claros-line)] bg-white p-6"
+        className="border-l-2 border-[var(--claros-green)] bg-white py-2 pl-5"
         aria-labelledby="worksheet-ready-title"
       >
         <div className="flex items-start gap-4">
-          <FeaturedIcon
-            icon={FileCheck02}
-            color="success"
-            theme="light"
-            size="md"
-            className="shrink-0"
+          <span
+            className="grid size-11 shrink-0 place-items-center rounded-[10px] bg-[var(--claros-green-soft)] text-[var(--claros-green)]"
             aria-hidden="true"
-          />
+          >
+            <FileCheck2 className="size-5" />
+          </span>
           <div className="min-w-0 flex-1">
-            <p className="m-0 text-sm font-semibold text-[var(--claros-green)]">
+            <p className="m-0 text-xs font-bold uppercase tracking-[0.14em] text-[var(--claros-green)]">
               Worksheet ready
             </p>
             <h2
               id="worksheet-ready-title"
-              className="mt-1 mb-0 text-xl font-semibold tracking-[-0.02em] text-[var(--claros-ink)]"
+              className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-[var(--claros-ink)]"
             >
               {state.title}
             </h2>
-            <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
-              <div>
-                <dt className="text-[13px] font-medium text-[var(--claros-muted)]">
-                  Pages
-                </dt>
-                <dd className="mt-1 mb-0 text-base font-semibold text-[var(--claros-ink)]">
-                  {state.pageCount}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-[13px] font-medium text-[var(--claros-muted)]">
-                  Questions
-                </dt>
-                <dd className="mt-1 mb-0 text-base font-semibold text-[var(--claros-ink)]">
-                  {state.questionCount}
-                </dd>
-              </div>
-              {state.inlineCount !== undefined ? (
-                <div>
-                  <dt className="text-[13px] font-medium text-[var(--claros-muted)]">
-                    Fit on worksheet
+            <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
+              {[
+                { label: "Pages", value: state.pageCount },
+                { label: "Questions", value: state.questionCount },
+                ...(state.inlineCount !== undefined
+                  ? [{ label: "Fit on worksheet", value: state.inlineCount }]
+                  : []),
+                ...(state.answerPageCount !== undefined
+                  ? [{ label: "Use answer page", value: state.answerPageCount }]
+                  : []),
+              ].map(({ label, value }) => (
+                <div key={label}>
+                  <dt className="text-xs font-medium text-[var(--claros-muted)]">
+                    {label}
                   </dt>
-                  <dd className="mt-1 mb-0 text-base font-semibold text-[var(--claros-ink)]">
-                    {state.inlineCount}
+                  <dd className="mt-1 text-base font-semibold text-[var(--claros-ink)]">
+                    {value}
                   </dd>
                 </div>
-              ) : null}
-              {state.answerPageCount !== undefined ? (
-                <div>
-                  <dt className="text-[13px] font-medium text-[var(--claros-muted)]">
-                    Use answer page
-                  </dt>
-                  <dd className="mt-1 mb-0 text-base font-semibold text-[var(--claros-ink)]">
-                    {state.answerPageCount}
-                  </dd>
-                </div>
-              ) : null}
+              ))}
             </dl>
           </div>
         </div>
-
         {state.warnings?.map((warning) => (
           <StatusNotice
             key={warning}
@@ -201,14 +223,12 @@ export function AssignmentUploadPanel(props: AssignmentUploadPanelProps) {
             <p className="m-0">{warning}</p>
           </StatusNotice>
         ))}
-
-        <div className="mt-6 flex flex-wrap gap-3">
+        <div className="mt-7 flex flex-wrap gap-3">
           <Button
             color="primary"
             size="lg"
             onPress={props.onStart}
             isDisabled={!props.onStart}
-            className="min-h-11"
           >
             Start session
           </Button>
@@ -217,7 +237,6 @@ export function AssignmentUploadPanel(props: AssignmentUploadPanelProps) {
             size="lg"
             onPress={props.onViewWorksheet}
             isDisabled={!props.onViewWorksheet}
-            className="min-h-11"
           >
             View worksheet
           </Button>
@@ -227,7 +246,7 @@ export function AssignmentUploadPanel(props: AssignmentUploadPanelProps) {
   }
 
   return (
-    <section aria-label="Worksheet upload" className="space-y-5">
+    <section aria-label="Worksheet upload" className="grid gap-5">
       {state.kind === "error" ? (
         <StatusNotice
           tone="error"

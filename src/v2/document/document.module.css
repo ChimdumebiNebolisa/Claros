@@ -1,9 +1,9 @@
 .cropRoot {
   overflow: hidden;
   border: 1px solid var(--claros-line);
-  border-radius: 14px;
+  border-radius: 10px;
   background: var(--claros-paper);
-  box-shadow: 0 10px 28px rgb(17 24 39 / 8%);
+  box-shadow: 0 8px 24px rgb(17 32 51 / 7%);
 }
 
 .cropState,
@@ -48,15 +48,23 @@
 }
 
 .dialogOverlay {
-  padding: 0;
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  background: rgb(17 32 51 / 38%);
+  backdrop-filter: blur(3px);
 }
 
 .dialogModal {
+  position: fixed;
+  z-index: 51;
+  inset: 0;
   width: 100vw;
   height: 100dvh;
   max-height: 100dvh;
   border-radius: 0;
   background: var(--claros-paper);
+  outline: none;
 }
 
 .dialog {
@@ -120,6 +128,8 @@
   }
 
   .dialogModal {
+    inset: 50% auto auto 50%;
+    transform: translate(-50%, -50%);
     width: min(1120px, calc(100vw - 64px));
     height: min(860px, calc(100dvh - 64px));
     max-height: calc(100dvh - 64px);

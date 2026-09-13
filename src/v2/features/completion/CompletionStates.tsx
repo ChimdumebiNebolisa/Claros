@@ -1,14 +1,14 @@
 import {
   ArrowRight,
   CheckCircle,
-  Download02,
-  Edit03,
-  FileCheck02,
-  RefreshCw01,
-  VolumeMax,
-} from "@untitledui/icons";
-import { LoadingIndicator } from "@/components/application/loading-indicator/loading-indicator";
-import { Button } from "@/components/base/buttons/button";
+  Download as Download02,
+  FileCheck2 as FileCheck02,
+  Pencil as Edit03,
+  RefreshCw as RefreshCw01,
+  Volume2 as VolumeMax,
+} from "lucide-react";
+import { Button } from "@/v2/ui/Button";
+import { LoadingState } from "@/v2/ui/LoadingState";
 import { StatusNotice } from "@/v2/components/StatusNotice";
 import {
   answerAddedCopy,
@@ -58,12 +58,8 @@ export function RephrasingState({
           {error.message}
         </StatusNotice>
       ) : (
-        <div className={styles.loadingRegion} role="status" aria-live="polite">
-          <LoadingIndicator
-            type="line-simple"
-            size="md"
-            label="Preparing a clearer option…"
-          />
+        <div className={styles.loadingRegion}>
+          <LoadingState label="Preparing a clearer option…" />
         </div>
       )}
 
@@ -330,12 +326,8 @@ export function ConfirmingAnswerState({
       <p className={styles.intro}>This may take a moment.</p>
       <AnswerTextCard candidate={candidate} emphasized />
       <DestinationStatus placement={placement} />
-      <div className={styles.loadingRegion} role="status" aria-live="polite">
-        <LoadingIndicator
-          type="line-simple"
-          size="md"
-          label="Adding your answer…"
-        />
+      <div className={styles.loadingRegion}>
+        <LoadingState label="Adding your answer…" />
       </div>
     </section>
   );
@@ -546,12 +538,8 @@ export function ExportProgressState() {
         Claros is adding only the answers you approved. Unanswered questions
         stay blank.
       </p>
-      <div className={styles.exportLoader} role="status" aria-live="polite">
-        <LoadingIndicator
-          type="line-simple"
-          size="lg"
-          label="Building your completed copy…"
-        />
+      <div className={styles.exportLoader}>
+        <LoadingState label="Building your completed copy…" />
       </div>
     </section>
   );

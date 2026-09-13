@@ -11,7 +11,7 @@ import {
   useRenderCapability,
 } from "@embedpdf/plugin-render/react";
 import { useEffect, useMemo, useState } from "react";
-import { Button } from "../../components/base/buttons/button";
+import { Button } from "../ui/Button";
 import styles from "./document.module.css";
 import {
   type AuthorizedPageContext,
