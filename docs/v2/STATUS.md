@@ -15,7 +15,7 @@
 - **Gate 5 live-defect checkpoint:** `22b3d602d5b02711d0997af4fe18ce8945484cf5`
 - **Gate 5 browser-acceptance implementation checkpoint:** `06425f913df328a21abeb73b192760005cee7d34`
 - **Gate 5 scoped independent code-review checkpoint:** `06425f913df328a21abeb73b192760005cee7d34` — approved; human evidence still pending
-- **Gate 5 conversation-behavior implementation checkpoint:** `6004c8a60200999ef27a0c3240f8025bfdef4eec` — bounded typed-provider evaluation complete; independent review pending
+- **Gate 5 conversation-behavior implementation checkpoint:** `bcede3835f0512e964c257a48a6a627ece4b1d11` — application behavior evaluated; final direct-answer policy live rerun pending
 
 ### 2026-09-12 conversation-behavior repair
 
@@ -27,19 +27,24 @@ failure, active question, version, revision, and context epoch. Tools await a
 bounded correlated workspace outcome; relative navigation resolves from the
 actual active question and is acknowledged only after actor acceptance.
 
-Six bounded typed `gpt-realtime-2.1` sessions preserved two policy failures
+Six bounded typed `gpt-realtime-2.1` sessions preserved four policy failures
 instead of selecting only successful retries. The first drove removal of
 duplicate action framing; later runs exposed a complete disguised answer and
-then a partial sentence frame. Policy `2026-09-12.4` explicitly prohibits both,
-and the sixth/final targeted rerun produced guided help without a sentence
-starter, fill-in template, quoted answer, or copy instruction. Known-answer
-capture and the live local/not-approved/not-exported status response passed.
+then a partial sentence frame. The sixth/final run removed the frame but still
+embedded the pasteable clause “plants need sunlight to power the process that
+makes their food.” Independent review correctly rejected the initial pass
+classification. Policy `2026-09-12.5` now requires a focused question without
+stating the conclusion while preserving concept explanations for concept-help
+turns. The six-session cap prevents claiming a post-`.5` live pass. Known-
+answer capture and the live local/not-approved/not-exported status response did
+pass.
 
-At implementation checkpoint `6004c8a`, 110 frontend tests, 76 backend
-Realtime tests, 10 isolated real-application Chromium tests, and 22 zero-skip
-OpenPDF tests pass, along with lint, typecheck, OpenAPI drift, strict OpenSpec,
-and whitespace checks. Full details, exact excerpts, rejected hypotheses, and
-evidence classifications are in
+At policy checkpoint `bcede38`, 110 frontend tests and 76 backend Realtime
+tests pass, along with lint, typecheck, formatting, strict OpenSpec, and
+whitespace checks. At unchanged application/PDF checkpoint `6004c8a`, 10
+isolated real-application Chromium tests and 22 zero-skip OpenPDF tests also
+pass, along with OpenAPI drift. Full details, exact excerpts, rejected
+hypotheses, and evidence classifications are in
 `artifacts/v2/gate5/conversation-behavior-repair.md`. Tasks 5.7 and 5.8 remain
 open for physical-microphone, human-audible-playback, and downloaded-PDF
 acceptance. No merge or deployment was performed.

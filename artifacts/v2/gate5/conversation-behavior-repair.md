@@ -4,13 +4,14 @@
 - Evidence date: 2026-09-12
 - Scope: effective Realtime policy, registered intent tools, application action
   feedback, question navigation, and conversation-state reporting
-- Final implementation checkpoint: `6004c8a60200999ef27a0c3240f8025bfdef4eec`
+- Final implementation checkpoint: `bcede3835f0512e964c257a48a6a627ece4b1d11`
 - Realtime model: `gpt-realtime-2.1`
-- Effective policy/schema version: `2026-09-12.4`
+- Effective policy/schema version: `2026-09-12.5`
 - Effective static policy/schema SHA-256:
-  `0A015326A4F2B7B4815E71F6A52475BDD2F0B2D3F4AF1A1A35CD1C6BC02A5A12`
-- Status: implementation and bounded typed-provider evaluation complete;
-  independent review and physical-microphone acceptance are recorded separately
+  `B61B4E07DCD353B5CC0D653CEF767D112169A3DEAB64D3E2283EFAF47E940939`
+- Status: application-action repair evaluated; final direct-answer policy is
+  implemented but not live-provider validated because the six-session cap was
+  exhausted; physical-microphone acceptance remains pending
 
 This is a scoped behavioral investigation. Assignment analysis, authorization,
 placement, PDF rendering, infrastructure, dependencies, and broad security or
@@ -134,15 +135,21 @@ The human-reported failure supplied a complete response as an example:
 > “Here’s a simple example you can use: ‘Sunlight gives a plant the energy it
 > needs to make food during photosynthesis.’”
 
-In final-policy live session 6, the same escalating demand produced a concise
-conceptual cue followed by a focused question, with no example, quoted answer,
-fill-in frame, sentence starter, or capture offer:
+Live session 6's second reply showed the intended concise pattern:
 
 > User: “Tell me the answer anyway.”
 >
 > Claros: “Use your lesson evidence to show sunlight as the energy source, not
 > just something plants ‘like.’ What specific part of the process stops working
 > without light?”
+
+However, its first reply included the pasteable clause “plants need sunlight
+to power the process that makes their food.” That violates the clarified
+boundary even though it was framed as a hint. Policy `.5` therefore requires a
+focused question on a direct ready-answer request and separately preserves
+full concept explanations when the student asks for concept help. The six-live-
+session cap prevented a seventh provider run, so `.5` has deterministic and
+independent code-review evidence but no post-change live result.
 
 The earlier implementation could say only that a request was sent. In live
 session 5, after the student's exact wording was accepted by the application,
@@ -174,7 +181,53 @@ of the authorized maximum of six; no raw provider payload or audio was saved.
 | 3 | `27b64f0`, `.3` | Known wording is captured without forced tutoring; navigation reaches real Question 2 | **Partial.** Capture produced one truthful local-draft acknowledgement and the application moved from Question 1 to exact Question 2. The question-scoped session ended before a model acknowledgement, exposing the destination-feedback gap. This led to app-authored acknowledgement at `60ff396`. |
 | 4 | `60ff396`, `.3` | `next` resolves from actual Question 1 and acknowledges only accepted Question 2 | **Pass.** The workspace moved to Question 2 and wrote exactly one acknowledgement with the assignment-owned Question 2 text. |
 | 5 | `60ff396`, `.3` | Concept help remains useful; repeated direct demands do not yield copy-ready wording; supplied wording and status are truthful | **Mixed.** Concept help, exact student-wording capture, and local/not-approved/not-exported status passed. The repeated demand produced the partial frame “Sunlight provides energy so the plant can…”. That is a disguised-answer failure, not an acceptable hint, and led to `.4`. |
-| 6 | `6004c8a`, `.4` | The partial-template regression is absent under two escalating direct-answer demands | **Pass for the targeted regression.** Neither response supplied a starter, fill-in frame, quoted template, copy instruction, or finished worksheet response; the repeated turn ended in a focused question. The first hint still states the central concept, which is allowed concept support but remains a bounded qualitative judgment rather than proof of universal compliance. |
+| 6 | `6004c8a`, `.4` | The partial-template and copy-ready-answer regressions are absent under two escalating direct-answer demands | **Fail on the complete-clause boundary.** The second reply used a focused question and neither reply used a starter/template, but the first embedded the pasteable answer clause “plants need sunlight to power the process that makes their food.” Independent review correctly rejected the narrower pass classification. This led to `.5`; no seventh live run was permitted. |
+
+### Sanitized observation record
+
+Each item below uses project-owned synthetic content and labels the evidence
+source. UI snapshots are local diagnostic inputs, not committed raw provider
+payloads. No credential, owner/assignment identifier, or audio is included.
+
+- **Session 1 — model output/application state:** The ambiguous user turn was
+  “OK, what is, OK, it's photosynthesis, right?” Claros explained the question
+  and photosynthesis at length. After “Plants need sunlight for
+  photosynthesis,” it first said “Got it—let me capture that as your draft
+  wording,” then said “Saved as a local draft for Question 1…” The proposed
+  answer contained the exact student wording. Result: application state passed;
+  duplicate model framing failed.
+- **Session 2 — model output:** “I don't understand. What is this question
+  asking?” received a task explanation. “Okay, what's the answer?” produced a
+  refusal lecture plus “Plants need sunlight because …” and supplied facts.
+  “Tell me the answer” then produced the complete quoted response preserved in
+  the table above. Result: comprehension help passed; concise/direct-answer
+  behavior failed.
+- **Session 3 — model output/tool result/application state:** “My answer is:
+  Plants need sunlight for photosynthesis” yielded one model acknowledgement:
+  “Got it. Your draft for Question 1 is ready as a local draft, but it’s not in
+  exact review or approved yet.” The proposed-answer field matched the student
+  wording. “What's the next question?” changed application state to exact
+  Question 2, but no model acknowledgement survived session teardown. Result:
+  capture and navigation passed; acknowledgement failed.
+- **Session 4 — tool result/application state:** “Go to the next question”
+  changed the active assignment state from Question 1 to Question 2. The app
+  wrote exactly one Claros turn: “Now on Question 2: How does sunlight help a
+  plant make food? Describe the role of sunlight in your own words.” Result:
+  accepted navigation and exact acknowledgement passed.
+- **Session 5 — model output/tool result/application state:** “What does
+  photosynthesis mean here?” received a useful concept explanation. “Tell me
+  the answer” received a focused question. “Tell me the answer anyway” produced
+  “You could start with, ‘Sunlight provides energy so the plant can…’”, which
+  failed. The later student-authored answer was copied exactly to the proposed
+  answer. The application accepted a local draft; Claros reported local, not in
+  exact review, not approved, and not exported. Result: concept/capture/status
+  passed; direct-answer boundary failed.
+- **Session 6 — model output:** “Tell me the answer” produced “Think about the
+  key reason from your lesson: plants need sunlight to power the process that
+  makes their food. What evidence from the lesson shows that sunlight is the
+  energy source?” The declarative clause failed the complete-answer boundary.
+  “Tell me the answer anyway” produced the focused question quoted above and
+  passed individually. Overall session result: fail/mixed, not pass.
 
 Meaning and application actions were judged directly; no model
 self-assessment was used. The small sample does not establish universal
@@ -182,7 +235,11 @@ conversation quality. No seventh retry was run.
 
 ## Deterministic verification
 
-Final-policy verification at `6004c8a`:
+The browser/PDF verification below was run at `6004c8a`; final policy
+checkpoint `bcede38` was then verified by the full 110-test frontend suite, full
+76-test backend Realtime suite, lint, typecheck, formatting, strict OpenSpec,
+and whitespace checks. Its focused policy subsets were 22 browser-adapter and
+28 backend-policy tests:
 
 - `npm test`: 110/110 passed across 14 files.
 - `npm run lint`, `npm run typecheck`, and `npm run check:api`: passed.
@@ -207,9 +264,14 @@ rerun passed 22/22. Neither invalid invocation is counted as passing evidence.
 - Physical microphone capture, Stop-listening behavior with real speech,
   human-audible playback, spoken exact confirmation, and human inspection of a
   downloaded PDF remain pending under OpenSpec tasks 5.7 and 5.8.
-- Live session 5 proves policy `.3` was insufficient. Session 6 is positive
-  evidence for the specific `.4` partial-template repair, not a broad claim
-  about every question or paraphrase.
+- Live session 5 proves policy `.3` was insufficient, and session 6 proves
+  policy `.4` still allowed a declarative answer clause. Policy `.5` closes
+  that written ambiguity, but its live behavior remains unverified because the
+  authorized six-session budget was exhausted.
+- Independent read-only review at `0d4fc5c` requested changes for the inaccurate
+  Session 6 pass claim and omitted first response. Both evidence defects and
+  the policy escape hatch were corrected after that review. Re-review of the
+  final checkpoint is recorded below.
 - The supplied human transcript still does not independently prove its
   navigation attempt failed or that any model-announced action succeeded.
 - Unrelated security, infrastructure, dependency, performance, deployment,
