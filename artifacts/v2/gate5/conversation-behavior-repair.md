@@ -259,6 +259,22 @@ first OpenPDF command set the runtime qpdf variable but not the tests'
 `CLAROS_TEST_QPDF_PATH`, causing 17 explicit skips; the corrected zero-skip
 rerun passed 22/22. Neither invalid invocation is counted as passing evidence.
 
+## Independent read-only review
+
+The first review of evidence checkpoint `0d4fc5c` requested changes because
+Session 6's first pasteable answer clause was omitted from the narrative and
+the run was incorrectly called a pass. The reviewer otherwise found the
+shared effective policy/tool configuration, bounded action truth, application-
+state freshness, relative navigation, stale-result rejection, exact approval,
+and PDF authority coherent.
+
+After policy `.5`, the corrected OpenSpec requirement/tests, complete sanitized
+session records, and downgraded claims were pushed, the reviewer approved exact
+SHA `442bdd0c3b355d2095cec026e9d6dc5fb8dc0b9f` with no material findings. The
+review independently matched the documented policy SHA, branch/remote SHA, and
+focused effective-policy tests. It retained `.5` live behavior and all human
+sensory/PDF checks as explicit limitations.
+
 ## Remaining limits
 
 - Physical microphone capture, Stop-listening behavior with real speech,
@@ -270,8 +286,8 @@ rerun passed 22/22. Neither invalid invocation is counted as passing evidence.
   authorized six-session budget was exhausted.
 - Independent read-only review at `0d4fc5c` requested changes for the inaccurate
   Session 6 pass claim and omitted first response. Both evidence defects and
-  the policy escape hatch were corrected after that review. Re-review of the
-  final checkpoint is recorded below.
+  the policy escape hatch were corrected after that review; re-review approved
+  exact evidence checkpoint `442bdd0`.
 - The supplied human transcript still does not independently prove its
   navigation attempt failed or that any model-announced action succeeded.
 - Unrelated security, infrastructure, dependency, performance, deployment,

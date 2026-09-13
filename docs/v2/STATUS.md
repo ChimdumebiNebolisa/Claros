@@ -16,6 +16,7 @@
 - **Gate 5 browser-acceptance implementation checkpoint:** `06425f913df328a21abeb73b192760005cee7d34`
 - **Gate 5 scoped independent code-review checkpoint:** `06425f913df328a21abeb73b192760005cee7d34` — approved; human evidence still pending
 - **Gate 5 conversation-behavior implementation checkpoint:** `bcede3835f0512e964c257a48a6a627ece4b1d11` — application behavior evaluated; final direct-answer policy live rerun pending
+- **Gate 5 conversation-behavior review checkpoint:** `442bdd0c3b355d2095cec026e9d6dc5fb8dc0b9f` — independently approved; final direct-answer policy live rerun still pending
 
 ### 2026-09-12 conversation-behavior repair
 
@@ -48,6 +49,12 @@ hypotheses, and evidence classifications are in
 `artifacts/v2/gate5/conversation-behavior-repair.md`. Tasks 5.7 and 5.8 remain
 open for physical-microphone, human-audible-playback, and downloaded-PDF
 acceptance. No merge or deployment was performed.
+
+Independent review first requested changes at `0d4fc5c` because the report
+omitted Session 6's first pasteable clause and misclassified the run as a pass.
+After correcting the evidence and narrowing policy `.5`, read-only re-review
+approved exact SHA `442bdd0` with no material finding. The approval explicitly
+does not claim a post-`.5` live-provider pass or human acoustic/PDF acceptance.
 
 ### 2026-09-11 product-owner correction
 

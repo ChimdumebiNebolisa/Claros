@@ -9,6 +9,7 @@
 - Corpus: checked-in synthetic biology sample and test-owned upload only
 - Status: automated browser acceptance and scoped code review pass; physical-microphone and human PDF acceptance remain open
 - Conversation-behavior implementation checkpoint: `bcede3835f0512e964c257a48a6a627ece4b1d11`
+- Conversation-behavior independent review checkpoint: `442bdd0c3b355d2095cec026e9d6dc5fb8dc0b9f` — approved with final live-policy rerun retained as pending
 
 No API key, ephemeral credential, owner identifier, assignment identifier, raw
 provider payload, or private transcript is recorded here. The configured
@@ -63,6 +64,7 @@ Useful retired assertions were mapped as follows:
 | Bounded live provider: credential issuance, guided typed WebRTC response/captions, mute, interruption, reconnect, direct connect/stop, and cross-question captions | Prior live-provider browser observation | `22b3d60` | Pass for the listed observations | Predates current lifecycle fixes; not a substitute for the remaining human run |
 | Scoped independent implementation review | Read-only separate reviewer tracing relevant unchanged callers | `06425f9` | **Approve** — no blocking or material code findings remain | Reviewer correctly left sensory and downloaded-PDF evidence pending |
 | Conversation-policy and truthful-action repair | Deterministic effective-session checks plus six bounded typed live-provider sessions | `bcede38` | Action/navigation/status repair passed. Live sessions preserved duplicate-framing, complete-answer, partial-frame, and final declarative-clause failures; policy `.5` closes the last written escape hatch but was not live rerun after the six-session cap. Final `.5`: 110/110 frontend and 76/76 Realtime backend. At unchanged application/PDF shape `6004c8a`: 10/10 browser and 22/22 zero-skip OpenPDF. | Final direct-answer policy needs a future bounded live-provider run; small typed evidence is not universal quality or physical-microphone evidence |
+| Conversation-behavior independent review | Separate read-only call-chain, policy, action, evidence, and invariant review | `442bdd0` | **Approve** — prior Session 6 classification/omission finding corrected; no material implementation or evidence finding remains | Approval does not convert pending live `.5` or human sensory/PDF checks into passes |
 | Direct spoken transcript/candidate and exact spoken confirmation | Human microphone/provider/application evidence | Pending | **Not yet verified** | Requires the user at the prepared local application |
 | Audible exact playback and downloaded-PDF inspection | Human sensory and document evidence | Pending | **Not yet verified** | Requires human hearing and inspection of the session export |
 
