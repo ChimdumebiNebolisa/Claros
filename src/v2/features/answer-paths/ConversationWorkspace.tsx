@@ -148,6 +148,7 @@ export function ConversationWorkspace({
             onToggleMute={onToggleMute}
           />
         </div>
+        {reviewContent}
         {turns.length ? (
           <details className="rounded-[10px] border border-[var(--claros-line)] bg-white">
             <summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-semibold text-[var(--claros-muted)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--claros-blue)]">
@@ -158,7 +159,6 @@ export function ConversationWorkspace({
             </div>
           </details>
         ) : null}
-        {reviewContent}
       </section>
     );
   }
