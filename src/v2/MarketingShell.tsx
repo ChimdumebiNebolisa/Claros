@@ -147,7 +147,10 @@ export default function MarketingShell() {
             <p className="text-[12px] font-bold uppercase tracking-[0.18em] text-[var(--claros-blue-dark)] sm:text-[13px]">
               Built for students who find typing difficult
             </p>
-            <h1 className="mt-7 font-display text-[clamp(3.6rem,8.3vw,7.5rem)] leading-[0.87] tracking-[-0.045em] text-[var(--claros-ink)]">
+            <h1
+              aria-label="Think it. Say it. Put it on the page."
+              className="mt-7 font-display text-[clamp(3.6rem,8.3vw,7.5rem)] leading-[0.87] tracking-[-0.045em] text-[var(--claros-ink)]"
+            >
               Think it.{" "}
               <span className="text-[var(--claros-blue)]">Say it.</span>
               <span className="mt-2 block">Put it on the page.</span>

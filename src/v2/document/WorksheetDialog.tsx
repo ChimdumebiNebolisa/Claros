@@ -65,11 +65,18 @@ export default function WorksheetDialog({
   const unsubscribeRef = useRef<Array<() => void>>([]);
   const [viewerHost, setViewerHost] = useState<HTMLDivElement | null>(null);
   const renderedPageRef = useRef(false);
+  const restoreFocusRef = useRef<HTMLElement | null>(
+    typeof document !== "undefined" &&
+      document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null,
+  );
 
   useEffect(
     () => () => {
       unsubscribeRef.current.forEach((unsubscribe) => unsubscribe());
       unsubscribeRef.current = [];
+      queueMicrotask(() => restoreFocusRef.current?.focus());
     },
     [],
   );

@@ -107,7 +107,9 @@ function UploadControl({
             className="sr-only"
             type="file"
             accept="application/pdf,.pdf"
+            tabIndex={-1}
             aria-label="Choose a PDF worksheet"
+            aria-invalid={validationMessage ? true : undefined}
             aria-describedby={validationMessage ? uploadErrorId : undefined}
             onChange={(event) =>
               acceptFile(event.currentTarget.files?.item(0) ?? undefined)
@@ -117,6 +119,7 @@ function UploadControl({
             color="primary"
             size="md"
             className="mt-5"
+            aria-describedby={validationMessage ? uploadErrorId : undefined}
             onPress={() => inputRef.current?.click()}
           >
             Choose a PDF

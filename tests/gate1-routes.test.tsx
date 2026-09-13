@@ -42,7 +42,7 @@ describe("V2 route shell", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "The answer is yours. Getting it onto the page can be easier.",
+        name: "Think it. Say it. Put it on the page.",
       }),
     ).toBeInTheDocument();
     expect(container.querySelector("canvas")).not.toBeInTheDocument();
