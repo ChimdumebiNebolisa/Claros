@@ -97,10 +97,15 @@ const tabletStates = new Set([
   "guided-conversation",
   "worksheet-review",
 ]);
+const compactTabletStates = new Set([
+  "conversation-turns",
+  "exact-review-appendix",
+]);
 
 const viewports = {
   desktop: { width: 1440, height: 1000 },
   tablet: { width: 1024, height: 1366 },
+  "compact-tablet": { width: 768, height: 1024 },
   mobile: { width: 390, height: 844 },
 };
 
@@ -141,6 +146,11 @@ async function capture(name, route, heading, viewport) {
       .getByRole("img", { name: /showing question \d+ and its answer area/i })
       .waitFor({ timeout: 60_000 });
   }
+  if (name === "conversation-draft" && viewport === "mobile") {
+    await page
+      .getByRole("textbox", { name: "Proposed answer" })
+      .scrollIntoViewIfNeeded();
+  }
   const path = resolve(outputDirectory, `${name}-${viewport}.png`);
   await page.screenshot({ path, animations: "disabled" });
   files.push(path);
@@ -152,6 +162,9 @@ for (const [name, route, heading] of scenarios) {
   await capture(name, route, heading, "mobile");
   if (tabletStates.has(name)) {
     await capture(name, route, heading, "tablet");
+  }
+  if (compactTabletStates.has(name)) {
+    await capture(name, route, heading, "compact-tablet");
   }
 }
 
@@ -166,6 +179,12 @@ await capture(
   "/",
   "Think it. Say it. Put it on the page.",
   "tablet",
+);
+await capture(
+  "marketing",
+  "/",
+  "Think it. Say it. Put it on the page.",
+  "compact-tablet",
 );
 await capture(
   "marketing",
