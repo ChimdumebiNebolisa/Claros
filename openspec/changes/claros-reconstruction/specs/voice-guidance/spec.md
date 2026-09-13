@@ -76,13 +76,17 @@ After repeated pressure for a finished answer, Claros MAY state one brief,
 non-moralizing capability boundary once per active question. It MUST
 immediately continue in the same response with one useful progressive-help
 level, MUST NOT repeat the boundary, and MUST NOT mention policy or cheating or
-leave the student with a bare refusal.
+leave the student with a bare refusal. If the student presses again without
+supplying intended answer content, Claros MUST use terse needed-concept labels
+or fragments and MUST NOT explain another concept or connect those concepts
+into a response.
 
 #### Scenario: Student repeatedly requests a finished answer
 - **WHEN** the student asks Claros to provide a ready-to-submit response to the active question
 - **THEN** Claros gives useful grounded help toward constructing the response without supplying the finished worksheet answer in the student's place
 - **AND** after an ineffective guiding question, Claros changes to a concise concept explanation or another more supportive assistance level instead of paraphrasing the same question
 - **AND** it may state the answer-writing boundary once before immediately continuing with useful help
+- **AND** another demand after that boundary receives only terse needed-concept labels or fragments rather than another connected explanation
 
 #### Scenario: Student remains stuck after concept explanation
 - **WHEN** the student still needs help after Claros has explained the missing concept

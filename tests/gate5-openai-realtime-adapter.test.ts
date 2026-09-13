@@ -301,6 +301,12 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
       /do not repeat the boundary/i,
     );
     expect(realtimePolicy.conversation_policy).toMatch(
+      /another answer demand without student answer content must use level 3 as terse labels or fragments only/i,
+    );
+    expect(realtimePolicy.conversation_policy).toMatch(
+      /must not explain another concept or connect the listed concepts/i,
+    );
+    expect(realtimePolicy.conversation_policy).toMatch(
       /never add the remaining connection, outcome, or evidence/i,
     );
   });
