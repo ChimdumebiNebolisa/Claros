@@ -119,17 +119,31 @@ function CropRenderer({ context, documentId, onRetry }: CropRendererProps) {
 
   return (
     <figure className={styles.cropFigure}>
-      <img
-        className={styles.cropImage}
-        src={imageUrl}
-        alt={`${context.sourceStatus === "completed_copy_preview" ? "Completed PDF preview" : "Original worksheet excerpt"} showing question ${context.questionIndex} and its answer area`}
-        draggable={false}
-      />
+      <div className={styles.cropMeta}>
+        <span className={styles.cropQuestion}>
+          Question {context.questionIndex}
+        </span>
+        <span className={styles.cropPage}>Page {context.pageNumber}</span>
+      </div>
+      <div className={styles.cropCanvas}>
+        <img
+          className={styles.cropImage}
+          src={imageUrl}
+          alt={`${context.sourceStatus === "completed_copy_preview" ? "Completed PDF preview" : "Original worksheet excerpt"} showing question ${context.questionIndex} and its answer area`}
+          draggable={false}
+        />
+      </div>
       <figcaption>
-        Page {context.pageNumber} ·{" "}
-        {context.sourceStatus === "completed_copy_preview"
-          ? "Confirmed answer preview"
-          : "Verified source context"}
+        <span>
+          {context.sourceStatus === "completed_copy_preview"
+            ? "Confirmed answer preview"
+            : "Original worksheet"}
+        </span>
+        <span className={styles.cropStatus}>
+          {context.sourceStatus === "completed_copy_preview"
+            ? "Source page preserved"
+            : "Verified · unchanged"}
+        </span>
       </figcaption>
     </figure>
   );

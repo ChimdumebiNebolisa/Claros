@@ -253,7 +253,7 @@ a {
 .v2-workspace-grid {
   display: grid;
   min-height: calc(100vh - 68px);
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 410px);
+  grid-template-columns: minmax(0, 1fr) clamp(380px, 30vw, 440px);
 }
 
 .v2-workspace-grid--task-only {

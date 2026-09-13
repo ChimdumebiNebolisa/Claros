@@ -2495,12 +2495,12 @@ export default function WorkspaceShell({
                 <strong>
                   {showsCompletedPreview
                     ? "Completed copy preview"
-                    : "Original worksheet"}
+                    : "Worksheet preview"}
                 </strong>
                 <span>
                   {showsCompletedPreview
                     ? "Source page preserved · confirmed answer shown"
-                    : "Verified source · unchanged"}
+                    : "Focused on the current question"}
                 </span>
               </div>
               <Button

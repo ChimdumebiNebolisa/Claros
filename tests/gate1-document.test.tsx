@@ -120,6 +120,9 @@ describe("Gate 1 EmbedPDF integration", () => {
     await screen.findByRole("img", {
       name: /original worksheet excerpt showing question 1/i,
     });
+    expect(screen.getByText("Question 1")).toBeTruthy();
+    expect(screen.getByText("Page 1")).toBeTruthy();
+    expect(screen.getByText("Verified · unchanged")).toBeTruthy();
 
     expect(fetch).toHaveBeenCalledWith(
       WORKSHEET_PAGE_CONTEXT_URL,
