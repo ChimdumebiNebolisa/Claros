@@ -125,6 +125,44 @@ export function ConversationWorkspace({
   const hasMessage = /\S/u.test(message);
   const hasCandidate = /\S/u.test(candidateText);
 
+  if (reviewContent) {
+    return (
+      <section
+        className="grid w-full max-w-[820px] gap-7"
+        aria-label="Conversation workspace"
+      >
+        <QuestionHeader question={question} totalQuestions={totalQuestions} />
+        <div className="overflow-hidden rounded-[10px] border border-[var(--claros-line)] bg-white">
+          <VoiceStateControl
+            state={voiceState}
+            captureState={captureState}
+            muted={muted}
+            onStart={onStart}
+            onStop={onStop}
+            onRetry={onRetry}
+            onContinueByTyping={() => {
+              onContinueByTyping?.();
+              messageRef.current?.focus();
+            }}
+            onInterrupt={onInterrupt}
+            onToggleMute={onToggleMute}
+          />
+        </div>
+        {turns.length ? (
+          <details className="rounded-[10px] border border-[var(--claros-line)] bg-white">
+            <summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-semibold text-[var(--claros-muted)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--claros-blue)]">
+              Conversation for this question
+            </summary>
+            <div className="border-t border-[var(--claros-line)]">
+              <ConversationHistory turns={turns} />
+            </div>
+          </details>
+        ) : null}
+        {reviewContent}
+      </section>
+    );
+  }
+
   return (
     <section
       className="grid w-full max-w-[820px] gap-7"
@@ -185,63 +223,59 @@ export function ConversationWorkspace({
         </div>
       </div>
 
-      {reviewContent ? (
-        reviewContent
-      ) : (
-        <>
-          <motion.div
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.18 }}
-            className={`border-l-2 pl-5 ${hasCandidate ? "border-[var(--claros-blue)]" : "border-[var(--claros-line-strong)]"}`}
-          >
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <p className="m-0 text-xs font-bold uppercase tracking-[0.15em] text-[var(--claros-blue-dark)]">
-                Your answer
-              </p>
-              <span className="text-xs text-[var(--claros-muted)]">
-                Separate from the conversation
-              </span>
-            </div>
-            <p
-              id={candidateHelpId}
-              className="mt-2 text-sm leading-6 text-[var(--claros-muted)]"
-            >
-              Only this editable wording can move to exact review.
+      <>
+        <motion.div
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.18 }}
+          className={`border-l-2 pl-5 ${hasCandidate ? "border-[var(--claros-blue)]" : "border-[var(--claros-line-strong)]"}`}
+        >
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="m-0 text-xs font-bold uppercase tracking-[0.15em] text-[var(--claros-blue-dark)]">
+              Your answer
             </p>
-            <Textarea
-              aria-label="Proposed answer"
-              aria-describedby={candidateHelpId}
-              value={candidateText}
-              onChange={onCandidateChange}
-              textAreaRef={candidateRef}
-              rows={5}
-              placeholder="Your answer will appear here—or type it directly."
-              className={`mt-3 min-h-[132px] text-[17px] leading-7 ${hasCandidate ? "border-[var(--claros-blue)] bg-white shadow-[0_1px_2px_rgba(17,32,51,.04)]" : "bg-[var(--claros-canvas)]"}`}
-            />
-          </motion.div>
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            {hasCandidate ? (
-              <Button
-                color="secondary"
-                size="lg"
-                iconLeading={WandSparkles}
-                onPress={onMakeClearer}
-              >
-                Make it clearer
-              </Button>
-            ) : null}
-            <Button
-              color="primary"
-              size="lg"
-              iconTrailing={ArrowRight}
-              onPress={onReview}
-              isDisabled={!hasCandidate}
-            >
-              Review answer
-            </Button>
+            <span className="text-xs text-[var(--claros-muted)]">
+              Separate from the conversation
+            </span>
           </div>
-        </>
-      )}
+          <p
+            id={candidateHelpId}
+            className="mt-2 text-sm leading-6 text-[var(--claros-muted)]"
+          >
+            Only this editable wording can move to exact review.
+          </p>
+          <Textarea
+            aria-label="Proposed answer"
+            aria-describedby={candidateHelpId}
+            value={candidateText}
+            onChange={onCandidateChange}
+            textAreaRef={candidateRef}
+            rows={5}
+            placeholder="Your answer will appear here—or type it directly."
+            className={`mt-3 min-h-[132px] text-[17px] leading-7 ${hasCandidate ? "border-[var(--claros-blue)] bg-white shadow-[0_1px_2px_rgba(17,32,51,.04)]" : "bg-[var(--claros-canvas)]"}`}
+          />
+        </motion.div>
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          {hasCandidate ? (
+            <Button
+              color="secondary"
+              size="lg"
+              iconLeading={WandSparkles}
+              onPress={onMakeClearer}
+            >
+              Make it clearer
+            </Button>
+          ) : null}
+          <Button
+            color="primary"
+            size="lg"
+            iconTrailing={ArrowRight}
+            onPress={onReview}
+            isDisabled={!hasCandidate}
+          >
+            Review answer
+          </Button>
+        </div>
+      </>
     </section>
   );
 }

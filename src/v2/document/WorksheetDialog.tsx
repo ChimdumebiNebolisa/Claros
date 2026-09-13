@@ -63,7 +63,8 @@ export default function WorksheetDialog({
     message: "Opening the original worksheet…",
   });
   const unsubscribeRef = useRef<Array<() => void>>([]);
-  const viewerHostRef = useRef<HTMLDivElement>(null);
+  const [viewerHost, setViewerHost] = useState<HTMLDivElement | null>(null);
+  const renderedPageRef = useRef(false);
 
   useEffect(
     () => () => {
@@ -74,7 +75,7 @@ export default function WorksheetDialog({
   );
 
   useEffect(() => {
-    const host = viewerHostRef.current;
+    const host = viewerHost;
     if (!isOpen || !host) return;
 
     let shadowObserver: MutationObserver | null = null;
@@ -91,10 +92,7 @@ export default function WorksheetDialog({
         ),
       );
       if (hasRenderedPage) {
-        if (renderPoll !== null) {
-          window.clearInterval(renderPoll);
-          renderPoll = null;
-        }
+        renderedPageRef.current = true;
         setViewerState((current) =>
           current.kind === "ready"
             ? current
@@ -119,7 +117,7 @@ export default function WorksheetDialog({
       hostObserver.disconnect();
       shadowObserver?.disconnect();
     };
-  }, [isOpen]);
+  }, [isOpen, viewerHost]);
 
   const handleReady = (registry: PluginRegistry) => {
     unsubscribeRef.current.forEach((unsubscribe) => unsubscribe());
@@ -138,7 +136,7 @@ export default function WorksheetDialog({
     }
 
     const activeDocument = manager.getActiveDocument();
-    if (activeDocument) {
+    if (activeDocument && !renderedPageRef.current) {
       setViewerState({
         kind: "loading",
         message: "Rendering the original worksheet…",
@@ -147,10 +145,12 @@ export default function WorksheetDialog({
 
     unsubscribeRef.current = [
       manager.onDocumentOpened(() => {
-        setViewerState({
-          kind: "loading",
-          message: "Rendering the original worksheet…",
-        });
+        if (!renderedPageRef.current) {
+          setViewerState({
+            kind: "loading",
+            message: "Rendering the original worksheet…",
+          });
+        }
       }),
       manager.onDocumentError(() => {
         setViewerState({
@@ -196,7 +196,7 @@ export default function WorksheetDialog({
             />
           </header>
           <div
-            ref={viewerHostRef}
+            ref={setViewerHost}
             className={styles.viewerFrame}
             role="region"
             aria-label="Read-only worksheet viewer"
