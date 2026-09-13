@@ -5,7 +5,9 @@ import { resolve } from "node:path";
 import { chromium } from "@playwright/test";
 
 const baseUrl = process.env.CLAROS_CAPTURE_URL ?? "http://127.0.0.1:5173";
-const outputDirectory = resolve("artifacts", "v2", "screenshots");
+const outputDirectory = resolve(
+  process.env.CLAROS_CAPTURE_DIR ?? "artifacts/v2/screenshots",
+);
 
 const scenarios = [
   ["upload", "/app?fixture=upload", "Bring in a worksheet."],
@@ -14,6 +16,26 @@ const scenarios = [
   [
     "question-choice",
     "/app/fixture-biology?fixture=question-choice",
+    "Why do plants need sunlight?",
+  ],
+  [
+    "conversation-empty",
+    "/app/fixture-biology?fixture=conversation-empty",
+    "Why do plants need sunlight?",
+  ],
+  [
+    "conversation-listening",
+    "/app/fixture-biology?fixture=conversation-listening",
+    "Why do plants need sunlight?",
+  ],
+  [
+    "conversation-turns",
+    "/app/fixture-biology?fixture=conversation-turns",
+    "How does sunlight help a plant make food?",
+  ],
+  [
+    "conversation-draft",
+    "/app/fixture-biology?fixture=conversation-draft",
     "Why do plants need sunlight?",
   ],
   [
@@ -70,6 +92,7 @@ const scenarios = [
 ];
 
 const tabletStates = new Set([
+  "conversation-turns",
   "question-choice",
   "guided-conversation",
   "worksheet-review",
@@ -110,7 +133,7 @@ async function newTrackedPage(label, viewport) {
 
 async function capture(name, route, heading, viewport) {
   const page = await newTrackedPage(`${name}-${viewport}`, viewport);
-  await page.goto(`${baseUrl}${route}`, { waitUntil: "networkidle" });
+  await page.goto(`${baseUrl}${route}`, { waitUntil: "domcontentloaded" });
   await page.getByRole("heading", { name: heading, exact: true }).waitFor();
   await page.evaluate(() => document.fonts.ready);
   if (viewport === "desktop" && route.startsWith("/app/")) {
@@ -135,20 +158,26 @@ for (const [name, route, heading] of scenarios) {
 await capture(
   "marketing",
   "/",
-  "The answer is yours. Getting it onto the page can be easier.",
+  "Think it. Say it. Put it on the page.",
   "desktop",
 );
 await capture(
   "marketing",
   "/",
-  "The answer is yours. Getting it onto the page can be easier.",
+  "Think it. Say it. Put it on the page.",
+  "tablet",
+);
+await capture(
+  "marketing",
+  "/",
+  "Think it. Say it. Put it on the page.",
   "mobile",
 );
 
 {
   const page = await newTrackedPage("worksheet-dialog-mobile", "mobile");
   await page.goto(`${baseUrl}/app/fixture-biology?fixture=question-choice`, {
-    waitUntil: "networkidle",
+    waitUntil: "domcontentloaded",
   });
   await page
     .locator(".v2-mobile-document-action")
@@ -212,7 +241,7 @@ await writeFile(
     {
       commit,
       baseUrl,
-      expectedStateMatrixCaptures: 33,
+      expectedStateMatrixCaptures: files.length,
       totalCaptures: evidence.length,
       externalRequests: [],
       captures: evidence,

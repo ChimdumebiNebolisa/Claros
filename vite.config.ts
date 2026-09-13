@@ -19,6 +19,8 @@ export default defineConfig({
       "Content-Security-Policy":
         "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' ws: https://api.openai.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
     },
-    proxy: { "/api": "http://127.0.0.1:8080" },
+    proxy: {
+      "/api": process.env.CLAROS_DEV_API_URL ?? "http://127.0.0.1:8787",
+    },
   },
 });

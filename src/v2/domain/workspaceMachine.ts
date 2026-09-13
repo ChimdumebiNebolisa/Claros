@@ -31,6 +31,10 @@ export const fixtureScenarios = [
   "ready",
   "unsupported",
   "question-choice",
+  "conversation-empty",
+  "conversation-listening",
+  "conversation-turns",
+  "conversation-draft",
   "direct-listening",
   "direct-captured",
   "guided-conversation",
@@ -248,6 +252,38 @@ function contextForScenario(scenario: FixtureScenario): WorkspaceContext {
   }
 
   context.assignment = cloneAssignment();
+  if (scenario === "conversation-empty") return context;
+  if (scenario === "conversation-listening") {
+    return {
+      ...context,
+      voiceState: "listening",
+      captureState: "active",
+    };
+  }
+  if (scenario === "conversation-turns") {
+    return {
+      ...context,
+      activeQuestionIndex: 1,
+      guidedTurns: fixtureGuidedTurns,
+    };
+  }
+  if (scenario === "conversation-draft") {
+    return {
+      ...context,
+      guidedTurns: fixtureGuidedTurns,
+      voiceState: "captured",
+      candidate: direct,
+      drafts: {
+        [direct.questionId]: {
+          text: direct.text,
+          origin: direct.origin,
+          localRevision: 1,
+          dirty: false,
+          acknowledgedCandidate: direct,
+        },
+      },
+    };
+  }
   if (scenario === "ready" || scenario === "question-choice") return context;
 
   if (scenario === "direct-listening") {
@@ -380,6 +416,10 @@ const scenarioTarget = (scenario: FixtureScenario) => {
     ready: "#claros-v2-ready",
     unsupported: "#claros-v2-rejected",
     "question-choice": "#claros-v2-question-choice",
+    "conversation-empty": "#claros-v2-conversation",
+    "conversation-listening": "#claros-v2-conversation",
+    "conversation-turns": "#claros-v2-conversation",
+    "conversation-draft": "#claros-v2-conversation",
     "direct-listening": "#claros-v2-direct-listening",
     "direct-captured": "#claros-v2-direct-captured",
     "guided-conversation": "#claros-v2-guided-ready",
