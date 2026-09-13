@@ -1081,6 +1081,19 @@
             "minimum": 1.0,
             "title": "Page Number",
             "type": "integer"
+          },
+          "question_id": {
+            "anyOf": [
+              {
+                "maxLength": 96,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question Id"
           }
         },
         "required": [

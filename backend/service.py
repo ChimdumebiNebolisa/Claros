@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
+import re
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
@@ -23,6 +24,8 @@ from google.api_core.exceptions import DeadlineExceeded as GoogleDeadlineExceede
 
 from backend.api.errors import ClarosError
 from backend.api.models import (
+    AcceptQuestionSetupOperation,
+    AddQuestionOperation,
     AssignmentResponse,
     AssignmentStatus,
     BeginRevisionRequest,
@@ -34,6 +37,7 @@ from backend.api.models import (
     ConfirmedAnswer,
     ConfirmRequest,
     ConfirmResponse,
+    CorrectionTextBlock,
     CreateExportRequest,
     DirectTypedInteraction,
     DirectVoiceInteraction,
@@ -46,11 +50,22 @@ from backend.api.models import (
     Placement,
     PlacementCapability,
     PlacementSummary,
+    QuestionBlocksResponse,
     QuestionProjection,
+    QuestionSelectionPreviewRequest,
+    QuestionSelectionPreviewResponse,
+    QuestionSetupMutationRequest,
+    QuestionSetupProvenance,
+    QuestionSetupQuestion,
+    QuestionSetupResponse,
     RealtimeCredentialRequest,
     RealtimeCredentialResponse,
+    RemoveQuestionOperation,
+    ReorderQuestionsOperation,
     RephraseRequest,
     RephraseResponse,
+    ReplaceQuestionOperation,
+    ResetQuestionSetupOperation,
     ReviewRequest,
     ReviewResponse,
     SafeWarning,
@@ -86,13 +101,18 @@ from backend.domain import (
     DomainError,
     InvalidCandidate,
     InvalidCandidateOrigin,
+    InvalidQuestionSetup,
     NoConfirmedAnswers,
     ObjectReference,
+    QuestionDefinition,
     QuestionNotFound,
+    QuestionSetupLocked,
+    QuestionSetupUnverified,
     QuestionState,
     ReviewTokenExpired,
     ReviewTokenInvalid,
     ReviewTokenStale,
+    accept_question_setup,
     begin_revision,
     complete_export,
     confirm_candidate,
@@ -101,6 +121,9 @@ from backend.domain import (
     issue_review,
     record_rephrase,
     replace_candidate,
+    replace_question_setup,
+    require_question_setup_verified,
+    reset_question_setup,
     start_export,
 )
 from backend.domain import (
@@ -126,6 +149,9 @@ from backend.domain import (
 )
 from backend.domain import (
     PlacementCapability as DomainPlacementCapability,
+)
+from backend.domain import (
+    QuestionSetupProvenance as DomainQuestionSetupProvenance,
 )
 from backend.domain import (
     SelectedRephraseInteraction as DomainSelectedRephraseInteraction,
@@ -599,6 +625,228 @@ class AssignmentApplicationService:
                 height_mpt=crop.height,
             ),
         )
+
+    async def get_question_setup(
+        self,
+        *,
+        assignment_id: str,
+        owner_cookie: str | None,
+    ) -> QuestionSetupResponse:
+        observed, _session = await self._run_storage(
+            partial(self._load_owned, assignment_id, owner_cookie)
+        )
+        manifest = observed.manifest
+        physical_ir = await self._run_storage(
+            partial(self._load_ir, manifest), version=manifest.version
+        )
+        return _question_setup_response(manifest, physical_ir)
+
+    async def get_question_blocks(
+        self,
+        *,
+        assignment_id: str,
+        page_number: int,
+        owner_cookie: str | None,
+    ) -> QuestionBlocksResponse:
+        observed, _session = await self._run_storage(
+            partial(self._load_owned, assignment_id, owner_cookie)
+        )
+        manifest = observed.manifest
+        physical_ir = await self._run_storage(
+            partial(self._load_ir, manifest), version=manifest.version
+        )
+        if page_number < 1 or page_number > len(physical_ir.pages):
+            raise _not_found("page_not_found", "That worksheet page could not be found.")
+        page = physical_ir.pages[page_number - 1]
+        selected_by: dict[str, list[str]] = {}
+        for question in manifest.questions:
+            for block_id in (*question.prompt_block_ids, *question.context_block_ids):
+                selected_by.setdefault(block_id, []).append(question.question_id)
+        return QuestionBlocksResponse(
+            version=manifest.version,
+            page_number=page_number,
+            page_width_mpt=page.width_mpt,
+            page_height_mpt=page.height_mpt,
+            source_url=f"/api/v2/assignments/{assignment_id}/source",
+            blocks=[
+                CorrectionTextBlock(
+                    block_id=block.id,
+                    exact_text=block.text or "",
+                    page_number=page_number,
+                    reading_order=block.reading_order,
+                    region=_page_rect(block.bbox),
+                    selected_question_ids=selected_by.get(block.id, []),
+                )
+                for block in page.blocks
+                if block.kind == "text" and (block.text or "").strip()
+            ],
+        )
+
+    async def preview_question_selection(
+        self,
+        *,
+        assignment_id: str,
+        body: QuestionSelectionPreviewRequest,
+        owner_cookie: str | None,
+    ) -> QuestionSelectionPreviewResponse:
+        observed, _session = await self._run_storage(
+            partial(self._load_owned, assignment_id, owner_cookie)
+        )
+        manifest = observed.manifest
+        if body.assignment_version != manifest.version:
+            raise _conflict(
+                "assignment_version_conflict",
+                "The assignment changed. Reload it and try again.",
+                manifest.version,
+            )
+        physical_ir = await self._run_storage(
+            partial(self._load_ir, manifest), version=manifest.version
+        )
+        if body.question_id is not None:
+            _find_question(manifest, body.question_id)
+        try:
+            exact_prompt, block_ids, regions, capability = _validated_question_selection(
+                physical_ir,
+                manifest,
+                page_number=body.page_number,
+                block_ids=tuple(body.block_ids),
+                exclude_question_id=body.question_id,
+            )
+        except DomainError as error:
+            raise _domain_api_error(error) from error
+        return QuestionSelectionPreviewResponse(
+            version=manifest.version,
+            page_number=body.page_number,
+            block_ids=list(block_ids),
+            exact_prompt=exact_prompt,
+            prompt_regions=list(regions),
+            placement_capability=PlacementCapability(capability.value),
+        )
+
+    async def mutate_question_setup(
+        self,
+        *,
+        assignment_id: str,
+        body: QuestionSetupMutationRequest,
+        owner_cookie: str | None,
+    ) -> QuestionSetupResponse:
+        observed, _session = await self._run_storage(
+            partial(self._load_owned, assignment_id, owner_cookie)
+        )
+        manifest = observed.manifest
+        if body.assignment_version != manifest.version:
+            raise _conflict(
+                "assignment_version_conflict",
+                "The assignment changed. Reload it and try again.",
+                manifest.version,
+            )
+        physical_ir = await self._run_storage(
+            partial(self._load_ir, manifest), version=manifest.version
+        )
+        operation = body.operation
+        try:
+            if isinstance(operation, AcceptQuestionSetupOperation):
+                updated = accept_question_setup(
+                    manifest,
+                    assignment_version=body.assignment_version,
+                    now=self._now(),
+                )
+            elif isinstance(operation, ResetQuestionSetupOperation):
+                updated = reset_question_setup(
+                    manifest,
+                    assignment_version=body.assignment_version,
+                    now=self._now(),
+                )
+            else:
+                questions = list(manifest.questions)
+                if isinstance(operation, AddQuestionOperation):
+                    exact_prompt, block_ids, _regions, capability = _validated_question_selection(
+                        physical_ir,
+                        manifest,
+                        page_number=operation.page_number,
+                        block_ids=tuple(operation.block_ids),
+                    )
+                    question_id = new_identifier("q")
+                    questions.append(
+                        QuestionState(
+                            question_id=question_id,
+                            index=len(questions) + 1,
+                            display_identifier=str(len(questions) + 1),
+                            exact_prompt=exact_prompt,
+                            prompt_block_ids=block_ids,
+                            context_block_ids=(),
+                            instruction=None,
+                            page_number=operation.page_number,
+                            placement_capability=capability,
+                        )
+                    )
+                elif isinstance(operation, ReplaceQuestionOperation):
+                    question_index, current = _find_question_index(manifest, operation.question_id)
+                    exact_prompt, block_ids, _regions, _capability = _validated_question_selection(
+                        physical_ir,
+                        manifest,
+                        page_number=operation.page_number,
+                        block_ids=tuple(operation.block_ids),
+                        exclude_question_id=current.question_id,
+                    )
+                    context_ids = tuple(
+                        block_id
+                        for block_id in current.context_block_ids
+                        if block_id not in block_ids
+                    )
+                    instruction = physical_ir.reconstruct_text(context_ids) if context_ids else None
+                    capability = _placement_capability(
+                        physical_ir,
+                        question_id=current.question_id,
+                        display_identifier=current.display_identifier,
+                        prompt_block_ids=block_ids,
+                        context_block_ids=context_ids,
+                    )
+                    questions[question_index] = current.model_copy(
+                        update={
+                            "exact_prompt": exact_prompt,
+                            "prompt_block_ids": block_ids,
+                            "context_block_ids": context_ids,
+                            "instruction": instruction,
+                            "page_number": operation.page_number,
+                            "placement_capability": capability,
+                        }
+                    )
+                elif isinstance(operation, RemoveQuestionOperation):
+                    _find_question(manifest, operation.question_id)
+                    questions = [
+                        question
+                        for question in questions
+                        if question.question_id != operation.question_id
+                    ]
+                elif isinstance(operation, ReorderQuestionsOperation):
+                    requested = operation.ordered_question_ids
+                    current_ids = [question.question_id for question in questions]
+                    if len(requested) != len(set(requested)) or set(requested) != set(current_ids):
+                        raise InvalidQuestionSetup(
+                            "Question order must include each current question exactly once."
+                        )
+                    by_id = {question.question_id: question for question in questions}
+                    questions = [by_id[question_id] for question_id in requested]
+                else:  # pragma: no cover - discriminated transport union is exhaustive
+                    raise TypeError("unsupported question setup operation")
+                updated = replace_question_setup(
+                    manifest,
+                    questions=_renumber_questions(tuple(questions)),
+                    assignment_version=body.assignment_version,
+                    provenance=DomainQuestionSetupProvenance.STUDENT_CORRECTED,
+                    now=self._now(),
+                )
+            saved = await self._run_storage(
+                partial(self._save, observed, updated),
+                version=manifest.version,
+                mutation=True,
+            )
+        except DomainError as error:
+            raise _domain_api_error(error) from error
+        except DocumentEngineError as error:
+            raise _question_selection_api_error(error, version=manifest.version) from error
+        return _question_setup_response(saved.manifest, physical_ir)
 
     async def create_candidate(
         self,
@@ -1168,6 +1416,10 @@ class AssignmentApplicationService:
                 "The assignment changed. Reload it and try again.",
                 versioned.manifest.version,
             )
+        try:
+            require_question_setup_verified(versioned.manifest)
+        except DomainError as error:
+            raise _domain_api_error(error) from error
         question = _find_question(versioned.manifest, body.question_id)
         if self.realtime_credential_issuer is None:
             raise ClarosError(
@@ -1320,6 +1572,11 @@ class AssignmentApplicationService:
                 update={
                     "status": DomainAssignmentStatus.READY,
                     "physical_ir": _object_reference(ir_metadata),
+                    "detected_questions": tuple(
+                        QuestionDefinition.from_state(question) for question in questions
+                    ),
+                    "question_setup_verified": False,
+                    "question_setup_provenance": DomainQuestionSetupProvenance.DETECTED,
                     "questions": questions,
                     "warnings": tuple(physical_ir.ambiguity_flags),
                     "failure_code": None,
@@ -1894,6 +2151,138 @@ def _question_evidence(question: QuestionState) -> QuestionEvidence:
     )
 
 
+def _page_rect(box: CanonicalBox) -> PageRect:
+    return PageRect(
+        x_mpt=box.x0,
+        y_mpt=box.y0,
+        width_mpt=box.width,
+        height_mpt=box.height,
+    )
+
+
+def _question_setup_response(
+    manifest: AssignmentManifest,
+    physical_ir: PhysicalDocumentIR,
+) -> QuestionSetupResponse:
+    return QuestionSetupResponse(
+        version=manifest.version,
+        verified=manifest.question_setup_verified,
+        provenance=QuestionSetupProvenance(manifest.question_setup_provenance.value),
+        source_url=f"/api/v2/assignments/{manifest.assignment_id}/source",
+        page_count=len(physical_ir.pages),
+        questions=[
+            QuestionSetupQuestion(
+                question_id=question.question_id,
+                index=question.index,
+                prompt=question.exact_prompt,
+                instruction=question.instruction,
+                page_number=question.page_number,
+                placement_capability=PlacementCapability(question.placement_capability.value),
+                prompt_regions=[
+                    _page_rect(physical_ir.block_by_id(block_id).bbox)
+                    for block_id in question.prompt_block_ids
+                ],
+            )
+            for question in manifest.questions
+        ],
+    )
+
+
+def _validated_question_selection(
+    physical_ir: PhysicalDocumentIR,
+    manifest: AssignmentManifest,
+    *,
+    page_number: int,
+    block_ids: tuple[str, ...],
+    exclude_question_id: str | None = None,
+) -> tuple[
+    str,
+    tuple[str, ...],
+    tuple[PageRect, ...],
+    DomainPlacementCapability,
+]:
+    if page_number < 1 or page_number > len(physical_ir.pages):
+        raise InvalidQuestionSetup("Choose text from a worksheet page.")
+    if not block_ids or len(block_ids) != len(set(block_ids)):
+        raise InvalidQuestionSetup("Choose each part of the question once.")
+    try:
+        blocks = tuple(physical_ir.block_by_id(block_id) for block_id in block_ids)
+    except DocumentEngineError as error:
+        raise InvalidQuestionSetup("That worksheet text is unavailable.") from error
+    if any(block.kind != "text" for block in blocks):
+        raise InvalidQuestionSetup("Choose worksheet text for the question.")
+    if any(block.page_index != page_number - 1 for block in blocks):
+        raise InvalidQuestionSetup("Choose text from one worksheet page.")
+    reading_order = [block.reading_order for block in blocks]
+    if reading_order != sorted(reading_order):
+        raise InvalidQuestionSetup("Choose the question text in reading order.")
+    occupied = {
+        block_id
+        for question in manifest.questions
+        if question.question_id != exclude_question_id
+        for block_id in (*question.prompt_block_ids, *question.context_block_ids)
+    }
+    if occupied.intersection(block_ids):
+        raise InvalidQuestionSetup("That text already belongs to another question.")
+    try:
+        exact_prompt = physical_ir.reconstruct_text(block_ids)
+    except DocumentEngineError as error:
+        raise InvalidQuestionSetup("That selection cannot form a question.") from error
+    meaningful_words = re.findall(r"[\w']+", exact_prompt, flags=re.UNICODE)
+    if len(meaningful_words) < 2:
+        raise InvalidQuestionSetup("Choose enough text to form a question.")
+    temporary = QuestionEvidence(
+        question_id=exclude_question_id or "q_selection_preview",
+        display_identifier="1",
+        prompt_block_ids=block_ids,
+        context_block_ids=(),
+    )
+    plan = resolve_placement(physical_ir, temporary, "Sample answer")
+    capability = (
+        DomainPlacementCapability.INLINE_POSSIBLE
+        if plan.outcome == "inline"
+        else DomainPlacementCapability.APPENDIX_ONLY
+    )
+    return (
+        exact_prompt,
+        block_ids,
+        tuple(_page_rect(block.bbox) for block in blocks),
+        capability,
+    )
+
+
+def _placement_capability(
+    physical_ir: PhysicalDocumentIR,
+    *,
+    question_id: str,
+    display_identifier: str,
+    prompt_block_ids: tuple[str, ...],
+    context_block_ids: tuple[str, ...],
+) -> DomainPlacementCapability:
+    plan = resolve_placement(
+        physical_ir,
+        QuestionEvidence(
+            question_id=question_id,
+            display_identifier=display_identifier,
+            prompt_block_ids=prompt_block_ids,
+            context_block_ids=context_block_ids,
+        ),
+        "Sample answer",
+    )
+    return (
+        DomainPlacementCapability.INLINE_POSSIBLE
+        if plan.outcome == "inline"
+        else DomainPlacementCapability.APPENDIX_ONLY
+    )
+
+
+def _renumber_questions(questions: tuple[QuestionState, ...]) -> tuple[QuestionState, ...]:
+    return tuple(
+        question.model_copy(update={"index": index, "display_identifier": str(index)})
+        for index, question in enumerate(questions, start=1)
+    )
+
+
 def _questions_from_semantic_mapping(
     physical_ir: PhysicalDocumentIR,
     mapping: ValidatedMapping,
@@ -2092,6 +2481,15 @@ def _find_question(manifest: AssignmentManifest, question_id: str) -> QuestionSt
     raise _not_found("question_not_found", "That question could not be found.")
 
 
+def _find_question_index(
+    manifest: AssignmentManifest, question_id: str
+) -> tuple[int, QuestionState]:
+    for index, question in enumerate(manifest.questions):
+        if question.question_id == question_id:
+            return index, question
+    raise QuestionNotFound("That question could not be found.")
+
+
 def _find_export(manifest: AssignmentManifest, export_id: str) -> Any:
     for export in manifest.exports:
         if export.export_id == export_id:
@@ -2124,7 +2522,7 @@ def _domain_api_error(error: DomainError) -> ClarosError:
     status_code = 409
     if isinstance(error, (QuestionNotFound,)):
         status_code = 404
-    elif isinstance(error, (InvalidCandidate, InvalidCandidateOrigin)):
+    elif isinstance(error, (InvalidCandidate, InvalidCandidateOrigin, InvalidQuestionSetup)):
         status_code = 422
     elif isinstance(
         error,
@@ -2134,6 +2532,8 @@ def _domain_api_error(error: DomainError) -> ClarosError:
             ReviewTokenExpired,
             ReviewTokenInvalid,
             ReviewTokenStale,
+            QuestionSetupLocked,
+            QuestionSetupUnverified,
         ),
     ):
         status_code = 409
@@ -2142,6 +2542,16 @@ def _domain_api_error(error: DomainError) -> ClarosError:
         message=str(error),
         recoverable=True,
         status_code=status_code,
+    )
+
+
+def _question_selection_api_error(error: DocumentEngineError, *, version: int) -> ClarosError:
+    return ClarosError(
+        code="invalid_question_setup",
+        message="That worksheet text cannot be used as a question.",
+        recoverable=True,
+        status_code=422,
+        version=version,
     )
 
 

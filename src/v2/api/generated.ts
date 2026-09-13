@@ -661,6 +661,8 @@ export interface components {
       block_ids: string[];
       /** Page Number */
       page_number: number;
+      /** Question Id */
+      question_id?: string | null;
     };
     /** QuestionSelectionPreviewResponse */
     QuestionSelectionPreviewResponse: {

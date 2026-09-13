@@ -30,9 +30,9 @@ def test_source_filename_is_display_only_and_path_unsafe_names_are_rejected(
         manifest.__class__.model_validate({**manifest.model_dump(), "source_filename": filename})
 
 
-def test_question_source_order_is_invariant(manifest_factory) -> None:
+def test_question_display_order_is_invariant(manifest_factory) -> None:
     manifest = manifest_factory(question_count=2)
-    with pytest.raises(ValidationError, match="source order"):
+    with pytest.raises(ValidationError, match="display order"):
         manifest.__class__.model_validate(
             {**manifest.model_dump(), "questions": tuple(reversed(manifest.questions))}
         )

@@ -123,6 +123,17 @@ def _validate_manifest_transition(
         raise ValueError(
             "manifest physical IR reference may only be attached by the ready transition"
         )
+    if observed.detected_questions and updated.detected_questions != observed.detected_questions:
+        raise ValueError("detected question mapping is immutable")
+    if (
+        not observed.detected_questions
+        and updated.detected_questions
+        and not (
+            observed.status == AssignmentStatus.ANALYZING
+            and updated.status == AssignmentStatus.READY
+        )
+    ):
+        raise ValueError("detected question mapping may only be attached by the ready transition")
     if updated.source_filename != observed.source_filename:
         raise ValueError("manifest source filename is immutable")
     if updated.created_at != observed.created_at or updated.expires_at != observed.expires_at:

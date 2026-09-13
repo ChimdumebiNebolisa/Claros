@@ -93,7 +93,18 @@ def _create_sample(client: TestClient) -> dict[str, Any]:
         headers=MUTATION_HEADERS,
     )
     assert response.status_code == 201, response.text
-    return response.json()
+    assignment = response.json()
+    accepted = client.patch(
+        f"/api/v2/assignments/{assignment['assignment_id']}/question-setup",
+        json={
+            "assignment_version": assignment["version"],
+            "operation": {"kind": "accept"},
+        },
+        headers=MUTATION_HEADERS,
+    )
+    assert accepted.status_code == 200, accepted.text
+    assignment["version"] = accepted.json()["version"]
+    return assignment
 
 
 def _post_candidate(

@@ -26,6 +26,18 @@ class QuestionNotFound(DomainError):
     code = "question_not_found"
 
 
+class InvalidQuestionSetup(DomainError):
+    code = "invalid_question_setup"
+
+
+class QuestionSetupLocked(DomainError):
+    code = "question_setup_locked"
+
+
+class QuestionSetupUnverified(DomainError):
+    code = "question_setup_unverified"
+
+
 class CandidateNotFound(DomainError):
     code = "candidate_not_found"
 

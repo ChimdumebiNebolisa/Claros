@@ -224,6 +224,7 @@ class QuestionSelectionPreviewRequest(TransportModel):
     assignment_version: int = Field(ge=1)
     page_number: int = Field(ge=1, le=8)
     block_ids: list[str] = Field(min_length=1, max_length=64)
+    question_id: str | None = Field(default=None, min_length=1, max_length=96)
 
 
 class QuestionSelectionPreviewResponse(TransportModel):

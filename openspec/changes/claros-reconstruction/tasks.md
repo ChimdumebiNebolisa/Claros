@@ -136,9 +136,9 @@ do not use checkboxes and therefore do not count toward V2 progress.
 
 ### 5B. Student-verifiable question detection and correction
 
-- [ ] 5B.1 [Lead] Amend product, design, active OpenSpec, domain, and generated API authority for question setup, correction-safe page blocks, server selection preview, versioned accept/add/replace/remove/reorder/reset, and downstream locks; verify strict OpenSpec and OpenAPI parity.
-- [ ] 5B.2 [Lead] Persist immutable detected mapping plus validated active mapping/provenance, stable identities, accepted-setup state, and reset; verify manifest migration, CAS, owner boundary, stale version, and immutable source/IR behavior.
-- [ ] 5B.3 [Document integrator] Implement owner-authorized block evidence, server exact-text selection preview, overlap/order/type validation, and placement-capability recomputation; verify valid add/replace and every unsafe selection rejection.
+- [x] 5B.1 [Lead] Amend product, design, active OpenSpec, domain, and generated API authority for question setup, correction-safe page blocks, server selection preview, versioned accept/add/replace/remove/reorder/reset, and downstream locks; verify strict OpenSpec and OpenAPI parity.
+- [x] 5B.2 [Lead] Persist immutable detected mapping plus validated active mapping/provenance, stable identities, accepted-setup state, and reset; verify manifest migration, CAS, owner boundary, stale version, and immutable source/IR behavior.
+- [x] 5B.3 [Document integrator] Implement owner-authorized block evidence, server exact-text selection preview, overlap/order/type validation, and placement-capability recomputation; verify valid add/replace and every unsafe selection rejection.
 - [ ] 5B.4 [Lead] Integrate question-check, correction, canonical refresh, and accept/start transitions into XState and the generated API adapter; verify corrected ordering and prompts become Realtime/runtime truth.
 - [ ] 5B.5 [Frontend integrator] Build the fast question-check screen and authentic EmbedPDF page/highlight selection UI in the completed Claros system; verify list-region synchronization and no general PDF editing surface.
 - [ ] 5B.6 [Frontend integrator] Add exact-text confirmation, remove/reorder/reset controls, pointer drag, keyboard/touch block selection, mobile layout, focus/live-region behavior, 200-percent zoom, and reduced motion; verify drag is never required.

@@ -14,8 +14,11 @@ from backend.domain.errors import (
     CandidateNotFound,
     InvalidCandidate,
     InvalidCandidateOrigin,
+    InvalidQuestionSetup,
     NoConfirmedAnswers,
     QuestionNotFound,
+    QuestionSetupLocked,
+    QuestionSetupUnverified,
     ReviewTokenExpired,
     ReviewTokenInvalid,
     ReviewTokenStale,
@@ -36,6 +39,7 @@ from backend.domain.models import (
     GuidedFinalInteraction,
     ObjectReference,
     Placement,
+    QuestionSetupProvenance,
     QuestionState,
     RephraseRecord,
     ReviewTokenRecord,
@@ -107,6 +111,91 @@ def require_active(manifest: AssignmentManifest, *, now: datetime | None = None)
         raise AssignmentExpired("This assignment has expired.")
 
 
+def question_setup_is_locked(manifest: AssignmentManifest) -> bool:
+    return bool(manifest.exports or manifest.confirmation_receipts) or any(
+        question.candidate_sequence
+        or question.current_candidate is not None
+        or question.confirmed_answer is not None
+        or question.revision is not None
+        or question.rephrases
+        or question.review_tokens
+        for question in manifest.questions
+    )
+
+
+def require_question_setup_verified(manifest: AssignmentManifest) -> None:
+    if not manifest.question_setup_verified:
+        raise QuestionSetupUnverified("Check the detected questions before answering.")
+
+
+def accept_question_setup(
+    manifest: AssignmentManifest,
+    *,
+    assignment_version: int,
+    now: datetime | None = None,
+) -> AssignmentManifest:
+    require_active(manifest, now=now)
+    require_current_version(manifest, assignment_version)
+    if not manifest.questions:
+        raise InvalidQuestionSetup("Keep at least one question before starting.")
+    if question_setup_is_locked(manifest):
+        raise QuestionSetupLocked("Question setup can't be changed after answers are added.")
+    return manifest.model_copy(
+        update={"version": manifest.version + 1, "question_setup_verified": True}
+    )
+
+
+def replace_question_setup(
+    manifest: AssignmentManifest,
+    *,
+    questions: tuple[QuestionState, ...],
+    assignment_version: int,
+    provenance: QuestionSetupProvenance,
+    now: datetime | None = None,
+) -> AssignmentManifest:
+    require_active(manifest, now=now)
+    require_current_version(manifest, assignment_version)
+    if question_setup_is_locked(manifest):
+        raise QuestionSetupLocked("Question setup can't be changed after answers are added.")
+    if not questions or len(questions) > 40:
+        raise InvalidQuestionSetup("Keep between 1 and 40 questions.")
+    expected = list(range(1, len(questions) + 1))
+    if [question.index for question in questions] != expected:
+        raise InvalidQuestionSetup("Question order is invalid.")
+    if [question.display_identifier for question in questions] != [
+        str(index) for index in expected
+    ]:
+        raise InvalidQuestionSetup("Question numbering is invalid.")
+    if len({question.question_id for question in questions}) != len(questions):
+        raise InvalidQuestionSetup("Question identities must be unique.")
+    return manifest.model_copy(
+        update={
+            "version": manifest.version + 1,
+            "questions": questions,
+            "question_setup_verified": False,
+            "question_setup_provenance": provenance,
+        }
+    )
+
+
+def reset_question_setup(
+    manifest: AssignmentManifest,
+    *,
+    assignment_version: int,
+    now: datetime | None = None,
+) -> AssignmentManifest:
+    if not manifest.detected_questions:
+        raise InvalidQuestionSetup("The detected questions are unavailable for reset.")
+    questions = tuple(question.to_state() for question in manifest.detected_questions)
+    return replace_question_setup(
+        manifest,
+        questions=questions,
+        assignment_version=assignment_version,
+        provenance=QuestionSetupProvenance.DETECTED,
+        now=now,
+    )
+
+
 def replace_candidate(
     manifest: AssignmentManifest,
     *,
@@ -124,6 +213,7 @@ def replace_candidate(
     require_current_version(manifest, assignment_version)
     if manifest.status != AssignmentStatus.READY:
         raise InvalidCandidate("The worksheet is not ready for an answer.")
+    require_question_setup_verified(manifest)
     validate_exact_text(exact_text)
     index, question = _find_question(manifest, question_id)
     _validate_origin(question, exact_text=exact_text, origin=origin, interaction=interaction)
@@ -173,6 +263,7 @@ def record_rephrase(
     require_current_version(manifest, assignment_version)
     if manifest.status != AssignmentStatus.READY:
         raise InvalidCandidate("The worksheet is not ready for an answer.")
+    require_question_setup_verified(manifest)
     validate_exact_text(suggestion_text)
     index, question = _find_question(manifest, question_id)
     candidate = _require_candidate(question, candidate_id, candidate_version)
@@ -219,6 +310,7 @@ def issue_review(
 
     require_active(manifest, now=now)
     require_current_version(manifest, assignment_version)
+    require_question_setup_verified(manifest)
     index, question = _find_question(manifest, question_id)
     candidate = _require_candidate(question, candidate_id, candidate_version)
     if not hmac.compare_digest(manifest.owner_hash, owner_hash):
@@ -297,6 +389,7 @@ def confirm_candidate(
         raise ReviewTokenInvalid("The review has already been used.")
 
     require_current_version(manifest, assignment_version)
+    require_question_setup_verified(manifest)
     candidate = _require_candidate(question, candidate_id, candidate_version)
     if (
         record.assignment_id != manifest.assignment_id

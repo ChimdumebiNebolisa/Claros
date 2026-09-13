@@ -155,6 +155,16 @@ def test_export_deadline_kills_worker_and_persists_failed_export(tmp_path: Path)
         )
         assert assignment_response.status_code == 201
         assignment = assignment_response.json()
+        accepted_response = client.patch(
+            f"/api/v2/assignments/{assignment['assignment_id']}/question-setup",
+            json={
+                "assignment_version": assignment["version"],
+                "operation": {"kind": "accept"},
+            },
+            headers=MUTATION_HEADERS,
+        )
+        assert accepted_response.status_code == 200
+        assignment["version"] = accepted_response.json()["version"]
         question = assignment["questions"][0]
         candidate_response = client.post(
             f"/api/v2/assignments/{assignment['assignment_id']}"

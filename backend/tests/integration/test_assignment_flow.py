@@ -61,7 +61,15 @@ def _create_sample(client: TestClient) -> dict[str, object]:
         "How does sunlight help a plant make food?",
         "How can photosynthesis support other living things?",
     ]
-    return payload
+    accepted = client.patch(
+        f"/api/v2/assignments/{payload['assignment_id']}/question-setup",
+        json={"assignment_version": payload["version"], "operation": {"kind": "accept"}},
+        headers=MUTATION_HEADERS,
+    )
+    assert accepted.status_code == 200, accepted.text
+    refreshed = client.get(f"/api/v2/assignments/{payload['assignment_id']}")
+    assert refreshed.status_code == 200, refreshed.text
+    return refreshed.json()
 
 
 def test_typed_confirmation_partial_export_and_restart(tmp_path: Path) -> None:

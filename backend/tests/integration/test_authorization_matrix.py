@@ -60,6 +60,16 @@ def _create_completed_assignment(client: TestClient) -> dict[str, object]:
     assignment = created_response.json()
     assignment_id = assignment["assignment_id"]
     question_id = assignment["questions"][0]["question_id"]
+    accepted_response = client.patch(
+        f"/api/v2/assignments/{assignment_id}/question-setup",
+        json={
+            "assignment_version": assignment["version"],
+            "operation": {"kind": "accept"},
+        },
+        headers=MUTATION_HEADERS,
+    )
+    assert accepted_response.status_code == 200, accepted_response.text
+    assignment["version"] = accepted_response.json()["version"]
 
     candidate_response = client.post(
         f"/api/v2/assignments/{assignment_id}/questions/{question_id}/candidates",

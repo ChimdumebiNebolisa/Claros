@@ -43,6 +43,11 @@ class PlacementCapability(StrEnum):
     APPENDIX_ONLY = "appendix_only"
 
 
+class QuestionSetupProvenance(StrEnum):
+    DETECTED = "detected"
+    STUDENT_CORRECTED = "student_corrected"
+
+
 class AssignmentStatus(StrEnum):
     ANALYZING = "analyzing"
     READY = "ready"
@@ -176,7 +181,7 @@ class RevisionDraft(DomainModel):
         return self
 
 
-class QuestionState(DomainModel):
+class QuestionDefinition(DomainModel):
     question_id: str
     index: int = Field(ge=1, le=40)
     display_identifier: str = Field(min_length=1, max_length=64)
@@ -186,15 +191,9 @@ class QuestionState(DomainModel):
     instruction: str | None = None
     page_number: int = Field(ge=1, le=8)
     placement_capability: PlacementCapability
-    candidate_sequence: int = Field(default=0, ge=0)
-    current_candidate: Candidate | None = None
-    confirmed_answer: ConfirmedAnswer | None = None
-    revision: RevisionDraft | None = None
-    rephrases: tuple[RephraseRecord, ...] = ()
-    review_tokens: tuple[ReviewTokenRecord, ...] = ()
 
     @model_validator(mode="after")
-    def validate_question(self) -> QuestionState:
+    def validate_definition(self) -> QuestionDefinition:
         validate_identifier(self.question_id, label="question_id")
         if not self.display_identifier.strip() or any(
             ord(character) < 32 for character in self.display_identifier
@@ -209,6 +208,36 @@ class QuestionState(DomainModel):
             validate_identifier(block_id, label="block_id")
         if len(evidence_ids) != len(set(evidence_ids)):
             raise ValueError("question evidence block identifiers must be unique")
+        return self
+
+    @classmethod
+    def from_state(cls, question: QuestionState) -> QuestionDefinition:
+        return cls(
+            question_id=question.question_id,
+            index=question.index,
+            display_identifier=question.display_identifier,
+            exact_prompt=question.exact_prompt,
+            prompt_block_ids=question.prompt_block_ids,
+            context_block_ids=question.context_block_ids,
+            instruction=question.instruction,
+            page_number=question.page_number,
+            placement_capability=question.placement_capability,
+        )
+
+    def to_state(self) -> QuestionState:
+        return QuestionState(**self.model_dump())
+
+
+class QuestionState(QuestionDefinition):
+    candidate_sequence: int = Field(default=0, ge=0)
+    current_candidate: Candidate | None = None
+    confirmed_answer: ConfirmedAnswer | None = None
+    revision: RevisionDraft | None = None
+    rephrases: tuple[RephraseRecord, ...] = ()
+    review_tokens: tuple[ReviewTokenRecord, ...] = ()
+
+    @model_validator(mode="after")
+    def validate_question(self) -> QuestionState:
         if (
             self.current_candidate is not None
             and self.current_candidate.candidate_version > self.candidate_sequence
@@ -248,6 +277,9 @@ class AssignmentManifest(DomainModel):
     source_filename: str = Field(min_length=1, max_length=255)
     source: ObjectReference
     physical_ir: ObjectReference | None = None
+    detected_questions: tuple[QuestionDefinition, ...] = ()
+    question_setup_verified: bool = True
+    question_setup_provenance: QuestionSetupProvenance = QuestionSetupProvenance.DETECTED
     questions: tuple[QuestionState, ...] = ()
     exports: tuple[ExportRecord, ...] = ()
     confirmation_receipts: tuple[ConfirmationReceipt, ...] = ()
@@ -273,12 +305,31 @@ class AssignmentManifest(DomainModel):
             raise ValueError("assignment expiry must follow creation")
         ordered = tuple(sorted(self.questions, key=lambda item: item.index))
         if self.questions != ordered:
-            raise ValueError("questions must remain in source order")
+            raise ValueError("questions must remain in display order")
         question_ids = [question.question_id for question in self.questions]
         if len(question_ids) != len(set(question_ids)):
             raise ValueError("question identifiers must be unique")
         if len(self.questions) > 40:
             raise ValueError("assignment exceeds the supported question limit")
+        detected = tuple(sorted(self.detected_questions, key=lambda item: item.index))
+        if self.detected_questions != detected:
+            raise ValueError("detected questions must remain in source order")
+        detected_ids = [question.question_id for question in self.detected_questions]
+        if len(detected_ids) != len(set(detected_ids)):
+            raise ValueError("detected question identifiers must be unique")
+        if len(self.detected_questions) > 40:
+            raise ValueError("assignment exceeds the detected question limit")
+        has_downstream_state = bool(self.exports or self.confirmation_receipts) or any(
+            question.candidate_sequence
+            or question.current_candidate is not None
+            or question.confirmed_answer is not None
+            or question.revision is not None
+            or question.rephrases
+            or question.review_tokens
+            for question in self.questions
+        )
+        if has_downstream_state and not self.question_setup_verified:
+            raise ValueError("downstream answer state requires verified question setup")
         export_ids = [item.export_id for item in self.exports]
         if len(export_ids) != len(set(export_ids)):
             raise ValueError("export identifiers must be unique")
