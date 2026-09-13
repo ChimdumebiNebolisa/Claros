@@ -72,7 +72,7 @@ do not use checkboxes and therefore do not count toward V2 progress.
 - [x] 1B.1 [Lead] Replace the obsolete Untitled-only authority with the approved Claros-owned open-code foundation and typography-led marketing direction; verify authority text no longer directs future agents to restore Untitled or a hero screenshot.
 - [x] 1B.2 [Frontend integrator] Redesign marketing, conversation/composer, draft, exact review, upload/loading, shell, and source framing without changing product state or handlers; verify desktop, tablet, and mobile visual evidence.
 - [x] 1B.3 [Lead] Remove only proven-unused V2 styling and dependencies, then run formatting, lint, typecheck, frontend/conversation tests, Storybook accessibility, production build, browser tests, visual checks, and OpenSpec validation.
-- [ ] 1B.4 [Reviewer] Perform an independent read-only design/code review against the before/after evidence and frozen product semantics.
+- [x] 1B.4 [Reviewer] Perform an independent read-only design/code review against the before/after evidence and frozen product semantics.
 - [x] 1.7 [Lead] Run format, lint, typecheck, unit, Storybook, production build, route smoke, and keyboard upload/dialog tests plus a CSP/WASM/worker production smoke; verify the empty V2 shell screenshot has no fake PDF or second visible design system.
 - [x] 1.8 [Reviewer] Perform a read-only Gate 1 contract, dependency, accessibility, and browser review; verify all critical findings are fixed and record the checkpoint SHA in `docs/v2/STATUS.md`.
 

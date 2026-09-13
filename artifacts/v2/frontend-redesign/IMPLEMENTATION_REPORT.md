@@ -5,9 +5,9 @@
 - **Feature implementation checkpoint:** `42574782016a8c870c0943eaf3d3f8a39baff807`
 - **Frontend implementation checkpoint:** `fec63d2ae5a1535e41fb9b70078840e5f29bb0e4`
 - **Final capture-harness checkpoint:** `6a2d9f6910bef71221f381b13ac18be00a3224fa`
-- **Independent review:** first pass closed authority/evidence/debris findings;
-  second pass closed exact-review ordering; third pass requested a deterministic
-  ready-state source wait; final-candidate review pending
+- **Reviewed evidence SHA:** `4321339008b25b3ac91da7d31e7ee03c15b55334`
+- **Independent review:** approved with no P0–P3 findings after the authority,
+  exact-review ordering, and deterministic ready-state evidence corrections
 - **Date:** 2026-09-13
 
 ## Outcome
@@ -137,6 +137,13 @@ named ready state. Two consecutive full captures produced the same ready-state h
 inspection confirms that the source excerpt—not its transient loader—is present.
 The tool host uses Node 24 and therefore prints an engine warning; the project
 targets Node 22, and its dependency verifier checks that declared target.
+
+The final independent read-only review approved exact evidence commit `4321339`
+with no P0–P3 findings. It found the redesign materially better than the baseline,
+coherent, clear about conversation versus final answer, voice-primary without
+hiding typing, unmistakable at exact approval, grounded by the authentic worksheet,
+and free of active mixed-system or demo-state remnants. It concluded that another
+large redesign is not justified; refinement is the appropriate next step.
 
 ## Authority and semantic boundary
 
