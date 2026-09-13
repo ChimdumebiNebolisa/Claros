@@ -73,16 +73,10 @@ a {
 }
 
 .claros-brand-mark {
-  display: grid;
+  display: block;
+  flex: none;
   width: 28px;
   height: 28px;
-  place-items: center;
-  border: 1px solid currentColor;
-  border-radius: 7px 7px 7px 2px;
-  background: var(--claros-blue);
-  color: white;
-  font-family: "Instrument Serif", Georgia, serif;
-  font-size: 17px;
 }
 
 .claros-loader {

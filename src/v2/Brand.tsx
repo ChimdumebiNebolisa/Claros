@@ -3,9 +3,7 @@ import { Link } from "react-router-dom";
 export function Brand({ to = "/" }: { to?: string }) {
   return (
     <Link className="claros-brand" to={to} aria-label="Claros home">
-      <span className="claros-brand-mark" aria-hidden="true">
-        C
-      </span>
+      <img className="claros-brand-mark" src="/favicon.svg?v=2" alt="" />
       <span>Claros</span>
     </Link>
   );
