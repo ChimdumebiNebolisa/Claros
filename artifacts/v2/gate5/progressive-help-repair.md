@@ -213,23 +213,33 @@ environment/transport observations, not counted as live conversation passes.
   run reached 75/76 only because one assertion still expected the `.1` policy
   wording; correcting that assertion, without changing runtime behavior, was
   followed by this complete green rerun.
-- Full frontend suite on `.1`: 111/111 passed across 14 files. Two final `.2`
-  full-suite attempts (default workers, then one worker with file parallelism
-  disabled) produced no test output for several minutes under host load and
-  were terminated. Final `.2` is therefore covered by the 23/23 effective
-  browser-adapter suite, not misrepresented as another full-suite pass.
+- Full frontend suite on `.1`: 111/111 passed across 14 files. Two initial final
+  `.2` attempts produced no test output for several minutes under host load and
+  were terminated. A later isolated single-worker rerun on the unchanged final
+  policy completed successfully: 111/111 passed across 14 files in 229.21
+  seconds.
 - OpenPDF/qpdf/PDFBox publication regression: 22/22 passed, zero skipped.
-- Real-application Chromium suite: 9/10 passed. The deterministic replay test
-  missed its fixture's 800 ms transient `Speaking` state and observed `Ready`;
-  its caption and application state were already present. An isolated rerun
-  then hung beyond the test bound and was terminated. This is retained as a
-  failed browser result rather than reported green; no changed production path
-  participates in that fixture timer.
+- The initial real-application Chromium suite passed 9/10. Its deterministic
+  replay test missed the fixture's transient `Speaking` state and observed
+  `Ready`; its caption and application state were already present. An isolated
+  retry then hung beyond the test bound and was terminated. Follow-up
+  reproduction on the frozen policy passed 4/5; the failure instead missed the
+  earlier `Thinking` label while the captured page already contained the full
+  Claros reply and had returned to `Ready`. This established that the test was
+  racing transient paints, not that one specific lifecycle transition was
+  broken.
+- The browser-only `controls` fixture now keeps its simulated `Speaking` state
+  active until the test performs the interrupt it is intended to verify. The
+  E2E assertion no longer requires Playwright to observe the short `Thinking`
+  paint; lower-level machine and adapter tests continue to assert the actual
+  thinking/speaking transition sequence. No production application or Realtime
+  policy code changed. On a freshly rebuilt deterministic application, the
+  repaired test passed 10/10 repeated runs and the complete Chromium suite then
+  passed 10/10.
 - Final `.2` typecheck, Prettier, OpenAPI parity, strict OpenSpec, and whitespace
-  checks passed. Both the full ESLint command and a changed-file-only ESLint
-  command stayed alive without output for several minutes under host load and
-  were terminated; `.1` had passed the complete lint gate before the `.2`
-  policy/test assertion tightening.
+  checks passed. The initial full and changed-file-only ESLint attempts stalled
+  under host load; a later unchanged full ESLint rerun completed with exit code
+  zero, and another full rerun passed after the browser-fixture repair.
 
 ## Independent read-only red-team review
 

@@ -49,10 +49,6 @@ test("deterministic Realtime replay preserves capture intent, typed continuity, 
   await sendMessage(page, "Can you give me one short hint?");
   await expect(
     page.getByLabel("Voice controls").getByRole("status"),
-  ).toContainText("Thinking");
-  await expect(stopListening).toBeVisible();
-  await expect(
-    page.getByLabel("Voice controls").getByRole("status"),
   ).toContainText("Speaking");
   await expect(stopListening).toBeVisible();
   await expect(page.getByLabel("Live captions")).toContainText(

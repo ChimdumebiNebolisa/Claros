@@ -131,8 +131,12 @@ class BrowserReplayRealtimeAdapter implements RealtimeAdapter {
         sessionId: this.sessionId(),
       });
       this.emit({ type: "voice_state", state: "speaking" });
+      if (this.scenario() !== "controls") {
+        this.later(800, () =>
+          this.emit({ type: "voice_state", state: "ready" }),
+        );
+      }
     });
-    this.later(1_200, () => this.emit({ type: "voice_state", state: "ready" }));
     return this.operation("typed_turn", text);
   }
 
