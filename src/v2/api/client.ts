@@ -6,6 +6,7 @@ import type {
   ExportResult,
   RecoverableError,
   ReviewSnapshot,
+  QuestionSetup,
 } from "../domain/contracts";
 
 type ApiSchemas = components["schemas"];
@@ -22,6 +23,8 @@ export type ApiQuestionSetup = ApiSchemas["QuestionSetupResponse"];
 export type ApiQuestionBlocks = ApiSchemas["QuestionBlocksResponse"];
 export type ApiQuestionSelectionPreview =
   ApiSchemas["QuestionSelectionPreviewResponse"];
+export type ApiQuestionSetupOperation =
+  ApiSchemas["QuestionSetupMutationRequest"]["operation"];
 
 export class ClarosApiError extends Error {
   readonly detail: RecoverableError;
@@ -207,6 +210,37 @@ export const getQuestionSetup = (assignmentId: string, signal?: AbortSignal) =>
     `/api/v2/assignments/${encodeURIComponent(assignmentId)}/question-setup`,
     { signal },
   );
+
+export function mapQuestionSetup(payload: ApiQuestionSetup): QuestionSetup {
+  return {
+    version: payload.version,
+    verified: payload.verified,
+    provenance: payload.provenance,
+    sourceUrl: payload.source_url,
+    pages: payload.pages.map((page) => ({
+      pageNumber: page.page_number,
+      widthMpt: page.width_mpt,
+      heightMpt: page.height_mpt,
+    })),
+    questions: payload.questions.map((question) => ({
+      id: question.question_id,
+      index: question.index,
+      prompt: question.prompt,
+      instruction: question.instruction ?? "",
+      pageNumber: question.page_number,
+      placement:
+        question.placement_capability === "inline_possible"
+          ? ("inline" as const)
+          : ("appendix" as const),
+      regions: question.prompt_regions.map((region) => ({
+        xMpt: region.x_mpt,
+        yMpt: region.y_mpt,
+        widthMpt: region.width_mpt,
+        heightMpt: region.height_mpt,
+      })),
+    })),
+  };
+}
 
 export const getQuestionBlocks = (
   assignmentId: string,

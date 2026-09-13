@@ -691,6 +691,15 @@ export interface components {
         | components["schemas"]["ReorderQuestionsOperation"]
         | components["schemas"]["ResetQuestionSetupOperation"];
     };
+    /** QuestionSetupPage */
+    QuestionSetupPage: {
+      /** Height Mpt */
+      height_mpt: number;
+      /** Page Number */
+      page_number: number;
+      /** Width Mpt */
+      width_mpt: number;
+    };
     /**
      * QuestionSetupProvenance
      * @enum {string}
@@ -716,6 +725,8 @@ export interface components {
     QuestionSetupResponse: {
       /** Page Count */
       page_count: number;
+      /** Pages */
+      pages: components["schemas"]["QuestionSetupPage"][];
       provenance: components["schemas"]["QuestionSetupProvenance"];
       /** Questions */
       questions: components["schemas"]["QuestionSetupQuestion"][];

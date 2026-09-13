@@ -193,12 +193,19 @@ class QuestionSetupQuestion(TransportModel):
     prompt_regions: list[PageRect] = Field(min_length=1, max_length=64)
 
 
+class QuestionSetupPage(TransportModel):
+    page_number: int = Field(ge=1, le=8)
+    width_mpt: int = Field(gt=0)
+    height_mpt: int = Field(gt=0)
+
+
 class QuestionSetupResponse(TransportModel):
     version: int = Field(ge=1)
     verified: bool
     provenance: QuestionSetupProvenance
     source_url: str = Field(min_length=1)
     page_count: int = Field(ge=1, le=8)
+    pages: list[QuestionSetupPage] = Field(min_length=1, max_length=8)
     questions: list[QuestionSetupQuestion] = Field(min_length=1, max_length=40)
 
 

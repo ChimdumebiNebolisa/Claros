@@ -10,6 +10,7 @@ import type {
   ExportResult,
   RecoverableError,
   ReviewSnapshot,
+  QuestionSetup,
   VoiceState,
 } from "./contracts";
 import { isCanonicalVoiceConfirmation } from "./contracts";
@@ -28,6 +29,8 @@ import {
 export const fixtureScenarios = [
   "upload",
   "checking",
+  "question-check",
+  "question-editing",
   "ready",
   "unsupported",
   "question-choice",
@@ -53,6 +56,7 @@ export type FixtureScenario = (typeof fixtureScenarios)[number];
 
 export type WorkspaceContext = {
   assignment: Assignment | null;
+  questionSetup: QuestionSetup | null;
   activeQuestionIndex: number;
   path: AnswerPath | null;
   candidate: Candidate | null;
@@ -84,6 +88,7 @@ export type WorkspaceEvent =
   | {
       type: "ANALYSIS_READY";
       assignment?: Assignment;
+      questionSetup?: QuestionSetup;
       confirmedAnswers?: Readonly<Record<string, ConfirmedAnswer>>;
       activeQuestionIndex?: number;
       candidate?: Candidate | null;
@@ -91,6 +96,10 @@ export type WorkspaceEvent =
   | { type: "ANALYSIS_FAILED"; error: RecoverableError }
   | { type: "REQUEST_FAILED"; error: RecoverableError }
   | { type: "START_QUESTION" }
+  | { type: "EDIT_QUESTIONS" }
+  | { type: "CANCEL_QUESTION_EDIT" }
+  | { type: "QUESTION_SETUP_UPDATED"; questionSetup: QuestionSetup }
+  | { type: "QUESTION_SETUP_ACCEPTED"; questionSetup: QuestionSetup }
   | { type: "CHOOSE_DIRECT" }
   | { type: "CHOOSE_GUIDED" }
   | { type: "TYPE_INSTEAD" }
@@ -183,6 +192,7 @@ export type WorkspaceEvent =
 export function createInitialWorkspaceContext(): WorkspaceContext {
   return {
     assignment: null,
+    questionSetup: null,
     activeQuestionIndex: 0,
     path: null,
     candidate: null,
@@ -206,6 +216,25 @@ const cloneAssignment = (version = fixtureAssignment.version): Assignment => ({
   ...fixtureAssignment,
   version,
   questions: fixtureAssignment.questions.map((question) => ({ ...question })),
+});
+
+const fixtureQuestionSetup = (verified = false): QuestionSetup => ({
+  version: fixtureAssignment.version,
+  verified,
+  provenance: "detected",
+  sourceUrl: "/api/v2/fixtures/biology/source",
+  pages: [{ pageNumber: 1, widthMpt: 612_000, heightMpt: 792_000 }],
+  questions: fixtureAssignment.questions.map((question, index) => ({
+    ...question,
+    regions: [
+      {
+        xMpt: 72_000,
+        yMpt: 217_691 + index * 160_000,
+        widthMpt: [184_912, 267_995, 329_381][index],
+        heightMpt: 13_000,
+      },
+    ],
+  })),
 });
 
 const createReview = (
@@ -252,6 +281,12 @@ function contextForScenario(scenario: FixtureScenario): WorkspaceContext {
   }
 
   context.assignment = cloneAssignment();
+  context.questionSetup = fixtureQuestionSetup(
+    scenario !== "question-check" && scenario !== "question-editing",
+  );
+  if (scenario === "question-check" || scenario === "question-editing") {
+    return context;
+  }
   if (scenario === "conversation-empty") return context;
   if (scenario === "conversation-listening") {
     return {
@@ -413,6 +448,8 @@ const scenarioTarget = (scenario: FixtureScenario) => {
   const targets: Record<FixtureScenario, string> = {
     upload: "#claros-v2-upload",
     checking: "#claros-v2-checking",
+    "question-check": "#claros-v2-question-check",
+    "question-editing": "#claros-v2-question-editing",
     ready: "#claros-v2-ready",
     unsupported: "#claros-v2-rejected",
     "question-choice": "#claros-v2-question-choice",
@@ -498,6 +535,7 @@ export const workspaceMachine = setup({
       event.type === "ANALYSIS_READY" && event.assignment
         ? {
             assignment: event.assignment,
+            questionSetup: event.questionSetup ?? null,
             confirmedAnswers: event.confirmedAnswers ?? {},
             activeQuestionIndex: event.activeQuestionIndex ?? 0,
             candidate: event.candidate ?? null,
@@ -514,8 +552,39 @@ export const workspaceMachine = setup({
               : {},
             error: null,
           }
-        : { assignment: cloneAssignment(), error: null },
+        : {
+            assignment: cloneAssignment(),
+            questionSetup: fixtureQuestionSetup(),
+            error: null,
+          },
     ),
+    applyQuestionSetup: assign(({ context, event }) => {
+      if (
+        event.type !== "QUESTION_SETUP_UPDATED" &&
+        event.type !== "QUESTION_SETUP_ACCEPTED"
+      ) {
+        return {};
+      }
+      return {
+        questionSetup: event.questionSetup,
+        assignment: context.assignment
+          ? {
+              ...context.assignment,
+              version: event.questionSetup.version,
+              questions: event.questionSetup.questions.map((question) => ({
+                id: question.id,
+                index: question.index,
+                prompt: question.prompt,
+                instruction: question.instruction,
+                pageNumber: question.pageNumber,
+                placement: question.placement,
+              })),
+            }
+          : null,
+        activeQuestionIndex: 0,
+        error: null,
+      };
+    }),
     setError: assign({
       error: ({ event }) => ("error" in event ? event.error : null),
     }),
@@ -1065,8 +1134,33 @@ export const workspaceMachine = setup({
     checking: {
       id: "claros-v2-checking",
       on: {
-        ANALYSIS_READY: { target: "ready", actions: "setAnalysisReady" },
+        ANALYSIS_READY: {
+          target: "questionCheck",
+          actions: "setAnalysisReady",
+        },
         ANALYSIS_FAILED: { target: "rejected", actions: "setError" },
+      },
+    },
+    questionCheck: {
+      id: "claros-v2-question-check",
+      on: {
+        EDIT_QUESTIONS: "questionEditing",
+        QUESTION_SETUP_UPDATED: { actions: "applyQuestionSetup" },
+        QUESTION_SETUP_ACCEPTED: {
+          target: "conversation",
+          actions: ["applyQuestionSetup", "chooseConversation"],
+        },
+      },
+    },
+    questionEditing: {
+      id: "claros-v2-question-editing",
+      on: {
+        CANCEL_QUESTION_EDIT: "questionCheck",
+        QUESTION_SETUP_UPDATED: { actions: "applyQuestionSetup" },
+        QUESTION_SETUP_ACCEPTED: {
+          target: "conversation",
+          actions: ["applyQuestionSetup", "chooseConversation"],
+        },
       },
     },
     rejected: {

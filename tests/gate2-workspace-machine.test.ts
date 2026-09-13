@@ -14,6 +14,44 @@ const startAssignment = () => {
 };
 
 describe("Claros V2 workspace machine", () => {
+  it("requires accepted canonical question setup before answering", () => {
+    const actor = createActor(workspaceMachine).start();
+    actor.send({ type: "LOAD_FIXTURE_SCENARIO", scenario: "question-check" });
+    expect(actor.getSnapshot().matches("questionCheck")).toBe(true);
+    const original = actor.getSnapshot().context.questionSetup!;
+
+    actor.send({ type: "EDIT_QUESTIONS" });
+    expect(actor.getSnapshot().matches("questionEditing")).toBe(true);
+    const reordered = {
+      ...original,
+      version: original.version + 1,
+      provenance: "student_corrected" as const,
+      questions: [...original.questions]
+        .reverse()
+        .map((question, index) => ({ ...question, index: index + 1 })),
+    };
+    actor.send({ type: "QUESTION_SETUP_UPDATED", questionSetup: reordered });
+    expect(actor.getSnapshot().context.assignment?.questions[0].id).toBe(
+      original.questions.at(-1)?.id,
+    );
+
+    actor.send({ type: "CANCEL_QUESTION_EDIT" });
+    expect(actor.getSnapshot().matches("questionCheck")).toBe(true);
+    actor.send({
+      type: "QUESTION_SETUP_ACCEPTED",
+      questionSetup: {
+        ...reordered,
+        version: reordered.version + 1,
+        verified: true,
+      },
+    });
+    expect(actor.getSnapshot().matches("conversation")).toBe(true);
+    expect(actor.getSnapshot().context.assignment?.version).toBe(
+      reordered.version + 1,
+    );
+    actor.stop();
+  });
+
   it("preserves exact Unicode and makes exact review unavoidable", () => {
     const actor = startAssignment();
     const exact = "  Café’s leaves use CO₂ — not ASCII.\nSecond line.  ";

@@ -261,6 +261,10 @@ a {
   justify-content: center;
 }
 
+.v2-workspace-grid--wide-task {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .v2-task {
   display: flex;
   min-width: 0;
@@ -272,6 +276,28 @@ a {
 
 .v2-task-inner {
   width: min(100%, 860px);
+}
+
+.v2-task--wide {
+  display: block;
+  padding: 0;
+}
+
+.v2-task-inner--wide {
+  width: 100%;
+  max-width: none;
+}
+
+.v2-checking-layout {
+  display: grid;
+  min-height: calc(100dvh - 68px);
+  grid-template-columns: minmax(360px, 0.8fr) minmax(480px, 1.2fr);
+  gap: 36px;
+  padding: 44px clamp(28px, 4vw, 64px);
+}
+
+.v2-checking-layout > :first-child {
+  align-self: start;
 }
 
 .v2-task h1 {
@@ -401,6 +427,10 @@ a {
     padding: 48px 32px;
   }
 
+  .v2-task--wide {
+    padding: 0;
+  }
+
   .v2-source-pane {
     position: static;
     height: auto;
@@ -408,6 +438,13 @@ a {
     margin: 0 32px 48px;
     border: 1px solid var(--claros-line);
     border-radius: 18px;
+  }
+}
+
+@media (max-width: 820px) {
+  .v2-checking-layout {
+    grid-template-columns: 1fr;
+    padding: 30px 20px 36px;
   }
 }
 
@@ -429,6 +466,10 @@ a {
 
   .v2-task {
     padding: 40px 20px;
+  }
+
+  .v2-task--wide {
+    padding: 0;
   }
 
   .v2-task h1 {

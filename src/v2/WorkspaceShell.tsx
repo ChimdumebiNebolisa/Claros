@@ -21,12 +21,16 @@ import {
   createReview as createReviewRequest,
   getAssignment,
   getExport,
+  getQuestionSetup,
   mapAssignment,
   mapCandidate,
   mapExportState,
+  mapQuestionSetup,
+  mutateQuestionSetup,
   requestRephrase as requestRephraseMutation,
   toRecoverableError,
   type ApiCandidateRequest,
+  type ApiQuestionSetupOperation,
 } from "./api/client";
 import { useWorkspaceActor, useWorkspaceSnapshot } from "./domain/useWorkspace";
 import {
@@ -83,6 +87,16 @@ import answerPathStyles from "./features/answer-paths/answer-paths.module.css";
 
 const DocumentCrop = lazy(() => import("./document/DocumentCrop"));
 const WorksheetDialog = lazy(() => import("./document/WorksheetDialog"));
+const CheckingWorksheetPreview = lazy(() =>
+  import("./features/question-setup/CheckingWorksheetPreview").then(
+    (module) => ({ default: module.CheckingWorksheetPreview }),
+  ),
+);
+const QuestionSetupWorkspace = lazy(() =>
+  import("./features/question-setup/QuestionSetupWorkspace").then((module) => ({
+    default: module.QuestionSetupWorkspace,
+  })),
+);
 
 type WorkspaceShellProps = {
   mode?: "upload" | "question" | "review" | "export";
@@ -194,6 +208,10 @@ export default function WorkspaceShell({
     claros: string;
   }>({ student: "", claros: "" });
   const [exportPollAttempt, setExportPollAttempt] = useState(0);
+  const [analysisPreview, setAnalysisPreview] = useState<{
+    url: string;
+    filename: string;
+  }>();
 
   const fixtureScenario = useMemo(() => {
     if (!import.meta.env.DEV) return null;
@@ -208,6 +226,13 @@ export default function WorkspaceShell({
   const usesRealApi = !fixtureScenario;
   const runtimeSearch = "";
   const routeKey = `${usesRealApi ? "api" : "fixture"}:${mode}:${assignmentId ?? ""}:${exportId ?? ""}:${fixtureScenario ?? ""}:${exportPollAttempt}`;
+
+  useEffect(
+    () => () => {
+      if (analysisPreview) URL.revokeObjectURL(analysisPreview.url);
+    },
+    [analysisPreview],
+  );
 
   useEffect(() => {
     const current = actor.getSnapshot();
@@ -359,20 +384,32 @@ export default function WorkspaceShell({
             return;
           }
           const restored = mapAssignment(payload);
+          const questionSetup = mapQuestionSetup(
+            await getQuestionSetup(assignmentId, controller.signal),
+          );
+          const canonicalAssignment = {
+            ...restored.assignment,
+            version: questionSetup.version,
+            questions: questionSetup.questions,
+          };
           persistedCandidateRef.current = restored.candidate
             ? {
-                assignmentId: restored.assignment.id,
-                assignmentVersion: restored.assignment.version,
+                assignmentId: canonicalAssignment.id,
+                assignmentVersion: canonicalAssignment.version,
                 candidate: restored.candidate,
               }
             : null;
           actor.send({
             type: "ANALYSIS_READY",
-            assignment: restored.assignment,
+            assignment: canonicalAssignment,
+            questionSetup,
             confirmedAnswers: restored.confirmedAnswers,
             activeQuestionIndex: restored.activeQuestionIndex,
             candidate: restored.candidate,
           });
+          if (!questionSetup.verified) {
+            return;
+          }
           if (mode === "question") {
             actor.send({ type: "START_QUESTION" });
           } else if (mode === "review") {
@@ -482,6 +519,10 @@ export default function WorkspaceShell({
   const assignment = context.assignment;
   const question = assignment?.questions[context.activeQuestionIndex];
   const hasWorksheet = Boolean(assignment);
+  const isQuestionSetup =
+    snapshot.matches("questionCheck") || snapshot.matches("questionEditing");
+  const usesWideTask = isQuestionSetup || Boolean(analysisPreview);
+  const showsSourcePane = hasWorksheet && !isQuestionSetup;
   const answeredCount = Object.keys(context.confirmedAnswers).length;
   const showsCompletedPreview = usesRealApi
     ? snapshot.matches("exportComplete") && Boolean(context.exportResult)
@@ -1099,6 +1140,11 @@ export default function WorkspaceShell({
     setValidationMessage(undefined);
     persistedCandidateRef.current = null;
     actor.send({ type: "START_ANALYSIS" });
+    setAnalysisPreview(
+      input.file
+        ? { url: URL.createObjectURL(input.file), filename: input.file.name }
+        : undefined,
+    );
     if (!usesRealApi) {
       setAutoAdvance(true);
       return;
@@ -1143,26 +1189,40 @@ export default function WorkspaceShell({
         return;
       }
       const restored = mapAssignment(payload);
+      const questionSetup = mapQuestionSetup(
+        await getQuestionSetup(
+          payload.assignment_id,
+          analysisController.signal,
+        ),
+      );
+      const canonicalAssignment = {
+        ...restored.assignment,
+        version: questionSetup.version,
+        questions: questionSetup.questions,
+      };
       persistedCandidateRef.current = restored.candidate
         ? {
-            assignmentId: restored.assignment.id,
-            assignmentVersion: restored.assignment.version,
+            assignmentId: canonicalAssignment.id,
+            assignmentVersion: canonicalAssignment.version,
             candidate: restored.candidate,
           }
         : null;
       actor.send({
         type: "ANALYSIS_READY",
-        assignment: restored.assignment,
+        assignment: canonicalAssignment,
+        questionSetup,
         confirmedAnswers: restored.confirmedAnswers,
         activeQuestionIndex: restored.activeQuestionIndex,
         candidate: restored.candidate,
       });
+      setAnalysisPreview(undefined);
     } catch (error) {
       if (isAbortError(error)) return;
       actor.send({
         type: "ANALYSIS_FAILED",
         error: toRecoverableError(error),
       });
+      setAnalysisPreview(undefined);
     } finally {
       if (analysisPollControllerRef.current === analysisController) {
         analysisPollControllerRef.current = null;
@@ -2058,6 +2118,42 @@ export default function WorkspaceShell({
     );
   };
 
+  const updateQuestionSetup = async (operation: ApiQuestionSetupOperation) => {
+    const current = actor.getSnapshot().context;
+    if (!current.assignment || !current.questionSetup) {
+      throw new Error("Question setup is unavailable");
+    }
+    const response = await mutateQuestionSetup(current.assignment.id, {
+      assignment_version: current.questionSetup.version,
+      operation,
+    });
+    const questionSetup = mapQuestionSetup(response);
+    actor.send({ type: "QUESTION_SETUP_UPDATED", questionSetup });
+  };
+
+  const acceptQuestionSetup = async () => {
+    const current = actor.getSnapshot().context;
+    if (!current.assignment || !current.questionSetup) {
+      throw new Error("Question setup is unavailable");
+    }
+    const response = await mutateQuestionSetup(current.assignment.id, {
+      assignment_version: current.questionSetup.version,
+      operation: { kind: "accept" },
+    });
+    const questionSetup = mapQuestionSetup(response);
+    actor.send({ type: "QUESTION_SETUP_ACCEPTED", questionSetup });
+    navigate(`/app/${current.assignment.id}${runtimeSearch}`);
+  };
+
+  const reportQuestionSetupError = useCallback(
+    (error: unknown) =>
+      actor.send({
+        type: "REQUEST_FAILED",
+        error: toRecoverableError(error),
+      }),
+    [actor],
+  );
+
   const taskContent = (() => {
     if (snapshot.matches("upload")) {
       return (
@@ -2081,14 +2177,30 @@ export default function WorkspaceShell({
     }
     if (snapshot.matches("checking")) {
       return (
-        <IntakeFlow
-          state={{ kind: "checking", message: "Checking your worksheet…" }}
-          onFileSelected={(file) => void startAnalysis({ file })}
-          onValidationError={() => undefined}
-          onTrySample={() =>
-            void startAnalysis({ sampleId: "biology-short-answer" })
-          }
-        />
+        <div className={analysisPreview ? "v2-checking-layout" : undefined}>
+          <IntakeFlow
+            state={{ kind: "checking", message: "Checking your worksheet…" }}
+            onFileSelected={(file) => void startAnalysis({ file })}
+            onValidationError={() => undefined}
+            onTrySample={() =>
+              void startAnalysis({ sampleId: "biology-short-answer" })
+            }
+          />
+          {analysisPreview ? (
+            <Suspense
+              fallback={
+                <div className="v2-document-loading" role="status">
+                  Opening worksheet preview…
+                </div>
+              }
+            >
+              <CheckingWorksheetPreview
+                sourceUrl={analysisPreview.url}
+                filename={analysisPreview.filename}
+              />
+            </Suspense>
+          ) : null}
+        </div>
       );
     }
     if (snapshot.matches("rejected")) {
@@ -2137,6 +2249,34 @@ export default function WorkspaceShell({
           }}
           onViewWorksheet={() => setWorksheetOpen(true)}
         />
+      );
+    }
+    if (
+      (snapshot.matches("questionCheck") ||
+        snapshot.matches("questionEditing")) &&
+      assignment &&
+      context.questionSetup
+    ) {
+      return (
+        <Suspense
+          fallback={
+            <div className="v2-document-loading" role="status">
+              Preparing question check…
+            </div>
+          }
+        >
+          <QuestionSetupWorkspace
+            assignment={assignment}
+            setup={context.questionSetup}
+            editing={snapshot.matches("questionEditing")}
+            errorMessage={context.error?.message}
+            onEnterEdit={() => actor.send({ type: "EDIT_QUESTIONS" })}
+            onCancelEdit={() => actor.send({ type: "CANCEL_QUESTION_EDIT" })}
+            onMutate={updateQuestionSetup}
+            onAccept={acceptQuestionSetup}
+            onError={reportQuestionSetupError}
+          />
+        </Suspense>
       );
     }
     if (!assignment || !question) return null;
@@ -2432,11 +2572,13 @@ export default function WorkspaceShell({
       : "Start"
     : snapshot.matches("worksheetReview")
       ? `${answeredCount} of ${assignment.questions.length} answered`
-      : snapshot.matches("exporting") ||
-          snapshot.matches("exportFailed") ||
-          snapshot.matches("exportComplete")
-        ? "Completed PDF"
-        : `Question ${question?.index ?? 1} of ${assignment.questions.length}`;
+      : isQuestionSetup
+        ? "Check questions"
+        : snapshot.matches("exporting") ||
+            snapshot.matches("exportFailed") ||
+            snapshot.matches("exportComplete")
+          ? "Completed PDF"
+          : `Question ${question?.index ?? 1} of ${assignment.questions.length}`;
 
   return (
     <main className="v2-app-shell">
@@ -2448,7 +2590,9 @@ export default function WorkspaceShell({
         <span className="v2-topbar-progress" role="status">
           {progress}
         </span>
-        {assignment && !snapshot.matches("worksheetReview") ? (
+        {assignment &&
+        !snapshot.matches("worksheetReview") &&
+        !isQuestionSetup ? (
           <Link
             className="v2-topbar-action"
             to={`/app/${assignment.id}/review${runtimeSearch}`}
@@ -2460,17 +2604,25 @@ export default function WorkspaceShell({
       </header>
 
       <div
-        className={`v2-workspace-grid${hasWorksheet ? "" : " v2-workspace-grid--task-only"}`}
+        className={`v2-workspace-grid${showsSourcePane ? "" : " v2-workspace-grid--task-only"}${usesWideTask ? " v2-workspace-grid--wide-task" : ""}`}
       >
-        <section ref={taskRef} className="v2-task" aria-label="Answer task">
-          <div className="v2-task-inner">
+        <section
+          ref={taskRef}
+          className={`v2-task${usesWideTask ? " v2-task--wide" : ""}`}
+          aria-label={
+            isQuestionSetup ? "Check worksheet questions" : "Answer task"
+          }
+        >
+          <div
+            className={`v2-task-inner${usesWideTask ? " v2-task-inner--wide" : ""}`}
+          >
             {taskContent}
             {showsStandaloneRequestError && context.error ? (
               <StatusNotice title="That action did not finish" tone="error">
                 {context.error.message}
               </StatusNotice>
             ) : null}
-            {hasWorksheet ? (
+            {showsSourcePane ? (
               <div className="v2-mobile-document-action">
                 <Button
                   color="secondary"
@@ -2485,7 +2637,7 @@ export default function WorkspaceShell({
           </div>
         </section>
 
-        {hasWorksheet ? (
+        {showsSourcePane ? (
           <aside
             className="v2-source-pane"
             aria-label="Worksheet source context"

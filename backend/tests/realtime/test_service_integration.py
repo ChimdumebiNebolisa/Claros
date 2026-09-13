@@ -102,10 +102,44 @@ def test_credential_route_binds_owner_question_mode_version_expiry_and_rate_limi
         )
         assert created.status_code == 201, created.text
         assignment = created.json()
+        block_response = owner.get(
+            f"/api/v2/assignments/{assignment['assignment_id']}/pages/1/question-blocks"
+        )
+        assert block_response.status_code == 200, block_response.text
+        by_text = {
+            block["exact_text"]: block["block_id"] for block in block_response.json()["blocks"]
+        }
+        corrected = owner.patch(
+            f"/api/v2/assignments/{assignment['assignment_id']}/question-setup",
+            json={
+                "assignment_version": assignment["version"],
+                "operation": {
+                    "kind": "replace",
+                    "question_id": assignment["questions"][0]["question_id"],
+                    "page_number": 1,
+                    "block_ids": [
+                        by_text["Why do plants need sunlight?"],
+                        by_text["Use evidence from the lesson in one or two sentences."],
+                    ],
+                },
+            },
+            headers=MUTATION_HEADERS,
+        )
+        assert corrected.status_code == 200, corrected.text
+        accepted = owner.patch(
+            f"/api/v2/assignments/{assignment['assignment_id']}/question-setup",
+            json={
+                "assignment_version": corrected.json()["version"],
+                "operation": {"kind": "accept"},
+            },
+            headers=MUTATION_HEADERS,
+        )
+        assert accepted.status_code == 200, accepted.text
+        setup = accepted.json()
         body = {
             "assignment_id": assignment["assignment_id"],
-            "assignment_version": assignment["version"],
-            "question_id": assignment["questions"][0]["question_id"],
+            "assignment_version": setup["version"],
+            "question_id": setup["questions"][0]["question_id"],
             "mode": "guided",
         }
 
@@ -113,7 +147,7 @@ def test_credential_route_binds_owner_question_mode_version_expiry_and_rate_limi
         assert issued.status_code == 200, issued.text
         payload = issued.json()
         assert payload == {
-            "version": assignment["version"],
+            "version": setup["version"],
             "session_id": "sess_service_integration",
             "client_secret": "ek_service_integration",
             "expires_at": "2040-01-01T00:01:00Z",
@@ -122,10 +156,16 @@ def test_credential_route_binds_owner_question_mode_version_expiry_and_rate_limi
 
         context, safety_subject = issuer.calls[0]
         assert context.assignment_id == assignment["assignment_id"]
-        assert context.assignment_version == assignment["version"]
-        assert context.question_id == assignment["questions"][0]["question_id"]
+        assert context.assignment_version == setup["version"]
+        assert context.question_id == setup["questions"][0]["question_id"]
         assert context.mode == "guided"
-        assert context.exact_question == assignment["questions"][0]["prompt"]
+        assert context.exact_question == setup["questions"][0]["prompt"]
+        assert context.exact_question == (
+            "Why do plants need sunlight?\nUse evidence from the lesson in one or two sentences."
+        )
+        assert [item.exact_question for item in context.available_questions] == [
+            item["prompt"] for item in setup["questions"]
+        ]
         assert context.current_candidate is None
         assert safety_subject not in issued.text
 
@@ -137,7 +177,7 @@ def test_credential_route_binds_owner_question_mode_version_expiry_and_rate_limi
 
         stale = owner.post(
             "/api/v2/realtime/client-secret",
-            json={**body, "assignment_version": assignment["version"] + 1},
+            json={**body, "assignment_version": setup["version"] + 1},
             headers=MUTATION_HEADERS,
         )
         assert stale.status_code == 409

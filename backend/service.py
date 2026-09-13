@@ -55,6 +55,7 @@ from backend.api.models import (
     QuestionSelectionPreviewRequest,
     QuestionSelectionPreviewResponse,
     QuestionSetupMutationRequest,
+    QuestionSetupPage,
     QuestionSetupProvenance,
     QuestionSetupQuestion,
     QuestionSetupResponse,
@@ -2170,6 +2171,14 @@ def _question_setup_response(
         provenance=QuestionSetupProvenance(manifest.question_setup_provenance.value),
         source_url=f"/api/v2/assignments/{manifest.assignment_id}/source",
         page_count=len(physical_ir.pages),
+        pages=[
+            QuestionSetupPage(
+                page_number=page.page_index + 1,
+                width_mpt=page.width_mpt,
+                height_mpt=page.height_mpt,
+            )
+            for page in physical_ir.pages
+        ],
         questions=[
             QuestionSetupQuestion(
                 question_id=question.question_id,

@@ -1206,6 +1206,34 @@
         "title": "QuestionSetupMutationRequest",
         "type": "object"
       },
+      "QuestionSetupPage": {
+        "additionalProperties": false,
+        "properties": {
+          "height_mpt": {
+            "exclusiveMinimum": 0.0,
+            "title": "Height Mpt",
+            "type": "integer"
+          },
+          "page_number": {
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "Page Number",
+            "type": "integer"
+          },
+          "width_mpt": {
+            "exclusiveMinimum": 0.0,
+            "title": "Width Mpt",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page_number",
+          "width_mpt",
+          "height_mpt"
+        ],
+        "title": "QuestionSetupPage",
+        "type": "object"
+      },
       "QuestionSetupProvenance": {
         "enum": [
           "detected",
@@ -1284,6 +1312,15 @@
             "title": "Page Count",
             "type": "integer"
           },
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/QuestionSetupPage"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Pages",
+            "type": "array"
+          },
           "provenance": {
             "$ref": "#/components/schemas/QuestionSetupProvenance"
           },
@@ -1317,6 +1354,7 @@
           "provenance",
           "source_url",
           "page_count",
+          "pages",
           "questions"
         ],
         "title": "QuestionSetupResponse",

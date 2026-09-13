@@ -46,6 +46,32 @@ export type Assignment = {
   warnings?: readonly string[];
 };
 
+export type QuestionRegion = {
+  xMpt: number;
+  yMpt: number;
+  widthMpt: number;
+  heightMpt: number;
+};
+
+export type QuestionSetupQuestion = Question & {
+  regions: readonly QuestionRegion[];
+};
+
+export type QuestionSetupPage = {
+  pageNumber: number;
+  widthMpt: number;
+  heightMpt: number;
+};
+
+export type QuestionSetup = {
+  version: number;
+  verified: boolean;
+  provenance: "detected" | "student_corrected";
+  sourceUrl: string;
+  pages: readonly QuestionSetupPage[];
+  questions: readonly QuestionSetupQuestion[];
+};
+
 export type Candidate = {
   id: string;
   version: number;
