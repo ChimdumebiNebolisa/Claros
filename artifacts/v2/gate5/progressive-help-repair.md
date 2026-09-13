@@ -231,6 +231,30 @@ environment/transport observations, not counted as live conversation passes.
   were terminated; `.1` had passed the complete lint gate before the `.2`
   policy/test assertion tightening.
 
+## Independent read-only red-team review
+
+A separate reviewer inspected exact pushed SHA
+`ee91261dfe3962dde35dfd5501b41c3ef8288255` without editing files, starting a
+new live conversation, or changing the running app. The verdict was **APPROVE**
+with no P0–P2 finding.
+
+The review accepted the strongest defense of the old `.5` behavior: repeated
+questions minimized answer leakage after prior policies produced pasteable
+answers. It found `.2` better because `.5` shifted repeated conversational work
+onto an accessibility user, while `.2` changes strategy behind explicit
+one-level, one-concept, omitted-evidence/reasoning, and no-finished-response
+boundaries. It also independently confirmed the concept-help and known-answer
+capture evidence, application-owned status/navigation behavior, disclosure of
+all four sessions and the `.1` failure, shared browser/server policy authority,
+and the unchanged microphone, approval, placement, and PDF architecture.
+
+Reviewer checks were: policy SHA-256 match, 23/23 focused browser-adapter policy
+tests, 28/28 focused backend policy tests, baseline-to-review `git diff --check`,
+and equality of reviewed local and remote SHAs. The reviewer retained the same
+limitations recorded here: Session 2's literal form deviations, the 9/10
+browser result, incomplete final full-suite/lint reruns, and pending human
+microphone/PDF acceptance.
+
 ## Remaining acceptance
 
 Physical microphone capture, Stop listening with real speech, human-audible
