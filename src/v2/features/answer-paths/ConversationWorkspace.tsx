@@ -217,7 +217,7 @@ export function ConversationWorkspace({
             className="absolute bottom-6 right-6 size-10 min-h-10 rounded-lg p-0"
             aria-label="Send to Claros"
           />
-          <span className="pointer-events-none absolute bottom-7 left-7 text-[11px] font-medium text-[var(--claros-quiet)]">
+          <span className="pointer-events-none absolute bottom-7 left-7 text-[11px] font-medium text-[var(--claros-muted)]">
             Ctrl/⌘ + Enter to send
           </span>
         </div>

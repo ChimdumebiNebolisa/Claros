@@ -124,7 +124,7 @@ function UploadControl({
           >
             Choose a PDF
           </Button>
-          <span className="mt-3 text-xs text-[var(--claros-quiet)]">
+          <span className="mt-3 text-xs text-[var(--claros-muted)]">
             Up to 10 MiB and 8 pages
           </span>
         </div>
