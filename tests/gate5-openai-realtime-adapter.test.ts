@@ -292,6 +292,15 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
       /leave out at least one substantive idea, evidence item, or reasoning link/i,
     );
     expect(realtimePolicy.conversation_policy).toMatch(
+      /one brief capability boundary once per active question/i,
+    );
+    expect(realtimePolicy.conversation_policy).toMatch(
+      /immediately continue with one allowed progressive-help level/i,
+    );
+    expect(realtimePolicy.conversation_policy).toMatch(
+      /do not repeat the boundary/i,
+    );
+    expect(realtimePolicy.conversation_policy).toMatch(
       /never add the remaining connection, outcome, or evidence/i,
     );
   });
