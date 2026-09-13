@@ -22,7 +22,7 @@ test("landing CTA reaches the real application without loading document or Realt
   await page.goto("/");
   await expect(
     page.getByRole("heading", {
-      name: "The answer is yours. Getting it onto the page can be easier.",
+      name: "Think it. Say it. Put it on the page.",
     }),
   ).toBeVisible();
   expect(
