@@ -133,6 +133,18 @@ do not use checkboxes and therefore do not count toward V2 progress.
 - [x] 5A.3 [Voice integrator] Repair adapter-to-workspace sequencing, actual Listening state, independent speaker mute and microphone capture, non-destructive interruption, application-owned turn/draft bindings, and reconnect context; verify focused event-sequence tests do not inject candidate events around the adapter.
 - [x] 5A.4 [Lead] Run the ordinary sample and supported-upload flow through the real backend/provider path, confirm reviewed text, preview placement, and OpenPDF download; record exactly any human microphone checks the environment cannot perform.
 - [x] 5A.5 [Lead] Close the scoped conversation audit with independent capture intent, conservative source matching, narrow voice-command grammar, application-bound current-draft intents, question-scoped drafts, stale-response guards, post-approval navigation, and explicit offline CI/deploy gates; verify focused frontend/backend regressions and strict OpenSpec pass while leaving physical microphone acceptance in 5.7.
+
+### 5B. Student-verifiable question detection and correction
+
+- [ ] 5B.1 [Lead] Amend product, design, active OpenSpec, domain, and generated API authority for question setup, correction-safe page blocks, server selection preview, versioned accept/add/replace/remove/reorder/reset, and downstream locks; verify strict OpenSpec and OpenAPI parity.
+- [ ] 5B.2 [Lead] Persist immutable detected mapping plus validated active mapping/provenance, stable identities, accepted-setup state, and reset; verify manifest migration, CAS, owner boundary, stale version, and immutable source/IR behavior.
+- [ ] 5B.3 [Document integrator] Implement owner-authorized block evidence, server exact-text selection preview, overlap/order/type validation, and placement-capability recomputation; verify valid add/replace and every unsafe selection rejection.
+- [ ] 5B.4 [Lead] Integrate question-check, correction, canonical refresh, and accept/start transitions into XState and the generated API adapter; verify corrected ordering and prompts become Realtime/runtime truth.
+- [ ] 5B.5 [Frontend integrator] Build the fast question-check screen and authentic EmbedPDF page/highlight selection UI in the completed Claros system; verify list-region synchronization and no general PDF editing surface.
+- [ ] 5B.6 [Frontend integrator] Add exact-text confirmation, remove/reorder/reset controls, pointer drag, keyboard/touch block selection, mobile layout, focus/live-region behavior, 200-percent zoom, and reduced motion; verify drag is never required.
+- [ ] 5B.7 [Lead] Extend backend, frontend, Storybook, real FastAPI/OpenPDF Playwright, export/publication, accessibility, and visual evidence; verify corrected questions remain safely bound from setup through download.
+- [ ] 5B.8 [Reviewer] Perform the requested independent read-only trust, identity, placement, Realtime, answer-binding, reset, accessibility, performance, and accidental-PDF-editor review; resolve every P0-P2 finding and record implementation/review SHAs.
+
 - [ ] 5.7 [Lead] Run fake-adapter browser suites, accessibility/caption/mute checks, credential/security tests, bundle/key scans, and documented manual live dictation/help/interrupt/reconnect tests; verify all Gate 5 evidence passes.
 - [ ] 5.8 [Reviewer] Perform read-only voice-authority, privacy, accessibility, failure, and evidence review; verify critical findings are fixed and record the checkpoint SHA in `docs/v2/STATUS.md`.
 

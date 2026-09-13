@@ -107,6 +107,58 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v2/assignments/{assignment_id}/pages/{page_number}/question-blocks": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Question Blocks */
+    get: operations["get_question_blocks"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v2/assignments/{assignment_id}/question-setup": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Question Setup */
+    get: operations["get_question_setup"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Mutate Question Setup */
+    patch: operations["mutate_question_setup"];
+    trace?: never;
+  };
+  "/api/v2/assignments/{assignment_id}/question-setup/selection-preview": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Preview Question Selection */
+    post: operations["preview_question_selection"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v2/assignments/{assignment_id}/questions/{question_id}/answer": {
     parameters: {
       query?: never;
@@ -248,6 +300,26 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    /** AcceptQuestionSetupOperation */
+    AcceptQuestionSetupOperation: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      kind: "accept";
+    };
+    /** AddQuestionOperation */
+    AddQuestionOperation: {
+      /** Block Ids */
+      block_ids: string[];
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      kind: "add";
+      /** Page Number */
+      page_number: number;
+    };
     /** AssignmentResponse */
     AssignmentResponse: {
       /** Assignment Id */
@@ -383,6 +455,20 @@ export interface components {
       question_id: string;
       /** Revision */
       revision: number;
+    };
+    /** CorrectionTextBlock */
+    CorrectionTextBlock: {
+      /** Block Id */
+      block_id: string;
+      /** Exact Text */
+      exact_text: string;
+      /** Page Number */
+      page_number: number;
+      /** Reading Order */
+      reading_order: number;
+      region: components["schemas"]["PageRect"];
+      /** Selected Question Ids */
+      selected_question_ids?: string[];
     };
     /** CreateExportRequest */
     CreateExportRequest: {
@@ -535,6 +621,21 @@ export interface components {
       /** Inline Possible */
       inline_possible: number;
     };
+    /** QuestionBlocksResponse */
+    QuestionBlocksResponse: {
+      /** Blocks */
+      blocks?: components["schemas"]["CorrectionTextBlock"][];
+      /** Page Height Mpt */
+      page_height_mpt: number;
+      /** Page Number */
+      page_number: number;
+      /** Page Width Mpt */
+      page_width_mpt: number;
+      /** Source Url */
+      source_url: string;
+      /** Version */
+      version: number;
+    };
     /** QuestionProjection */
     QuestionProjection: {
       candidate?: components["schemas"]["Candidate"] | null;
@@ -551,6 +652,77 @@ export interface components {
       /** Question Id */
       question_id: string;
       wording_comparison?: components["schemas"]["WordingComparison"] | null;
+    };
+    /** QuestionSelectionPreviewRequest */
+    QuestionSelectionPreviewRequest: {
+      /** Assignment Version */
+      assignment_version: number;
+      /** Block Ids */
+      block_ids: string[];
+      /** Page Number */
+      page_number: number;
+    };
+    /** QuestionSelectionPreviewResponse */
+    QuestionSelectionPreviewResponse: {
+      /** Block Ids */
+      block_ids: string[];
+      /** Exact Prompt */
+      exact_prompt: string;
+      /** Page Number */
+      page_number: number;
+      placement_capability: components["schemas"]["PlacementCapability"];
+      /** Prompt Regions */
+      prompt_regions: components["schemas"]["PageRect"][];
+      /** Version */
+      version: number;
+    };
+    /** QuestionSetupMutationRequest */
+    QuestionSetupMutationRequest: {
+      /** Assignment Version */
+      assignment_version: number;
+      /** Operation */
+      operation:
+        | components["schemas"]["AcceptQuestionSetupOperation"]
+        | components["schemas"]["AddQuestionOperation"]
+        | components["schemas"]["ReplaceQuestionOperation"]
+        | components["schemas"]["RemoveQuestionOperation"]
+        | components["schemas"]["ReorderQuestionsOperation"]
+        | components["schemas"]["ResetQuestionSetupOperation"];
+    };
+    /**
+     * QuestionSetupProvenance
+     * @enum {string}
+     */
+    QuestionSetupProvenance: "detected" | "student_corrected";
+    /** QuestionSetupQuestion */
+    QuestionSetupQuestion: {
+      /** Index */
+      index: number;
+      /** Instruction */
+      instruction?: string | null;
+      /** Page Number */
+      page_number: number;
+      placement_capability: components["schemas"]["PlacementCapability"];
+      /** Prompt */
+      prompt: string;
+      /** Prompt Regions */
+      prompt_regions: components["schemas"]["PageRect"][];
+      /** Question Id */
+      question_id: string;
+    };
+    /** QuestionSetupResponse */
+    QuestionSetupResponse: {
+      /** Page Count */
+      page_count: number;
+      provenance: components["schemas"]["QuestionSetupProvenance"];
+      /** Questions */
+      questions: components["schemas"]["QuestionSetupQuestion"][];
+      /** Source Url */
+      source_url: string;
+      /** Verified */
+      verified: boolean;
+      /** Version */
+      version: number;
     };
     /** RealtimeCredentialRequest */
     RealtimeCredentialRequest: {
@@ -583,6 +755,26 @@ export interface components {
      * @enum {string}
      */
     RealtimeMode: "conversation" | "direct" | "guided";
+    /** RemoveQuestionOperation */
+    RemoveQuestionOperation: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      kind: "remove";
+      /** Question Id */
+      question_id: string;
+    };
+    /** ReorderQuestionsOperation */
+    ReorderQuestionsOperation: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      kind: "reorder";
+      /** Ordered Question Ids */
+      ordered_question_ids: string[];
+    };
     /** RephraseRequest */
     RephraseRequest: {
       /** Assignment Version */
@@ -607,6 +799,28 @@ export interface components {
       suggestion: components["schemas"]["Candidate"];
       /** Version */
       version: number;
+    };
+    /** ReplaceQuestionOperation */
+    ReplaceQuestionOperation: {
+      /** Block Ids */
+      block_ids: string[];
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      kind: "replace";
+      /** Page Number */
+      page_number: number;
+      /** Question Id */
+      question_id: string;
+    };
+    /** ResetQuestionSetupOperation */
+    ResetQuestionSetupOperation: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      kind: "reset";
     };
     /** ReviewRequest */
     ReviewRequest: {
@@ -1626,6 +1840,587 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["PageContextResponse"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Gone */
+      410: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Unsupported Media Type */
+      415: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Requested Range Not Satisfiable */
+      416: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+    };
+  };
+  get_question_blocks: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        assignment_id: string;
+        page_number: number;
+      };
+      cookie?: {
+        claros_owner?: string | null;
+      };
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          /** @description Opaque validator for the returned assignment version. */
+          ETag?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["QuestionBlocksResponse"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Gone */
+      410: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Unsupported Media Type */
+      415: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Requested Range Not Satisfiable */
+      416: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+    };
+  };
+  get_question_setup: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        assignment_id: string;
+      };
+      cookie?: {
+        claros_owner?: string | null;
+      };
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          /** @description Opaque validator for the returned assignment version. */
+          ETag?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["QuestionSetupResponse"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Gone */
+      410: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Unsupported Media Type */
+      415: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Requested Range Not Satisfiable */
+      416: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+    };
+  };
+  mutate_question_setup: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        assignment_id: string;
+      };
+      cookie?: {
+        claros_owner?: string | null;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["QuestionSetupMutationRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          /** @description Opaque validator for the returned assignment version. */
+          ETag?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["QuestionSetupResponse"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Gone */
+      410: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Unsupported Media Type */
+      415: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Requested Range Not Satisfiable */
+      416: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+    };
+  };
+  preview_question_selection: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        assignment_id: string;
+      };
+      cookie?: {
+        claros_owner?: string | null;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["QuestionSelectionPreviewRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          /** @description Opaque validator for the returned assignment version. */
+          ETag?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["QuestionSelectionPreviewResponse"];
         };
       };
       /** @description Bad Request */

@@ -1,6 +1,6 @@
 # Claros V2 Delivery Status
 
-- **As of:** 2026-09-12
+- **As of:** 2026-09-13
 - **Branch:** `codex/claros-v2-nerdy`
 - **Baseline:** `5fb217715e4b3278f21a882b2652d928f2cca628`
 - **Current phase:** Gate 5 in progress — browser acceptance and scoped code review pass; final human microphone/PDF acceptance remains
@@ -62,14 +62,20 @@ Mandatory direct/guided selection and fixture-default `/app` behavior are
 superseded. The three authority files and active OpenSpec change now specify one
 adaptive conversation using the real runtime by default. Authority SHA-256:
 
-- Execution PRD: `17F7CBD11691A7DD97195AF45F98A2E9B8910921F805FC2CDC037D6963F8997F`
-- Product contract: `E0D00CE25E2806AF4BCE8997A798C7504667910A9A770F7B599131904C14B01E`
-- Design system: `23B8789FB543B0C14F41940D5DBD68FEB7BE851517CB8757CBE8748B023FF374`
+- Execution PRD: `399F34C5C0F93E0A90F6F6173A4F1214C6FA95E8297CA87D20687A3854E05F94`
+- Product contract: `B96E7FA1FBD2E4A337A196303F825F051822A2F99D186A47804A034B594A8DF9`
+- Design system: `C962D1F8AD4347728D91DD1C745E1DDF36D594D62C21B35C760238A6A90B488F`
 
 Reason: the product owner rejected separate answer modes and authorized a
 targeted restoration of one real conversation while retaining all approval,
 authorization, immutable-source, deterministic-placement, and PDF-validation
 invariants.
+
+The 2026-09-13 question-verification extension updates those same authorities
+to require a fast detected-question check and pre-answer correction through
+server-validated physical block IDs. It retains the original machine mapping,
+stable question identity, deterministic placement, and downstream answer
+binding; browser rectangles remain temporary input only.
 
 ### 2026-09-12 scoped conversation-audit correction
 

@@ -18,6 +18,10 @@ export type ApiRevision = ApiSchemas["BeginRevisionResponse"];
 export type ApiExport = ApiSchemas["ExportResponse"];
 export type ApiRephrase = ApiSchemas["RephraseResponse"];
 export type ApiRealtimeCredential = ApiSchemas["RealtimeCredentialResponse"];
+export type ApiQuestionSetup = ApiSchemas["QuestionSetupResponse"];
+export type ApiQuestionBlocks = ApiSchemas["QuestionBlocksResponse"];
+export type ApiQuestionSelectionPreview =
+  ApiSchemas["QuestionSelectionPreviewResponse"];
 
 export class ClarosApiError extends Error {
   readonly detail: RecoverableError;
@@ -196,6 +200,40 @@ export const getAssignment = (assignmentId: string, signal?: AbortSignal) =>
   requestJson<ApiAssignment>(
     `/api/v2/assignments/${encodeURIComponent(assignmentId)}`,
     { signal },
+  );
+
+export const getQuestionSetup = (assignmentId: string, signal?: AbortSignal) =>
+  requestJson<ApiQuestionSetup>(
+    `/api/v2/assignments/${encodeURIComponent(assignmentId)}/question-setup`,
+    { signal },
+  );
+
+export const getQuestionBlocks = (
+  assignmentId: string,
+  pageNumber: number,
+  signal?: AbortSignal,
+) =>
+  requestJson<ApiQuestionBlocks>(
+    `/api/v2/assignments/${encodeURIComponent(assignmentId)}/pages/${pageNumber}/question-blocks`,
+    { signal },
+  );
+
+export const previewQuestionSelection = (
+  assignmentId: string,
+  body: ApiSchemas["QuestionSelectionPreviewRequest"],
+) =>
+  requestJson<ApiQuestionSelectionPreview>(
+    `/api/v2/assignments/${encodeURIComponent(assignmentId)}/question-setup/selection-preview`,
+    { method: "POST", body: JSON.stringify(body) },
+  );
+
+export const mutateQuestionSetup = (
+  assignmentId: string,
+  body: ApiSchemas["QuestionSetupMutationRequest"],
+) =>
+  requestJson<ApiQuestionSetup>(
+    `/api/v2/assignments/${encodeURIComponent(assignmentId)}/question-setup`,
+    { method: "PATCH", body: JSON.stringify(body) },
   );
 
 export async function createCandidate(

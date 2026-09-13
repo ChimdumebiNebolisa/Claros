@@ -62,6 +62,25 @@ The product is organized around the student’s current question, not a permanen
 - No drag-to-place interaction
 - No raw coordinates, font metrics, parser confidence, or bounding-box telemetry in the normal interface
 
+### Question-check and recovery behavior
+
+After document checking and before the first conversation, show a fast
+`Check your questions` state. The question list is task-first; the authentic
+worksheet is supporting evidence. The normal path has one dominant
+accept-and-start action and one secondary `Something looks wrong` entry point.
+
+Correction mode may add restrained numbered source highlights and temporary
+selection feedback. It must not resemble a PDF annotation toolbar or expose
+block IDs, geometry, confidence scores, or prompt/context terminology.
+
+- Desktop: list and authentic page preview appear together within the existing workspace hierarchy.
+- Mobile: list and correction controls remain first; the worksheet uses the existing full-screen treatment.
+- Pointer: dragging may select visible question text, followed by an exact-text confirmation step.
+- Keyboard/touch/screen reader: selectable page-text rows provide the same block selection and confirmation.
+- Reordering provides explicit Move up and Move down actions; dragging is never required.
+- Selection, focus, warnings, and active question use text and structure in addition to color.
+- Reset and destructive removal require clear, lightweight confirmation appropriate to their impact.
+
 ---
 
 ## 3. Core screen: conversational worksheet workspace

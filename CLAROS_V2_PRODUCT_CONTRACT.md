@@ -333,6 +333,23 @@ The model may identify source block IDs. It may not generate authoritative coord
 - Question order follows the original document.
 - Questions that cannot be grounded confidently cause a controlled rejection rather than an invented mapping.
 
+### 6.4A Student-verifiable question setup
+
+Automatic question detection remains the normal path. After analysis, the
+student sees the ordered questions Claros found and accepts them with one action
+when they are correct. Before answering begins, the student may repair a missed,
+incorrectly grouped, false, or visibly misordered question.
+
+- The original validated automatic mapping remains immutable analysis evidence.
+- The active mapping may be corrected only through server-known physical text block IDs.
+- A pointer rectangle is only a way to choose visible blocks; it is never stored as semantic or placement truth.
+- The server reconstructs and previews exact question wording before a correction is saved.
+- Unchanged and reordered questions retain stable identity; visible numbers derive from current order.
+- Added or corrected questions receive a fresh deterministic placement-capability decision.
+- Dragging has an equivalent keyboard, touch, and screen-reader block-selection path.
+- Reset restores the retained automatic mapping without another model call.
+- Structural correction is locked once candidate, review, confirmed-answer, revision, rephrase, or export state exists.
+
 ### 6.5 Placement outcomes
 
 Every confirmed answer receives one of three outcomes:
@@ -385,7 +402,7 @@ A fully reconstructed worksheet is not the default because it can detach questio
 ```text
 upload
 → document check
-→ worksheet ready
+→ check detected questions
 → question focus
 → persistent conversation and editable draft
 → exact review

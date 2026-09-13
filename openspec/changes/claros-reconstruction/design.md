@@ -268,6 +268,29 @@ least 90/100 overall, no score category below 80%, no critical accessibility
 defect, and no anti-reference violation. Evidence is tied to one commit SHA in
 `artifacts/v2`; a build alone is not completion.
 
+### 9A. Verify and repair detected questions before Realtime starts
+
+New assignments retain the validated automatic mapping and expose a separate
+active question mapping. The student first receives a lightweight setup
+projection containing exact ordered prompts, page numbers, placement
+capabilities, and server-projected prompt regions. Correction-safe page text
+blocks are owner-authorized and lazy-loaded only in correction mode.
+
+Pointer dragging intersects a temporary viewport rectangle with those projected
+blocks and submits only the resulting ordered block IDs to a server selection
+preview. The same IDs are selectable through a keyboard/touch-friendly text
+list. A versioned mutation accepts, adds, replaces, removes, reorders, or resets
+the setup. The server rejects arbitrary text, unknown/cross-document/non-text
+blocks, duplicates, invalid order, unsafe overlap, stale versions, and every
+structural mutation after downstream answer state exists.
+
+Added questions receive server-owned identities. Existing identities survive
+replacement and reorder. Every active index/display number derives from the
+current order, and every added or replaced question reruns deterministic
+placement capability. Realtime credentials and candidate mutations require an
+accepted setup for newly analyzed assignments, ensuring corrected prompts and
+order are the only runtime truth.
+
 ### 10. Freeze shared contracts before parallel implementation
 
 The lead alone owns dependency manifests/lockfiles, routing, global tokens,

@@ -109,3 +109,27 @@ untrusted PDF/model data MUST be bounded and safely rendered.
 #### Scenario: Provider or parser fails
 - **WHEN** an internal exception includes worksheet or provider content
 - **THEN** telemetry records only bounded identifiers, stage, timing, and stable error code while the student receives safe recovery copy
+
+### Requirement: Versioned question-setup recovery API
+The V2 API MUST expose an owner-authorized lightweight question-setup
+projection, lazy correction-safe page text blocks, a server-reconstructed
+selection preview, and a versioned mutation for accept, add, replace, remove,
+reorder, and reset. Setup mutations MUST use normal same-origin protection,
+optimistic concurrency, stable errors, ETags, and durable generation CAS.
+
+#### Scenario: Setup mutation races
+- **WHEN** two clients submit the same observed assignment version
+- **THEN** exactly one mutation advances the assignment and the stale request receives the normal recoverable assignment-version conflict
+
+#### Scenario: Another owner requests correction evidence
+- **WHEN** a session not bound to the assignment requests page blocks, a selection preview, or a setup mutation
+- **THEN** Claros denies access without exposing document text or mapping state
+
+### Requirement: Question setup locks before downstream answer state
+Question-structure mutation MUST be allowed only while no candidate, review,
+confirmed answer, revision, rephrase, or export exists. Candidate and Realtime
+operations MUST require accepted question setup for newly analyzed assignments.
+
+#### Scenario: Student tries to remap after answering
+- **WHEN** any server-owned answer or export state exists
+- **THEN** Claros rejects the structural mutation with a recoverable question-setup-locked error and preserves every question and answer binding

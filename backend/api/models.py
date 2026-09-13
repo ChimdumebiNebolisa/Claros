@@ -58,6 +58,11 @@ class PlacementCapability(StrEnum):
     APPENDIX_ONLY = "appendix_only"
 
 
+class QuestionSetupProvenance(StrEnum):
+    DETECTED = "detected"
+    STUDENT_CORRECTED = "student_corrected"
+
+
 class SourceStatus(StrEnum):
     ORIGINAL = "original"
     COMPLETED_COPY_PREVIEW = "completed_copy_preview"
@@ -176,6 +181,105 @@ class PageContextResponse(TransportModel):
     source_url: str = Field(min_length=1)
     source_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     crop: PageRect
+
+
+class QuestionSetupQuestion(TransportModel):
+    question_id: str = Field(min_length=1, max_length=96)
+    index: int = Field(ge=1, le=40)
+    prompt: str = Field(min_length=1)
+    instruction: str | None = None
+    page_number: int = Field(ge=1, le=8)
+    placement_capability: PlacementCapability
+    prompt_regions: list[PageRect] = Field(min_length=1, max_length=64)
+
+
+class QuestionSetupResponse(TransportModel):
+    version: int = Field(ge=1)
+    verified: bool
+    provenance: QuestionSetupProvenance
+    source_url: str = Field(min_length=1)
+    page_count: int = Field(ge=1, le=8)
+    questions: list[QuestionSetupQuestion] = Field(min_length=1, max_length=40)
+
+
+class CorrectionTextBlock(TransportModel):
+    block_id: str = Field(min_length=1, max_length=96)
+    exact_text: str = Field(min_length=1)
+    page_number: int = Field(ge=1, le=8)
+    reading_order: int = Field(ge=0)
+    region: PageRect
+    selected_question_ids: list[str] = Field(default_factory=list, max_length=40)
+
+
+class QuestionBlocksResponse(TransportModel):
+    version: int = Field(ge=1)
+    page_number: int = Field(ge=1, le=8)
+    page_width_mpt: int = Field(gt=0)
+    page_height_mpt: int = Field(gt=0)
+    source_url: str = Field(min_length=1)
+    blocks: list[CorrectionTextBlock] = Field(default_factory=list, max_length=4096)
+
+
+class QuestionSelectionPreviewRequest(TransportModel):
+    assignment_version: int = Field(ge=1)
+    page_number: int = Field(ge=1, le=8)
+    block_ids: list[str] = Field(min_length=1, max_length=64)
+
+
+class QuestionSelectionPreviewResponse(TransportModel):
+    version: int = Field(ge=1)
+    page_number: int = Field(ge=1, le=8)
+    block_ids: list[str] = Field(min_length=1, max_length=64)
+    exact_prompt: str = Field(min_length=1)
+    prompt_regions: list[PageRect] = Field(min_length=1, max_length=64)
+    placement_capability: PlacementCapability
+
+
+class AcceptQuestionSetupOperation(TransportModel):
+    kind: Literal["accept"]
+
+
+class AddQuestionOperation(TransportModel):
+    kind: Literal["add"]
+    page_number: int = Field(ge=1, le=8)
+    block_ids: list[str] = Field(min_length=1, max_length=64)
+
+
+class ReplaceQuestionOperation(TransportModel):
+    kind: Literal["replace"]
+    question_id: str = Field(min_length=1, max_length=96)
+    page_number: int = Field(ge=1, le=8)
+    block_ids: list[str] = Field(min_length=1, max_length=64)
+
+
+class RemoveQuestionOperation(TransportModel):
+    kind: Literal["remove"]
+    question_id: str = Field(min_length=1, max_length=96)
+
+
+class ReorderQuestionsOperation(TransportModel):
+    kind: Literal["reorder"]
+    ordered_question_ids: list[str] = Field(min_length=1, max_length=40)
+
+
+class ResetQuestionSetupOperation(TransportModel):
+    kind: Literal["reset"]
+
+
+QuestionSetupOperation = Annotated[
+    AcceptQuestionSetupOperation
+    | AddQuestionOperation
+    | ReplaceQuestionOperation
+    | RemoveQuestionOperation
+    | ReorderQuestionsOperation
+    | ResetQuestionSetupOperation,
+    Field(discriminator="kind"),
+]
+
+
+class QuestionSetupMutationRequest(TransportModel):
+    assignment_version: int = Field(ge=1)
+    operation: QuestionSetupOperation
 
 
 class DirectTypedInteraction(TransportModel):

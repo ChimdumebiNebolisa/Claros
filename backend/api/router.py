@@ -20,6 +20,11 @@ from backend.api.models import (
     ErrorEnvelope,
     ExportResponse,
     PageContextResponse,
+    QuestionBlocksResponse,
+    QuestionSelectionPreviewRequest,
+    QuestionSelectionPreviewResponse,
+    QuestionSetupMutationRequest,
+    QuestionSetupResponse,
     RealtimeCredentialRequest,
     RealtimeCredentialResponse,
     RephraseRequest,
@@ -213,6 +218,92 @@ async def get_page_context(
         page_number=page_number,
         question_id=question_id,
         preview=preview,
+        owner_cookie=owner_cookie,
+    )
+    set_version_etag(response, result.version)
+    return result
+
+
+@router.get(
+    "/assignments/{assignment_id}/question-setup",
+    response_model=QuestionSetupResponse,
+    operation_id="get_question_setup",
+    responses=versioned_responses(status.HTTP_200_OK),
+)
+async def get_question_setup(
+    assignment_id: str,
+    response: Response,
+    owner_cookie: OwnerCookieDependency,
+    service: ServiceDependency,
+) -> QuestionSetupResponse:
+    result = await service.get_question_setup(
+        assignment_id=assignment_id,
+        owner_cookie=owner_cookie,
+    )
+    set_version_etag(response, result.version)
+    return result
+
+
+@router.get(
+    "/assignments/{assignment_id}/pages/{page_number}/question-blocks",
+    response_model=QuestionBlocksResponse,
+    operation_id="get_question_blocks",
+    responses=versioned_responses(status.HTTP_200_OK),
+)
+async def get_question_blocks(
+    assignment_id: str,
+    page_number: int,
+    response: Response,
+    owner_cookie: OwnerCookieDependency,
+    service: ServiceDependency,
+) -> QuestionBlocksResponse:
+    result = await service.get_question_blocks(
+        assignment_id=assignment_id,
+        page_number=page_number,
+        owner_cookie=owner_cookie,
+    )
+    set_version_etag(response, result.version)
+    return result
+
+
+@router.post(
+    "/assignments/{assignment_id}/question-setup/selection-preview",
+    response_model=QuestionSelectionPreviewResponse,
+    operation_id="preview_question_selection",
+    responses=versioned_responses(status.HTTP_200_OK),
+)
+async def preview_question_selection(
+    assignment_id: str,
+    body: QuestionSelectionPreviewRequest,
+    response: Response,
+    owner_cookie: OwnerCookieDependency,
+    service: ServiceDependency,
+) -> QuestionSelectionPreviewResponse:
+    result = await service.preview_question_selection(
+        assignment_id=assignment_id,
+        body=body,
+        owner_cookie=owner_cookie,
+    )
+    set_version_etag(response, result.version)
+    return result
+
+
+@router.patch(
+    "/assignments/{assignment_id}/question-setup",
+    response_model=QuestionSetupResponse,
+    operation_id="mutate_question_setup",
+    responses=versioned_responses(status.HTTP_200_OK),
+)
+async def mutate_question_setup(
+    assignment_id: str,
+    body: QuestionSetupMutationRequest,
+    response: Response,
+    owner_cookie: OwnerCookieDependency,
+    service: ServiceDependency,
+) -> QuestionSetupResponse:
+    result = await service.mutate_question_setup(
+        assignment_id=assignment_id,
+        body=body,
         owner_cookie=owner_cookie,
     )
     set_version_etag(response, result.version)

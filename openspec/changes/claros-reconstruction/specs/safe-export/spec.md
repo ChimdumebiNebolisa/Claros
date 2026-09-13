@@ -115,3 +115,12 @@ but MUST NOT add a browser launch to the synchronous application request.
 #### Scenario: Independent validator fails
 - **WHEN** qpdf or PDFBox rejects the quarantined OpenPDF derivative
 - **THEN** Claros deletes the quarantined output, preserves confirmed answers, and exposes no successful export
+
+### Requirement: Export binds answers to the accepted active mapping
+Question setup MUST be accepted before answer creation. Once answer state
+exists, structural mapping changes MUST be locked so an approved answer cannot
+move to another source question through correction, removal, or reorder.
+
+#### Scenario: Correction is attempted after confirmation
+- **WHEN** an assignment has a confirmed answer and a client requests a question-setup mutation
+- **THEN** Claros preserves the accepted mapping and the export continues to bind the answer to its original stable question identity

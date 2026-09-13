@@ -1,6 +1,53 @@
 {
   "components": {
     "schemas": {
+      "AcceptQuestionSetupOperation": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "accept",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "AcceptQuestionSetupOperation",
+        "type": "object"
+      },
+      "AddQuestionOperation": {
+        "additionalProperties": false,
+        "properties": {
+          "block_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 64,
+            "minItems": 1,
+            "title": "Block Ids",
+            "type": "array"
+          },
+          "kind": {
+            "const": "add",
+            "title": "Kind",
+            "type": "string"
+          },
+          "page_number": {
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "Page Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "page_number",
+          "block_ids"
+        ],
+        "title": "AddQuestionOperation",
+        "type": "object"
+      },
       "AssignmentResponse": {
         "additionalProperties": false,
         "properties": {
@@ -406,6 +453,53 @@
           "confirmed_at"
         ],
         "title": "ConfirmedAnswer",
+        "type": "object"
+      },
+      "CorrectionTextBlock": {
+        "additionalProperties": false,
+        "properties": {
+          "block_id": {
+            "maxLength": 96,
+            "minLength": 1,
+            "title": "Block Id",
+            "type": "string"
+          },
+          "exact_text": {
+            "minLength": 1,
+            "title": "Exact Text",
+            "type": "string"
+          },
+          "page_number": {
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "Page Number",
+            "type": "integer"
+          },
+          "reading_order": {
+            "minimum": 0.0,
+            "title": "Reading Order",
+            "type": "integer"
+          },
+          "region": {
+            "$ref": "#/components/schemas/PageRect"
+          },
+          "selected_question_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 40,
+            "title": "Selected Question Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "block_id",
+          "exact_text",
+          "page_number",
+          "reading_order",
+          "region"
+        ],
+        "title": "CorrectionTextBlock",
         "type": "object"
       },
       "CreateExportRequest": {
@@ -836,6 +930,54 @@
         "title": "PlacementSummary",
         "type": "object"
       },
+      "QuestionBlocksResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "blocks": {
+            "items": {
+              "$ref": "#/components/schemas/CorrectionTextBlock"
+            },
+            "maxItems": 4096,
+            "title": "Blocks",
+            "type": "array"
+          },
+          "page_height_mpt": {
+            "exclusiveMinimum": 0.0,
+            "title": "Page Height Mpt",
+            "type": "integer"
+          },
+          "page_number": {
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "Page Number",
+            "type": "integer"
+          },
+          "page_width_mpt": {
+            "exclusiveMinimum": 0.0,
+            "title": "Page Width Mpt",
+            "type": "integer"
+          },
+          "source_url": {
+            "minLength": 1,
+            "title": "Source Url",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "page_number",
+          "page_width_mpt",
+          "page_height_mpt",
+          "source_url"
+        ],
+        "title": "QuestionBlocksResponse",
+        "type": "object"
+      },
       "QuestionProjection": {
         "additionalProperties": false,
         "properties": {
@@ -915,6 +1057,256 @@
           "placement_capability"
         ],
         "title": "QuestionProjection",
+        "type": "object"
+      },
+      "QuestionSelectionPreviewRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "assignment_version": {
+            "minimum": 1.0,
+            "title": "Assignment Version",
+            "type": "integer"
+          },
+          "block_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 64,
+            "minItems": 1,
+            "title": "Block Ids",
+            "type": "array"
+          },
+          "page_number": {
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "Page Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "assignment_version",
+          "page_number",
+          "block_ids"
+        ],
+        "title": "QuestionSelectionPreviewRequest",
+        "type": "object"
+      },
+      "QuestionSelectionPreviewResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "block_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 64,
+            "minItems": 1,
+            "title": "Block Ids",
+            "type": "array"
+          },
+          "exact_prompt": {
+            "minLength": 1,
+            "title": "Exact Prompt",
+            "type": "string"
+          },
+          "page_number": {
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "Page Number",
+            "type": "integer"
+          },
+          "placement_capability": {
+            "$ref": "#/components/schemas/PlacementCapability"
+          },
+          "prompt_regions": {
+            "items": {
+              "$ref": "#/components/schemas/PageRect"
+            },
+            "maxItems": 64,
+            "minItems": 1,
+            "title": "Prompt Regions",
+            "type": "array"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "page_number",
+          "block_ids",
+          "exact_prompt",
+          "prompt_regions",
+          "placement_capability"
+        ],
+        "title": "QuestionSelectionPreviewResponse",
+        "type": "object"
+      },
+      "QuestionSetupMutationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "assignment_version": {
+            "minimum": 1.0,
+            "title": "Assignment Version",
+            "type": "integer"
+          },
+          "operation": {
+            "discriminator": {
+              "mapping": {
+                "accept": "#/components/schemas/AcceptQuestionSetupOperation",
+                "add": "#/components/schemas/AddQuestionOperation",
+                "remove": "#/components/schemas/RemoveQuestionOperation",
+                "reorder": "#/components/schemas/ReorderQuestionsOperation",
+                "replace": "#/components/schemas/ReplaceQuestionOperation",
+                "reset": "#/components/schemas/ResetQuestionSetupOperation"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AcceptQuestionSetupOperation"
+              },
+              {
+                "$ref": "#/components/schemas/AddQuestionOperation"
+              },
+              {
+                "$ref": "#/components/schemas/ReplaceQuestionOperation"
+              },
+              {
+                "$ref": "#/components/schemas/RemoveQuestionOperation"
+              },
+              {
+                "$ref": "#/components/schemas/ReorderQuestionsOperation"
+              },
+              {
+                "$ref": "#/components/schemas/ResetQuestionSetupOperation"
+              }
+            ],
+            "title": "Operation"
+          }
+        },
+        "required": [
+          "assignment_version",
+          "operation"
+        ],
+        "title": "QuestionSetupMutationRequest",
+        "type": "object"
+      },
+      "QuestionSetupProvenance": {
+        "enum": [
+          "detected",
+          "student_corrected"
+        ],
+        "title": "QuestionSetupProvenance",
+        "type": "string"
+      },
+      "QuestionSetupQuestion": {
+        "additionalProperties": false,
+        "properties": {
+          "index": {
+            "maximum": 40.0,
+            "minimum": 1.0,
+            "title": "Index",
+            "type": "integer"
+          },
+          "instruction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instruction"
+          },
+          "page_number": {
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "Page Number",
+            "type": "integer"
+          },
+          "placement_capability": {
+            "$ref": "#/components/schemas/PlacementCapability"
+          },
+          "prompt": {
+            "minLength": 1,
+            "title": "Prompt",
+            "type": "string"
+          },
+          "prompt_regions": {
+            "items": {
+              "$ref": "#/components/schemas/PageRect"
+            },
+            "maxItems": 64,
+            "minItems": 1,
+            "title": "Prompt Regions",
+            "type": "array"
+          },
+          "question_id": {
+            "maxLength": 96,
+            "minLength": 1,
+            "title": "Question Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question_id",
+          "index",
+          "prompt",
+          "page_number",
+          "placement_capability",
+          "prompt_regions"
+        ],
+        "title": "QuestionSetupQuestion",
+        "type": "object"
+      },
+      "QuestionSetupResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "page_count": {
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "Page Count",
+            "type": "integer"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/QuestionSetupProvenance"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/QuestionSetupQuestion"
+            },
+            "maxItems": 40,
+            "minItems": 1,
+            "title": "Questions",
+            "type": "array"
+          },
+          "source_url": {
+            "minLength": 1,
+            "title": "Source Url",
+            "type": "string"
+          },
+          "verified": {
+            "title": "Verified",
+            "type": "boolean"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "verified",
+          "provenance",
+          "source_url",
+          "page_count",
+          "questions"
+        ],
+        "title": "QuestionSetupResponse",
         "type": "object"
       },
       "RealtimeCredentialRequest": {
@@ -1000,6 +1392,53 @@
         "title": "RealtimeMode",
         "type": "string"
       },
+      "RemoveQuestionOperation": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "remove",
+            "title": "Kind",
+            "type": "string"
+          },
+          "question_id": {
+            "maxLength": 96,
+            "minLength": 1,
+            "title": "Question Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "question_id"
+        ],
+        "title": "RemoveQuestionOperation",
+        "type": "object"
+      },
+      "ReorderQuestionsOperation": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "reorder",
+            "title": "Kind",
+            "type": "string"
+          },
+          "ordered_question_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 40,
+            "minItems": 1,
+            "title": "Ordered Question Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "ordered_question_ids"
+        ],
+        "title": "ReorderQuestionsOperation",
+        "type": "object"
+      },
       "RephraseRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1075,6 +1514,60 @@
           "factual_delta_safe"
         ],
         "title": "RephraseResponse",
+        "type": "object"
+      },
+      "ReplaceQuestionOperation": {
+        "additionalProperties": false,
+        "properties": {
+          "block_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 64,
+            "minItems": 1,
+            "title": "Block Ids",
+            "type": "array"
+          },
+          "kind": {
+            "const": "replace",
+            "title": "Kind",
+            "type": "string"
+          },
+          "page_number": {
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "Page Number",
+            "type": "integer"
+          },
+          "question_id": {
+            "maxLength": 96,
+            "minLength": 1,
+            "title": "Question Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "question_id",
+          "page_number",
+          "block_ids"
+        ],
+        "title": "ReplaceQuestionOperation",
+        "type": "object"
+      },
+      "ResetQuestionSetupOperation": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "reset",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "ResetQuestionSetupOperation",
         "type": "object"
       },
       "ReviewRequest": {
@@ -2750,6 +3243,769 @@
           }
         },
         "summary": "Get Page Context"
+      }
+    },
+    "/api/v2/assignments/{assignment_id}/pages/{page_number}/question-blocks": {
+      "get": {
+        "operationId": "get_question_blocks",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "assignment_id",
+            "required": true,
+            "schema": {
+              "title": "Assignment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "page_number",
+            "required": true,
+            "schema": {
+              "title": "Page Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "claros_owner",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Claros Owner"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionBlocksResponse"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Opaque validator for the returned assignment version.",
+                "schema": {
+                  "example": "\"assignment-version-2\"",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Gone"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "416": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Requested Range Not Satisfiable"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Get Question Blocks"
+      }
+    },
+    "/api/v2/assignments/{assignment_id}/question-setup": {
+      "get": {
+        "operationId": "get_question_setup",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "assignment_id",
+            "required": true,
+            "schema": {
+              "title": "Assignment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "claros_owner",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Claros Owner"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionSetupResponse"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Opaque validator for the returned assignment version.",
+                "schema": {
+                  "example": "\"assignment-version-2\"",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Gone"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "416": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Requested Range Not Satisfiable"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Get Question Setup"
+      },
+      "patch": {
+        "operationId": "mutate_question_setup",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "assignment_id",
+            "required": true,
+            "schema": {
+              "title": "Assignment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "claros_owner",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Claros Owner"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuestionSetupMutationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionSetupResponse"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Opaque validator for the returned assignment version.",
+                "schema": {
+                  "example": "\"assignment-version-2\"",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Gone"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "416": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Requested Range Not Satisfiable"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Mutate Question Setup"
+      }
+    },
+    "/api/v2/assignments/{assignment_id}/question-setup/selection-preview": {
+      "post": {
+        "operationId": "preview_question_selection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "assignment_id",
+            "required": true,
+            "schema": {
+              "title": "Assignment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "claros_owner",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Claros Owner"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuestionSelectionPreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionSelectionPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Opaque validator for the returned assignment version.",
+                "schema": {
+                  "example": "\"assignment-version-2\"",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Gone"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "416": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Requested Range Not Satisfiable"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Preview Question Selection"
       }
     },
     "/api/v2/assignments/{assignment_id}/questions/{question_id}/answer": {

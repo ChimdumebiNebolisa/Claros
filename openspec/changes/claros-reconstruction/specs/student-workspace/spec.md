@@ -20,6 +20,36 @@ than invented percentages.
 - **WHEN** analysis completes successfully
 - **THEN** the UI shows title, page count, supported-question count, safe warnings, `Start Question 1`, and `View worksheet`
 
+### Requirement: Fast question verification before answering
+After analysis, newly created assignments MUST present `Check your questions`
+with the detected ordered questions, page numbers, authentic worksheet source,
+one obvious accept-and-start action, and one repair entry point. Correct
+detection MUST require only that single acceptance action and MUST NOT require
+per-question confirmation.
+
+#### Scenario: Detected questions are correct
+- **WHEN** the student chooses the primary accept-and-start action
+- **THEN** Claros version-authorizes the detected mapping and opens the first question without loading correction-block evidence
+
+#### Scenario: Student opens repair
+- **WHEN** the student indicates that something looks wrong
+- **THEN** Claros enters a dedicated correction state without turning the normal worksheet viewer into a general PDF editor
+
+### Requirement: Equivalent correction operations
+Before answering, correction mode MUST support adding a missed question,
+fixing an existing question's source selection, removing a false question,
+reordering by stable identity, and resetting to the detected mapping. The
+student MUST see exact server-reconstructed wording before an add or replace is
+saved.
+
+#### Scenario: Keyboard-only correction
+- **WHEN** dragging is unavailable or not preferred
+- **THEN** the student can select the same page text blocks, preview exact wording, save, reorder, reset, and finish setup using keyboard-operable controls
+
+#### Scenario: Pointer selection is used
+- **WHEN** the student drags across the worksheet preview
+- **THEN** the browser maps the temporary rectangle to server-projected blocks, the server revalidates their identifiers, and selection is communicated by text and controls as well as color
+
 ### Requirement: Question-first responsive hierarchy
 The active question MUST precede source context in reading and DOM order and
 MUST remain the primary task at every viewport. Desktop MUST use a task-first

@@ -81,3 +81,13 @@ stable placement hash. Equivalent inputs MUST produce equivalent plans.
 #### Scenario: Placement inputs changed
 - **WHEN** any bound source, IR, algorithm, evidence, or answer value differs
 - **THEN** the prior review is stale and Claros requires a fresh placement review
+
+### Requirement: Question correction recomputes placement capability
+Every added or replaced active question MUST run through the existing
+deterministic placement resolver using its newly validated source evidence.
+The client MUST NOT provide answer geometry or preserve a capability derived
+from prior evidence.
+
+#### Scenario: Corrected evidence changes available placement
+- **WHEN** a question's selected prompt blocks change
+- **THEN** the server recomputes inline-versus-attached-page capability and returns the canonical updated outcome with the corrected mapping

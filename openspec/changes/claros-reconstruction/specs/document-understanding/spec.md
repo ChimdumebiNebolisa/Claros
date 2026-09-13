@@ -90,3 +90,29 @@ provider storage and tools.
 #### Scenario: First candidate misses a required case
 - **WHEN** `gpt-5.6-luna` fails correctness, ID, or latency acceptance
 - **THEN** Claros evaluates the next configured candidate and records the evidence without weakening corpus expectations
+
+### Requirement: Student-verifiable active question mapping
+After automatic mapping, Claros MUST expose a student-safe ordered question
+setup derived from the validated physical evidence. Before answer state exists,
+the owner MAY add, replace, remove, or reorder active questions by selecting
+server-known text block identifiers. Exact prompt text MUST be reconstructed by
+the server; arbitrary client-authored question text and browser geometry MUST
+NOT become semantic truth.
+
+#### Scenario: Student selects source evidence
+- **WHEN** the student selects one or more correction-safe text blocks from one source page
+- **THEN** the server validates their identity and source order and returns the exact reconstructed text before any mapping mutation
+
+#### Scenario: Browser rectangle is tampered with
+- **WHEN** a client submits changed viewport coordinates or arbitrary question wording
+- **THEN** the mutation ignores or rejects those values and accepts only validated stored block identifiers
+
+### Requirement: Detected and active mappings remain distinct
+Claros MUST retain the original validated automatic question mapping as
+immutable analysis evidence while persisting a separately validated active
+mapping and whether it has been student-corrected. Reset MUST restore the
+retained automatic mapping without another semantic-provider call.
+
+#### Scenario: Corrected mapping is reset
+- **WHEN** the owner resets question setup before answers exist
+- **THEN** the active mapping again equals the retained validated automatic mapping and every unchanged stable question identity is restored

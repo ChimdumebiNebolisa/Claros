@@ -879,6 +879,20 @@ Show:
 
 Do not expose model confidence or geometry data.
 
+### 42A. Check detected questions
+
+After successful analysis, a new assignment must show the ordered exact
+questions Claros detected before the first conversation starts. If the mapping
+is correct, one primary action accepts it and opens Question 1. Correction
+evidence is lazy-loaded only when the student indicates something is wrong.
+
+Correction supports add, replace source selection, remove, reorder, and reset
+before downstream answer state exists. Both pointer rectangle selection and an
+accessible page-text list resolve to stored physical text block IDs. The server
+reconstructs exact wording, preserves stable question identity, retains the
+original validated mapping, recomputes placement capability, and remains the
+only authority for mutation, geometry, and export binding.
+
 ## 43. Persistent conversation state
 
 Primary hierarchy:
