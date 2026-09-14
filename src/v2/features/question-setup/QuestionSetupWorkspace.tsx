@@ -235,7 +235,10 @@ function PageRuntime({
             ) : loadingDocument || !isLoaded || !activeDocumentId ? (
               <div className={styles.documentState}>Loading the worksheet…</div>
             ) : (
-              <div className={styles.pageStack}>
+              <div
+                className={styles.pageStack}
+                style={{ aspectRatio: `${widthMpt} / ${heightMpt}` }}
+              >
                 <PageImage
                   key={`${documentId}:${pageNumber}`}
                   documentId={documentId}
@@ -328,6 +331,10 @@ export function QuestionSetupWorkspace({
     return () => controller.abort();
   }, [assignment.id, blocksByPage, editing, onError, pageNumber]);
 
+  useEffect(() => {
+    if (selectionIntent) liveRef.current?.focus({ preventScroll: true });
+  }, [selectionIntent]);
+
   const chooseQuestion = (questionId: string) => {
     const question = setup.questions.find((item) => item.id === questionId);
     setSelectedQuestionId(questionId);
@@ -345,7 +352,6 @@ export function QuestionSetupWorkspace({
       );
       if (question) setPageNumber(question.pageNumber);
     }
-    liveRef.current?.focus();
   };
 
   const cancelSelection = () => {
@@ -864,6 +870,8 @@ export function QuestionSetupWorkspace({
             <div
               ref={liveRef}
               tabIndex={-1}
+              role="group"
+              aria-label="Question text selection instructions"
               className={styles.blockChooserHeader}
             >
               <strong>Select the text that belongs to this question</strong>

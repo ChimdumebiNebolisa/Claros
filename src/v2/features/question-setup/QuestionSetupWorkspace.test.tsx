@@ -157,6 +157,22 @@ describe("QuestionSetupWorkspace", () => {
     expect(props.onAccept).toHaveBeenCalledOnce();
   });
 
+  it("keeps the overlay aligned to the canonical page aspect ratio", async () => {
+    renderWorkspace({
+      setup: {
+        ...setup,
+        pages: [{ pageNumber: 1, widthMpt: 792_000, heightMpt: 612_000 }],
+      },
+    });
+
+    const overlay = await screen.findByLabelText(
+      "Detected question highlights",
+    );
+    expect(overlay.parentElement).toHaveStyle({
+      aspectRatio: "792000 / 612000",
+    });
+  });
+
   it("offers keyboard selection and exact server text before adding", async () => {
     getQuestionBlocks.mockResolvedValue(blocks);
     previewQuestionSelection.mockResolvedValue({
@@ -173,6 +189,9 @@ describe("QuestionSetupWorkspace", () => {
     await user.click(
       screen.getByRole("button", { name: "Add missed question" }),
     );
+    expect(
+      screen.getByLabelText("Question text selection instructions"),
+    ).toHaveFocus();
     const checkbox = await screen.findByRole("checkbox", {
       name: blocks.blocks[0].exact_text,
     });

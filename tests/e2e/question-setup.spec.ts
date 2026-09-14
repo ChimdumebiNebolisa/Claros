@@ -164,6 +164,11 @@ test("real source correction reaches answering and a validated OpenPDF export", 
   if (!overlayBox || !promptBlock || !pageSize) {
     throw new Error("Question selection geometry was unavailable");
   }
+  expect(overlayBox.y).toBeGreaterThanOrEqual(0);
+  expect(overlayBox.width / overlayBox.height).toBeCloseTo(
+    pageSize.width_mpt / pageSize.height_mpt,
+    2,
+  );
   const startX =
     overlayBox.x +
     ((promptBlock.region.x_mpt - 4_000) / pageSize.width_mpt) *
@@ -292,8 +297,12 @@ test("mobile correction is task-first, keyboard complete, and accessible", async
 
   await page.getByRole("button", { name: "Something looks wrong" }).click();
   await page.getByRole("button", { name: "Fix selection" }).first().click();
+  await expect(
+    page.getByLabel("Question text selection instructions"),
+  ).toBeFocused();
   const firstCheckbox = page.getByRole("checkbox").first();
-  await firstCheckbox.focus();
+  await page.keyboard.press("Tab");
+  await expect(firstCheckbox).toBeFocused();
   await page.keyboard.press("Space");
   await expect(firstCheckbox).toBeChecked();
   await expect(
