@@ -173,7 +173,7 @@ export default function MarketingShell() {
           className="border-y border-[var(--claros-line)] bg-[var(--claros-canvas)] px-5 py-20 sm:px-8 sm:py-24"
         >
           <div className="mx-auto max-w-[1180px]">
-            <div className="max-w-[620px]">
+            <div className="mx-auto max-w-[620px] text-center">
               <p className="text-[12px] font-bold uppercase tracking-[0.17em] text-[var(--claros-blue-dark)]">
                 From thought to worksheet
               </p>
