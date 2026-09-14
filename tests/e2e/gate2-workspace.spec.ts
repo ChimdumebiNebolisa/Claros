@@ -10,6 +10,18 @@ const questionTwo = "How does sunlight help a plant make food?";
 
 async function openWorkspace(page: Page, search = "?replay=controls") {
   const created = await createSample(page);
+  await page.getByRole("button", { name: "Looks right — Start" }).click();
+  await expect(page).toHaveURL(`/app/${created.assignment_id}`);
+  await expect
+    .poll(() =>
+      page.evaluate(async (assignmentId) => {
+        const response = await fetch(
+          `/api/v2/assignments/${assignmentId}/question-setup`,
+        );
+        return ((await response.json()) as { verified: boolean }).verified;
+      }, created.assignment_id),
+    )
+    .toBe(true);
   await page.goto(`/app/${created.assignment_id}${search}`);
   await expect(
     page.getByRole("heading", { level: 1, name: questionOne }),

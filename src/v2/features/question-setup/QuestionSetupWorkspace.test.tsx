@@ -195,6 +195,77 @@ describe("QuestionSetupWorkspace", () => {
     });
   });
 
+  it("replaces an existing question through canonical server block IDs", async () => {
+    getQuestionBlocks.mockResolvedValue(blocks);
+    previewQuestionSelection.mockResolvedValue({
+      version: 7,
+      page_number: 1,
+      block_ids: ["blk_prompt"],
+      exact_prompt: blocks.blocks[0].exact_text,
+      prompt_regions: [blocks.blocks[0].region],
+      placement_capability: "inline_possible",
+    });
+    const user = userEvent.setup();
+    const props = renderWorkspace({ editing: true });
+
+    await user.click(
+      screen.getAllByRole("button", { name: "Fix selection" })[0],
+    );
+    await user.click(
+      await screen.findByRole("checkbox", {
+        name: blocks.blocks[0].exact_text,
+      }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Check selected text" }),
+    );
+    expect(previewQuestionSelection).toHaveBeenCalledWith("asn_test", {
+      assignment_version: 7,
+      page_number: 1,
+      block_ids: ["blk_prompt"],
+      question_id: "q_one",
+    });
+    await user.click(screen.getByRole("button", { name: "Save question" }));
+    expect(props.onMutate).toHaveBeenCalledWith({
+      kind: "replace",
+      question_id: "q_one",
+      page_number: 1,
+      block_ids: ["blk_prompt"],
+    });
+  });
+
+  it("forwards validation failures and presents stale-version recovery copy", async () => {
+    getQuestionBlocks.mockResolvedValue(blocks);
+    const validationError = new Error(
+      "That selection is not valid source text.",
+    );
+    previewQuestionSelection.mockRejectedValue(validationError);
+    const user = userEvent.setup();
+    const props = renderWorkspace({
+      editing: true,
+      errorMessage:
+        "This worksheet changed in another tab. Reload before changing questions.",
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "This worksheet changed in another tab",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Add missed question" }),
+    );
+    await user.click(
+      await screen.findByRole("checkbox", {
+        name: blocks.blocks[0].exact_text,
+      }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Check selected text" }),
+    );
+    await waitFor(() =>
+      expect(props.onError).toHaveBeenCalledWith(validationError),
+    );
+  });
+
   it("exposes fix, reorder, remove, and reset without changing identity locally", async () => {
     getQuestionBlocks.mockResolvedValue(blocks);
     const user = userEvent.setup();

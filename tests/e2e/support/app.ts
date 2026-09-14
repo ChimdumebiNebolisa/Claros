@@ -16,14 +16,14 @@ export async function createSample(page: Page) {
     questions: Array<{ question_id: string; prompt: string }>;
   };
   await expect(
-    page.getByRole("heading", { level: 1, name: "Your worksheet is ready." }),
+    page.getByRole("heading", { level: 1, name: "Check your questions." }),
   ).toBeVisible();
   return created;
 }
 
 export async function openSampleWorkspace(page: Page) {
   const created = await createSample(page);
-  await page.getByRole("button", { name: "Start session" }).click();
+  await page.getByRole("button", { name: "Looks right — Start" }).click();
   await expect(page).toHaveURL(`/app/${created.assignment_id}`);
   await expect(page.getByLabel("Conversation workspace")).toBeVisible();
   return created;

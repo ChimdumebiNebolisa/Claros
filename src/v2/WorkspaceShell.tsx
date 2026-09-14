@@ -411,7 +411,10 @@ export default function WorkspaceShell({
             return;
           }
           if (mode === "question") {
-            actor.send({ type: "START_QUESTION" });
+            actor.send({
+              type: "QUESTION_SETUP_ACCEPTED",
+              questionSetup,
+            });
           } else if (mode === "review") {
             actor.send({ type: "OPEN_REVIEW_ROUTE" });
           } else if (mode === "export") {

@@ -307,6 +307,7 @@ export function QuestionSetupWorkspace({
   const [pendingRemoveId, setPendingRemoveId] = useState<string>();
   const [pending, setPending] = useState(false);
   const liveRef = useRef<HTMLDivElement>(null);
+  const dragMovedRef = useRef(false);
   const page =
     setup.pages.find((item) => item.pageNumber === pageNumber) ??
     setup.pages[0];
@@ -433,12 +434,19 @@ export function QuestionSetupWorkspace({
     const x = Math.min(Math.max(event.clientX - bounds.left, 0), bounds.width);
     const y = Math.min(Math.max(event.clientY - bounds.top, 0), bounds.height);
     event.currentTarget.setPointerCapture(event.pointerId);
+    dragMovedRef.current = false;
     setDrag({ startX: x, startY: y, currentX: x, currentY: y });
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!drag) return;
     const bounds = event.currentTarget.getBoundingClientRect();
+    if (
+      Math.abs(event.clientX - bounds.left - drag.startX) > 4 ||
+      Math.abs(event.clientY - bounds.top - drag.startY) > 4
+    ) {
+      dragMovedRef.current = true;
+    }
     setDrag((current) =>
       current
         ? {
@@ -463,6 +471,10 @@ export function QuestionSetupWorkspace({
     const top = Math.min(drag.startY, drag.currentY);
     const width = Math.abs(drag.currentX - drag.startX);
     const height = Math.abs(drag.currentY - drag.startY);
+    if (!dragMovedRef.current || width < 4 || height < 4) {
+      setDrag(undefined);
+      return;
+    }
     const canonicalSelection = {
       xMpt: (left / bounds.width) * page.widthMpt,
       yMpt: (top / bounds.height) * page.heightMpt,
@@ -761,6 +773,7 @@ export function QuestionSetupWorkspace({
                 className={
                   selectionIntent ? styles.overlaySelecting : styles.overlay
                 }
+                role="group"
                 aria-label={
                   selectionIntent
                     ? "Select question text on worksheet"
@@ -820,8 +833,13 @@ export function QuestionSetupWorkspace({
                               page.heightMpt,
                             ),
                           }}
-                          onPointerDown={(event) => event.stopPropagation()}
-                          onClick={() => toggleBlock(block.block_id)}
+                          onClick={() => {
+                            if (dragMovedRef.current) {
+                              dragMovedRef.current = false;
+                              return;
+                            }
+                            toggleBlock(block.block_id);
+                          }}
                         />
                       );
                     })}

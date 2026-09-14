@@ -27,8 +27,29 @@ type AssignmentProjection = {
   source: { sha256: string };
   questions: Array<{
     question_id: string;
+    prompt: string;
+    instruction: string | null;
     page_number: number;
     confirmed_answer: { exact_text: string } | null;
+  }>;
+};
+
+type QuestionSetupProjection = {
+  version: number;
+  verified: boolean;
+  provenance: "detected" | "student_corrected";
+  questions: Array<{
+    question_id: string;
+    prompt: string;
+    instruction: string | null;
+  }>;
+};
+
+type QuestionBlocksProjection = {
+  blocks: Array<{
+    exact_text: string;
+    reading_order: number;
+    selected_question_ids: string[];
   }>;
 };
 
@@ -106,9 +127,142 @@ test("built FastAPI app preserves an authenticated partial export across restart
     );
 
     await expect(
-      page.getByRole("heading", { level: 2, name: "01-biology-polished" }),
+      page.getByRole("heading", { level: 1, name: "Check your questions." }),
     ).toBeVisible();
-    await page.getByRole("button", { name: "Start session" }).click();
+    const setupBefore = await page.evaluate(
+      async ({ assignmentId }) => {
+        const response = await fetch(
+          `/api/v2/assignments/${encodeURIComponent(assignmentId)}/question-setup`,
+        );
+        return (await response.json()) as QuestionSetupProjection;
+      },
+      { assignmentId: created.assignment_id },
+    );
+    expect(setupBefore).toMatchObject({
+      verified: false,
+      provenance: "detected",
+    });
+
+    const rejectedCorrection = await page.evaluate(
+      async ({ assignmentId, version, questionId }) => {
+        const response = await fetch(
+          `/api/v2/assignments/${encodeURIComponent(assignmentId)}/question-setup`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              assignment_version: version,
+              operation: {
+                kind: "replace",
+                question_id: questionId,
+                page_number: 1,
+                block_ids: ["block-from-another-assignment"],
+              },
+            }),
+          },
+        );
+        return { status: response.status, body: await response.json() };
+      },
+      {
+        assignmentId: created.assignment_id,
+        version: setupBefore.version,
+        questionId: setupBefore.questions[0].question_id,
+      },
+    );
+    expect(rejectedCorrection).toMatchObject({
+      status: 422,
+      body: {
+        error: {
+          code: "invalid_question_setup",
+          recoverable: true,
+        },
+      },
+    });
+
+    await page.getByRole("button", { name: "Something looks wrong" }).click();
+    await page.getByRole("button", { name: "Fix selection" }).first().click();
+    const firstDetectedQuestion = setupBefore.questions[0];
+    const correctionBlocks = await page.evaluate(
+      async ({ assignmentId }) => {
+        const response = await fetch(
+          `/api/v2/assignments/${encodeURIComponent(assignmentId)}/pages/1/question-blocks`,
+        );
+        return (await response.json()) as QuestionBlocksProjection;
+      },
+      { assignmentId: created.assignment_id },
+    );
+    const promptBlock = correctionBlocks.blocks.find(
+      (block) => block.exact_text === firstDetectedQuestion.prompt,
+    );
+    const supplementalBlock = correctionBlocks.blocks
+      .filter((block) =>
+        block.selected_question_ids.every(
+          (questionId) => questionId === firstDetectedQuestion.question_id,
+        ),
+      )
+      .filter((block) => block.exact_text.length > 10)
+      .filter((block) => block.exact_text !== firstDetectedQuestion.prompt)
+      .sort(
+        (left, right) =>
+          Math.abs(left.reading_order - (promptBlock?.reading_order ?? 0)) -
+          Math.abs(right.reading_order - (promptBlock?.reading_order ?? 0)),
+      )[0];
+    expect(promptBlock).toBeTruthy();
+    expect(supplementalBlock).toBeTruthy();
+    for (const text of [
+      firstDetectedQuestion.prompt,
+      supplementalBlock!.exact_text,
+    ]) {
+      await page.getByRole("checkbox", { name: text, exact: true }).check();
+    }
+    await page.getByRole("button", { name: "Check selected text" }).click();
+    const exactCorrection = [promptBlock!, supplementalBlock!]
+      .sort((left, right) => left.reading_order - right.reading_order)
+      .map((block) => block.exact_text)
+      .join("\n");
+    await expect(
+      page.getByRole("status").filter({ hasText: "Selected question" }),
+    ).toContainText(exactCorrection);
+    await page.screenshot({
+      path: testInfo.outputPath("question-correction-confirmation.png"),
+      fullPage: true,
+    });
+    await page.getByRole("button", { name: "Save question" }).click();
+    await expect(
+      page.getByRole("heading", {
+        level: 1,
+        name: "Make the question list match.",
+      }),
+    ).toBeVisible();
+    const setupAfterCorrection = await page.evaluate(
+      async ({ assignmentId }) => {
+        const response = await fetch(
+          `/api/v2/assignments/${encodeURIComponent(assignmentId)}/question-setup`,
+        );
+        return (await response.json()) as QuestionSetupProjection;
+      },
+      { assignmentId: created.assignment_id },
+    );
+    expect(setupAfterCorrection).toMatchObject({
+      verified: false,
+      provenance: "student_corrected",
+    });
+    expect(setupAfterCorrection.questions[0]).toMatchObject({
+      question_id: firstDetectedQuestion.question_id,
+      prompt: exactCorrection,
+    });
+    expect(
+      setupAfterCorrection.questions.map((question) => question.question_id),
+    ).toEqual(setupBefore.questions.map((question) => question.question_id));
+    await page.getByRole("button", { name: "Review changes" }).click();
+    await expect(
+      page.getByText(exactCorrection, { exact: true }),
+    ).toBeVisible();
+    await page.screenshot({
+      path: testInfo.outputPath("question-check-corrected.png"),
+      fullPage: true,
+    });
+    await page.getByRole("button", { name: "Looks right — Start" }).click();
     await expect(page).toHaveURL(`${origin}/app/${created.assignment_id}`);
     await expect(
       page.getByRole("heading", {
