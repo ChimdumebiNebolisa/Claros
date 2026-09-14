@@ -288,6 +288,9 @@ def test_workflows_pin_actions_scan_supply_chain_and_promote_one_digest() -> Non
     assert "ignore-unfixed: false" in runtime_report
     assert 'exit-code: "1"' in runtime_gate
     assert "ignore-unfixed: true" in runtime_gate
+    assert deploy.count(
+        "python -m pip install --require-hashes --requirement requirements-server.txt"
+    ) >= 2
 
 
 def test_remote_container_smoke_is_dispatchable_and_persists_safe_artifacts() -> None:
