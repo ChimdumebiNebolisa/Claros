@@ -16,7 +16,7 @@ const steps = [
   {
     icon: Mic2,
     title: "Talk naturally",
-    copy: "Say the answer you know—or explain where you’re stuck.",
+    copy: "Say the answer you know, or explain where you’re stuck.",
   },
   {
     icon: MessageCircleMore,

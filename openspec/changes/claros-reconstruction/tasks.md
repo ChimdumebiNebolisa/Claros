@@ -45,7 +45,7 @@ do not use checkboxes and therefore do not count toward V2 progress.
 | 4.5 Native-text parser and corpus | Incomplete | Superseded by Gate 3 document-understanding work |
 | 4.6 Durable storage/TTL/live voice | Incomplete | Superseded by Gates 3 and 5 |
 
-## 0. Gate 0 — Authority, audit, and decision freeze
+## 0. Gate 0 - Authority, audit, and decision freeze
 
 - [x] 0.1 [Lead] Add the three V2 authority files at repository root byte-for-byte and verify their SHA-256 hashes equal the values recorded in `docs/v2/STATUS.md`.
 - [x] 0.2 [Lead] Consolidate the six read-only audits into `BASELINE_AUDIT.md`, preserving prior repository/build/test/browser findings and adding only authority-driven deltas; verify every finding links to a path, command, screenshot, or commit.
@@ -56,7 +56,7 @@ do not use checkboxes and therefore do not count toward V2 progress.
 - [x] 0.7 [Lead] Run `npm audit --audit-level=high`, authority hash checks, dependency-diff review, `git diff --check`, and a read-only contract review; verify no unavailable audit, HIGH/CRITICAL runtime issue, or unresolved critical finding remains.
 - [x] 0.8 [Lead] Commit the planning-only Gate 0 checkpoint and update `docs/v2/STATUS.md` with commit SHA, results, risks, and next action; verify the committed tree contains no production-code changes from Gate 0.
 
-## 1. Gate 1 — V2 foundation and authentic document rendering
+## 1. Gate 1 - V2 foundation and authentic document rendering
 
 **Dependency:** Gate 0 is passed and recorded.
 
@@ -76,7 +76,7 @@ do not use checkboxes and therefore do not count toward V2 progress.
 - [x] 1.7 [Lead] Run format, lint, typecheck, unit, Storybook, production build, route smoke, and keyboard upload/dialog tests plus a CSP/WASM/worker production smoke; verify the empty V2 shell screenshot has no fake PDF or second visible design system.
 - [x] 1.8 [Reviewer] Perform a read-only Gate 1 contract, dependency, accessibility, and browser review; verify all critical findings are fixed and record the checkpoint SHA in `docs/v2/STATUS.md`.
 
-## 2. Gate 2 — Fixture-complete student and marketing UI
+## 2. Gate 2 - Fixture-complete student and marketing UI
 
 **Dependency:** Gate 1 is passed; shared routes, tokens, API types, and XState event contracts are lead-owned and frozen before parallel screen work.
 
@@ -90,7 +90,7 @@ do not use checkboxes and therefore do not count toward V2 progress.
 - [x] 2.8 [Lead] Capture the complete required state matrix at 1440x1000, 1024x1366, and 390x844 from the running app; verify an initial score of at least 90/100, every category at least 80 percent, zero critical accessibility defects, and zero anti-reference violations.
 - [x] 2.9 [Reviewer] Independently replay and score Gate 2 read-only; verify disagreements are resolved through new browser evidence and record the checkpoint SHA and final score in `docs/v2/STATUS.md`.
 
-## 3. Gate 3 — FastAPI, durable assignments, and deterministic PDF engine
+## 3. Gate 3 - FastAPI, durable assignments, and deterministic PDF engine
 
 **Dependency:** Gate 2 passes; the lead freezes domain and `/api/v2` schemas before document and client integration proceed in parallel.
 
@@ -106,7 +106,7 @@ do not use checkboxes and therefore do not count toward V2 progress.
 - [x] 3.10 [Reviewer] Perform read-only PDF, API, storage, authorization, and evidence review; verify critical findings are fixed and record the checkpoint SHA in `docs/v2/STATUS.md`.
 - [x] 3.11 [Document integrator] Promote the validated OpenPDF worker into the real `/api/v2` export path behind explicit engine selection, Java 21 and pinned font packaging, bounded process/resource limits, and qpdf plus PDFBox publication gates; verify inline and appendix output, exact Unicode/ligature text, immutable source, unconfirmed-draft exclusion, failure cleanup, PDF.js release compatibility, real-browser flow, and clean-worktree reproducibility without changing the deployed engine selection.
 
-## 4. Gate 4 — Closed-world semantic mapping and optional rephrasing
+## 4. Gate 4 - Closed-world semantic mapping and optional rephrasing
 
 **Dependency:** Gate 3 passes with frozen physical IR, candidate, and API contracts, including remote container smoke, live GCS persistence, Cloud Run revision persistence, ownership isolation, and managed-proxy identity evidence.
 
@@ -118,7 +118,7 @@ do not use checkboxes and therefore do not count toward V2 progress.
 - [x] 4.6 [Lead] Run unit, schema, recorded-provider, corpus, integration, browser, privacy-log, and live-provider evaluation checks; verify failures preserve safe assignment state and no deterministic test depends on a live provider.
 - [x] 4.7 [Reviewer] Perform read-only prompt-injection, closed-world, provenance, corpus, and evidence review; verify critical findings are fixed and record the checkpoint SHA in `docs/v2/STATUS.md`.
 
-## 5. Gate 5 — OpenAI Realtime unified conversation
+## 5. Gate 5 - OpenAI Realtime unified conversation
 
 **Dependency:** Gate 4 passes; confirmation, candidate, question-context, and credential schemas are frozen.
 
@@ -148,7 +148,7 @@ do not use checkboxes and therefore do not count toward V2 progress.
 - [ ] 5.7 [Lead] Run fake-adapter browser suites, accessibility/caption/mute checks, credential/security tests, bundle/key scans, and documented manual live dictation/help/interrupt/reconnect tests; verify all Gate 5 evidence passes.
 - [ ] 5.8 [Reviewer] Perform read-only voice-authority, privacy, accessibility, failure, and evidence review; verify critical findings are fixed and record the checkpoint SHA in `docs/v2/STATUS.md`.
 
-## 6. Gate 6 — Cutover, hardening, and deployment
+## 6. Gate 6 - Cutover, hardening, and deployment
 
 **Dependency:** Gates 0–5 pass on the same integration line.
 
@@ -161,7 +161,7 @@ do not use checkboxes and therefore do not count toward V2 progress.
 - [ ] 6.7 [Lead] Deploy the tested image digest to staging and exercise clean-session upload, source Range, both typed paths, rephrase, exact confirmation, revision, partial inline/appendix export, download, expiry, and a Cloud Run revision replacement; verify state and immutable artifacts survive and outputs open in Chrome and Acrobat.
 - [ ] 6.8 [Reviewer] Perform independent read-only production contract, accessibility, security, visual, PDF, and deployment replay; verify every critical finding is fixed before production promotion and record the Gate 6 SHA/image digest in `docs/v2/STATUS.md`.
 
-## 7. Gate 7 — Demonstration and release evidence
+## 7. Gate 7 - Demonstration and release evidence
 
 **Dependency:** Gate 6 passes and the production candidate is frozen except for verified release blockers.
 

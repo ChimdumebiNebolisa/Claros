@@ -84,7 +84,7 @@ def test_forged_origin_preserves_previous_state(manifest_factory) -> None:
 
 
 def test_exact_unicode_and_whitespace_are_not_normalized(manifest_factory) -> None:
-    exact = "  José\N{RIGHT SINGLE QUOTATION MARK}s Δ result — 42 °C.\nSecond line.  "
+    exact = "  José\N{RIGHT SINGLE QUOTATION MARK}s Δ result\N{EM DASH}42 °C.\nSecond line.  "
     updated, candidate = replace_candidate(
         manifest_factory(),
         question_id="q_1",

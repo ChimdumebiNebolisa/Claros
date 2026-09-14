@@ -117,7 +117,7 @@ The operational cost is an additional private service, a larger multi-runtime im
 3. Measure Linux/container image size, cold/warm latency, peak total instance memory including Chromium, and concurrency 1 under Cloud Run.
 4. Add health/startup probes and privacy-log canaries; preserve only bounded metadata.
 5. Decide whether PDF.js must run per job or whether a cheaper independently isolated renderer can meet the same semantic gate without weakening it.
-6. Only after those gates pass, propose—not perform—the production setting/adapter wiring and migration rollout.
+6. Only after those gates pass, propose - not perform - the production setting/adapter wiring and migration rollout.
 
 ## 12. Current renderer control path
 

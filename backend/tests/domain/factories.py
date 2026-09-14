@@ -41,7 +41,7 @@ def make_manifest(
         owner_hash=owner_hash,
         version=version,
         status=status,
-        title="Biology — cells & energy",
+        title="Biology\u2014cells & energy",
         source_filename="biology-worksheet.pdf",
         source=ObjectReference(
             key="assignments/asg_test_01/source/original.pdf",

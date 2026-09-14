@@ -20,9 +20,9 @@ from backend.document import (
 from backend.document.models import sha256_hex
 from backend.tests.document.conftest import ExtractedWorksheet
 
-SHORT_EXACT_ANSWER = "Chlorophyll captures sunlight—keeping CO₂ and H₂O exact."
+SHORT_EXACT_ANSWER = "Chlorophyll captures sunlight\u2014keeping CO₂ and H₂O exact."
 LONG_EXACT_ANSWER = (
-    "Café evidence stays naïve—CO₂ and H₂O remain exact through every attached page. " * 150
+    "Café evidence stays naïve\u2014CO₂ and H₂O remain exact through every attached page. " * 150
 ).strip()
 
 
@@ -113,7 +113,7 @@ def test_inline_and_multipage_appendix_export_is_byte_deterministic(
     assert SHORT_EXACT_ANSWER in first_page_text
     appendix_text = "\n".join(page.extract_text() or "" for page in reader.pages[1:])
     assert "Claros attached answer page" in appendix_text
-    assert "Café evidence stays naïve—CO₂ and H₂O" in appendix_text
+    assert "Café evidence stays naïve\u2014CO₂ and H₂O" in appendix_text
 
 
 def test_partial_export_writes_only_confirmed_answer(

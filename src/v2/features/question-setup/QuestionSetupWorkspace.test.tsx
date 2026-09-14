@@ -152,7 +152,7 @@ describe("QuestionSetupWorkspace", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
     expect(screen.getByRole("button", { name: /Question 1:/ })).toBeVisible();
     await user.click(
-      screen.getByRole("button", { name: "Looks right — Start" }),
+      screen.getByRole("button", { name: "Looks right. Start" }),
     );
     expect(props.onAccept).toHaveBeenCalledOnce();
   });

@@ -172,7 +172,7 @@ def test_revision_retains_confirmed_answer_until_replacement_is_confirmed(
         revising,
         question_id="q_1",
         assignment_version=revising.version,
-        exact_text="Revised exact answer — still mine.",
+        exact_text="Revised exact answer\u2014still mine.",
         origin=CandidateOrigin.STUDENT_EDITED,
         interaction=StudentEditInteraction(
             prior_candidate_id=previous.candidate_id,
@@ -210,5 +210,5 @@ def test_revision_retains_confirmed_answer_until_replacement_is_confirmed(
         confirmation_id_factory=lambda: "cnf_two",
     )
     assert replacement.confirmed_answer.revision == 2
-    assert replacement.confirmed_answer.exact_text == "Revised exact answer — still mine."
+    assert replacement.confirmed_answer.exact_text == "Revised exact answer\u2014still mine."
     assert replacement.confirmed_answer.placement == Placement.APPENDIX

@@ -250,7 +250,7 @@ export function ConversationWorkspace({
             onChange={onCandidateChange}
             textAreaRef={candidateRef}
             rows={5}
-            placeholder="Your answer will appear here—or type it directly."
+            placeholder="Your answer will appear here, or type it directly."
             className={`mt-3 min-h-[132px] text-[17px] leading-7 ${hasCandidate ? "border-[var(--claros-blue)] bg-white shadow-[0_1px_2px_rgba(17,32,51,.04)]" : "bg-[var(--claros-canvas)]"}`}
           />
         </motion.div>

@@ -27,7 +27,7 @@ OUTPUT_DIR = ROOT / "artifacts" / "v2" / "gate3"
 OUTPUT_PDF = OUTPUT_DIR / "completed-inline-appendix.pdf"
 OUTPUT_MANIFEST = OUTPUT_DIR / "completed-inline-appendix.manifest.json"
 
-SHORT_ANSWER = "Mitochondria release usable energy from food — exactly as reviewed."
+SHORT_ANSWER = "Mitochondria release usable energy from food - exactly as reviewed."
 LONG_ANSWER = (
     "Chloroplasts capture sunlight so plant cells can make food from water and carbon dioxide. "
     * 36

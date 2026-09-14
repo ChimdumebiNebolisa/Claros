@@ -61,7 +61,7 @@ function assignmentPayload(): ApiAssignment {
           candidate_id: "cand_02",
           candidate_version: 3,
           question_id: "q_02",
-          text: "  Café — 植物  ",
+          text: "  Café \u2014 植物  ",
           origin: "student_edited",
           attribution: "Your words",
           created_at: createdAt,
@@ -78,7 +78,7 @@ describe("Gate 3 generated API mapping", () => {
     const restored = mapAssignment(assignmentPayload());
 
     expect(restored.activeQuestionIndex).toBe(1);
-    expect(restored.candidate?.text).toBe("  Café — 植物  ");
+    expect(restored.candidate?.text).toBe("  Café \u2014 植物  ");
     expect(
       restored.assignment.questions.map((question) => question.placement),
     ).toEqual(["inline", "appendix"]);

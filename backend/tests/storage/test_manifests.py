@@ -23,7 +23,7 @@ def test_manifest_serialization_is_deterministic_utf8_without_ascii_substitution
     second = serialize_manifest(manifest.model_copy(deep=True))
 
     assert first == second
-    assert "Biology — cells & energy".encode() in first
+    assert "Biology\u2014cells & energy".encode() in first
     assert b"\\u2014" not in first
     assert deserialize_manifest(first) == manifest
 

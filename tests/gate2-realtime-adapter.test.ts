@@ -16,7 +16,7 @@ const script: readonly FakeRealtimeScriptItem[] = [
     event: {
       id: "evt-candidate",
       type: "candidate",
-      text: "Café plants use CO₂ — exactly.",
+      text: "Café plants use CO₂ \u2014 exactly.",
       input: "voice",
     },
   },
@@ -75,7 +75,7 @@ describe("Gate 2 fake Realtime adapter", () => {
     expect(connect.id).toBe("fixture-operation-1");
     expect(listen.id).toBe("fixture-operation-2");
     expect(adapter.advance("candidate-operation")).toMatchObject({
-      text: "Café plants use CO₂ — exactly.",
+      text: "Café plants use CO₂ \u2014 exactly.",
     });
     expect(listener).toHaveBeenCalledTimes(1);
     expect(adapter.getPendingCount()).toBe(2);
@@ -96,7 +96,7 @@ describe("Gate 2 fake Realtime adapter", () => {
     const events = createFakeRealtimeScript({
       interaction: "guided-turn",
       runId: "guided",
-      studentText: "Café plants use CO₂ — exactly.",
+      studentText: "Café plants use CO₂ \u2014 exactly.",
       clarosText: "Keep your wording and explain the energy step.",
     }).map(({ event }) => event);
 
@@ -105,7 +105,7 @@ describe("Gate 2 fake Realtime adapter", () => {
       expect.objectContaining({
         type: "transcript",
         speaker: "student",
-        text: "Café plants use CO₂ — exactly.",
+        text: "Café plants use CO₂ \u2014 exactly.",
       }),
       expect.objectContaining({ type: "voice_state", state: "thinking" }),
       expect.objectContaining({

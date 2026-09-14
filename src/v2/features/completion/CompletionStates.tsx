@@ -115,7 +115,7 @@ export function WordingComparison({
       </h1>
       <p className={styles.intro}>
         Both versions stay visible. Choosing a suggestion does not add it to the
-        worksheet—you will review the exact text next.
+        worksheet. You will review the exact text next.
       </p>
 
       <div className={styles.comparisonGrid}>

@@ -23,7 +23,7 @@ export async function createSample(page: Page) {
 
 export async function openSampleWorkspace(page: Page) {
   const created = await createSample(page);
-  await page.getByRole("button", { name: "Looks right — Start" }).click();
+  await page.getByRole("button", { name: "Looks right. Start" }).click();
   await expect(page).toHaveURL(`/app/${created.assignment_id}`);
   await expect(page.getByLabel("Conversation workspace")).toBeVisible();
   return created;

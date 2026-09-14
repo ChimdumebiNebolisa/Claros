@@ -106,10 +106,10 @@ Default behavior:
 
 Available actions:
 
-- **Use my words** — keep the normalized transcription.
-- **Make it clearer** — request a visibly labeled suggested rephrasing.
-- **Edit** — manually change the draft.
-- **Use this exact answer** — explicitly approve the exact visible text.
+- **Use my words** - keep the normalized transcription.
+- **Make it clearer** - request a visibly labeled suggested rephrasing.
+- **Edit** - manually change the draft.
+- **Use this exact answer** - explicitly approve the exact visible text.
 
 ### 3.2 Guided-help intent
 
@@ -320,9 +320,9 @@ immutable original PDF
 
 The document engine has three responsibilities:
 
-1. **Physical extraction** — deterministic text, page, line, rectangle, form-field, and coordinate evidence.
-2. **Semantic mapping** — an OpenAI model groups existing source blocks into questions and context using block identifiers.
-3. **Geometry resolution** — deterministic code decides whether and where an answer can be placed.
+1. **Physical extraction** - deterministic text, page, line, rectangle, form-field, and coordinate evidence.
+2. **Semantic mapping** - an OpenAI model groups existing source blocks into questions and context using block identifiers.
+3. **Geometry resolution** - deterministic code decides whether and where an answer can be placed.
 
 The model may identify source block IDs. It may not generate authoritative coordinates.
 

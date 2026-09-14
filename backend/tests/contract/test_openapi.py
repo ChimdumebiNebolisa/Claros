@@ -153,7 +153,7 @@ def test_openapi_declares_etag_on_versioned_and_binary_success_responses() -> No
 
 
 def test_candidate_validation_preserves_exact_unicode_and_whitespace() -> None:
-    exact = "  José’s café — 植物\nsecond line  "  # noqa: RUF001 - exact Unicode fixture
+    exact = "  José’s café\u2014植物\nsecond line  "  # noqa: RUF001 - exact Unicode fixture
     request = CandidateRequest(
         assignment_version=1,
         text=exact,

@@ -984,7 +984,7 @@ const semanticPunctuation = new Set([
   "‑",
   "‒",
   "–",
-  "—",
+  "\u2014",
   "―",
   "−",
   "+",

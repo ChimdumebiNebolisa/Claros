@@ -44,7 +44,7 @@ test("sample selection creates a real assignment and opens one conversation", as
   page,
 }) => {
   const created = await createSample(page);
-  await page.getByRole("button", { name: "Looks right — Start" }).click();
+  await page.getByRole("button", { name: "Looks right. Start" }).click();
 
   await expect(page).toHaveURL(`/app/${created.assignment_id}`);
   await expect(page.getByLabel("Conversation workspace")).toBeVisible();
@@ -84,7 +84,7 @@ test("supported upload uses the same real assignment pipeline", async ({
   await expect(
     page.getByRole("heading", { level: 1, name: "Check your questions." }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Looks right — Start" }).click();
+  await page.getByRole("button", { name: "Looks right. Start" }).click();
   await expect(page).toHaveURL(`/app/${created.assignment_id}`);
   await expect(page.getByLabel("Conversation workspace")).toBeVisible();
 });
@@ -94,7 +94,7 @@ test("mobile worksheet dialog restores focus, reflows, and remains accessible", 
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const created = await createSample(page);
-  await page.getByRole("button", { name: "Looks right — Start" }).click();
+  await page.getByRole("button", { name: "Looks right. Start" }).click();
   await expect(page).toHaveURL(`/app/${created.assignment_id}`);
 
   const viewWorksheet = page

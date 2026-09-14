@@ -98,7 +98,7 @@ def test_typed_confirmation_partial_export_and_restart(tmp_path: Path) -> None:
         assert unsatisfiable.status_code == 416
         assert unsatisfiable.json()["error"]["code"] == "range_not_satisfiable"
 
-        answer_text = "Chlorophyll captures sunlight—turning CO₂ and H₂O into food."
+        answer_text = "Chlorophyll captures sunlight\u2014turning CO₂ and H₂O into food."
         candidate_response = client.post(
             f"/api/v2/assignments/{assignment_id}/questions/{question_id}/candidates",
             json={

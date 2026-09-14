@@ -35,7 +35,7 @@ CONTAINER_ORIGIN = "http://127.0.0.1:8080"
 TEST_COOKIE_SECRET = "gate3-smoke-owner-secret-not-for-production-0001"  # noqa: S105
 TEST_REVIEW_SECRET = "gate3-smoke-review-secret-not-for-production-0001"  # noqa: S105
 INLINE_ANSWER = "Mitochondria release usable energy from food."
-APPENDIX_ANSWER = "Chlorophyll captures sunlight—turning CO₂ and H₂O into stored food energy."
+APPENDIX_ANSWER = "Chlorophyll captures sunlight - turning CO₂ and H₂O into stored food energy."
 WORKSHEET_TEXT_CANARIES = (
     "1. What organelle releases usable energy from food?",
     "2. Why do plant cells need chloroplasts?",

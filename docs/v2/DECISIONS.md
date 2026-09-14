@@ -10,7 +10,7 @@ implementation.
 
 ## Product and migration
 
-### D-001 — Authority and branch
+### D-001 - Authority and branch
 
 Use the V2 authority order in `BASELINE_AUDIT.md`. Work on
 `codex/claros-v2-nerdy` from `5fb2177`; do not implement V2 directly on
@@ -20,7 +20,7 @@ The three authority files use the SHA-256 values recorded in
 `BASELINE_AUDIT.md`. They were intentionally rebaselined on 2026-09-11 for the
 product-owner interaction correction described in D-005.
 
-### D-002 — OpenSpec strategy
+### D-002 - OpenSpec strategy
 
 Update `openspec/changes/claros-reconstruction` in place. Rewrite
 `worksheet-contract`, `answer-integrity`, `student-workspace`, and
@@ -28,13 +28,13 @@ Update `openspec/changes/claros-reconstruction` in place. Rewrite
 `assignment-lifecycle`, and `voice-guidance`. The previous 17/19 task record is
 V1 disposition history and contributes zero V2 completion credit.
 
-### D-003 — Cutover boundary
+### D-003 - Cutover boundary
 
 During Gates 1–5, V1 remains available at `/legacy` with `/api/v1`. V2 owns
 `/app` and `/api/v2`. Remove the legacy route, server, styles, and dependencies
 only after Gate 6 proves replacement behavior and captures migration evidence.
 
-### D-004 — P0 boundary
+### D-004 - P0 boundary
 
 P0 is the exact worksheet-to-approved-PDF loop. Same-browser reload through a
 signed session is included because production truth must survive instance
@@ -42,7 +42,7 @@ replacement. Cross-device/shareable resume, OCR, accounts, educator features,
 multiple choice, complex tables/math, manual placement, and arbitrary PDF
 support remain P1 or deferred.
 
-### D-005 — One real conversational application
+### D-005 - One real conversational application
 
 The product owner's 2026-09-11 decision supersedes mandatory direct/guided path
 selection and fixture-default `/app` behavior. Ordinary `/app` uses one
@@ -57,7 +57,7 @@ qpdf/PDFBox publication validation, or confirmed-answer-only derivative export.
 
 ## Public routes, API, and ownership
 
-### D-005 — Routes
+### D-005 - Routes
 
 Final routes are:
 
@@ -73,7 +73,7 @@ Final routes are:
 FastAPI supplies an SPA fallback for these non-API routes and `/health` for
 Cloud Run. API and unknown asset paths never fall through to the landing page.
 
-### D-006 — `/api/v2` contract
+### D-006 - `/api/v2` contract
 
 Implement assignment creation/status, Range-capable authorized source
 streaming, page context, candidate creation, rephrase, exact review,
@@ -95,7 +95,7 @@ version and `ETag`. Errors use:
 }
 ```
 
-### D-007 — State ownership
+### D-007 - State ownership
 
 - XState owns visible workflow and recoverable product states.
 - TanStack Query owns server reads/mutations, cancellation, retry, and cache
@@ -106,7 +106,7 @@ version and `ETag`. Errors use:
 - FastAPI plus persisted manifests own assignment, candidate, confirmation,
   placement, and export truth.
 
-### D-008 — Candidate and confirmation integrity
+### D-008 - Candidate and confirmation integrity
 
 Candidate origins are exactly `student_verbatim`, `student_normalized`,
 `claros_rephrase`, `student_after_guidance`, and `student_edited`. The server
@@ -123,7 +123,7 @@ confirmed and invalidates all prior review tokens.
 
 ## Frontend and design system
 
-### D-009 — Visible component foundation
+### D-009 - Visible component foundation
 
 The September 2026 frontend redesign supersedes the historical Gate 1 Untitled
 foundation. V2 now uses a small Claros-owned, shadcn-style open-code layer under
@@ -143,7 +143,7 @@ do not import their demo state, model/source pickers, or approval authority. Do
 not add another visible component system without evidence that it is materially
 better than this one.
 
-### D-010 — PDF rendering
+### D-010 - PDF rendering
 
 Pin the EmbedPDF family to one `2.15.0` version. Use
 `@embedpdf/react-pdf-viewer` for the lazy full-document dialog and the
@@ -152,7 +152,7 @@ context crops. Disable annotation, form, redaction, print, export, capture,
 open, and close capabilities that bypass Claros. The landing route and direct
 typed path must not load PDF/Realtime code prematurely.
 
-### D-011 — Layout and visual constants
+### D-011 - Layout and visual constants
 
 - Desktop: 64px top bar, task-first DOM order, task content up to 760px, fixed
   400–440px source pane, no resizer.
@@ -167,7 +167,7 @@ typed path must not load PDF/Realtime code prematurely.
   the supplied mobile-dialog transition; reduced motion updates immediately
   and announces the result.
 
-### D-012 — Exact review and audio
+### D-012 - Exact review and audio
 
 The review state uses the execution PRD’s exact strings, including **Use this
 exact answer**. **Hear it** is functional on demand in P0, but playback success
@@ -176,7 +176,7 @@ P1. Casual agreement is ignored in every state.
 
 ## Backend, persistence, and document engine
 
-### D-013 — Service and request lifecycle
+### D-013 - Service and request lifecycle
 
 Use one Python 3.11 FastAPI service on Cloud Run. It serves `/api/v2`, `/health`,
 and the Vite production assets. Upload analysis and export are bounded,
@@ -184,7 +184,7 @@ synchronous P0 requests with truthful indeterminate UI. Status endpoints remain
 reload-safe and permit later async evolution. Do not use FastAPI background
 tasks, a second service, or a queue as the sole owner of assignment truth.
 
-### D-014 — Storage and anonymous ownership
+### D-014 - Storage and anonymous ownership
 
 Production uses private GCS; development/tests use a filesystem adapter.
 Production startup fails on local or in-memory storage. Store immutable source,
@@ -197,7 +197,7 @@ Anonymous assignments have a 24-hour absolute logical TTL. Authorization fails
 immediately after logical expiry; GCS lifecycle deletion is best-effort and is
 not presented as an exact deletion guarantee.
 
-### D-015 — Physical IR
+### D-015 - Physical IR
 
 Canonical coordinates are crop-box-relative top-left integer milli-points.
 Each page records media/crop boxes, rotation, user unit, and the affine
@@ -207,7 +207,7 @@ transform. Blocks record stable SHA-256-derived IDs, exact UTF-8 text, kind
 alone converts to the PDF/ReportLab bottom-left system through tested affine
 transforms.
 
-### D-016 — Document pipeline and placement
+### D-016 - Document pipeline and placement
 
 Use pikepdf preflight/normalization, pdfplumber extraction, strict block-ID
 semantic mapping, deterministic geometry, ReportLab overlays/appendices, pypdf
@@ -216,7 +216,7 @@ writable form field, safe rectangle, answer-line group, bounded whitespace,
 then appendix. A non-identity rotation/crop transform is appendix-only in P0
 unless the gold corpus proves it end to end.
 
-### D-017 — Text fitting and export
+### D-017 - Text fitting and export
 
 Vendor Noto Sans Regular/Bold and the OFL license. Preserve word boundaries and
 explicit newlines; fit from 12pt to a 10pt floor with 1.2 leading, padding, and
@@ -231,7 +231,7 @@ count, and openability, and uploads an immutable version-derived export object.
 
 ## OpenAI, privacy, and deployment
 
-### D-018 — Semantic mapping and rephrase
+### D-018 - Semantic mapping and rephrase
 
 Responses calls use strict structured output, `store: false`, and no tools.
 Worksheet text is untrusted data. The semantic model can select only provided
@@ -249,7 +249,7 @@ against the 30,000 ms semantic timeout budget. The accepted Luna run used
 135,678 input tokens and 7,678 output tokens at an estimated cost of $0.036350.
 Terra and Sol were not rerun after Luna passed.
 
-### D-019 — Realtime
+### D-019 - Realtime
 
 Use `@openai/agents/realtime` over WebRTC with
 `CLAROS_REALTIME_MODEL=gpt-realtime-2.1`. A short-lived credential is issued
@@ -260,7 +260,7 @@ cannot approve, select coordinates, mutate a PDF, or export. One bounded
 automatic reconnect is permitted; failure preserves state and exposes
 **Retry voice** and **Continue by typing**.
 
-### D-020 — Privacy and production defaults
+### D-020 - Privacy and production defaults
 
 Operational logs contain no raw PDF/question/answer text, audio, transcripts,
 provider payloads, API keys, review tokens, or session secrets. Persist only
@@ -275,7 +275,7 @@ while rate limiting is process-local. Multiple instances require a shared or
 edge limiter plus recorded staging evidence; load and cost measurements alone
 cannot waive that security boundary.
 
-### D-021 — Gate 1 frontend runtime and toolchain result
+### D-021 - Gate 1 frontend runtime and toolchain result
 
 The frontend declares Node `>=22.12 <23`; the clean Gate 1 evidence run used
 Node `v22.23.2`. Every direct npm dependency is exact-pinned and the lockfile
@@ -297,7 +297,7 @@ Both permit `wasm-unsafe-eval` and blob workers required by PDFium. Production
 browser smoke, rather than configuration inspection alone, is the acceptance
 test for this exception.
 
-### D-022 — Pinned EmbedPDF accessibility boundary
+### D-022 - Pinned EmbedPDF accessibility boundary
 
 EmbedPDF 2.15.0 renders the authentic source in a shadow root. Claros applies a
 small adapter repair for observed vendor markup: decorative raster layers have
@@ -308,7 +308,7 @@ uses a pinned vendor class, any EmbedPDF upgrade is blocked until Storybook axe,
 keyboard/screen-reader inspection, Range loading, and the production
 CSP/WASM/worker flow are rerun.
 
-### D-023 — Gate 3 transport contract freeze
+### D-023 - Gate 3 transport contract freeze
 
 FastAPI OpenAPI uses `snake_case`; generated browser types adapt into the
 existing product-domain types rather than redefining them. The sole mutation
@@ -341,7 +341,7 @@ assigned only when the student submits changed text. Gate 3 exposes frozen
 rephrase and Realtime schemas but returns a stable recoverable
 `provider_unavailable` response until Gates 4 and 5 install their providers.
 
-### D-024 — Gate 3 manifest, version, and idempotency freeze
+### D-024 - Gate 3 manifest, version, and idempotency freeze
 
 Public assignment version increments once for candidate replacement, rephrase
 creation or selection, first confirmation, and begin revision. Review issuance,
@@ -364,7 +364,7 @@ writes against the observed generation. A lost generation precondition maps to
 `assignment_version_conflict`; the service does not retry over newer state.
 Failed request cleanup deletes only exact objects created by that request.
 
-### D-025 — Gate 3 execution and placement outcome
+### D-025 - Gate 3 execution and placement outcome
 
 The application request budget is 270 seconds beneath Cloud Run's 300-second
 request timeout. Each operation retains a 10-percent recovery reserve, storage
@@ -385,7 +385,7 @@ or Realtime provider implementation. Its rephrase and Realtime routes remain
 the frozen, recoverable `provider_unavailable` boundary required before Gates 4
 and 5.
 
-### D-026 — Gate 3 remote-unblock decision
+### D-026 - Gate 3 remote-unblock decision
 
 Passing local API, storage-contract, document, browser, audit, Terraform, and
 manual PDF checks is necessary but does not substitute for production-container
@@ -406,7 +406,7 @@ exist only as excluded draft trees until Gate 3 is recorded; they are not
 integrated, committed, or counted as Gate 3 progress. Gate 3 tasks 3.8 and 3.9
 are complete against the evidence in `artifacts/v2/gate3/verification.md`.
 
-### D-027 — Gate 3 adopted-cloud and remote-build disposition
+### D-027 - Gate 3 adopted-cloud and remote-build disposition
 
 The owner-authorized target is the billed project `claro-490122`, region
 `us-central1`, service `claros`, and private bucket
@@ -435,7 +435,7 @@ checkpoint has the exact tracked tree of the verified pre-scrub head, and both
 GitGuardian and the Ubuntu container workflow pass on the re-baselined pull
 request without weakening secret detection.
 
-### D-028 — OpenPDF renderer promotion without production activation
+### D-028 - OpenPDF renderer promotion without production activation
 
 The owner-directed 2026-09-11 migration supersedes D-016 and D-017 only for
 the export rendering and final validation implementation. Python continues to

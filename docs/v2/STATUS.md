@@ -3,7 +3,7 @@
 - **As of:** 2026-09-13
 - **Branch:** `codex/claros-v2-nerdy`
 - **Baseline:** `5fb217715e4b3278f21a882b2652d928f2cca628`
-- **Current phase:** Gate 5 in progress — browser acceptance and scoped code review pass; final human microphone/PDF acceptance remains
+- **Current phase:** Gate 5 in progress - browser acceptance and scoped code review pass; final human microphone/PDF acceptance remains
 - **Gate state:** Gates 0–4 passed; Gate 5 is 11/13 tasks complete
 - **Gate 0 content checkpoint:** `0c15404b87edbbe19b03de93d81ad95aa1e897fd`
 - **Gate 1 content checkpoint:** `59cbc509650cc4a65b139a7db23012ead74efb3c`
@@ -14,9 +14,9 @@
 - **Gate 5 workspace-integration checkpoint:** `2c688e58f197127f62571fa68fc797a4986fbaca`
 - **Gate 5 live-defect checkpoint:** `22b3d602d5b02711d0997af4fe18ce8945484cf5`
 - **Gate 5 browser-acceptance implementation checkpoint:** `06425f913df328a21abeb73b192760005cee7d34`
-- **Gate 5 scoped independent code-review checkpoint:** `06425f913df328a21abeb73b192760005cee7d34` — approved; human evidence still pending
-- **Gate 5 conversation-behavior implementation checkpoint:** `bcede3835f0512e964c257a48a6a627ece4b1d11` — application behavior evaluated; final direct-answer policy live rerun pending
-- **Gate 5 conversation-behavior review checkpoint:** `442bdd0c3b355d2095cec026e9d6dc5fb8dc0b9f` — independently approved; final direct-answer policy live rerun still pending
+- **Gate 5 scoped independent code-review checkpoint:** `06425f913df328a21abeb73b192760005cee7d34` - approved; human evidence still pending
+- **Gate 5 conversation-behavior implementation checkpoint:** `bcede3835f0512e964c257a48a6a627ece4b1d11` - application behavior evaluated; final direct-answer policy live rerun pending
+- **Gate 5 conversation-behavior review checkpoint:** `442bdd0c3b355d2095cec026e9d6dc5fb8dc0b9f` - independently approved; final direct-answer policy live rerun still pending
 
 ### 2026-09-12 conversation-behavior repair
 
@@ -236,8 +236,8 @@ The following passed on the unmodified baseline before the V2 authority delta:
 | Evidence                                                  | Result                    |
 | --------------------------------------------------------- | ------------------------- |
 | `npm run build`                                           | Pass                      |
-| `npm test`                                                | Pass — 7 tests            |
-| `npm run test:e2e`                                        | Pass — 4 Playwright tests |
+| `npm test`                                                | Pass - 7 tests            |
+| `npm run test:e2e`                                        | Pass - 4 Playwright tests |
 | `npm run build-storybook`                                 | Pass                      |
 | Pre-V2 `openspec validate claros-reconstruction --strict` | Pass                      |
 
@@ -246,7 +246,7 @@ workspace desktop, and mobile worksheet/answer states. It is retained only as
 the V1 baseline. Gate 2 produces the full V2 matrix under
 `artifacts/v2/screenshots/`.
 
-## Fresh Gate 0 verification — 2026-09-04
+## Fresh Gate 0 verification - 2026-09-04
 
 | Command/evidence                                      | Result                                                                   |
 | ----------------------------------------------------- | ------------------------------------------------------------------------ |
@@ -267,7 +267,7 @@ lines with trailing double spaces. `git show --check 0c15404` reports those
 lines. They are preserved because changing them would violate the required
 byte-for-byte hashes; all authored Gate 0 files pass the whitespace check.
 
-## Fresh Gate 1 verification — 2026-09-04
+## Fresh Gate 1 verification - 2026-09-04
 
 All commands in this table used Node `v22.23.2` where Node was involved.
 
@@ -293,7 +293,7 @@ viewer chunks. Real crop/full-view execution passes in Chromium under the
 production CSP, and the marketing static closure contains neither stack. Gate 6
 must repeat this proof before cutover.
 
-## Fresh Gate 2 verification — 2026-09-04
+## Fresh Gate 2 verification - 2026-09-04
 
 All Node commands in this table used Node `v22.23.2`. Browser evidence and the
 visual scorecard are bound to content checkpoint
@@ -323,7 +323,7 @@ the focused five-test replay and the subsequent complete 22-test replay passed.
 The final visual review is recorded in
 `artifacts/v2/gate2-visual-scorecard.md`.
 
-## Fresh Gate 3 verification — 2026-09-04
+## Fresh Gate 3 verification - 2026-09-04
 
 The complete record is in `artifacts/v2/gate3/verification.md` and is bound to
 accepted clean checkpoint `88cda664f55abf698a1d56567e814e024708ad0a`.
@@ -385,10 +385,10 @@ finding or unavailable npm audit keeps Gate 1 blocked.
 | ---- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------- |
 | 0    | Authorities, synthesis, in-place OpenSpec, dependency/ownership plan                   | Hashes, baseline regressions, npm audit, strict OpenSpec, clean production diff, planning commit              | Passed at `0c15404`          |
 | 1    | Untitled foundation, V2 routes/providers, scoped legacy, authentic EmbedPDF spike, MSW | Build/tests, route and keyboard smoke, CSP/WASM/worker proof, no PDF request from `/`                         | Passed at `59cbc50`          |
-| 2    | Fixture-complete V2 UI and fake Realtime                                               | Unit/component/Storybook/Playwright/axe, keyboard/focus/zoom/motion, full screenshot matrix, visual score ≥90 | Passed at `0723303` — 95/100 |
+| 2    | Fixture-complete V2 UI and fake Realtime                                               | Unit/component/Storybook/Playwright/axe, keyboard/focus/zoom/motion, full screenshot matrix, visual score ≥90 | Passed at `0723303` - 95/100 |
 | 3    | FastAPI, GCS adapters, physical IR, placement/export, gold corpus                      | Python/API/PDF integration, deterministic IR, exact Unicode, immutable source, container/revision smoke       | Passed at `88cda66`          |
 | 4    | Responses semantic mapping and rephrase                                                | Recorded/live corpus evaluation, zero invalid IDs, exact reconstruction, safe failure and provenance          | Passed at `976e176`          |
-| 5    | One adaptive Realtime conversation                                                     | Fake browser suite and manual live voice/recovery/security evidence                                           | In progress — 11/13 tasks    |
+| 5    | One adaptive Realtime conversation                                                     | Fake browser suite and manual live voice/recovery/security evidence                                           | In progress - 11/13 tasks    |
 | 6    | Cutover, hardening, deployment                                                         | Full accumulated CI/security/a11y/visual/performance/staging evidence                                         | Not started                  |
 | 7    | Repeatable demo and release bundle                                                     | Clean-browser replay, final PDF, deployed smoke, honest submission copy, complete `artifacts/v2`              | Not started                  |
 

@@ -160,14 +160,14 @@ FIXTURES = (
         title="Voices in Literature",
         pages=(
             (
-                "1. Why does Zoë call the decision “unfair”—and what changes?",
+                "1. Why does Zoë call the decision “unfair”\u2014and what changes?",
                 "2. What does José’s response reveal?",  # noqa: RUF001 - corpus Unicode
             ),
         ),
         expected={
             "outcome": "accept",
             "question_text": [
-                "1. Why does Zoë call the decision “unfair”—and what changes?",
+                "1. Why does Zoë call the decision “unfair”\u2014and what changes?",
                 "2. What does José’s response reveal?",  # noqa: RUF001 - corpus Unicode
             ],
             "placement": "inline",

@@ -146,9 +146,9 @@ The new authorities invalidate only these prior conclusions:
 - The normal workspace is question-first. Source context supports the task and
   becomes a full-screen dialog on mobile rather than a permanent editor.
 
-All other audit facts—including build health, current test scope, the
+All other audit facts - including build health, current test scope, the
 monolithic workspace, sample-hash gate, duplicated placement authority,
-missing durable storage, direct-route 404, and historical recovery candidates—
+missing durable storage, direct-route 404, and historical recovery candidates -
 remain in force.
 
 ## Gate 0 completion boundary

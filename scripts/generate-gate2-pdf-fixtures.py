@@ -160,7 +160,7 @@ def build_source() -> None:
 
 def build_completed() -> None:
     canvas = Canvas(str(COMPLETED_PATH), pagesize=letter, pageCompression=0, invariant=1)
-    canvas.setTitle("Claros Biology Short Answer Fixture — Completed")
+    canvas.setTitle("Claros Biology Short Answer Fixture - Completed")
     draw_source_page(canvas, ANSWERS)
     canvas.showPage()
     canvas.save()

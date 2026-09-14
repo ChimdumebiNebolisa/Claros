@@ -54,7 +54,7 @@ describe("Claros V2 workspace machine", () => {
 
   it("preserves exact Unicode and makes exact review unavoidable", () => {
     const actor = startAssignment();
-    const exact = "  Café’s leaves use CO₂ — not ASCII.\nSecond line.  ";
+    const exact = "  Café’s leaves use CO₂ \u2014 not ASCII.\nSecond line.  ";
 
     actor.send({ type: "TYPE_INSTEAD" });
     actor.send({ type: "CANDIDATE_CHANGED", value: exact });

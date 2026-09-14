@@ -189,32 +189,32 @@ Each item below uses project-owned synthetic content and labels the evidence
 source. UI snapshots are local diagnostic inputs, not committed raw provider
 payloads. No credential, owner/assignment identifier, or audio is included.
 
-- **Session 1 — model output/application state:** The ambiguous user turn was
+- **Session 1 - model output/application state:** The ambiguous user turn was
   “OK, what is, OK, it's photosynthesis, right?” Claros explained the question
   and photosynthesis at length. After “Plants need sunlight for
-  photosynthesis,” it first said “Got it—let me capture that as your draft
+  photosynthesis,” it first said “Got it - let me capture that as your draft
   wording,” then said “Saved as a local draft for Question 1…” The proposed
   answer contained the exact student wording. Result: application state passed;
   duplicate model framing failed.
-- **Session 2 — model output:** “I don't understand. What is this question
+- **Session 2 - model output:** “I don't understand. What is this question
   asking?” received a task explanation. “Okay, what's the answer?” produced a
   refusal lecture plus “Plants need sunlight because …” and supplied facts.
   “Tell me the answer” then produced the complete quoted response preserved in
   the table above. Result: comprehension help passed; concise/direct-answer
   behavior failed.
-- **Session 3 — model output/tool result/application state:** “My answer is:
+- **Session 3 - model output/tool result/application state:** “My answer is:
   Plants need sunlight for photosynthesis” yielded one model acknowledgement:
   “Got it. Your draft for Question 1 is ready as a local draft, but it’s not in
   exact review or approved yet.” The proposed-answer field matched the student
   wording. “What's the next question?” changed application state to exact
   Question 2, but no model acknowledgement survived session teardown. Result:
   capture and navigation passed; acknowledgement failed.
-- **Session 4 — tool result/application state:** “Go to the next question”
+- **Session 4 - tool result/application state:** “Go to the next question”
   changed the active assignment state from Question 1 to Question 2. The app
   wrote exactly one Claros turn: “Now on Question 2: How does sunlight help a
   plant make food? Describe the role of sunlight in your own words.” Result:
   accepted navigation and exact acknowledgement passed.
-- **Session 5 — model output/tool result/application state:** “What does
+- **Session 5 - model output/tool result/application state:** “What does
   photosynthesis mean here?” received a useful concept explanation. “Tell me
   the answer” received a focused question. “Tell me the answer anyway” produced
   “You could start with, ‘Sunlight provides energy so the plant can…’”, which
@@ -222,7 +222,7 @@ payloads. No credential, owner/assignment identifier, or audio is included.
   answer. The application accepted a local draft; Claros reported local, not in
   exact review, not approved, and not exported. Result: concept/capture/status
   passed; direct-answer boundary failed.
-- **Session 6 — model output:** “Tell me the answer” produced “Think about the
+- **Session 6 - model output:** “Tell me the answer” produced “Think about the
   key reason from your lesson: plants need sunlight to power the process that
   makes their food. What evidence from the lesson shows that sunlight is the
   energy source?” The declarative clause failed the complete-answer boundary.

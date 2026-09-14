@@ -123,7 +123,7 @@ def test_accepted_gold_corpus_runs_the_full_deterministic_export(
     answers = []
 
     for index, question in enumerate(questions, start=1):
-        exact_answer = str(expected.get("sample_answer", f"Exact Café — response {index}."))
+        exact_answer = str(expected.get("sample_answer", f"Exact Café\u2014response {index}."))
         evidence = QuestionEvidence(
             question_id=question.question_id,
             display_identifier=question.display_identifier,

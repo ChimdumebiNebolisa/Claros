@@ -153,7 +153,7 @@ def render_appendix(entries: Sequence[AppendixEntry], worksheet_title: str) -> A
             pdf.drawString(APPENDIX_MARGIN, cursor, line)
             cursor -= 20
         pdf.setFont(BOLD_FONT_NAME, 12)
-        suffix = " — continued" if continued else ""
+        suffix = " (continued)" if continued else ""
         question_label = f"{entry.display_identifier}{suffix}"
         for line in _wrapped_lines(question_label, content_width, BOLD_FONT_NAME, 12):
             pdf.drawString(APPENDIX_MARGIN, cursor - 4, line)

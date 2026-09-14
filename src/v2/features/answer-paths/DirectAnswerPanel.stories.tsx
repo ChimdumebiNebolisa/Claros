@@ -98,12 +98,12 @@ export const ConnectionLost: Story = {
 export const UnicodeCandidate: Story = {
   args: {
     voiceState: "captured",
-    candidateText: "José’s café plant — “sunlight”",
+    candidateText: "José’s café plant \u2014 “sunlight”",
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
       canvas.getByRole("textbox", { name: "Your words" }),
-    ).toHaveValue("José’s café plant — “sunlight”");
+    ).toHaveValue("José’s café plant \u2014 “sunlight”");
   },
 };

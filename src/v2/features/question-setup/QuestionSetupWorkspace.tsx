@@ -711,7 +711,7 @@ export function QuestionSetupWorkspace({
                 .finally(() => setPending(false));
             }}
           >
-            Looks right — Start
+            Looks right. Start
           </Button>
         </div>
       </div>

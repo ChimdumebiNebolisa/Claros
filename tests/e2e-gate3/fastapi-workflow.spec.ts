@@ -18,7 +18,7 @@ const worksheetPath = join(
   "01-biology-polished.pdf",
 );
 const exactAnswer =
-  "Mitochondria release usable energy from food — this answer stays exact.";
+  "Mitochondria release usable energy from food \u2014 this answer stays exact.";
 
 type AssignmentProjection = {
   assignment_id: string;
@@ -262,7 +262,7 @@ test("built FastAPI app preserves an authenticated partial export across restart
       path: testInfo.outputPath("question-check-corrected.png"),
       fullPage: true,
     });
-    await page.getByRole("button", { name: "Looks right — Start" }).click();
+    await page.getByRole("button", { name: "Looks right. Start" }).click();
     await expect(page).toHaveURL(`${origin}/app/${created.assignment_id}`);
     await expect(
       page.getByRole("heading", {

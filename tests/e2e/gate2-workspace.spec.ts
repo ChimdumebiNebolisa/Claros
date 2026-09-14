@@ -10,7 +10,7 @@ const questionTwo = "How does sunlight help a plant make food?";
 
 async function openWorkspace(page: Page, search = "?replay=controls") {
   const created = await createSample(page);
-  await page.getByRole("button", { name: "Looks right — Start" }).click();
+  await page.getByRole("button", { name: "Looks right. Start" }).click();
   await expect(page).toHaveURL(`/app/${created.assignment_id}`);
   await expect
     .poll(() =>

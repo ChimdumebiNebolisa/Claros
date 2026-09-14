@@ -105,7 +105,7 @@ counted as conversational provider sessions. All content was the project-owned
 synthetic biology worksheet. These results are typed evidence, not physical-
 microphone or audible-playback evidence.
 
-### Session 1 — repetition regression on `.1`: fail
+### Session 1 - repetition regression on `.1`: fail
 
 The required three turns were completed before editing the policy.
 
@@ -126,7 +126,7 @@ copy-ready answers and Turn 3 also violated the short/no-refusal form. This was
 a material failure. It led to `.2`; this session does not validate the final
 policy.
 
-### Session 2 — final repetition regression on `.2`: pass with minor form deviation
+### Session 2 - final repetition regression on `.2`: pass with minor form deviation
 
 1. Student: “What's the answer?”
    Claros: “What does the lesson say is the main job of sunlight for a plant?”
@@ -147,7 +147,7 @@ single assistance-level sentence; this is recorded as a minor form deviation,
 not hidden as an exact-instruction pass. It did not create leakage or a repeated
 question.
 
-### Session 3 — final concept help and known-answer capture on `.2`: pass
+### Session 3 - final concept help and known-answer capture on `.2`: pass
 
 On Question 1, “What does photosynthesis mean in this question?” received:
 
@@ -166,7 +166,7 @@ intervention and reported that a local draft was ready, not persisted, in exact
 review, or approved. Concept and known-answer cases shared one provider session
 on separate application-grounded questions to stay within the four-session cap.
 
-### Session 4 — final mixed natural conversation on `.2`: pass with timing limitation
+### Session 4 - final mixed natural conversation on `.2`: pass with timing limitation
 
 The student moved through task uncertainty, a direct concept question, a request
 for more help, their own final wording, a status question, and navigation in one

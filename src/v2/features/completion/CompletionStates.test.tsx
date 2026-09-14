@@ -22,7 +22,7 @@ import {
 
 const candidate = candidateFor(
   fixtureAssignment.questions[0].id,
-  `Plants need sunlight—it’s how they make café-ready sugar.`,
+  `Plants need sunlight\u2014it’s how they make café-ready sugar.`,
   "student_edited",
 );
 const suggestion = candidateFor(
@@ -52,7 +52,7 @@ describe("Gate 2 completion states", () => {
     );
 
     expect(screen.getByText(candidate.text)).toHaveTextContent(
-      `Plants need sunlight—it’s how they make café-ready sugar.`,
+      `Plants need sunlight\u2014it’s how they make café-ready sugar.`,
     );
     expect(screen.getByText("Your words")).toBeVisible();
     expect(

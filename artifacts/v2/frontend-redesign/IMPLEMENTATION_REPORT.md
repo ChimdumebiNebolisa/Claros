@@ -134,7 +134,7 @@ and screen-reader order. A focused regression test covers the review-plus-transc
 state. The capture harness now waits for the authentic desktop source crop in the
 named ready state. Two consecutive full captures produced the same ready-state hash,
 `abee4fee9955d89a250b724c5a384dec56cb78f0781b9449ee27b4b4ab98e841`, and visual
-inspection confirms that the source excerpt—not its transient loader—is present.
+inspection confirms that the source excerpt - not its transient loader - is present.
 The tool host uses Node 24 and therefore prints an engine warning; the project
 targets Node 22, and its dependency verifier checks that declared target.
 

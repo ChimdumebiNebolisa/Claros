@@ -107,10 +107,10 @@ The harness uses engines independent of OpenPDF so a single implementation canno
 
 Generated evidence is in:
 
-- `target/evidence/fixture-manifest.json` — source checksums and sizes.
-- `target/evidence/results.json` — complete per-case structured evidence.
-- `target/evidence/results-table.md` — generated decision table.
-- `target/fixtures/` and `target/derivatives/` — immutable-run inputs and separate OpenPDF outputs.
+- `target/evidence/fixture-manifest.json` - source checksums and sizes.
+- `target/evidence/results.json` - complete per-case structured evidence.
+- `target/evidence/results-table.md` - generated decision table.
+- `target/fixtures/` and `target/derivatives/` - immutable-run inputs and separate OpenPDF outputs.
 
 ## Running
 

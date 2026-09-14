@@ -127,7 +127,7 @@ def test_same_origin_rejects_missing_or_cross_site_mutation(origin: str | None) 
 
 
 def test_review_hashes_preserve_exact_unicode_and_are_secret_scoped() -> None:
-    text = "  José\N{RIGHT SINGLE QUOTATION MARK}s Δ answer — unchanged.  "
+    text = "  José\N{RIGHT SINGLE QUOTATION MARK}s Δ answer\N{EM DASH}unchanged.  "
     assert exact_text_hash(text) != exact_text_hash(text.strip())
     token = "rvw_" + "a" * 40
     first = review_token_digest(token, "secret-one")

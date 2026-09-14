@@ -194,14 +194,14 @@ Overall: 31 PASS and 2 PARTIAL. All 33 preservation, coordinate, qpdf, and PDF.j
 
 ## Commands and actual results
 
-- Before investigation: `mvn test` — 5 tests, 0 failures; commit `e5c15d8` pushed successfully.
-- Baseline: PDFBox `PDFTextStripper`, `node scripts/extract-pdfjs.mjs target/fixtures/office-style.pdf`, and pypdf `extract_text()` — all returned source `office`.
-- `mvn -q -DskipTests compile exec:java '-Dexec.args=office-investigation'` — emitted 11 A/B/C/D and minimized cases plus structure evidence.
-- `node scripts/extract-pdfjs.mjs --output target/office-investigation/pdfjs-text-results.json ...` — all 11 opened; results matched PDFBox exactly.
-- qpdf 12.3.2 `--check --warning-exit-0` — exit 0 for all 11 focused cases. `--qdf --object-streams=disable` and `--show-pages` produced the object evidence quoted above.
-- `mvn -Dtest=OfficeExtractionInvestigationTest test` — 1 test, 0 failures.
-- `scripts/run.ps1` after the fix — exit 0; 6 tests, 0 failures; 33 derivatives; PDF.js rendered 33/33 derivatives; merged report 31 PASS / 2 PARTIAL.
-- Production regression baseline, unchanged by this experiment: `.venv/Scripts/python.exe -m pytest backend/tests/document backend/tests/domain/test_export_workflow.py` — 120 passed with 22 existing pypdf deprecation warnings.
+- Before investigation: `mvn test` - 5 tests, 0 failures; commit `e5c15d8` pushed successfully.
+- Baseline: PDFBox `PDFTextStripper`, `node scripts/extract-pdfjs.mjs target/fixtures/office-style.pdf`, and pypdf `extract_text()` - all returned source `office`.
+- `mvn -q -DskipTests compile exec:java '-Dexec.args=office-investigation'` - emitted 11 A/B/C/D and minimized cases plus structure evidence.
+- `node scripts/extract-pdfjs.mjs --output target/office-investigation/pdfjs-text-results.json ...` - all 11 opened; results matched PDFBox exactly.
+- qpdf 12.3.2 `--check --warning-exit-0` - exit 0 for all 11 focused cases. `--qdf --object-streams=disable` and `--show-pages` produced the object evidence quoted above.
+- `mvn -Dtest=OfficeExtractionInvestigationTest test` - 1 test, 0 failures.
+- `scripts/run.ps1` after the fix - exit 0; 6 tests, 0 failures; 33 derivatives; PDF.js rendered 33/33 derivatives; merged report 31 PASS / 2 PARTIAL.
+- Production regression baseline, unchanged by this experiment: `.venv/Scripts/python.exe -m pytest backend/tests/document backend/tests/domain/test_export_workflow.py` - 120 passed with 22 existing pypdf deprecation warnings.
 
 ## Final report
 

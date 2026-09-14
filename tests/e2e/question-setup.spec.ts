@@ -240,7 +240,7 @@ test("real source correction reaches answering and a validated OpenPDF export", 
   expect(setupAfter.questions[0].prompt).toBe(correctedPrompt);
 
   await page.getByRole("button", { name: "Review changes" }).click();
-  await page.getByRole("button", { name: "Looks right — Start" }).click();
+  await page.getByRole("button", { name: "Looks right. Start" }).click();
   await expect(page).toHaveURL(`/app/${created.assignment_id}`);
   const activeQuestion = page.getByRole("heading", { level: 1 });
   await expect(activeQuestion).toContainText(firstQuestion.prompt);

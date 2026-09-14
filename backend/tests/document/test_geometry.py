@@ -447,7 +447,7 @@ def test_unicode_is_preserved_and_unsupported_glyph_fails_explicitly() -> None:
             NEXT_PROMPT,
         )
     )
-    exact = "Café stays naïve—CO₂ and H₂O remain exact."
+    exact = "Café stays naïve\u2014CO₂ and H₂O remain exact."
     plan = resolve_placement(document, _question(blocks["prompt"].id), exact)
 
     assert plan.outcome == "inline"

@@ -207,7 +207,7 @@ async def test_rephrase_input_validation_is_a_stable_failure(semantic_ir) -> Non
 
 @pytest.mark.asyncio
 async def test_safe_rephrase_preserves_exact_original(semantic_ir) -> None:
-    exact = "  Plants use sunlight to make glucose — food.  "
+    exact = "  Plants use sunlight to make glucose\u2014food.  "
     provider = FakeSemanticProvider(
         rephrase_results=(
             ProviderResult(
