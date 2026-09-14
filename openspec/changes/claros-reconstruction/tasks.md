@@ -143,7 +143,7 @@ do not use checkboxes and therefore do not count toward V2 progress.
 - [x] 5B.5 [Frontend integrator] Build the fast question-check screen and authentic EmbedPDF page/highlight selection UI in the completed Claros system; verify list-region synchronization and no general PDF editing surface.
 - [x] 5B.6 [Frontend integrator] Add exact-text confirmation, remove/reorder/reset controls, pointer drag, keyboard/touch block selection, mobile layout, focus/live-region behavior, 200-percent zoom, and reduced motion; verify drag is never required.
 - [x] 5B.7 [Lead] Extend backend, frontend, Storybook, real FastAPI/OpenPDF Playwright, export/publication, accessibility, and visual evidence; verify corrected questions remain safely bound from setup through download.
-- [ ] 5B.8 [Reviewer] Perform the requested independent read-only trust, identity, placement, Realtime, answer-binding, reset, accessibility, performance, and accidental-PDF-editor review; resolve every P0-P2 finding and record implementation/review SHAs.
+- [x] 5B.8 [Reviewer] Perform the requested independent read-only trust, identity, placement, Realtime, answer-binding, reset, accessibility, performance, and accidental-PDF-editor review; resolve every P0-P2 finding and record implementation/review SHAs.
 
 - [ ] 5.7 [Lead] Run fake-adapter browser suites, accessibility/caption/mute checks, credential/security tests, bundle/key scans, and documented manual live dictation/help/interrupt/reconnect tests; verify all Gate 5 evidence passes.
 - [ ] 5.8 [Reviewer] Perform read-only voice-authority, privacy, accessibility, failure, and evidence review; verify critical findings are fixed and record the checkpoint SHA in `docs/v2/STATUS.md`.
