@@ -30,7 +30,7 @@ RUN --mount=type=cache,target=/root/.m2 \
     mvn -q package -DskipTests
 
 
-FROM python:3.11.16-slim-bookworm@sha256:528257d48c1da0dcecc2e725d1ae34498d60c965f1241e39cd6a85a8859bdf84 AS runtime
+FROM python:3.11.16-slim-trixie@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534 AS runtime
 
 ARG VCS_REF="unknown"
 ARG BUILD_DATE="unknown"
@@ -60,13 +60,15 @@ RUN groupadd --gid 10001 claros \
         --home-dir /nonexistent --shell /usr/sbin/nologin claros
 
 RUN apt-get update \
+    && apt-get upgrade --yes \
     && apt-get install --yes --no-install-recommends fontconfig libfreetype6 qpdf \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements-server.txt ./
 RUN --mount=type=cache,target=/root/.cache/pip \
     python -m pip install --require-hashes --only-binary=:all: \
-        --requirement requirements-server.txt
+        --requirement requirements-server.txt \
+    && python -m pip uninstall --yes setuptools wheel
 
 COPY --chown=0:0 backend ./backend
 COPY --chown=0:0 assets ./assets

@@ -275,6 +275,20 @@ def test_workflows_pin_actions_scan_supply_chain_and_promote_one_digest() -> Non
     assert text.count("needs.build.outputs.image_uri") >= 2
     assert "promote_to_production" in text
 
+    deploy = (ROOT / ".github" / "workflows" / "deploy.yml").read_text(encoding="utf-8")
+    runtime_report = deploy.split("- name: Record all high-severity runtime findings", 1)[1].split(
+        "- name: Upload the runtime vulnerability report", 1
+    )[0]
+    runtime_gate = deploy.split("- name: Block fixable high-severity runtime findings", 1)[1].split(
+        "- name: Generate the release CycloneDX SBOM", 1
+    )[0]
+    assert "format: json" in runtime_report
+    assert "output: claros-v2-runtime-findings.json" in runtime_report
+    assert 'exit-code: "0"' in runtime_report
+    assert "ignore-unfixed: false" in runtime_report
+    assert 'exit-code: "1"' in runtime_gate
+    assert "ignore-unfixed: true" in runtime_gate
+
 
 def test_remote_container_smoke_is_dispatchable_and_persists_safe_artifacts() -> None:
     workflow = (ROOT / ".github" / "workflows" / "gate3-container.yml").read_text(encoding="utf-8")

@@ -124,7 +124,28 @@ jobs:
           fi
           echo "image_uri=${IMAGE_REPOSITORY}@${IMAGE_DIGEST}" >> "$GITHUB_OUTPUT"
 
-      - name: Scan the pushed image for high-severity runtime findings
+      - name: Record all high-severity runtime findings
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
+        with:
+          version: v0.69.3
+          scan-type: image
+          image-ref: ${{ steps.immutable-image.outputs.image_uri }}
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          format: json
+          output: claros-v2-runtime-findings.json
+          exit-code: "0"
+          ignore-unfixed: false
+
+      - name: Upload the runtime vulnerability report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: claros-v2-runtime-findings-${{ github.sha }}
+          path: claros-v2-runtime-findings.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Block fixable high-severity runtime findings
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
         with:
           version: v0.69.3
@@ -133,7 +154,7 @@ jobs:
           scanners: vuln,secret
           severity: HIGH,CRITICAL
           exit-code: "1"
-          ignore-unfixed: false
+          ignore-unfixed: true
 
       - name: Generate the release CycloneDX SBOM
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1

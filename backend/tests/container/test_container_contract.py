@@ -21,8 +21,8 @@ def test_dockerfile_has_reproducible_two_stage_least_privilege_runtime() -> None
         in dockerfile
     )
     assert (
-        "FROM python:3.11.16-slim-bookworm@sha256:"
-        "528257d48c1da0dcecc2e725d1ae34498d60c965f1241e39cd6a85a8859bdf84 AS runtime" in dockerfile
+        "FROM python:3.11.16-slim-trixie@sha256:"
+        "9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534 AS runtime" in dockerfile
     )
     assert (
         "FROM maven:3.9.11-eclipse-temurin-21@sha256:"
@@ -36,6 +36,8 @@ def test_dockerfile_has_reproducible_two_stage_least_privilege_runtime() -> None
     assert (
         "apt-get install --yes --no-install-recommends fontconfig libfreetype6 qpdf" in dockerfile
     )
+    assert "apt-get upgrade --yes" in dockerfile
+    assert "python -m pip uninstall --yes setuptools wheel" in dockerfile
     assert "COPY --from=openpdf-build --chown=0:0 /opt/java/openjdk /opt/java/openjdk" in dockerfile
     assert "claros-openpdf-worker-0.1.0-SNAPSHOT-all.jar" in dockerfile
     assert "CLAROS_PDF_ENGINE=openpdf" not in dockerfile

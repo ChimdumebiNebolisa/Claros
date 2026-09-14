@@ -358,6 +358,44 @@ def assert_source_range(client: HttpClient, assignment_id: str) -> None:
         raise RuntimeError("source Range response omitted Content-Range")
 
 
+def accept_detected_question_setup(
+    client: HttpClient, assignment_id: str, assignment_version: int
+) -> int:
+    setup_response = client.request(
+        "GET",
+        f"/api/v2/assignments/{assignment_id}/question-setup",
+        expected_status=200,
+        step="question setup read",
+    )
+    setup = setup_response.json_object()
+    setup_version = require_int(setup.get("version"), "version")
+    if setup_version != assignment_version:
+        raise RuntimeError("question setup version did not match the assignment")
+    if setup.get("verified") is True:
+        return setup_version
+    if setup.get("verified") is not False:
+        raise RuntimeError("question setup omitted its verification state")
+
+    accepted_response = client.request(
+        "PATCH",
+        f"/api/v2/assignments/{assignment_id}/question-setup",
+        body=json.dumps(
+            {
+                "assignment_version": setup_version,
+                "operation": {"kind": "accept"},
+            },
+            separators=(",", ":"),
+        ).encode("utf-8"),
+        headers=client.mutation_headers("application/json"),
+        expected_status=200,
+        step="question setup acceptance",
+    )
+    accepted = accepted_response.json_object()
+    if accepted.get("verified") is not True:
+        raise RuntimeError("question setup acceptance did not verify the mapping")
+    return require_int(accepted.get("version"), "version")
+
+
 def complete_one_answer(
     client: HttpClient,
     assignment: dict[str, Any],
@@ -378,6 +416,7 @@ def complete_one_answer(
         raise RuntimeError(f"{label} fixture did not produce the expected placement capability")
 
     assert_source_range(client, assignment_id)
+    version = accept_detected_question_setup(client, assignment_id, version)
     candidate_response = client.post_json(
         f"/api/v2/assignments/{assignment_id}/questions/{question_id}/candidates",
         {
