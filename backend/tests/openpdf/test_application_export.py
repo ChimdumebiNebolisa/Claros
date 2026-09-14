@@ -59,7 +59,18 @@ def _create(client: TestClient) -> dict[str, object]:
         headers=HEADERS,
     )
     assert response.status_code == 201, response.text
-    return response.json()
+    assignment = response.json()
+    accepted = client.patch(
+        f"/api/v2/assignments/{assignment['assignment_id']}/question-setup",
+        json={
+            "assignment_version": assignment["version"],
+            "operation": {"kind": "accept"},
+        },
+        headers=HEADERS,
+    )
+    assert accepted.status_code == 200, accepted.text
+    assignment["version"] = accepted.json()["version"]
+    return assignment
 
 
 def _confirm(

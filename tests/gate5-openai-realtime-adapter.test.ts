@@ -861,7 +861,27 @@ describe("Gate 5 OpenAI Realtime adapter", () => {
     const actor = createActor(workspaceMachine).start();
     actor.send({ type: "START_ANALYSIS" });
     actor.send({ type: "ANALYSIS_READY", assignment: fixtureAssignment });
-    actor.send({ type: "START_QUESTION" });
+    actor.send({
+      type: "QUESTION_SETUP_ACCEPTED",
+      questionSetup: {
+        version: fixtureAssignment.version,
+        verified: true,
+        provenance: "detected",
+        sourceUrl: "/api/v2/fixtures/biology/source",
+        pages: [{ pageNumber: 1, widthMpt: 612_000, heightMpt: 792_000 }],
+        questions: fixtureAssignment.questions.map((question, index) => ({
+          ...question,
+          regions: [
+            {
+              xMpt: 72_000,
+              yMpt: 217_691 + index * 160_000,
+              widthMpt: 300_000,
+              heightMpt: 13_000,
+            },
+          ],
+        })),
+      },
+    });
     adapter.subscribe((event) => {
       if (event.type === "voice_state") {
         actor.send({ type: "VOICE_STATE_CHANGED", state: event.state });

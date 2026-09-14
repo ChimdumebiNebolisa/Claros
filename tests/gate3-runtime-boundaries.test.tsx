@@ -3,7 +3,7 @@
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { AppProviders } from "../src/v2/AppProviders";
 import RootApp from "../src/v2/RootApp";
@@ -15,6 +15,15 @@ import type {
 const realtimeMocks = vi.hoisted(() => ({
   load: vi.fn(),
   loadOpenAI: vi.fn(),
+}));
+
+const apiMocks = vi.hoisted(() => ({
+  getQuestionSetup: vi.fn(),
+}));
+
+vi.mock("../src/v2/api/client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/v2/api/client")>()),
+  getQuestionSetup: apiMocks.getQuestionSetup,
 }));
 
 vi.mock("../src/v2/realtime/loadRealtime", () => ({
@@ -67,11 +76,41 @@ const assignment = {
   ],
 };
 
+const questionSetupFor = (projection: typeof assignment) => ({
+  version: projection.version,
+  verified: true,
+  provenance: "detected",
+  source_url: "/api/v2/assignments/asgn_runtime/source",
+  page_count: 1,
+  pages: [{ page_number: 1, width_mpt: 612_000, height_mpt: 792_000 }],
+  questions: projection.questions.map((question) => ({
+    question_id: question.question_id,
+    index: question.index,
+    prompt: question.prompt,
+    instruction: question.instruction,
+    page_number: question.page_number,
+    placement_capability: question.placement_capability,
+    prompt_regions: [
+      {
+        x_mpt: 72_000,
+        y_mpt: 144_000,
+        width_mpt: 300_000,
+        height_mpt: 18_000,
+      },
+    ],
+  })),
+});
+
+beforeEach(() => {
+  apiMocks.getQuestionSetup.mockResolvedValue(questionSetupFor(assignment));
+});
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   realtimeMocks.load.mockReset();
   realtimeMocks.loadOpenAI.mockReset();
+  apiMocks.getQuestionSetup.mockReset();
 });
 
 describe("Gate 3 runtime boundaries", () => {
@@ -113,7 +152,7 @@ describe("Gate 3 runtime boundaries", () => {
     expect(
       await screen.findByRole(
         "heading",
-        { name: "Your worksheet is ready." },
+        { name: "Check your questions." },
         { timeout: 3_000 },
       ),
     ).toBeInTheDocument();
@@ -290,6 +329,9 @@ describe("Gate 3 runtime boundaries", () => {
         },
       ],
     };
+    apiMocks.getQuestionSetup.mockResolvedValue(
+      questionSetupFor(twoQuestionAssignment),
+    );
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(

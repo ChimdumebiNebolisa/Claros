@@ -27,6 +27,13 @@ const meta = {
   title: "V2/Flow/Question setup",
   component: QuestionSetupWorkspace,
   parameters: { layout: "fullscreen" },
+  decorators: [
+    (Story) => (
+      <main>
+        <Story />
+      </main>
+    ),
+  ],
   args: {
     assignment: fixtureAssignment,
     setup: fixtureSetup,
