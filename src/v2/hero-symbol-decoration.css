@@ -1,0 +1,285 @@
+.claros-hero-symbols {
+  position: absolute;
+  z-index: 0;
+  inset-block: 0;
+  left: 50%;
+  width: 100%;
+  transform: translateX(-50%);
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
+.claros-hero-symbol {
+  position: absolute;
+  display: grid;
+  min-width: 39px;
+  height: 39px;
+  place-items: center;
+  padding: 0 9px;
+  border: 1px solid rgba(200, 210, 225, 0.78);
+  border-radius: 12px;
+  background: rgba(244, 247, 251, 0.86);
+  color: #52657d;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 18px;
+  line-height: 1;
+  box-shadow: 0 6px 18px rgba(23, 32, 51, 0.045);
+}
+
+.claros-hero-symbol--math {
+  color: #315fae;
+  background: rgba(242, 247, 255, 0.9);
+}
+
+.claros-hero-symbol--fraction {
+  color: #57745f;
+  background: rgba(241, 247, 240, 0.9);
+}
+
+.claros-hero-symbol--letters {
+  color: #5b6878;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.claros-hero-symbol--quote {
+  color: #796987;
+  font-size: 15px;
+}
+
+.claros-hero-symbol--punctuation {
+  color: #92704e;
+  font-size: 20px;
+}
+
+.claros-hero-symbol--one {
+  top: 9%;
+  left: 6%;
+  transform: rotate(-11deg);
+}
+.claros-hero-symbol--two {
+  top: 17%;
+  left: 88%;
+  transform: rotate(8deg);
+}
+.claros-hero-symbol--three {
+  top: 30%;
+  left: 14%;
+  transform: rotate(-3deg);
+}
+.claros-hero-symbol--four {
+  top: 18%;
+  left: 35%;
+  transform: rotate(10deg);
+}
+.claros-hero-symbol--five {
+  top: 57%;
+  left: 76%;
+  transform: rotate(-9deg);
+}
+.claros-hero-symbol--six {
+  top: 82%;
+  left: 82%;
+  transform: rotate(4deg);
+}
+.claros-hero-symbol--seven {
+  left: 18%;
+  top: 91%;
+  transform: rotate(-12deg);
+}
+.claros-hero-symbol--eight {
+  left: 49%;
+  top: 86%;
+  transform: rotate(6deg);
+}
+.claros-hero-symbol--nine {
+  top: 53%;
+  left: 7%;
+  transform: rotate(-8deg);
+}
+.claros-hero-symbol--ten {
+  top: 35%;
+  left: 47%;
+  transform: rotate(3deg);
+}
+.claros-hero-symbol--eleven {
+  top: 50%;
+  left: 61%;
+  transform: rotate(11deg);
+}
+.claros-hero-symbol--twelve {
+  top: 56%;
+  left: 43%;
+  transform: rotate(-7deg);
+}
+.claros-hero-symbol--thirteen {
+  top: 47%;
+  left: 18%;
+  transform: rotate(12deg);
+}
+.claros-hero-symbol--fourteen {
+  top: 73%;
+  left: 20%;
+  transform: rotate(-4deg);
+}
+.claros-hero-symbol--fifteen {
+  top: 79%;
+  left: 87%;
+  transform: rotate(7deg);
+}
+.claros-hero-symbol--sixteen {
+  top: 28%;
+  left: 5%;
+  transform: rotate(9deg);
+}
+.claros-hero-symbol--seventeen {
+  top: 90%;
+  left: 66%;
+  transform: rotate(-6deg);
+}
+.claros-hero-symbol--eighteen {
+  top: 16%;
+  left: 75%;
+  transform: rotate(2deg);
+}
+.claros-hero-symbol--nineteen {
+  top: 8%;
+  left: 31%;
+  transform: rotate(-5deg);
+}
+.claros-hero-symbol--twenty {
+  top: 20%;
+  left: 51%;
+  transform: rotate(9deg);
+}
+.claros-hero-symbol--twenty-one {
+  top: 29%;
+  left: 72%;
+  transform: rotate(3deg);
+}
+.claros-hero-symbol--twenty-two {
+  top: 44%;
+  left: 25%;
+  transform: rotate(-10deg);
+}
+.claros-hero-symbol--twenty-three {
+  top: 49%;
+  left: 82%;
+  transform: rotate(5deg);
+}
+.claros-hero-symbol--twenty-four {
+  top: 72%;
+  left: 37%;
+  transform: rotate(-8deg);
+}
+.claros-hero-symbol--twenty-five {
+  top: 63%;
+  left: 57%;
+  transform: rotate(12deg);
+}
+
+@media (max-width: 1179px) {
+  .claros-hero-symbol {
+    display: none;
+  }
+
+  .claros-hero-symbol--one,
+  .claros-hero-symbol--two,
+  .claros-hero-symbol--three,
+  .claros-hero-symbol--four,
+  .claros-hero-symbol--six,
+  .claros-hero-symbol--eight,
+  .claros-hero-symbol--nine,
+  .claros-hero-symbol--ten,
+  .claros-hero-symbol--twelve,
+  .claros-hero-symbol--fourteen,
+  .claros-hero-symbol--seventeen,
+  .claros-hero-symbol--nineteen,
+  .claros-hero-symbol--twenty-two,
+  .claros-hero-symbol--twenty-four,
+  .claros-hero-symbol--twenty-five {
+    display: grid;
+    min-width: 30px;
+    height: 30px;
+    padding: 0 7px;
+    border-radius: 9px;
+    font-size: 15px;
+  }
+
+  .claros-hero-symbol--one {
+    top: 11%;
+    left: 8%;
+  }
+  .claros-hero-symbol--two {
+    top: 22%;
+    left: 84%;
+  }
+  .claros-hero-symbol--three {
+    top: 34%;
+    left: 4%;
+  }
+  .claros-hero-symbol--four {
+    top: 45%;
+    right: auto;
+    left: 84%;
+  }
+  .claros-hero-symbol--six {
+    top: auto;
+    left: 80%;
+    bottom: 12%;
+    font-size: 12px;
+  }
+  .claros-hero-symbol--eight {
+    top: 54%;
+    left: 75%;
+  }
+  .claros-hero-symbol--nine {
+    top: 62%;
+    right: auto;
+    bottom: auto;
+    left: 7%;
+  }
+  .claros-hero-symbol--ten {
+    top: 37%;
+    left: 47%;
+  }
+  .claros-hero-symbol--twelve {
+    top: 57%;
+    left: 43%;
+  }
+  .claros-hero-symbol--fourteen {
+    top: 76%;
+    left: 19%;
+  }
+  .claros-hero-symbol--seventeen {
+    top: 90%;
+    left: 66%;
+    bottom: auto;
+  }
+  .claros-hero-symbol--nineteen {
+    top: 14%;
+    left: 31%;
+  }
+  .claros-hero-symbol--twenty-two {
+    top: 40%;
+    left: 23%;
+  }
+  .claros-hero-symbol--twenty-four {
+    top: 78%;
+    left: 69%;
+  }
+  .claros-hero-symbol--twenty-five {
+    top: 58%;
+    left: 67%;
+  }
+}
+
+@media (max-width: 480px) {
+  .claros-hero-symbol--two,
+  .claros-hero-symbol--six,
+  .claros-hero-symbol--twenty-four {
+    display: none;
+  }
+}

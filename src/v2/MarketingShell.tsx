@@ -11,6 +11,7 @@ import {
 import { Dialog } from "radix-ui";
 import { Link } from "react-router-dom";
 import { Brand } from "./Brand";
+import HeroSymbolDecoration from "./HeroSymbolDecoration";
 
 const steps = [
   {
@@ -69,7 +70,7 @@ function MobileNavigation() {
         <Dialog.Overlay className="fixed inset-0 z-40 bg-[rgba(17,32,51,.28)] backdrop-blur-[2px]" />
         <Dialog.Content className="fixed inset-y-0 right-0 z-50 w-[min(88vw,360px)] border-l border-[var(--claros-line)] bg-white p-6 shadow-[-24px_0_70px_rgba(17,32,51,.14)] outline-none md:hidden">
           <div className="flex items-center justify-between">
-            <Dialog.Title className="font-display text-2xl text-[var(--claros-ink)]">
+            <Dialog.Title className="font-sans text-2xl font-semibold tracking-[-0.03em] text-[var(--claros-ink)]">
               Claros
             </Dialog.Title>
             <Dialog.Close asChild>
@@ -143,13 +144,14 @@ export default function MarketingShell() {
             className="pointer-events-none absolute inset-x-0 top-[-220px] -z-10 mx-auto h-[520px] max-w-[900px] rounded-full bg-[radial-gradient(circle,rgba(21,94,239,.09),transparent_68%)] blur-2xl"
             aria-hidden="true"
           />
-          <div className="mx-auto max-w-[940px]">
+          <HeroSymbolDecoration />
+          <div className="relative z-10 mx-auto max-w-[940px]">
             <p className="text-[12px] font-bold uppercase tracking-[0.18em] text-[var(--claros-blue-dark)] sm:text-[13px]">
               Built for students who find typing difficult
             </p>
             <h1
               aria-label="Think it. Say it. Put it on the page."
-              className="mt-7 font-display text-[clamp(3.6rem,8.3vw,7.5rem)] leading-[0.87] tracking-[-0.045em] text-[var(--claros-ink)]"
+              className="mt-7 font-sans text-[clamp(2.65rem,7.1vw,6.75rem)] font-semibold leading-[0.98] tracking-[-0.055em] text-[var(--claros-ink)]"
             >
               Think it.{" "}
               <span className="text-[var(--claros-blue)]">Say it.</span>
@@ -177,7 +179,7 @@ export default function MarketingShell() {
               <p className="text-[12px] font-bold uppercase tracking-[0.17em] text-[var(--claros-blue-dark)]">
                 From thought to worksheet
               </p>
-              <h2 className="mt-4 font-display text-5xl leading-[0.96] tracking-[-0.03em] sm:text-6xl">
+              <h2 className="mt-4 font-sans text-5xl font-semibold leading-[1.04] tracking-[-0.04em] sm:text-6xl">
                 Just talk to Claros.
               </h2>
               <p className="mt-5 text-base leading-7 text-[var(--claros-muted)] sm:text-lg">
@@ -219,7 +221,7 @@ export default function MarketingShell() {
               <p className="text-[12px] font-bold uppercase tracking-[0.17em] text-[#9fc1ff]">
                 Student control
               </p>
-              <h2 className="mt-5 max-w-[680px] font-display text-5xl leading-[0.96] tracking-[-0.03em] sm:text-6xl">
+              <h2 className="mt-5 max-w-[680px] font-sans text-5xl font-semibold leading-[1.04] tracking-[-0.04em] sm:text-6xl">
                 Your answer stays yours.
               </h2>
               <p className="mt-6 max-w-[620px] text-base leading-7 text-[#bdc8da] sm:text-lg">
@@ -253,7 +255,7 @@ export default function MarketingShell() {
               <p className="text-[12px] font-bold uppercase tracking-[0.17em] text-[var(--claros-blue-dark)]">
                 Accessibility
               </p>
-              <h2 className="mt-4 font-display text-5xl leading-[0.96] tracking-[-0.03em] sm:text-6xl">
+              <h2 className="mt-4 font-sans text-5xl font-semibold leading-[1.04] tracking-[-0.04em] sm:text-6xl">
                 Voice-first, never voice-only.
               </h2>
               <p className="mt-6 max-w-[680px] text-lg leading-8 text-[var(--claros-muted)]">
@@ -276,7 +278,7 @@ export default function MarketingShell() {
 
         <section className="px-5 pb-20 sm:px-8 sm:pb-24">
           <div className="mx-auto flex max-w-[1180px] flex-col items-start justify-between gap-8 border-t border-[var(--claros-line-strong)] pt-12 sm:flex-row sm:items-end">
-            <h2 className="max-w-[650px] font-display text-5xl leading-[0.98] tracking-[-0.03em] sm:text-6xl">
+            <h2 className="max-w-[650px] font-sans text-5xl font-semibold leading-[1.04] tracking-[-0.04em] sm:text-6xl">
               Have a worksheet to finish?
             </h2>
             <PrimaryLink>Upload it and start talking</PrimaryLink>

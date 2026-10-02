@@ -1,0 +1,6 @@
+- [Live UX inspection](live-ux-inspection.md) — inspect the public sample with system Chromium when local full-stack setup would change an intentionally untouched import.
+- [Design reference validation](design-reference-validation.md) — verify Refero search hits visually; indexed snippets often describe the site's own controls rather than the referenced product.
+- [Homepage reference rationale](homepage-reference-rationale.md) — retain Claros's page structure; refine hero-symbol density and heading typography without adopting the sandbox redesign.
+- [Speech verification](browser-speech-verification.md) — event fixtures verify controls, not audible playback or a live AI conversation.
+- [Realtime instruction scope](realtime-instruction-scope.md) — greeting-only response overrides discard the grounded session prompt; keep greeting policy server-owned.
+- [Embedded preview verification](embedded-preview-verification.md) — managed port mappings can revert; verify public routing and distinguish test-only framing failures.

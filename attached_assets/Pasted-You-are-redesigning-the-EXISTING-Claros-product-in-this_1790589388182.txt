@@ -1,0 +1,574 @@
+You are redesigning the EXISTING Claros product in this Replit project.
+
+IMPORTANT: this project was imported directly from the real GitHub repository. You have access to the existing source code, design system, frontend components, product documentation, routes, and current implementation.
+
+Do not treat this as a greenfield project.
+
+Do not invent a new Claros brand.
+
+Do not implement anything into the production application yet.
+
+Your task is to research, audit, and create substantially better visual/UX redesign proposals in Design Canvas while preserving the core identity and product architecture of the existing Claros app.
+
+CURRENT LIVE PRODUCT
+https://claros-fnaobzrxeq-uc.a.run.app/
+
+--------------------------------------------------
+1. FIRST: STUDY THE ACTUAL PRODUCT
+--------------------------------------------------
+
+Before creating designs:
+
+Inspect the repository thoroughly.
+
+Read at minimum:
+
+- README.md
+- CLAROS_V2_DESIGN.md
+- CLAROS_V2_PRODUCT_CONTRACT.md
+- CLAROS_V2_SOL_ULTRA_EXECUTION_PRD.md where relevant
+- current frontend components
+- current routing
+- current CSS/design tokens
+- typography configuration
+- accessibility behavior
+- responsive behavior
+- animation/motion code
+
+Run the current project if needed.
+
+Inspect the current live product and the local running version visually.
+
+Use browser tools and screenshots.
+
+Walk through as much of the real sample experience as possible:
+
+- landing page
+- worksheet intake
+- recognized-question review
+- active question
+- typing
+- voice controls
+- conversation
+- "Your words"
+- suggested wording
+- exact-answer review
+- approval
+- answer placement
+- completed document/export
+
+Inspect desktop and mobile.
+
+Do not design from memory or from the README alone.
+
+--------------------------------------------------
+2. PRESERVE THE EXISTING CLAROS BRAND DNA
+--------------------------------------------------
+
+The previous redesign attempt made a major mistake:
+
+It effectively rebranded Claros into a cream / botanical-green / oversized-serif / editorial lifestyle product.
+
+Do NOT do that.
+
+The redesign should feel like:
+
+"What if the existing Claros had an exceptional product designer refine it for another month?"
+
+NOT:
+
+"What if Claros became an Awwwards editorial website?"
+
+The current Claros BLUE identity should remain central.
+
+Before designing anything:
+
+- identify the existing blue colors from the codebase;
+- identify the current supporting neutrals;
+- identify the existing typography;
+- identify recognizable Claros visual elements;
+- document what should be preserved.
+
+You may refine the exact blue shades, tonal system, contrast, typography, spacing and component execution.
+
+You may introduce additional blues, navy, slate, white and very pale blue surfaces.
+
+You may introduce ONE restrained secondary accent only if it solves a specific hierarchy or state problem.
+
+Do not replace blue with green, beige, ochre, brown or another entirely different brand palette.
+
+--------------------------------------------------
+3. VISUAL TARGET
+--------------------------------------------------
+
+Claros should feel like:
+
+- modern educational software;
+- exceptionally polished productivity software;
+- accessible without looking clinical;
+- calm without looking sleepy;
+- sophisticated without looking like an editorial magazine;
+- human without looking childish;
+- precise without resembling enterprise software;
+- contemporary without looking AI-generated.
+
+Think:
+
+clean product design + excellent typography + excellent state design + restrained motion.
+
+The application itself should supply the visual interest.
+
+The worksheet should supply texture.
+
+The interaction should supply personality.
+
+We do NOT need decorative art direction to make the product memorable.
+
+--------------------------------------------------
+4. PRODUCT THESIS
+--------------------------------------------------
+
+Claros exists for students who find typing harder than thinking.
+
+The fundamental interaction is:
+
+worksheet
+→ questions recognized
+→ student chooses a question
+→ student speaks or types
+→ Claros helps when needed
+→ student's words remain distinct from suggested wording
+→ student reviews the EXACT final answer
+→ student explicitly approves it
+→ approved answer is placed into a completed copy of the worksheet
+→ student exports that completed document
+
+The student remains in control.
+
+The worksheet remains the source of truth.
+
+Claros is NOT:
+
+- a generic AI chatbot;
+- a tutoring dashboard;
+- a PDF editor;
+- an autonomous homework-answering bot;
+- an enterprise workflow product.
+
+The strongest product principle remains:
+
+"The answer is yours. Getting it onto the page can be easier."
+
+--------------------------------------------------
+5. USE REAL DESIGN RESEARCH
+--------------------------------------------------
+
+Do not design from generic model taste.
+
+Research how strong real products solve the specific interactions Claros has.
+
+PRIMARY REFERENCES:
+
+1. REFERO
+
+If Refero MCP is connected, USE IT extensively.
+
+If Refero MCP is not available, use browser research on:
+https://refero.design/
+
+Search real screens and flows, not just aesthetic styles.
+
+Relevant searches should include concepts such as:
+
+- document editing
+- PDF/document viewing
+- writing tools
+- education
+- productivity
+- accessibility
+- voice input
+- audio input
+- text editing
+- proofreading
+- revision comparison
+- approval
+- confirmation
+- review before submitting
+- file upload
+- document upload
+- progress
+- focused task flows
+- mobile composer
+- mobile document viewer
+- bottom sheets
+- contextual tools
+- successful completion
+- export/download
+- error recovery
+
+2. MOBBIN / REPLIT'S BUILT-IN DESIGN REFERENCES
+
+Use Replit Design's real-product reference library as another major research source.
+
+Study complete flows where possible.
+
+Do not copy a single product.
+
+Extract interaction principles.
+
+3. 21ST.DEV
+
+21st.dev is SECONDARY.
+
+Use it only when an isolated component or interaction pattern would genuinely help.
+
+Do not let 21st.dev determine the overall Claros aesthetic.
+
+--------------------------------------------------
+6. RESEARCH BY PROBLEM, NOT BY "STYLE"
+--------------------------------------------------
+
+For each important Claros screen, research how real products solve that specific problem.
+
+For example:
+
+QUESTION RECOGNITION
+Research:
+- import review
+- detected-item confirmation
+- OCR/document review
+- onboarding confirmation
+- multi-step verification
+
+ACTIVE QUESTION
+Research:
+- focused writing environments
+- distraction-free editors
+- tutoring interfaces
+- text composers
+- voice-input products
+
+VOICE
+Research:
+- recording/listening states
+- speech transcription
+- interruption controls
+- microphone unavailable/error states
+
+YOUR WORDS VS SUGGESTED WORDING
+Research:
+- tracked changes
+- rewriting tools
+- revision comparison
+- proposed edits
+- before/after copy
+
+EXACT ANSWER REVIEW
+Research:
+- high-confidence confirmation
+- review-before-submit
+- signing/approval
+- irreversible-action review
+- form confirmation
+
+WORKSHEET CONTEXT
+Research:
+- document readers
+- side-by-side editing
+- contextual document tools
+- document annotation
+- desktop/mobile document transitions
+
+ANSWER PLACEMENT
+Research:
+- success states
+- document changes
+- completed-document previews
+- state transitions that visually explain where something went
+
+MOBILE
+Research actual iOS/mobile product flows.
+
+Do not simply shrink desktop mockups.
+
+--------------------------------------------------
+7. THE BIGGEST DESIGN OPPORTUNITY
+--------------------------------------------------
+
+Do not try to make the LANDING PAGE the most visually impressive part of Claros.
+
+The product's memorable moment should be:
+
+student speaks
+→ words appear
+→ student shapes or confirms them
+→ exact answer is reviewed
+→ student approves
+→ answer visibly resolves into the completed worksheet
+
+Spend design effort there.
+
+The strongest visual identity can come from excellent interaction behavior rather than decorative graphics.
+
+--------------------------------------------------
+8. TYPOGRAPHY
+--------------------------------------------------
+
+Do NOT make giant editorial serif typography the entire visual identity.
+
+The application workspace should primarily use an extremely legible modern sans-serif.
+
+A display serif MAY be used selectively in marketing if it genuinely improves the brand.
+
+If you use a serif:
+
+- it should be an accent;
+- it should not dominate every heading;
+- it should not make Claros resemble a magazine, museum, architecture studio, luxury brand or wellness company.
+
+Workspace readability and usability come first.
+
+--------------------------------------------------
+9. AVOID THESE AI DESIGN CLICHES
+--------------------------------------------------
+
+Do not use:
+
+- cream + botanical green as the main palette;
+- giant editorial typography everywhere;
+- faux-magazine layouts;
+- oversized empty whitespace merely to look sophisticated;
+- floating paper mockups as decoration;
+- sticky-note decoration;
+- museum/catalog art direction;
+- huge abstract circles;
+- pointless blobs;
+- glowing AI orbs;
+- purple-blue gradient soup;
+- glassmorphism;
+- endless rounded cards;
+- excessive pill controls;
+- bento grids without a product reason;
+- generic AI assistant bubbles;
+- fake testimonials;
+- fake institutional logos;
+- fake usage statistics;
+- sparkles;
+- gratuitous gradients;
+- arbitrary decorative animation.
+
+Also avoid the opposite extreme:
+
+Do not make it look like a plain enterprise dashboard.
+
+--------------------------------------------------
+10. IMPROVE THE REAL UX PROBLEMS
+--------------------------------------------------
+
+Focus redesign energy on actual weaknesses in the current product.
+
+Pay particular attention to:
+
+- competing hierarchy between conversation, answer editor and worksheet;
+- too much unused workspace before conversation begins;
+- narrow/cropped worksheet context;
+- mobile vertical stacking;
+- ensuring answer controls appear at the right moment;
+- making voice status clear without dominating the experience;
+- making typed input equally first-class;
+- reducing repeated success/error/status copy;
+- showing question progress without making a wizard/dashboard;
+- making source context easy to inspect;
+- making exact-answer review feel consequential;
+- making the destination of the approved answer extremely clear;
+- making answer placement visually satisfying;
+- differentiating:
+  - source worksheet
+  - student's words
+  - suggested wording
+  - approved answer
+  - completed derivative document
+
+Do not solve these problems merely by adding more panels or cards.
+
+--------------------------------------------------
+11. CREATE THREE ACTUALLY DIFFERENT DIRECTIONS
+--------------------------------------------------
+
+Create THREE redesign directions in Design Canvas.
+
+They must differ structurally, not merely in typography or decorative style.
+
+All three MUST preserve the blue Claros identity.
+
+All three should feel like the same brand.
+
+Think of them as different product-layout hypotheses.
+
+Possible structural axes to explore:
+
+DIRECTION 1
+Question-first focused workspace.
+
+The current question dominates.
+Conversation/input is immediately available.
+Worksheet context appears intelligently when useful.
+
+DIRECTION 2
+Document-centered workspace.
+
+The authentic worksheet remains strongly visible.
+Tools attach contextually to the current question rather than living in permanent panels.
+
+DIRECTION 3
+Adaptive two-surface workspace.
+
+Student work and worksheet context share space, but the relative emphasis changes according to the current state:
+question → conversation → answer → review → placement.
+
+These are starting hypotheses, not required final solutions.
+
+Research before deciding.
+
+--------------------------------------------------
+12. REQUIRED SCREENS FOR EACH DIRECTION
+--------------------------------------------------
+
+Create these states for EACH direction:
+
+1. Landing page
+2. PDF/worksheet intake
+3. Questions recognized
+4. Active question - empty/start state
+5. Student speaking / live transcription
+6. Student typing
+7. Claros helping during conversation
+8. Answer draft exists
+9. "Your words" vs "Suggested wording"
+10. Exact-answer review
+11. Answer placement transition/result
+12. Completed worksheet/export
+13. Voice unavailable / connection error
+14. Mobile active-question screen
+15. Mobile exact-answer review
+16. Mobile worksheet/source view
+
+Use realistic Claros content.
+
+Do not use lorem ipsum.
+
+Use the existing biology sample where appropriate.
+
+--------------------------------------------------
+13. MOTION
+--------------------------------------------------
+
+Motion should explain state.
+
+Potential places to invest:
+
+- microphone activation;
+- transcription appearing;
+- switching between words and suggested wording;
+- moving between questions;
+- entering exact review;
+- answer approval;
+- answer placement into the completed document.
+
+Keep most other UI static.
+
+Prefer subtle transform, opacity and spatial continuity.
+
+Respect reduced-motion preferences.
+
+No essential meaning may depend on animation.
+
+--------------------------------------------------
+14. ACCESSIBILITY
+--------------------------------------------------
+
+Preserve or improve:
+
+- keyboard navigation;
+- visible focus;
+- WCAG-appropriate contrast;
+- large touch targets;
+- screen-reader semantics;
+- typed alternative to voice;
+- voice-unavailable fallback;
+- reduced motion;
+- readable line lengths;
+- clear status announcements;
+- no reliance on color alone;
+- mobile ergonomics.
+
+Accessibility should be embedded in the product, not advertised through an "accessible-looking" visual aesthetic.
+
+--------------------------------------------------
+15. DO NOT TOUCH THE PRODUCT YET
+--------------------------------------------------
+
+This is a DESIGN EXPLORATION.
+
+Do NOT:
+
+- edit the production frontend;
+- change application logic;
+- change backend behavior;
+- modify APIs;
+- change PDF handling;
+- alter OpenAI integration;
+- implement RevenueCat;
+- modify deployment;
+- commit code;
+- deploy anything.
+
+Create the redesign work in Design Canvas only.
+
+Use the actual application as a reference artifact beside the proposed designs whenever possible.
+
+--------------------------------------------------
+16. FINAL OUTPUT
+--------------------------------------------------
+
+At the end, provide:
+
+A. CURRENT VISUAL SYSTEM
+- exact existing Claros palette extracted from the repo
+- current typography
+- current reusable patterns
+- what should remain recognizable
+
+B. RESEARCH NOTES
+For each important Refero/Mobbin reference:
+- product/screen/flow
+- specific pattern observed
+- why it is relevant
+- what Claros should borrow
+- what Claros should NOT copy
+
+Do not merely produce a mood board.
+
+C. THREE DIRECTIONS
+Show all required screens for all three.
+
+D. COMPARISON
+Explain the structural tradeoffs among the three.
+
+E. YOUR RECOMMENDED HYBRID
+If the best result combines pieces of multiple directions, show an additional consolidated proposal.
+
+F. IMPLEMENTATION IMPACT
+Identify:
+- purely visual changes
+- component changes
+- responsive changes
+- motion changes
+- changes that would require application-state work
+- changes that could create regression risk
+
+Then STOP.
+
+Do not implement anything.
+
+I will choose the direction before code is modified.
