@@ -43,6 +43,31 @@ describe("existing Claros hero with scattered symbols", () => {
     expect(within(hero).getAllByRole("link")).toHaveLength(1);
   });
 
+  it("uses the updated labels and clear icons for each workflow step", () => {
+    renderHomepage();
+    expect(screen.getByText("You are always in control")).not.toHaveClass(
+      "uppercase",
+    );
+    expect(screen.queryByText("Student control")).not.toBeInTheDocument();
+    const accessibility = document.querySelector("#accessibility")!;
+    expect(
+      within(accessibility as HTMLElement).getByText("Accessibility"),
+    ).not.toHaveClass("uppercase");
+    const icons = [
+      ["Talk naturally", "lucide-mic"],
+      ["Work it out", "lucide-lightbulb"],
+      ["Approve your words", "lucide-circle-check"],
+      ["Get the completed PDF", "lucide-file-down"],
+    ];
+    for (const [title, icon] of icons) {
+      const step = screen.getByRole("heading", { name: title }).closest("li")!;
+      expect(step.querySelector(`svg.${icon}`)).toHaveAttribute(
+        "aria-hidden",
+        "true",
+      );
+    }
+  });
+
   it("preserves the original content, primary action, and page structure", () => {
     renderHomepage();
     expect(

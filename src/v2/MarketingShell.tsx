@@ -1,11 +1,11 @@
 import {
   ArrowRight,
   Check,
-  FileCheck2,
+  CircleCheck,
+  FileDown,
+  Lightbulb,
   Menu,
-  MessageCircleMore,
-  Mic2,
-  PenLine,
+  Mic,
   X,
 } from "lucide-react";
 import { Dialog } from "radix-ui";
@@ -15,22 +15,22 @@ import HeroSymbolDecoration from "./HeroSymbolDecoration";
 
 const steps = [
   {
-    icon: Mic2,
+    icon: Mic,
     title: "Talk naturally",
     copy: "Say the answer you know, or explain where you’re stuck.",
   },
   {
-    icon: MessageCircleMore,
+    icon: Lightbulb,
     title: "Work it out",
     copy: "Claros helps with the question while keeping your words in view.",
   },
   {
-    icon: PenLine,
+    icon: CircleCheck,
     title: "Approve your words",
     copy: "Edit and review the exact answer before anything is added.",
   },
   {
-    icon: FileCheck2,
+    icon: FileDown,
     title: "Get the completed PDF",
     copy: "Your approved answer is placed into a new copy of the worksheet.",
   },
@@ -218,8 +218,8 @@ export default function MarketingShell() {
         <section className="bg-[var(--claros-night)] px-5 py-20 text-white sm:px-8 sm:py-24">
           <div className="mx-auto grid max-w-[1180px] gap-12 lg:grid-cols-[1fr_.8fr] lg:items-end">
             <div>
-              <p className="text-[12px] font-bold uppercase tracking-[0.17em] text-[#9fc1ff]">
-                Student control
+              <p className="text-[12px] font-bold tracking-[0.17em] text-[#9fc1ff]">
+                You are always in control
               </p>
               <h2 className="mt-5 max-w-[680px] font-sans text-5xl font-semibold leading-[1.04] tracking-[-0.04em] sm:text-6xl">
                 Your answer stays yours.
@@ -252,7 +252,7 @@ export default function MarketingShell() {
         <section id="accessibility" className="px-5 py-20 sm:px-8 sm:py-24">
           <div className="mx-auto grid max-w-[1180px] gap-12 lg:grid-cols-[1fr_.72fr] lg:gap-24">
             <div>
-              <p className="text-[12px] font-bold uppercase tracking-[0.17em] text-[var(--claros-blue-dark)]">
+              <p className="text-[12px] font-bold tracking-[0.17em] text-[var(--claros-blue-dark)]">
                 Accessibility
               </p>
               <h2 className="mt-4 font-sans text-5xl font-semibold leading-[1.04] tracking-[-0.04em] sm:text-6xl">

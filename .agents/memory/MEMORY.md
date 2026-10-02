@@ -7,3 +7,4 @@
 - [Package installation portability](package-install-portability.md) — check Node version, exact pins, and public registry URLs after managed installs.
 - [Cloud Run public URL](cloud-run-public-url.md) — align exact host validation with the advertised URL; API-only smoke success does not prove the public homepage works.
 - [GitHub workflow permissions](github-workflow-permissions.md) — workflow writes may fail with 404 even when ordinary code writes succeed; check declared scopes.
+- [Large tool output](large-tool-output.md) — read large structured shell results from a temporary file; callback stdout can lose delimiters or its beginning.

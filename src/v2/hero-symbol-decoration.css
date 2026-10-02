@@ -72,7 +72,7 @@
 .claros-hero-symbol--four {
   top: 18%;
   left: 35%;
-  transform: rotate(10deg);
+  transform: translateY(-12px) rotate(10deg);
 }
 .claros-hero-symbol--five {
   top: 57%;
