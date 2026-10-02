@@ -14,6 +14,11 @@ ORIGIN = "https://claros-123456789.us-central1.run.app"
 
 
 class PublicUrlTests(unittest.TestCase):
+    def setUp(self):
+        cli = patch.object(RESOLVE.__globals__["shutil"], "which", return_value="/usr/bin/gcloud")
+        cli.start()
+        self.addCleanup(cli.stop)
+
     def service(self, urls=None):
         return {
             "metadata": {
@@ -60,6 +65,17 @@ class PublicUrlTests(unittest.TestCase):
             self.assertEqual(RESOLVE(ORIGIN), ORIGIN)
             run.assert_not_called()
 
+    def test_invalid_deployment_identifiers_are_rejected(self):
+        with patch.object(RESOLVE.__globals__["subprocess"], "run") as run:
+            with self.assertRaises(ValueError):
+                RESOLVE(
+                    "https://claros-hash-uc.a.run.app",
+                    service_name="--project=attacker",
+                    region="us-central1",
+                    project_id="claros-project",
+                )
+            run.assert_not_called()
+
     def test_legacy_origin_is_resolved_from_authenticated_service_metadata(self):
         import json
 
@@ -82,6 +98,11 @@ class PublicUrlTests(unittest.TestCase):
 
         root = Path(__file__).resolve().parents[3]
         renderer = runpy.run_path(str(root / "scripts/gate3-container-render.py"))
+        versions = {
+            "cookie_secret_version": "1",
+            "review_secret_version": "2",
+            "openai_secret_version": "3",
+        }
         with patch.object(
             RESOLVE.__globals__["subprocess"], "run",
             return_value=SimpleNamespace(stdout=json.dumps(self.service())),
@@ -89,10 +110,13 @@ class PublicUrlTests(unittest.TestCase):
             rendered = renderer["render_template"](
                 (root / "deploy/cloud-run.service.template.yaml").read_text(),
                 project_id="claros-project", region="us-central1", service_name="claros",
-                image_uri="us-central1-docker.pkg.dev/claros-project/cloud-run-source-deploy/claros@sha256:" + "a" * 64,
+                image_uri=(
+                    "us-central1-docker.pkg.dev/claros-project/"
+                    "cloud-run-source-deploy/claros@sha256:" + "a" * 64
+                ),
                 gcs_bucket="claros-tests", public_origin="https://claros-hash-uc.a.run.app",
-                release_sha="b" * 40, cookie_secret_version="1",
-                review_secret_version="2", openai_secret_version="3",
+                release_sha="b" * 40,
+                **versions,
             )
         self.assertIn(ORIGIN, rendered)
         self.assertNotIn("claros-hash-uc.a.run.app", rendered)
@@ -122,6 +146,14 @@ class PublicUrlTests(unittest.TestCase):
     def test_homepage_is_checked(self):
         with patch.dict(CHECK.__globals__, {"urlopen": MagicMock(return_value=self.response())}):
             CHECK(ORIGIN)
+
+    def test_homepage_rejects_non_https_and_credentialed_origins(self):
+        open_url = MagicMock()
+        with patch.dict(CHECK.__globals__, {"urlopen": open_url}):
+            for origin in ("file:///etc/passwd", "http://example.test", "https://user@example.test"):
+                with self.subTest(origin=origin), self.assertRaises(ValueError):
+                    CHECK(origin)
+        open_url.assert_not_called()
 
     def test_bad_status_redirect_and_wrong_page_are_rejected(self):
         for kind in ("status", "redirect", "content_type", "html"):

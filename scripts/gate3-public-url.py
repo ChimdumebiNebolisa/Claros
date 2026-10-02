@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from urllib.parse import urlsplit
@@ -48,9 +49,19 @@ def resolve_public_origin(
     project_id = project_id or os.environ.get("PROJECT_ID")
     if not all((service_name, region, project_id)):
         raise ValueError("Cloud Run URL resolution requires service, region, and project")
-    result = subprocess.run(
+    for value, pattern in (
+        (service_name, r"[a-z]([-a-z0-9]{0,61}[a-z0-9])?"),
+        (region, r"[a-z]+-[a-z0-9]+[0-9]"),
+        (project_id, r"[a-z][a-z0-9-]{4,28}[a-z0-9]"),
+    ):
+        if re.fullmatch(pattern, value) is None:
+            raise ValueError("Invalid Cloud Run deployment identifier")
+    executable = shutil.which("gcloud")
+    if executable is None:
+        raise ValueError("The authenticated gcloud CLI is required")
+    result = subprocess.run(  # noqa: S603 - validated identifiers; argument list, no shell.
         [
-            "gcloud", "run", "services", "describe", service_name,
+            executable, "run", "services", "describe", service_name,
             "--project", project_id, "--region", region, "--format=json",
         ],
         check=True,
@@ -62,7 +73,18 @@ def resolve_public_origin(
 
 
 def verify_homepage(origin: str) -> None:
-    with urlopen(f"{origin}/", timeout=30) as response:
+    parsed = urlsplit(origin)
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.path
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError("Homepage verification requires one credential-free HTTPS origin")
+    with urlopen(f"{origin}/", timeout=30) as response:  # noqa: S310 - HTTPS-only origin above.
         if response.status != 200 or response.geturl() != f"{origin}/":
             raise ValueError("The advertised homepage must return HTTP 200 without redirecting")
         if "text/html" not in response.headers.get("Content-Type", ""):
@@ -83,7 +105,11 @@ def main() -> int:
     args = parser.parse_args()
     try:
         if args.command == "select":
-            print(public_origin(json.load(sys.stdin), service_name=args.service_name, region=args.region))
+            print(
+                public_origin(
+                    json.load(sys.stdin), service_name=args.service_name, region=args.region
+                )
+            )
         else:
             verify_homepage(args.origin)
             print("Public Claros homepage: HTTP 200")
