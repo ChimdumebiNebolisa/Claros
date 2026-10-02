@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import runpy
 import sys
 from pathlib import Path
 from urllib import parse
@@ -73,6 +74,15 @@ def render_template(
     ):
         raise ValueError("--image-uri must be the Claros Artifact Registry image by digest")
 
+    resolve_origin = runpy.run_path(str(ROOT / "scripts" / "gate3-public-url.py"))[
+        "resolve_public_origin"
+    ]
+    public_origin = resolve_origin(
+        validate_origin(public_origin),
+        project_id=project_id,
+        region=region,
+        service_name=service_name,
+    )
     substitutions = {
         "{{SERVICE_NAME}}": service_name,
         "{{PROJECT_ID}}": project_id,

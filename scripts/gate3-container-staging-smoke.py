@@ -35,7 +35,8 @@ def base_url(argument: str | None) -> str:
     value = argument or os.environ.get("CLAROS_STAGING_BASE_URL")
     if not value:
         raise RuntimeError("set CLAROS_STAGING_BASE_URL or pass --base-url")
-    return value
+    helpers = runpy.run_path(str(ROOT / "scripts" / "gate3-public-url.py"))
+    return helpers["resolve_public_origin"](value)
 
 
 def seed(
@@ -63,7 +64,9 @@ def seed(
     )
     if verify_proxy_identity:
         assert_proxy_identity(url, prior_uploads=len(evidence))
+    runpy.run_path(str(ROOT / "scripts" / "gate3-public-url.py"))["verify_homepage"](url)
     return {
+        "public_homepage": "ok",
         "assignments": len(evidence),
         "ownership_isolation": "ok",
         "phase": "seed",
@@ -82,7 +85,9 @@ def verify(url: str, state_file: Path, shared: dict[str, Any]) -> dict[str, obje
     client = http_client(url, owner_cookie=owner_cookie)
     verify_flow(client, evidence)
     assert_owner(client, evidence)
+    runpy.run_path(str(ROOT / "scripts" / "gate3-public-url.py"))["verify_homepage"](url)
     return {
+        "public_homepage": "ok",
         "assignments": len(evidence),
         "gcs_revision_persistence": "ok",
         "ownership_isolation": "ok",

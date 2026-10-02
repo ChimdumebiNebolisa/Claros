@@ -5,3 +5,5 @@
 - [Realtime instruction scope](realtime-instruction-scope.md) — greeting-only response overrides discard the grounded session prompt; keep greeting policy server-owned.
 - [Embedded preview verification](embedded-preview-verification.md) — managed port mappings can revert; verify public routing and distinguish test-only framing failures.
 - [Package installation portability](package-install-portability.md) — check Node version, exact pins, and public registry URLs after managed installs.
+- [Cloud Run public URL](cloud-run-public-url.md) — align exact host validation with the advertised URL; API-only smoke success does not prove the public homepage works.
+- [GitHub workflow permissions](github-workflow-permissions.md) — workflow writes may fail with 404 even when ordinary code writes succeed; check declared scopes.
