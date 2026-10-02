@@ -4,3 +4,4 @@
 - [Speech verification](browser-speech-verification.md) — event fixtures verify controls, not audible playback or a live AI conversation.
 - [Realtime instruction scope](realtime-instruction-scope.md) — greeting-only response overrides discard the grounded session prompt; keep greeting policy server-owned.
 - [Embedded preview verification](embedded-preview-verification.md) — managed port mappings can revert; verify public routing and distinguish test-only framing failures.
+- [Package installation portability](package-install-portability.md) — check Node version, exact pins, and public registry URLs after managed installs.
